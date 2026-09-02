@@ -50,8 +50,6 @@ let recalling = false;
 let applying = false;
 let applyGen = 0;
 let keys: AbortController | null = null;
-let boundRoot: HTMLElement | null = null;
-let rebindTimer: ReturnType<typeof setInterval> | undefined;
 let applyTimer: ReturnType<typeof setTimeout> | undefined;
 let applyEl: HTMLElement | null = null;
 let applyAtStart = true;
@@ -75,9 +73,9 @@ function normalize(text: string): string {
 }
 
 function chatEditor(t: EventTarget | null): HTMLElement | null {
-    const el = t instanceof Element ? t : null;
+    const el = t instanceof Element ? t : t instanceof Node ? t.parentElement : null;
     const hit = el?.closest?.(EDITOR_SEL);
-    return hit instanceof HTMLElement ? hit : getActiveEditor();
+    return hit instanceof HTMLElement ? hit : null;
 }
 
 function caretOnEdge(el: HTMLElement): { first: boolean; last: boolean } {
@@ -227,14 +225,12 @@ function onKeyDown(e: KeyboardEvent) {
     if (e.isComposing || e.keyCode === 229) return;
     if (e.ctrlKey || e.metaKey) return;
 
-    const el = chatEditor(e.target);
-    if (!el || !el.contains(e.target as Node) && e.target !== el) {
-        const focused = chatEditor(document.activeElement);
-        if (!focused) return;
-        if (e.key !== "ArrowUp" && e.key !== "ArrowDown" && e.key !== "Enter" && e.key !== "Escape") return;
-    }
     const editor = chatEditor(e.target) ?? chatEditor(document.activeElement);
     if (!editor) return;
+    if (e.target instanceof Node && !editor.contains(e.target) && e.target !== editor) {
+        if (e.key !== "ArrowUp" && e.key !== "ArrowDown" && e.key !== "Enter" && e.key !== "Escape") return;
+        if (document.activeElement !== editor && !editor.contains(document.activeElement)) return;
+    }
 
     if (e.key === "Escape" && recalling && !e.altKey && !e.shiftKey) {
         dropRecall(editor);
@@ -296,26 +292,25 @@ function onClick(e: MouseEvent) {
     if (editor) pushEntry(editorText(editor));
 }
 
-function onPointerDown() {
+function onPointerDown(e: Event) {
     if (!recalling || applying) return;
+    if (e.target instanceof Node) {
+        const root = e.target.getRootNode();
+        if (root instanceof ShadowRoot && root.host.id === "bloom-root") return;
+    }
     recalling = false;
     hideHud();
 }
 
-function bindComposer(): boolean {
-    const root = document.querySelector("form[data-type=\"unified-composer\"]");
-    if (!(root instanceof HTMLElement)) return false;
-    if (boundRoot === root && keys) return true;
-    keys?.abort();
+function bindWindow() {
+    if (keys) return;
     keys = new AbortController();
-    boundRoot = root;
     const { signal } = keys;
-    root.addEventListener("keydown", onKeyDown, { capture: true, signal });
-    root.addEventListener("input", onInput, { capture: true, signal });
-    root.addEventListener("submit", onSubmit, { capture: true, signal });
-    root.addEventListener("click", onClick, { capture: true, signal });
-    root.addEventListener("pointerdown", onPointerDown, { capture: true, signal });
-    return true;
+    window.addEventListener("keydown", onKeyDown, { signal });
+    window.addEventListener("input", onInput, { signal });
+    window.addEventListener("submit", onSubmit, { signal });
+    window.addEventListener("click", onClick, { signal });
+    window.addEventListener("pointerdown", onPointerDown, { signal });
 }
 
 function removeEntry(index: number) {
@@ -444,19 +439,12 @@ export default definePlugin({
         ensureHost();
         cursor = getEntries().length;
         recalling = false;
-        bindComposer();
-        if (rebindTimer !== undefined) clearInterval(rebindTimer);
-        rebindTimer = setInterval(bindComposer, 1_500);
+        bindWindow();
     },
 
     stop() {
         keys?.abort();
         keys = null;
-        boundRoot = null;
-        if (rebindTimer !== undefined) {
-            clearInterval(rebindTimer);
-            rebindTimer = undefined;
-        }
         hideHud();
         recentAt.clear();
         clearTimeout(applyTimer);

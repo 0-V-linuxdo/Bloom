@@ -3,18 +3,17 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * IdleReady replaces PageTouch. The host must not start on a ChatGPT
- * click: hydrateRoot(document) queues that pointerdown, and a body
- * sibling in the same turn drops the event (React #32173, MCP-SA #190).
- *
- * Sequence: 8s floor + islands → requestIdleCallback → shell (FAB)
- * → next idle → plugins. The Violentmonkey menu may skip the wait.
+ * IdleReady mounts the FAB. HostReady plugins wait for a Bloom-chrome
+ * gesture (FAB or Violentmonkey menu) so they never write head / observe
+ * the composer during ChatGPT's remaining hydrate.
  */
 
 let shellReady = false;
 let idleReady = false;
+let chromeReady = false;
 const shellWaiters: Array<() => void> = [];
 const idleWaiters: Array<() => void> = [];
+const chromeWaiters: Array<() => void> = [];
 
 function flush(waiters: Array<() => void>) {
     const list = waiters.splice(0);
@@ -34,12 +33,23 @@ function fireIdle() {
     flush(idleWaiters);
 }
 
+function fireChrome() {
+    if (chromeReady) return;
+    chromeReady = true;
+    if (!shellReady) fireShell();
+    flush(chromeWaiters);
+}
+
 export function isShellReady(): boolean {
     return shellReady;
 }
 
 export function isIdleReady(): boolean {
     return idleReady;
+}
+
+export function isChromeReady(): boolean {
+    return chromeReady;
 }
 
 export function whenShellReady(fn: () => void) {
@@ -52,10 +62,20 @@ export function whenIdleReady(fn: () => void) {
     else idleWaiters.push(fn);
 }
 
+export function whenChromeReady(fn: () => void) {
+    if (chromeReady) fn();
+    else chromeWaiters.push(fn);
+}
+
 /** Menu / explicit user action. Safe before the idle sequence. */
 export function requestIdleReady() {
     fireShell();
     fireIdle();
+}
+
+/** FAB or Violentmonkey menu. Starts HostReady plugins. */
+export function requestChromeReady() {
+    fireChrome();
 }
 
 export function whenBrowserIdle(timeout = 4_000): Promise<void> {

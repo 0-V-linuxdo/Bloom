@@ -17,9 +17,9 @@ import {
     watchHostScheme,
     type SchemePref,
 } from "../../../host/theme";
-import { requestIdleReady, whenIdleReady, whenShellReady } from "../../../host/idleReady";
+import { requestChromeReady, requestIdleReady, whenIdleReady, whenShellReady } from "../../../host/idleReady";
 import { Devs } from "../../../utils/constants";
-import { registeredStyleText } from "../../../utils/css";
+import { syncShadowPluginStyles } from "../../../utils/css";
 import definePlugin, { OptionType, StartAt, type Plugin } from "../../../utils/types";
 import css from "./styles.css";
 
@@ -83,14 +83,7 @@ function paintScheme() {
 }
 
 function syncShadowStyles() {
-    if (!shadow) return;
-    let el = shadow.querySelector<HTMLStyleElement>("style[data-bloom-plugins]");
-    if (!el) {
-        el = document.createElement("style");
-        el.dataset.bloomPlugins = "1";
-        shadow.appendChild(el);
-    }
-    el.textContent = registeredStyleText();
+    syncShadowPluginStyles();
 }
 
 export function ensureHost(): ShadowRoot {
@@ -105,8 +98,9 @@ export function ensureHost(): ShadowRoot {
         host.id = ROOT_ID;
         host.style.pointerEvents = "none";
     }
-    if (document.body && host.parentNode !== document.body) {
-        document.body.appendChild(host);
+    const root = document.documentElement;
+    if (host.parentNode !== root) {
+        root.appendChild(host);
     }
     shadow = host.shadowRoot ?? host.attachShadow({ mode: "open" });
     if (!shadow.querySelector("style[data-bloom]")) {
@@ -421,6 +415,7 @@ function mountFab() {
     fab.setAttribute("aria-label", "Bloom++ settings");
     fab.innerHTML = blossomSvg();
     fab.addEventListener("click", () => {
+        requestChromeReady();
         if (open) closeModal();
         else renderModal(root);
     });
@@ -451,6 +446,7 @@ function onDocKey(e: KeyboardEvent) {
 
 export function openSettings() {
     requestIdleReady();
+    requestChromeReady();
     whenShellReady(() => renderModal(ensureHost()));
 }
 

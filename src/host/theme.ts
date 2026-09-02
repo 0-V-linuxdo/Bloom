@@ -172,8 +172,5 @@ export function applySchemeTokens(target: HTMLElement, scheme: ColorScheme, from
 export function watchHostScheme(onChange: () => void): () => void {
     const obs = new MutationObserver(onChange);
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme", "data-color-scheme", "style"] });
-    if (document.body) {
-        obs.observe(document.body, { attributes: true, attributeFilter: ["class", "style"] });
-    }
     return () => obs.disconnect();
 }

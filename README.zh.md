@@ -54,6 +54,8 @@ v1.2.2：水合等待改为先睡满 8 秒再稀疏查岛，不再 100ms 轮询�
 
 v1.2.3：去掉 PageTouch。不再用第一次点击启动 Host，改为 8 秒岛门（`#prompt-textarea` + Recents 或真头像）之后 `requestIdleCallback`。花瓣和插件分两拍 idle。`@run-at document-idle`。不再捕获 `pointerdown`。
 
+v1.2.4：`#bloom-root` 挂到 `document.documentElement`，不进 `body`。页面 CSS 写在 `<html>` 上，不用 `GM_addStyle` / `<head>`。CSF / InputHistory / NoShareLink / NoDictation 等点花瓣或菜单后才启动。CSF 不改站点 favicon、不观察作曲器（2 秒轮询）。InputHistory 只用 window 冒泡。
+
 ## 构建
 
 ```bash

@@ -6,7 +6,7 @@
 
 import { initPluginManager, registerPlugin, startAllPlugins } from "./api/PluginManager";
 import { initSettings as loadSettings } from "./api/Settings";
-import { requestIdleReady, runIdleSequence, whenIdleReady, whenShellReady } from "./host/idleReady";
+import { requestIdleReady, runIdleSequence, whenChromeReady, whenIdleReady, whenShellReady } from "./host/idleReady";
 import { Logger } from "./utils/Logger";
 import { VERSION } from "./utils/constants";
 import { flushStyles } from "./utils/css";
@@ -90,9 +90,12 @@ function bindIdleHost() {
         logger.info("host shell", VERSION);
     });
     whenIdleReady(() => {
+        logger.info("idle ready", VERSION);
+    });
+    whenChromeReady(() => {
         flushStyles();
         startAllPlugins(StartAt.HostReady);
-        logger.info("idle ready", VERSION);
+        logger.info("chrome ready", VERSION);
     });
 }
 
@@ -129,7 +132,7 @@ export async function init() {
     await runIdleSequence();
 }
 
-export { requestIdleReady, whenIdleReady, whenShellReady } from "./host/idleReady";
+export { requestChromeReady, requestIdleReady, whenChromeReady, whenIdleReady, whenShellReady } from "./host/idleReady";
 export { plugins } from "./api/PluginManager";
 export { Settings } from "./api/Settings";
 export { VERSION, REPO_URL } from "./utils/constants";

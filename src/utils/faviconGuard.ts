@@ -3,8 +3,8 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Reuse the host's existing icon <link>. Never remove, never prepend,
- * never observe head childList. Wait-state leaves the official href.
+ * Own <link rel="icon"> on documentElement. Never touch ChatGPT's head
+ * icon links. Wait-state removes our link so the host icon shows.
  */
 
 export function isIconLink(node: Node): node is HTMLLinkElement {
@@ -19,22 +19,29 @@ export function existingIconLink(): HTMLLinkElement | null {
     const { head } = document;
     if (!head) return null;
     for (const node of head.querySelectorAll("link")) {
-        if (isIconLink(node)) return node;
+        if (isIconLink(node) && node.id !== "bloom-chat-state-favicon") return node;
     }
     return null;
 }
 
-export function applyFavicon(_id: string, href: string) {
-    const link = existingIconLink();
-    if (!link) return;
+function ourLink(id: string): HTMLLinkElement | null {
+    const el = document.getElementById(id);
+    return el instanceof HTMLLinkElement ? el : null;
+}
+
+export function applyFavicon(id: string, href: string) {
+    let link = ourLink(id);
+    if (!link) {
+        link = document.createElement("link");
+        link.id = id;
+        link.rel = "icon";
+        document.documentElement.appendChild(link);
+    }
     if (link.getAttribute("href") !== href) link.setAttribute("href", href);
 }
 
-export function restoreOfficialFavicon(_id: string, officialHref: string) {
-    if (!isUsableOfficialHref(officialHref)) return;
-    const link = existingIconLink();
-    if (!link) return;
-    if (link.href !== officialHref) link.href = officialHref;
+export function restoreOfficialFavicon(id: string, _officialHref: string) {
+    ourLink(id)?.remove();
 }
 
 export function startFaviconGuard(

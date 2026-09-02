@@ -22,9 +22,7 @@ import definePlugin, { OptionType, StartAt } from "../../utils/types";
 import {
     conversationToken,
     contextKeyFromUrl,
-    EDITOR_SEL,
     getActiveEditor,
-    getComposerRoot,
     hasErrorToast,
     isInputEmpty,
     isStreaming,
@@ -60,13 +58,13 @@ let streamContext: string | null = null;
 let lockedToken = "";
 let lastConvId = "";
 let primedReady = true;
-let composerObs: MutationObserver | null = null;
 let inputCtrl: AbortController | null = null;
 let unsubScheme: (() => void) | null = null;
 let raf = 0;
 let pollTimer: ReturnType<typeof setInterval> | undefined;
 let started = false;
 const boundEditors = new WeakSet<HTMLElement>();
+const POLL_MS = 2_000;
 
 function currentStyle(): IconStyle {
     const value = settings.store.style;
@@ -127,8 +125,6 @@ function onConversationSwitch(id: string) {
     lastConvId = id;
     resetStreamFlags();
     primedReady = false;
-    composerObs?.disconnect();
-    composerObs = null;
     setKind("wait");
 }
 
@@ -208,8 +204,6 @@ function scheduleEvaluate() {
         raf = 0;
         if (!started) return;
         bindEditorInput();
-        const root = getComposerRoot();
-        if (root !== document.body && (!composerObs || !root.isConnected)) observeComposer();
         evaluateState();
     });
 }
@@ -225,21 +219,6 @@ function bindEditorInput() {
     boundEditors.add(editor);
     editor.addEventListener("input", onEditorInput, { passive: true });
     editor.addEventListener("compositionend", onEditorInput, { passive: true });
-}
-
-function observeComposer() {
-    composerObs?.disconnect();
-    composerObs = null;
-    const root = getComposerRoot();
-    if (!root || root === document.body) return;
-    composerObs = new MutationObserver(() => scheduleEvaluate());
-    composerObs.observe(root, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-        attributes: true,
-        attributeFilter: ["aria-label", "aria-disabled", "disabled", "data-testid", "class"],
-    });
 }
 
 export default definePlugin({
@@ -266,9 +245,8 @@ export default definePlugin({
         inputCtrl = new AbortController();
         window.addEventListener("popstate", scheduleEvaluate, { signal: inputCtrl.signal });
         bindEditorInput();
-        observeComposer();
         if (pollTimer !== undefined) clearInterval(pollTimer);
-        pollTimer = setInterval(scheduleEvaluate, 1_500);
+        pollTimer = setInterval(scheduleEvaluate, POLL_MS);
         evaluateState();
         logger.debug("favicon watch started");
     },
@@ -285,13 +263,10 @@ export default definePlugin({
         inputCtrl = null;
         unsubScheme?.();
         unsubScheme = null;
-        composerObs?.disconnect();
-        composerObs = null;
         resetStreamFlags();
         lastConvId = "";
         primedReady = true;
         restoreOfficialFavicon(ICON_ID, officialHref);
-        void EDITOR_SEL;
     },
 
     onSettingsChange: rebuildIcons,
