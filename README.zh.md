@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、右下角浮层按钮。
 
-当前版本：**[v1.3.0](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.0)**（`userscript/Bloom.user.js`，`@version [20260902] v1.3.0`）。
+当前版本：**[v1.3.1](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.1)**（`userscript/Bloom.user.js`，`@version [20260902] v1.3.1`）。
 
 v1.3.0：
 
@@ -26,7 +26,7 @@ v1.3.0：
 
 自动更新走同一条 jsDelivr 地址。GitHub `raw/refs/heads` 会返回 HTML，Tampermonkey / Violentmonkey 拉不到更新。
 
-设置面板**跟随 `chatgpt.com` 自己的主题**（`html.dark` 与 `--main-surface-primary`），不跟操作系统的深色模式。ChatStateFavicons 在 **wait** 时不替换站点原图标，只在 streaming / done / ready / error 时叠状态。
+设置面板**跟随 `chatgpt.com` 自己的主题**（`html.dark` 与 `--main-surface-primary`），不跟操作系统的深色模式。ChatStateFavicons 各状态都画**深色底上的白色 blossom**，避免官方黑色图标在聊天背景上看不见。
 
 ## NoShareLink / NoDictation
 
@@ -59,6 +59,8 @@ v1.2.3：去掉 PageTouch。不再用第一次点击启动 Host，改为 8 秒�
 v1.2.4：`#bloom-root` 挂到 `document.documentElement`，不进 `body`。页面 CSS 写在 `<html>` 上，不用 `GM_addStyle` / `<head>`。CSF / InputHistory / NoShareLink / NoDictation 等点花瓣或菜单后才启动。CSF 不改站点 favicon、不观察作曲器（2 秒轮询）。InputHistory 只用 window 冒泡。
 
 v1.3.0：岛门 + idle 之后自动启动 HostReady 插件（花瓣只开设置）。页面 CSS 和状态 favicon 写在 `document.head`。`#bloom-root` 挂 `document.body`。CSF 用 head-only FaviconGuard，并观察 composer root。InputHistory 用捕获阶段 `keydown`。NoDictation 隐藏听写（`Start dictation` / `Dictate button` / 听写），不隐藏 Voice（`composer-speech-button`）。Stop / Send / 编辑器选择器集中在 `src/host`。
+
+v1.3.1：标签页图标各状态都用深色底上的白色 blossom（官方黑色图标在聊天背景上对比度不够）。插件卡片图标去掉灰底。
 
 ## 构建
 

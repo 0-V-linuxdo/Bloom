@@ -5,7 +5,7 @@
  *
  * State machine adapted from Void++ ChatStateFavicons; ChatGPT streaming
  * detectors from Chat-State-Favicons (MIT). Streaming is NOT gated on empty input.
- * Wait keeps the host favicon (original / badge / dot). Overlays follow light/dark.
+ * Wait, streaming, done, ready, and error all use a composed white blossom.
  * Favicon link lives in document.head with a head-only competitor guard.
  */
 
@@ -33,7 +33,6 @@ import {
 } from "./detect";
 import {
     buildIcons,
-    keepsOfficialWait,
     type FaviconKind,
     type IconStyle,
     isIconStyle,
@@ -95,11 +94,6 @@ function captureOfficial(): string {
 
 function setKind(next: FaviconKind) {
     kind = next;
-    const style = currentStyle();
-    if (next === "wait" && keepsOfficialWait(style)) {
-        restoreOfficialFavicon(ICON_ID, officialHref);
-        return;
-    }
     applyFavicon(ICON_ID, icons[next]);
 }
 
@@ -264,10 +258,6 @@ export default definePlugin({
         faviconObs?.disconnect();
         faviconObs = startFaviconGuard(ICON_ID, href => {
             if (isUsableOfficialHref(href)) officialHref = href;
-            if (kind === "wait" && keepsOfficialWait(currentStyle())) {
-                restoreOfficialFavicon(ICON_ID, officialHref);
-                return;
-            }
             rebuildIcons();
         });
         unsubScheme = onBloomEvent("schemeChange", () => {
