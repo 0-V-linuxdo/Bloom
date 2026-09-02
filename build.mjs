@@ -17,17 +17,17 @@ const date = new Date();
 const stamp = `${date.getUTCFullYear()}${String(date.getUTCMonth() + 1).padStart(2, "0")}${String(date.getUTCDate()).padStart(2, "0")}`;
 const displayVersion = `[${stamp}] v${pkg.version}`;
 const repo = "https://github.com/0-V-linuxdo/Bloom";
-const raw = `${repo}/raw/refs/heads/main/userscript/Bloom.user.js`;
+const jsdelivr = "https://cdn.jsdelivr.net/gh/0-V-linuxdo/Bloom@heads/main";
 
 const header = `// ==UserScript==
 // @name         Bloom++
 // @namespace    ${repo}
 // @version      ${displayVersion}
-// @description  Void++-style plugin host for chatgpt.com. Tab favicon reflects chat state; recall prompts with Arrow Up / Down.
+// @description  Void++-style plugin host for chatgpt.com. Tab favicon, input history, hide Share and Dictation.
 // @author       ${pkg.author}
 // @homepageURL  ${repo}
 // @supportURL   ${repo}/issues
-// @icon         ${repo}/raw/refs/heads/main/assets/logos/bloom-icon.svg
+// @icon         ${jsdelivr}/assets/logos/bloom-icon.svg
 // @match        https://chatgpt.com/*
 // @match        https://*.chatgpt.com/*
 // @match        https://chat.openai.com/*
@@ -38,12 +38,15 @@ const header = `// ==UserScript==
 // @grant        GM_setValue
 // @grant        GM_setClipboard
 // @grant        GM_registerMenuCommand
+// @grant        GM_xmlhttpRequest
+// @connect      raw.githubusercontent.com
+// @connect      cdn.jsdelivr.net
 // @compatible   chrome
 // @compatible   firefox
 // @compatible   edge
 // @license      GPL-3.0-or-later
-// @downloadURL  ${raw}
-// @updateURL    ${raw}
+// @downloadURL  ${jsdelivr}/userscript/Bloom.user.js
+// @updateURL    ${jsdelivr}/userscript/Bloom.user.js
 // ==/UserScript==
 `;
 

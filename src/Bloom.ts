@@ -11,6 +11,8 @@ import { StartAt, type Plugin } from "./utils/types";
 import settingsPlugin from "./plugins/_core/settings";
 import chatStateFavicons from "./plugins/chatStateFavicons";
 import inputHistory from "./plugins/inputHistory";
+import noShareLink from "./plugins/noShareLink";
+import noDictation from "./plugins/noDictation";
 
 const logger = new Logger("Bloom");
 let initialized = false;
@@ -19,6 +21,8 @@ const pluginList: Plugin[] = [
     settingsPlugin,
     chatStateFavicons,
     inputHistory,
+    noShareLink,
+    noDictation,
 ];
 
 function waitForHostReady(): Promise<void> {

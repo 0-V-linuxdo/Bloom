@@ -4,21 +4,25 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, a floating settings button.
 
-v1 ships:
+v1.1 ships:
 
 | Plugin | Default | What it does |
 | --- | --- | --- |
 | ChatStateFavicons | On | Tab favicon reflects chat state (streaming / done / ready / error) with five overlay styles. |
 | InputHistory | On | Recall previous prompts with Arrow Up / Arrow Down, like a shell. |
+| NoShareLink | On | Hide the conversation header Share button and the project Share button. CSS-only. |
+| NoDictation | On | Hide the composer Dictation (speech-to-text) button. Does not hide Voice mode. CSS-only. |
 
 The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in the brand string is `ChatGPT`.
 
 ## Install
 
 1. Install [Violentmonkey](https://violentmonkey.github.io/) or Tampermonkey.
-2. Open [`userscript/Bloom.user.js`](https://github.com/0-V-linuxdo/Bloom/raw/refs/heads/main/userscript/Bloom.user.js).
+2. Open [`userscript/Bloom.user.js`](https://cdn.jsdelivr.net/gh/0-V-linuxdo/Bloom@heads/main/userscript/Bloom.user.js).
 3. Confirm install. Reload `chatgpt.com`.
 4. Use the blossom button (bottom-right, draggable) to open plugins.
+
+Auto-update uses the same jsDelivr URL (`@updateURL` / `@downloadURL`). GitHub's `raw/refs/heads` URL returns HTML and Tampermonkey / Violentmonkey cannot pull updates from it.
 
 Appearance (auto / light / dark) lives at the top of that panel. **Auto follows chatgpt.com's own theme** (`html.dark` and `--main-surface-primary`), not the operating-system color scheme. ChatStateFavicons **does not replace** the site favicon while idle (`wait`); overlays only appear for streaming / done / ready / error.
 
@@ -37,6 +41,13 @@ The blossom mark is the 24-unit evenodd path from the existing Chat-State-Favico
 - Enter (no Shift) and Send both store the prompt
 - Slider 10–500 entries (default 100)
 - History panel lives in the floating settings shell
+
+## NoShareLink / NoDictation
+
+Both plugins inject CSS at `document-start` and then stop. They do **not** walk the tree with `MutationObserver` or `querySelectorAll("button")`.
+
+- NoShareLink: `button[data-testid="share-chat-button"]` plus header-scoped `aria-label` (Share / 分享). Project: `share-project-button` / Share project / 分享项目. Toggles `hideShareChat` and `hideShareProject`.
+- NoDictation: `button[data-testid="composer-speech-button"]` and composer-scoped Dictate / 听写 labels. Leaves `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.
 
 ## Build
 
