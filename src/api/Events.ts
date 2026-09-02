@@ -4,9 +4,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import type { ColorScheme, SchemePref } from "../host/theme";
+
 export interface BloomEventMap {
     pluginToggle: { name: string; enabled: boolean };
     settingsOpen: undefined;
+    schemeChange: { scheme: ColorScheme; pref: SchemePref };
 }
 
 type Handler<K extends keyof BloomEventMap> = (data: BloomEventMap[K]) => void;

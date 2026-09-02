@@ -4,10 +4,15 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Favicon competitor stripping (same idea as Chat-State-Favicons FaviconGuard).
+ * When the host re-inserts its themed icon, the href is reported so we can recapture it.
  */
 
 export function isIconLink(node: Node): node is HTMLLinkElement {
     return node instanceof HTMLLinkElement && (node.relList.contains("icon") || /\bicon\b/i.test(node.rel));
+}
+
+export function isUsableOfficialHref(href: string | undefined | null): href is string {
+    return !!href && !href.startsWith("data:") && href !== "undefined";
 }
 
 export function stripCompetitorIcons(keepId: string) {
@@ -27,7 +32,7 @@ export function applyFavicon(id: string, href: string, type = "image/svg+xml") {
         link = document.createElement("link");
         link.id = id;
         link.rel = "icon shortcut icon";
-        link.type = type;
+        link.type = href.startsWith("data:image/svg") || href.endsWith(".svg") ? type : "";
         link.setAttribute("sizes", "any");
         head.prepend(link);
     } else if (head.firstChild !== link) {
@@ -36,18 +41,39 @@ export function applyFavicon(id: string, href: string, type = "image/svg+xml") {
     if (link.getAttribute("href") !== href) link.setAttribute("href", href);
 }
 
-export function startFaviconGuard(id: string, onCompete: () => void): MutationObserver | null {
+export function restoreOfficialFavicon(id: string, officialHref: string) {
+    const { head } = document;
+    if (!head) return;
+    document.getElementById(id)?.remove();
+    const remaining = Array.from(head.querySelectorAll("link")).filter(isIconLink);
+    if (remaining.length) {
+        if (isUsableOfficialHref(officialHref)) {
+            remaining[0].href = officialHref;
+        }
+        return;
+    }
+    if (!isUsableOfficialHref(officialHref)) return;
+    const link = document.createElement("link");
+    link.rel = "icon";
+    link.href = officialHref;
+    head.prepend(link);
+}
+
+export function startFaviconGuard(
+    id: string,
+    onCompete: (officialHref?: string) => void,
+): MutationObserver | null {
     const { head } = document;
     if (!head) return null;
     const obs = new MutationObserver(list => {
         for (const m of list) {
             if (m.type === "attributes" && isIconLink(m.target) && m.target.id !== id) {
-                onCompete();
+                onCompete(m.target.href);
                 return;
             }
             for (const node of m.addedNodes) {
                 if (isIconLink(node) && node.id !== id) {
-                    onCompete();
+                    onCompete(node.href);
                     return;
                 }
             }

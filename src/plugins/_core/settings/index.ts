@@ -7,8 +7,14 @@
  */
 
 import { emitBloomEvent } from "../../../api/Events";
+import { definePluginSettings, Settings } from "../../../api/Settings";
 import { isPluginEnabled, plugins, togglePlugin } from "../../../api/PluginManager";
-import { Settings } from "../../../api/Settings";
+import {
+    isSchemePref,
+    resolveScheme,
+    watchHostScheme,
+    type SchemePref,
+} from "../../../host/theme";
 import { Devs } from "../../../utils/constants";
 import { registerStyle } from "../../../utils/css";
 import definePlugin, { OptionType, StartAt } from "../../../utils/types";
@@ -17,13 +23,43 @@ import css from "./styles.css";
 const ROOT_ID = "bloom-root";
 const FAB_POS_KEY = "bloom-fab-pos";
 
+const settings = definePluginSettings({
+    appearance: {
+        type: OptionType.SELECT,
+        description: "Color scheme for the Bloom++ shell and composed favicons.",
+        options: [
+            { label: "Follow host", value: "auto", default: true },
+            { label: "Light", value: "light" },
+            { label: "Dark", value: "dark" },
+        ],
+    },
+});
+
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
 let open = false;
 let unmounts: Array<() => void> = [];
+let unwatchHost: (() => void) | null = null;
 
 function blossomSvg(): string {
     return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M21.55 10.004a5.416 5.416 0 00-.478-4.501c-1.217-2.09-3.662-3.166-6.05-2.66A5.59 5.59 0 0010.831 1C8.39.995 6.224 2.546 5.473 4.838A5.553 5.553 0 001.76 7.496a5.487 5.487 0 00.691 6.5 5.416 5.416 0 00.477 4.502c1.217 2.09 3.662 3.165 6.05 2.66A5.586 5.586 0 0013.168 23c2.443.006 4.61-1.546 5.361-3.84a5.553 5.553 0 003.715-2.66 5.488 5.488 0 00-.693-6.497v.001z"/></svg>`;
+}
+
+function closeSvg(): string {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
+}
+
+function appearancePref(): SchemePref {
+    const raw = settings.store.appearance;
+    return isSchemePref(raw) ? raw : "auto";
+}
+
+function paintScheme() {
+    if (!host) return;
+    const pref = appearancePref();
+    const scheme = resolveScheme(pref);
+    host.setAttribute("data-bloom-scheme", scheme);
+    emitBloomEvent("schemeChange", { scheme, pref });
 }
 
 function loadFabPos(): { x: number; y: number } | null {
@@ -49,9 +85,13 @@ function ensureHost(): ShadowRoot {
         document.documentElement.appendChild(host);
     }
     shadow = host.shadowRoot ?? host.attachShadow({ mode: "open" });
-    const style = document.createElement("style");
-    style.textContent = css;
-    shadow.appendChild(style);
+    if (!shadow.querySelector("style[data-bloom]")) {
+        const style = document.createElement("style");
+        style.dataset.bloom = "1";
+        style.textContent = css;
+        shadow.appendChild(style);
+    }
+    paintScheme();
     return shadow;
 }
 
@@ -108,37 +148,85 @@ function fieldControl(pluginName: string, key: string, spec: { type: OptionType;
     }
 
     if (spec.type === OptionType.BOOLEAN) {
+        const toggle = document.createElement("label");
+        toggle.className = "bloom-toggle";
+        const sw = document.createElement("span");
+        sw.className = "bloom-switch";
         const input = document.createElement("input");
         input.type = "checkbox";
         input.checked = Boolean(store[key]);
         input.addEventListener("change", () => { store[key] = input.checked; });
-        wrap.appendChild(input);
+        const track = document.createElement("span");
+        sw.append(input, track);
+        toggle.append(sw);
+        wrap.appendChild(toggle);
         return wrap;
     }
 
     return wrap;
 }
 
+function renderAppearance(modal: HTMLElement) {
+    const pref = appearancePref();
+    const seg = document.createElement("div");
+    seg.className = "bloom-seg";
+    seg.setAttribute("role", "radiogroup");
+    seg.setAttribute("aria-label", "Appearance");
+    const choices: { value: SchemePref; label: string }[] = [
+        { value: "auto", label: "自动" },
+        { value: "light", label: "浅色" },
+        { value: "dark", label: "深色" },
+    ];
+    for (const choice of choices) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = choice.label;
+        btn.setAttribute("aria-pressed", String(pref === choice.value));
+        btn.addEventListener("click", () => {
+            settings.store.appearance = choice.value;
+            paintScheme();
+            if (shadow) renderModal(shadow);
+        });
+        seg.appendChild(btn);
+    }
+    modal.appendChild(seg);
+}
+
 function renderModal(root: ShadowRoot) {
     closeModal();
     open = true;
-    const backdrop = document.createElement("div");
+    const backdrop = document.createElement("button");
+    backdrop.type = "button";
     backdrop.className = "bloom-settings-backdrop";
+    backdrop.setAttribute("aria-label", "Close settings");
     backdrop.addEventListener("click", closeModal);
     const modal = document.createElement("div");
     modal.className = "bloom-settings-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "bloom-settings-title");
     modal.addEventListener("click", e => e.stopPropagation());
 
     const head = document.createElement("div");
     head.className = "bloom-settings-head";
+    const brand = document.createElement("div");
+    brand.className = "bloom-settings-brand";
+    const mark = document.createElement("span");
+    mark.className = "bloom-settings-mark";
+    mark.innerHTML = blossomSvg();
     const title = document.createElement("h2");
+    title.id = "bloom-settings-title";
     title.textContent = "Bloom++";
+    brand.append(mark, title);
     const close = document.createElement("button");
     close.type = "button";
-    close.textContent = "Close";
+    close.className = "bloom-icon-btn";
+    close.setAttribute("aria-label", "Close");
+    close.innerHTML = closeSvg();
     close.addEventListener("click", closeModal);
-    head.append(title, close);
+    head.append(brand, close);
     modal.appendChild(head);
+    renderAppearance(modal);
 
     for (const plugin of Object.values(plugins)) {
         if (plugin.hidden || plugin.name === "Settings") continue;
@@ -153,15 +241,20 @@ function renderModal(root: ShadowRoot) {
         meta.append(h3, p);
         const toggle = document.createElement("label");
         toggle.className = "bloom-toggle";
+        const sw = document.createElement("span");
+        sw.className = "bloom-switch";
         const box = document.createElement("input");
         box.type = "checkbox";
         box.checked = isPluginEnabled(plugin.name);
         box.disabled = !!plugin.required;
+        box.setAttribute("aria-label", `${plugin.name} enabled`);
         box.addEventListener("change", () => {
             togglePlugin(plugin.name);
             renderModal(root);
         });
-        toggle.append(box, document.createTextNode("On"));
+        const track = document.createElement("span");
+        sw.append(box, track);
+        toggle.append(sw, document.createTextNode(box.checked ? "On" : "Off"));
         header.append(meta, toggle);
         card.appendChild(header);
 
@@ -203,19 +296,21 @@ function mountFab() {
         moved = false;
         ox = e.clientX - fab.getBoundingClientRect().left;
         oy = e.clientY - fab.getBoundingClientRect().top;
+        fab.classList.add("is-dragging");
         fab.setPointerCapture(e.pointerId);
     });
     fab.addEventListener("pointermove", e => {
         if (!drag) return;
         moved = true;
-        const x = Math.max(8, Math.min(window.innerWidth - 52, e.clientX - ox));
-        const y = Math.max(8, Math.min(window.innerHeight - 52, e.clientY - oy));
+        const x = Math.max(8, Math.min(window.innerWidth - 56, e.clientX - ox));
+        const y = Math.max(8, Math.min(window.innerHeight - 56, e.clientY - oy));
         fab.style.left = `${x}px`;
         fab.style.top = `${y}px`;
         fab.style.right = "auto";
         fab.style.bottom = "auto";
     });
     fab.addEventListener("pointerup", () => {
+        fab.classList.remove("is-dragging");
         if (drag && moved) {
             const r = fab.getBoundingClientRect();
             saveFabPos(r.left, r.top);
@@ -241,21 +336,29 @@ export default definePlugin({
     required: true,
     hidden: true,
     enabledByDefault: true,
+    settings,
     startAt: StartAt.HostReady,
     cleanupSelectors: [`#${ROOT_ID}`],
 
     start() {
         registerStyle("settings", "");
         mountFab();
+        paintScheme();
+        unwatchHost?.();
+        unwatchHost = watchHostScheme(paintScheme);
         try {
             GM_registerMenuCommand?.("Bloom++ settings", openSettings);
         } catch { /* optional */ }
     },
 
     stop() {
+        unwatchHost?.();
+        unwatchHost = null;
         closeModal();
         host?.remove();
         host = null;
         shadow = null;
     },
+
+    onSettingsChange: paintScheme,
 });

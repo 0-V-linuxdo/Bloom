@@ -1,141 +1,335 @@
-#bloom-root {
-    all: initial;
+:host {
+  all: initial;
+}
+
+:host {
+  --bloom-bg: #0c0d0c;
+  --bloom-surface: #161816;
+  --bloom-elevated: #1e211e;
+  --bloom-fg: #e8efe9;
+  --bloom-muted: #8b958c;
+  --bloom-border: rgb(232 239 233 / 14%);
+  --bloom-shadow: 0 1px 2px rgb(0 0 0 / 18%), 0 18px 48px rgb(0 0 0 / 38%);
+  --bloom-fab-shadow: 0 1px 2px rgb(0 0 0 / 20%), 0 10px 28px rgb(0 0 0 / 28%);
+  --bloom-ring: #c5d0c6;
+  --bloom-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  color-scheme: dark;
+  font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--bloom-fg);
+  -webkit-font-smoothing: antialiased;
+}
+
+:host([data-bloom-scheme="light"]) {
+  color-scheme: light;
+  --bloom-bg: #f3f1eb;
+  --bloom-surface: #fffcf7;
+  --bloom-elevated: #ebe7df;
+  --bloom-fg: #171816;
+  --bloom-muted: #5e635f;
+  --bloom-border: rgb(23 24 22 / 12%);
+  --bloom-shadow: 0 1px 2px rgb(23 24 22 / 6%), 0 18px 48px rgb(23 24 22 / 14%);
+  --bloom-fab-shadow: 0 1px 2px rgb(23 24 22 / 8%), 0 10px 28px rgb(23 24 22 / 12%);
+  --bloom-ring: #3d423e;
 }
 
 .bloom-settings-fab {
-    position: fixed;
-    z-index: 2147483645;
-    right: 20px;
-    bottom: 20px;
-    width: 44px;
-    height: 44px;
-    border: 0;
-    border-radius: 14px;
-    background: #0a0b0a;
-    color: #e8efe9;
-    box-shadow: 0 8px 24px rgb(0 0 0 / 28%);
-    cursor: grab;
-    display: grid;
-    place-items: center;
-    padding: 0;
+  position: fixed;
+  z-index: 2147483645;
+  right: 24px;
+  bottom: 24px;
+  width: 48px;
+  height: 48px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--bloom-border);
+  border-radius: 999px;
+  background: var(--bloom-surface);
+  color: var(--bloom-fg);
+  box-shadow: var(--bloom-fab-shadow);
+  cursor: grab;
+  display: grid;
+  place-items: center;
+  transition:
+    transform 180ms var(--bloom-ease),
+    box-shadow 180ms var(--bloom-ease),
+    background-color 180ms var(--bloom-ease),
+    color 180ms var(--bloom-ease);
 }
 
-.bloom-settings-fab:active {
-    cursor: grabbing;
+.bloom-settings-fab:hover {
+  transform: translateY(-1px);
+}
+
+.bloom-settings-fab:active,
+.bloom-settings-fab.is-dragging {
+  cursor: grabbing;
+  transform: scale(0.98);
+}
+
+.bloom-settings-fab:focus-visible {
+  outline: 2px solid var(--bloom-ring);
+  outline-offset: 3px;
 }
 
 .bloom-settings-fab svg {
-    width: 22px;
-    height: 22px;
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 .bloom-settings-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 2147483646;
-    background: rgb(0 0 0 / 42%);
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: rgb(0 0 0 / 46%);
+  cursor: pointer;
+}
+
+:host([data-bloom-scheme="light"]) .bloom-settings-backdrop {
+  background: rgb(23 24 22 / 28%);
 }
 
 .bloom-settings-modal {
-    position: fixed;
-    z-index: 2147483647;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: min(520px, calc(100vw - 32px));
-    max-height: min(80vh, 720px);
-    overflow: auto;
-    padding: 20px;
-    border-radius: 24px;
-    background: #121412;
-    color: #e8efe9;
-    box-shadow: 0 24px 64px rgb(0 0 0 / 45%);
-    font: 14px/1.45 ui-sans-serif, system-ui, sans-serif;
+  position: fixed;
+  z-index: 2147483647;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(520px, calc(100vw - 32px));
+  max-height: min(80vh, 720px);
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--bloom-border);
+  border-radius: 28px;
+  background: var(--bloom-surface);
+  color: var(--bloom-fg);
+  box-shadow: var(--bloom-shadow);
 }
 
 .bloom-settings-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.bloom-settings-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.bloom-settings-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--bloom-elevated);
+  color: var(--bloom-fg);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.bloom-settings-mark svg {
+  width: 16px;
+  height: 16px;
 }
 
 .bloom-settings-head h2 {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 600;
-    letter-spacing: -0.03em;
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
 }
 
-.bloom-settings-head button {
-    border: 0;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-    opacity: 0.7;
+.bloom-icon-btn {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--bloom-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.bloom-icon-btn:hover {
+  color: var(--bloom-fg);
+  background: var(--bloom-elevated);
+}
+
+.bloom-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.bloom-seg {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin: 0 0 16px;
+  padding: 4px;
+  border-radius: 16px;
+  background: var(--bloom-elevated);
+}
+
+.bloom-seg button {
+  height: 36px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--bloom-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.bloom-seg button[aria-pressed="true"] {
+  background: var(--bloom-surface);
+  color: var(--bloom-fg);
+  box-shadow: 0 0 0 1px var(--bloom-border);
 }
 
 .bloom-plugin-card {
-    padding: 16px;
-    border-radius: 16px;
-    background: #1a1d1a;
-    margin-bottom: 12px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--bloom-elevated);
+  margin-bottom: 12px;
+}
+
+.bloom-plugin-card:last-child {
+  margin-bottom: 0;
 }
 
 .bloom-plugin-card header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .bloom-plugin-card h3 {
-    margin: 0;
-    font-size: 0.95rem;
-    font-weight: 600;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .bloom-plugin-card p {
-    margin: 4px 0 0;
-    color: #9aa59c;
-    font-size: 0.8125rem;
+  margin: 4px 0 0;
+  color: var(--bloom-muted);
+  font-size: 0.8125rem;
 }
 
-.bloom-plugin-card label.bloom-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.75rem;
-    color: #9aa59c;
+.bloom-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--bloom-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.bloom-switch {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  flex: 0 0 auto;
+}
+
+.bloom-switch input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.bloom-switch span {
+  display: block;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bloom-fg) 16%, transparent);
+  border: 1px solid var(--bloom-border);
+  transition: background-color 150ms var(--bloom-ease);
+}
+
+.bloom-switch span::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--bloom-surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+  transition: transform 150ms var(--bloom-ease);
+}
+
+.bloom-switch input:checked + span {
+  background: var(--bloom-fg);
+}
+
+.bloom-switch input:checked + span::after {
+  transform: translateX(18px);
+  background: var(--bloom-bg);
+}
+
+.bloom-switch input:focus-visible + span {
+  outline: 2px solid var(--bloom-ring);
+  outline-offset: 2px;
+}
+
+.bloom-switch input:disabled + span {
+  opacity: 0.45;
 }
 
 .bloom-field {
-    display: grid;
-    gap: 6px;
-    margin-top: 12px;
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
 }
 
-.bloom-field span {
-    font-size: 0.75rem;
-    color: #9aa59c;
+.bloom-field > span:first-child {
+  font-size: 0.75rem;
+  color: var(--bloom-muted);
 }
 
 .bloom-field select,
 .bloom-field input[type="range"] {
-    width: 100%;
+  width: 100%;
 }
 
 .bloom-field select {
-    height: 40px;
-    border-radius: 10px;
-    border: 1px solid rgb(232 239 233 / 14%);
-    background: #121412;
-    color: inherit;
-    padding: 0 10px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--bloom-border);
+  background: var(--bloom-surface);
+  color: inherit;
+  padding: 0 10px;
+  font: inherit;
+}
+
+.bloom-field input[type="range"] {
+  accent-color: var(--bloom-fg);
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .bloom-settings-modal { transition: none; }
+  .bloom-settings-fab,
+  .bloom-settings-modal,
+  .bloom-switch span,
+  .bloom-switch span::after {
+    transition: none;
+  }
 }

@@ -5,11 +5,19 @@
  *
  * State machine adapted from Void++ ChatStateFavicons; ChatGPT streaming
  * detectors from Chat-State-Favicons (MIT). Streaming is NOT gated on empty input.
+ * Wait keeps the host favicon (original / badge / dot). Overlays follow light/dark.
  */
 
-import { definePluginSettings } from "../../api/Settings";
+import { onBloomEvent } from "../../api/Events";
+import { definePluginSettings, Settings } from "../../api/Settings";
+import { resolveScheme, type ColorScheme, type SchemePref } from "../../host/theme";
 import { Devs } from "../../utils/constants";
-import { applyFavicon, startFaviconGuard } from "../../utils/faviconGuard";
+import {
+    applyFavicon,
+    isUsableOfficialHref,
+    restoreOfficialFavicon,
+    startFaviconGuard,
+} from "../../utils/faviconGuard";
 import { Logger } from "../../utils/Logger";
 import definePlugin, { OptionType, StartAt } from "../../utils/types";
 import {
@@ -23,7 +31,14 @@ import {
     isStreaming,
     submitIsGray,
 } from "./detect";
-import { buildIcons, type FaviconKind, type IconStyle, isIconStyle, STYLE_OPTIONS } from "./icons";
+import {
+    buildIcons,
+    keepsOfficialWait,
+    type FaviconKind,
+    type IconStyle,
+    isIconStyle,
+    STYLE_OPTIONS,
+} from "./icons";
 
 const logger = new Logger("ChatStateFavicons");
 const ICON_ID = "bloom-chat-state-favicon";
@@ -37,7 +52,8 @@ const settings = definePluginSettings({
 });
 
 let officialHref = "";
-let icons = buildIcons("badge", "");
+let scheme: ColorScheme = "dark";
+let icons = buildIcons("badge", "", scheme);
 let kind: FaviconKind = "wait";
 let wasStreaming = false;
 let justFinished = false;
@@ -49,6 +65,7 @@ let faviconObs: MutationObserver | null = null;
 let globalObs: MutationObserver | null = null;
 let composerObs: MutationObserver | null = null;
 let inputCtrl: AbortController | null = null;
+let unsubScheme: (() => void) | null = null;
 let raf = 0;
 let started = false;
 
@@ -57,25 +74,37 @@ function currentStyle(): IconStyle {
     return isIconStyle(value) ? value : "badge";
 }
 
+function appearancePref(): SchemePref {
+    const raw = Settings.plain.plugins.Settings?.appearance;
+    return raw === "light" || raw === "dark" ? raw : "auto";
+}
+
+function currentScheme(): ColorScheme {
+    return resolveScheme(appearancePref());
+}
+
 function captureOfficial(): string {
     const existing = document.querySelector<HTMLLinkElement>(`link[rel~="icon"]:not(#${ICON_ID})`);
     const href = existing?.href;
-    if (href && !href.startsWith("data:")) return href;
-    return composeWaitFallback();
-}
-
-function composeWaitFallback(): string {
-    return icons.wait || "/favicon.ico";
+    if (isUsableOfficialHref(href)) return href;
+    if (isUsableOfficialHref(officialHref)) return officialHref;
+    return "";
 }
 
 function setKind(next: FaviconKind) {
     kind = next;
+    const style = currentStyle();
+    if (next === "wait" && keepsOfficialWait(style)) {
+        restoreOfficialFavicon(ICON_ID, officialHref);
+        return;
+    }
     applyFavicon(ICON_ID, icons[next]);
 }
 
 function rebuildIcons() {
-    icons = buildIcons(currentStyle(), officialHref);
-    applyFavicon(ICON_ID, icons[kind]);
+    scheme = currentScheme();
+    icons = buildIcons(currentStyle(), officialHref, scheme);
+    setKind(kind);
 }
 
 function getContextKey(): string {
@@ -225,9 +254,22 @@ export default definePlugin({
 
     start() {
         started = true;
-        officialHref = captureOfficial();
+        scheme = currentScheme();
+        officialHref = captureOfficial() || officialHref;
         rebuildIcons();
-        faviconObs = startFaviconGuard(ICON_ID, () => applyFavicon(ICON_ID, icons[kind]));
+        faviconObs = startFaviconGuard(ICON_ID, href => {
+            if (isUsableOfficialHref(href)) officialHref = href;
+            if (kind === "wait" && keepsOfficialWait(currentStyle())) {
+                restoreOfficialFavicon(ICON_ID, officialHref);
+                return;
+            }
+            rebuildIcons();
+        });
+        unsubScheme = onBloomEvent("schemeChange", () => {
+            const recaptured = captureOfficial();
+            if (recaptured) officialHref = recaptured;
+            rebuildIcons();
+        });
         inputCtrl?.abort();
         inputCtrl = new AbortController();
         window.addEventListener("popstate", scheduleEvaluate, { signal: inputCtrl.signal });
@@ -246,6 +288,8 @@ export default definePlugin({
         raf = 0;
         inputCtrl?.abort();
         inputCtrl = null;
+        unsubScheme?.();
+        unsubScheme = null;
         globalObs?.disconnect();
         globalObs = null;
         composerObs?.disconnect();
@@ -255,7 +299,7 @@ export default definePlugin({
         resetStreamFlags();
         lastConvId = "";
         primedReady = true;
-        document.getElementById(ICON_ID)?.remove();
+        restoreOfficialFavicon(ICON_ID, officialHref);
         void EDITOR_SEL;
     },
 
