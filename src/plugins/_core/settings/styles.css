@@ -1,0 +1,141 @@
+#bloom-root {
+    all: initial;
+}
+
+.bloom-settings-fab {
+    position: fixed;
+    z-index: 2147483645;
+    right: 20px;
+    bottom: 20px;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 14px;
+    background: #0a0b0a;
+    color: #e8efe9;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 28%);
+    cursor: grab;
+    display: grid;
+    place-items: center;
+    padding: 0;
+}
+
+.bloom-settings-fab:active {
+    cursor: grabbing;
+}
+
+.bloom-settings-fab svg {
+    width: 22px;
+    height: 22px;
+}
+
+.bloom-settings-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483646;
+    background: rgb(0 0 0 / 42%);
+}
+
+.bloom-settings-modal {
+    position: fixed;
+    z-index: 2147483647;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(520px, calc(100vw - 32px));
+    max-height: min(80vh, 720px);
+    overflow: auto;
+    padding: 20px;
+    border-radius: 24px;
+    background: #121412;
+    color: #e8efe9;
+    box-shadow: 0 24px 64px rgb(0 0 0 / 45%);
+    font: 14px/1.45 ui-sans-serif, system-ui, sans-serif;
+}
+
+.bloom-settings-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.bloom-settings-head h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+}
+
+.bloom-settings-head button {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+.bloom-plugin-card {
+    padding: 16px;
+    border-radius: 16px;
+    background: #1a1d1a;
+    margin-bottom: 12px;
+}
+
+.bloom-plugin-card header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.bloom-plugin-card h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.bloom-plugin-card p {
+    margin: 4px 0 0;
+    color: #9aa59c;
+    font-size: 0.8125rem;
+}
+
+.bloom-plugin-card label.bloom-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: #9aa59c;
+}
+
+.bloom-field {
+    display: grid;
+    gap: 6px;
+    margin-top: 12px;
+}
+
+.bloom-field span {
+    font-size: 0.75rem;
+    color: #9aa59c;
+}
+
+.bloom-field select,
+.bloom-field input[type="range"] {
+    width: 100%;
+}
+
+.bloom-field select {
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid rgb(232 239 233 / 14%);
+    background: #121412;
+    color: inherit;
+    padding: 0 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bloom-settings-modal { transition: none; }
+}

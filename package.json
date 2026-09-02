@@ -1,0 +1,29 @@
+{
+  "name": "bloompp",
+  "version": "1.0.0",
+  "description": "Bloom++ — a Void++-style plugin host for chatgpt.com",
+  "homepage": "https://github.com/0-V-linuxdo/Bloom#readme",
+  "bugs": {
+    "url": "https://github.com/0-V-linuxdo/Bloom/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/0-V-linuxdo/Bloom.git"
+  },
+  "license": "GPL-3.0-or-later",
+  "author": "0-V-linuxdo & Bloom contributors",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "build:dev": "node build.mjs --dev",
+    "watch": "node build.mjs --watch",
+    "tsc": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.9",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

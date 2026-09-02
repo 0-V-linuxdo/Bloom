@@ -1,0 +1,263 @@
+/*
+ * Bloom++, a modification for chatgpt.com
+ * Copyright (c) 2026 Bloom contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * State machine adapted from Void++ ChatStateFavicons; ChatGPT streaming
+ * detectors from Chat-State-Favicons (MIT). Streaming is NOT gated on empty input.
+ */
+
+import { definePluginSettings } from "../../api/Settings";
+import { Devs } from "../../utils/constants";
+import { applyFavicon, startFaviconGuard } from "../../utils/faviconGuard";
+import { Logger } from "../../utils/Logger";
+import definePlugin, { OptionType, StartAt } from "../../utils/types";
+import {
+    conversationToken,
+    contextKeyFromUrl,
+    EDITOR_SEL,
+    getActiveEditor,
+    getComposerRoot,
+    hasErrorToast,
+    isInputEmpty,
+    isStreaming,
+    submitIsGray,
+} from "./detect";
+import { buildIcons, type FaviconKind, type IconStyle, isIconStyle, STYLE_OPTIONS } from "./icons";
+
+const logger = new Logger("ChatStateFavicons");
+const ICON_ID = "bloom-chat-state-favicon";
+
+const settings = definePluginSettings({
+    style: {
+        type: OptionType.SELECT,
+        description: "How the blossom mark is overlaid with chat state.",
+        options: STYLE_OPTIONS,
+    },
+});
+
+let officialHref = "";
+let icons = buildIcons("badge", "");
+let kind: FaviconKind = "wait";
+let wasStreaming = false;
+let justFinished = false;
+let streamContext: string | null = null;
+let lockedToken = "";
+let lastConvId = "";
+let primedReady = true;
+let faviconObs: MutationObserver | null = null;
+let globalObs: MutationObserver | null = null;
+let composerObs: MutationObserver | null = null;
+let inputCtrl: AbortController | null = null;
+let raf = 0;
+let started = false;
+
+function currentStyle(): IconStyle {
+    const value = settings.store.style;
+    return isIconStyle(value) ? value : "badge";
+}
+
+function captureOfficial(): string {
+    const existing = document.querySelector<HTMLLinkElement>(`link[rel~="icon"]:not(#${ICON_ID})`);
+    const href = existing?.href;
+    if (href && !href.startsWith("data:")) return href;
+    return composeWaitFallback();
+}
+
+function composeWaitFallback(): string {
+    return icons.wait || "/favicon.ico";
+}
+
+function setKind(next: FaviconKind) {
+    kind = next;
+    applyFavicon(ICON_ID, icons[next]);
+}
+
+function rebuildIcons() {
+    icons = buildIcons(currentStyle(), officialHref);
+    applyFavicon(ICON_ID, icons[kind]);
+}
+
+function getContextKey(): string {
+    const token = conversationToken();
+    const key = token ? contextKeyFromUrl(token) : contextKeyFromUrl("");
+    if (isStreaming()) {
+        if (!lockedToken && key) lockedToken = key;
+        return lockedToken || key;
+    }
+    lockedToken = "";
+    return key;
+}
+
+function resetStreamFlags() {
+    wasStreaming = false;
+    justFinished = false;
+    streamContext = null;
+    lockedToken = "";
+}
+
+function onConversationSwitch(id: string) {
+    lastConvId = id;
+    resetStreamFlags();
+    primedReady = false;
+    composerObs?.disconnect();
+    composerObs = null;
+    setKind("wait");
+}
+
+function evaluateState() {
+    if (!started) return;
+    const conv = conversationToken() || location.pathname;
+    if (lastConvId && conv && lastConvId !== conv) {
+        onConversationSwitch(conv);
+        return;
+    }
+    if (conv) lastConvId = conv;
+
+    const contextKey = getContextKey();
+    const streaming = isStreaming();
+    const empty = isInputEmpty();
+    const gray = submitIsGray();
+
+    if (hasErrorToast() && !streaming) {
+        setKind("error");
+        wasStreaming = false;
+        justFinished = false;
+        streamContext = null;
+        return;
+    }
+
+    // ChatGPT: show rotate whenever streaming, even if leftover text remains.
+    if (streaming) {
+        wasStreaming = true;
+        justFinished = false;
+        streamContext = contextKey;
+        setKind("rotate");
+        return;
+    }
+
+    if (wasStreaming) {
+        const sameContext = !!streamContext && !!contextKey && streamContext === contextKey;
+        wasStreaming = false;
+        if (sameContext) {
+            justFinished = true;
+            streamContext = contextKey;
+            setKind("done");
+            return;
+        }
+        justFinished = false;
+        streamContext = null;
+    }
+
+    if (justFinished) {
+        const contextChanged = !!(streamContext && contextKey && streamContext !== contextKey);
+        if (contextChanged) {
+            justFinished = false;
+            streamContext = null;
+        } else if (empty) {
+            setKind("done");
+            return;
+        } else if (primedReady) {
+            justFinished = false;
+            setKind("ready");
+            return;
+        } else {
+            justFinished = false;
+            setKind("wait");
+            return;
+        }
+    }
+
+    void gray;
+    streamContext = null;
+    if (empty) setKind("wait");
+    else if (primedReady) setKind("ready");
+    else setKind("wait");
+}
+
+function scheduleEvaluate() {
+    if (!started || raf) return;
+    raf = requestAnimationFrame(() => {
+        raf = 0;
+        if (!started) return;
+        bindEditorInput();
+        const root = getComposerRoot();
+        if (!composerObs || !root.isConnected) observeComposer();
+        evaluateState();
+    });
+}
+
+function onEditorInput() {
+    primedReady = true;
+    scheduleEvaluate();
+}
+
+function bindEditorInput() {
+    const editor = getActiveEditor();
+    if (!editor || editor.dataset.bloomCsfBound === "1") return;
+    editor.dataset.bloomCsfBound = "1";
+    editor.addEventListener("input", onEditorInput, { passive: true });
+    editor.addEventListener("compositionend", onEditorInput, { passive: true });
+}
+
+function observeComposer() {
+    composerObs?.disconnect();
+    const root = getComposerRoot();
+    composerObs = new MutationObserver(() => scheduleEvaluate());
+    composerObs.observe(root, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ["aria-label", "aria-disabled", "disabled", "data-testid", "class"],
+    });
+}
+
+export default definePlugin({
+    name: "ChatStateFavicons",
+    description: "Show streaming, done, ready, and error states on the tab favicon.",
+    authors: [Devs.p],
+    tags: ["chat", "ui"],
+    enabledByDefault: true,
+    settings,
+    startAt: StartAt.HostReady,
+    cleanupSelectors: [`#${ICON_ID}`],
+
+    start() {
+        started = true;
+        officialHref = captureOfficial();
+        rebuildIcons();
+        faviconObs = startFaviconGuard(ICON_ID, () => applyFavicon(ICON_ID, icons[kind]));
+        inputCtrl?.abort();
+        inputCtrl = new AbortController();
+        window.addEventListener("popstate", scheduleEvaluate, { signal: inputCtrl.signal });
+        globalObs?.disconnect();
+        globalObs = new MutationObserver(() => scheduleEvaluate());
+        if (document.body) globalObs.observe(document.body, { childList: true, subtree: true });
+        bindEditorInput();
+        observeComposer();
+        evaluateState();
+        logger.debug("favicon watch started");
+    },
+
+    stop() {
+        started = false;
+        if (raf) cancelAnimationFrame(raf);
+        raf = 0;
+        inputCtrl?.abort();
+        inputCtrl = null;
+        globalObs?.disconnect();
+        globalObs = null;
+        composerObs?.disconnect();
+        composerObs = null;
+        faviconObs?.disconnect();
+        faviconObs = null;
+        resetStreamFlags();
+        lastConvId = "";
+        primedReady = true;
+        document.getElementById(ICON_ID)?.remove();
+        void EDITOR_SEL;
+    },
+
+    onSettingsChange: rebuildIcons,
+});

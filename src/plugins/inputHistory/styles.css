@@ -1,0 +1,121 @@
+.bloom-ih-hud {
+    contain: content;
+    position: fixed;
+    z-index: 2147483646;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border-light, color-mix(in srgb, currentColor 18%, transparent));
+    border-radius: 0.5rem;
+    background: var(--main-surface-primary, #212121);
+    color: var(--text-secondary, #b4b4b4);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -100%);
+    transition: opacity 0.12s ease;
+}
+
+.bloom-ih-hud-on {
+    opacity: 1;
+}
+
+.bloom-ih-panel {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.bloom-ih-search {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+    background: color-mix(in srgb, currentColor 6%, transparent);
+    color: inherit;
+    font: inherit;
+}
+
+.bloom-ih-empty {
+    margin: 0;
+    color: color-mix(in srgb, currentColor 55%, transparent);
+    font-size: 0.8125rem;
+}
+
+.bloom-ih-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow: auto;
+    max-height: min(22rem, 45vh);
+}
+
+.bloom-ih-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid transparent;
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, currentColor 6%, transparent);
+    text-align: left;
+}
+
+.bloom-ih-item:hover {
+    background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.bloom-ih-body {
+    display: block;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+}
+
+.bloom-ih-clamp {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
+
+.bloom-ih-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.bloom-ih-actions button {
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, currentColor 10%, transparent);
+    color: inherit;
+    cursor: pointer;
+}
+
+.bloom-ih-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.bloom-ih-clear {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+    font: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bloom-ih-hud { transition: none; }
+}
