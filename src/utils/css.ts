@@ -5,7 +5,7 @@
  *
  * registerStyle queues in memory. flushStyles (chrome-ready) appends
  * <style data-bloom-style> to document.head — never documentElement.
- * A copy is mirrored into #bloom-root's shadow for HUD / shell.
+ * A copy is mirrored into #bloom-root's shadow if that host exists.
  */
 
 type StyleEntry = {

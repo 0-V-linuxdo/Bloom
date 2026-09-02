@@ -16,7 +16,6 @@ import { registerStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
 import { clamp, copyToClipboard } from "../../utils/misc";
 import definePlugin, { OptionType, StartAt } from "../../utils/types";
-import { ensureHost } from "../_core/settings";
 import css from "./styles.css";
 
 const logger = new Logger("InputHistory");
@@ -168,19 +167,22 @@ function setEditorText(el: HTMLElement, text: string, atStart: boolean) {
 }
 
 function hudEl(): HTMLElement {
-    const root = ensureHost();
-    let el = root.querySelector<HTMLElement>(".bloom-ih-hud");
+    let el = document.querySelector<HTMLElement>(".bloom-ih-hud");
     if (!el) {
         el = document.createElement("div");
         el.className = "bloom-ih-hud";
-        root.appendChild(el);
+        document.body.appendChild(el);
     }
     return el;
 }
 
 function hideHud() {
-    const root = document.getElementById("bloom-root")?.shadowRoot;
-    root?.querySelector(".bloom-ih-hud")?.classList.remove("bloom-ih-hud-on");
+    const el = document.querySelector(".bloom-ih-hud");
+    el?.classList.remove("bloom-ih-hud-on");
+}
+
+function removeHud() {
+    document.querySelector(".bloom-ih-hud")?.remove();
 }
 
 function showHud(label: string, editor: HTMLElement) {
@@ -446,7 +448,6 @@ export default definePlugin({
 
     start() {
         registerStyle("inputHistory", css);
-        ensureHost();
         cursor = getEntries().length;
         recalling = false;
         bindWindow();
@@ -456,6 +457,7 @@ export default definePlugin({
         keys?.abort();
         keys = null;
         hideHud();
+        removeHud();
         recentAt.clear();
         clearTimeout(applyTimer);
         applying = false;

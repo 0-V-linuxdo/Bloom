@@ -3,14 +3,19 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Pass-through viewport overlay. FAB at the header. Panel is popover=manual
- * (top layer). Never an absolute child overflowing a 36×36 box.
- * No getBoundingClientRect, no window resize, no capture pointerdown.
+ * Settings live in ChatGPT's account menu (Void++-style). No FAB, no
+ * popover, no inset:0 overlay. #bloom-root is a zero-size HUD host only.
  */
 
 import { emitBloomEvent } from "../../../api/Events";
 import { definePluginSettings, Settings } from "../../../api/Settings";
 import { isPluginEnabled, plugins, togglePlugin } from "../../../api/PluginManager";
+import {
+    findAccountMenu,
+    findProfileButton,
+    findSidebarAnchor,
+    pathHitsProfile,
+} from "../../../host/accountMenu";
 import {
     applySchemeTokens,
     resolveScheme,
@@ -19,12 +24,16 @@ import {
 } from "../../../host/theme";
 import { requestIdleReady, whenShellReady } from "../../../host/idleReady";
 import { Devs } from "../../../utils/constants";
-import { syncShadowPluginStyles } from "../../../utils/css";
+import { registerStyle, syncShadowPluginStyles } from "../../../utils/css";
 import definePlugin, { OptionType, StartAt, type Plugin } from "../../../utils/types";
 import css from "./styles.css";
 
 const ROOT_ID = "bloom-root";
-const Z_FAB = "10000";
+const ITEM_ID = "bloom-account-item";
+const PANEL_ID = "bloom-menu-panel";
+const SIDEBAR_ID = "bloom-sidebar-panel";
+const STYLE_ID = "bloom-settings-css";
+const OPEN_CLASS = "bloom-menu-open";
 
 const settings = definePluginSettings({
     appearance: {
@@ -40,13 +49,13 @@ const settings = definePluginSettings({
 
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
-let open = false;
 let pluginView = false;
+let bloomOpen = false;
 let fieldUnmounts: Array<() => void> = [];
 let unwatchHost: (() => void) | null = null;
-let escAbort: AbortController | null = null;
-let fabEl: HTMLButtonElement | null = null;
-let panelEl: HTMLDivElement | null = null;
+let menuAbort: AbortController | null = null;
+let menuWatch: MutationObserver | null = null;
+let watchedMenu: HTMLElement | null = null;
 let listEl: HTMLDivElement | null = null;
 let pluginEl: HTMLDivElement | null = null;
 let gridEl: HTMLDivElement | null = null;
@@ -67,7 +76,7 @@ function backSvg(): string {
 }
 
 function gearSvg(): string {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`;
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`;
 }
 
 const PLUGIN_ICONS: Record<string, string> = {
@@ -86,76 +95,45 @@ function appearancePref(): SchemePref {
 }
 
 function paintScheme() {
-    if (!host) return;
     const pref = appearancePref();
     const scheme = resolveScheme(pref);
-    host.setAttribute("data-bloom-scheme", scheme);
-    applySchemeTokens(host, scheme, pref === "auto");
+    if (host) {
+        host.setAttribute("data-bloom-scheme", scheme);
+        applySchemeTokens(host, scheme, pref === "auto");
+    }
     emitBloomEvent("schemeChange", { scheme, pref });
 }
 
-function syncShadowStyles() {
-    syncShadowPluginStyles();
-}
-
-/** Take a node out of the hit-test tree. `hidden` alone is not enough if CSS display wins. */
 function setDismissed(el: HTMLElement | null, dismissed: boolean) {
     if (!el) return;
     el.hidden = dismissed;
     el.toggleAttribute("inert", dismissed);
     if (dismissed) el.setAttribute("aria-hidden", "true");
     else el.removeAttribute("aria-hidden");
-    el.style.pointerEvents = dismissed ? "none" : "auto";
 }
 
-/** Host is a pass-through overlay so shadow `position:fixed` (HUD) maps to the viewport. */
+function stripLegacyChrome() {
+    document.querySelectorAll(
+        ".bloom-settings-fab, .bloom-settings-panel, .bloom-settings-backdrop, [popover].bloom-settings-panel",
+    ).forEach(n => n.remove());
+}
+
+/** Zero-size HUD host. Never inset:0. Never a settings overlay. */
 function resetHostBox(el: HTMLElement) {
     el.style.position = "fixed";
-    el.style.inset = "0";
-    el.style.width = "auto";
-    el.style.height = "auto";
+    el.style.top = "0";
+    el.style.left = "0";
+    el.style.right = "auto";
+    el.style.bottom = "auto";
+    el.style.width = "0px";
+    el.style.height = "0px";
     el.style.margin = "0";
     el.style.padding = "0";
     el.style.border = "0";
     el.style.overflow = "hidden";
     el.style.pointerEvents = "none";
-    el.style.zIndex = Z_FAB;
-}
-
-type PopoverNode = HTMLElement & { showPopover: () => void; hidePopover: () => void };
-
-function asPopover(el: HTMLElement | null): PopoverNode | null {
-    if (!el) return null;
-    const node = el as PopoverNode;
-    return typeof node.showPopover === "function" ? node : null;
-}
-
-function revealPanel(el: HTMLElement) {
-    const pop = asPopover(el);
-    if (pop) {
-        el.removeAttribute("hidden");
-        el.removeAttribute("inert");
-        el.removeAttribute("aria-hidden");
-        el.style.pointerEvents = "auto";
-        try { pop.showPopover(); } catch { /* already open */ }
-        return;
-    }
-    setDismissed(el, false);
-}
-
-function concealPanel(el: HTMLElement | null) {
-    if (!el) return;
-    const pop = asPopover(el);
-    if (pop) {
-        try {
-            if (el.matches(":popover-open")) pop.hidePopover();
-        } catch { /* already closed */ }
-    }
-    setDismissed(el, true);
-}
-
-function purgeLeftoverOverlays(root: ParentNode) {
-    root.querySelectorAll(".bloom-settings-backdrop, .bloom-plugin-backdrop").forEach(n => n.remove());
+    el.style.zIndex = "0";
+    el.style.inset = "auto";
 }
 
 export function ensureHost(): ShadowRoot {
@@ -165,22 +143,22 @@ export function ensureHost(): ShadowRoot {
         host.id = ROOT_ID;
     }
     resetHostBox(host);
-    const root = document.body;
-    if (root && host.parentNode !== root) {
-        root.appendChild(host);
-    }
+    if (document.body && host.parentNode !== document.body) document.body.appendChild(host);
     shadow = host.shadowRoot ?? host.attachShadow({ mode: "open" });
-    purgeLeftoverOverlays(host);
-    purgeLeftoverOverlays(shadow);
-    if (!shadow.querySelector("style[data-bloom]")) {
-        const style = document.createElement("style");
-        style.dataset.bloom = "1";
-        style.textContent = css;
-        shadow.appendChild(style);
-    }
+    shadow.querySelectorAll(".bloom-settings-fab, .bloom-settings-panel, .bloom-settings-backdrop").forEach(n => n.remove());
     paintScheme();
-    syncShadowStyles();
+    syncShadowPluginStyles();
     return shadow;
+}
+
+function injectCss() {
+    registerStyle("settings", css);
+    if (document.getElementById(STYLE_ID) || !document.head) return;
+    if (document.querySelector('style[data-bloom-style="settings"]')) return;
+    const el = document.createElement("style");
+    el.id = STYLE_ID;
+    el.textContent = css;
+    document.head.appendChild(el);
 }
 
 function clearFields() {
@@ -309,7 +287,6 @@ function showPluginView(plugin: Plugin) {
 function pluginRow(plugin: Plugin): HTMLElement {
     const row = document.createElement("div");
     row.className = "bloom-plugin-row";
-    row.setAttribute("role", "menuitem");
 
     const icon = document.createElement("span");
     icon.className = "bloom-plugin-icon";
@@ -318,7 +295,6 @@ function pluginRow(plugin: Plugin): HTMLElement {
     const label = document.createElement("span");
     label.className = "bloom-plugin-label";
     label.textContent = plugin.name;
-
     row.append(icon, label);
 
     if (hasSettings(plugin)) {
@@ -327,12 +303,17 @@ function pluginRow(plugin: Plugin): HTMLElement {
         gear.className = "bloom-icon-btn";
         gear.setAttribute("aria-label", `${plugin.name} settings`);
         gear.innerHTML = gearSvg();
-        gear.addEventListener("click", () => showPluginView(plugin));
+        gear.addEventListener("click", ev => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            showPluginView(plugin);
+        });
         row.appendChild(gear);
     }
 
     const toggle = pluginToggle(plugin.name, isPluginEnabled(plugin.name), !!plugin.required);
     const box = toggle.querySelector("input");
+    box?.addEventListener("click", ev => ev.stopPropagation());
     box?.addEventListener("change", () => { togglePlugin(plugin.name); });
     row.appendChild(toggle);
     return row;
@@ -347,26 +328,25 @@ function fillGrid() {
     }
 }
 
-function ensurePanel(root: ShadowRoot) {
-    if (panelEl && listEl && pluginEl && gridEl && panelEl.isConnected) return;
+function holdMenu(ev: Event) {
+    ev.stopPropagation();
+}
 
-    panelEl?.remove();
+function eatMenuSelect(ev: Event) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (typeof (ev as Event & { stopImmediatePropagation?: () => void }).stopImmediatePropagation === "function") {
+        ev.stopImmediatePropagation();
+    }
+}
 
+function buildPanel(id: string): HTMLElement {
     const panel = document.createElement("div");
-    panel.className = "bloom-settings-panel";
-    panel.setAttribute("role", "menu");
-    panel.setAttribute("aria-labelledby", "bloom-settings-title");
-    panel.setAttribute("popover", "manual");
-    if (!asPopover(panel)) setDismissed(panel, true);
-    panel.addEventListener("toggle", () => {
-        const shown = panel.matches(":popover-open");
-        open = shown;
-        fabEl?.setAttribute("aria-expanded", shown ? "true" : "false");
-        if (!shown) {
-            showListView();
-            unbindEsc();
-        }
-    });
+    panel.id = id;
+    panel.className = id === SIDEBAR_ID ? "" : "bloom-menu-panel";
+    panel.addEventListener("pointerdown", holdMenu);
+    panel.addEventListener("pointerup", holdMenu);
+    panel.addEventListener("click", holdMenu);
 
     const list = document.createElement("div");
     list.className = "bloom-settings-list";
@@ -379,7 +359,6 @@ function ensurePanel(root: ShadowRoot) {
     mark.className = "bloom-settings-mark";
     mark.innerHTML = blossomSvg();
     const title = document.createElement("h2");
-    title.id = "bloom-settings-title";
     title.textContent = "Bloom++";
     brand.append(mark, title);
     const close = document.createElement("button");
@@ -415,7 +394,6 @@ function ensurePanel(root: ShadowRoot) {
     const pTitles = document.createElement("div");
     pTitles.className = "bloom-dialog-titles";
     const pTitle = document.createElement("h2");
-    pTitle.textContent = "";
     const pSub = document.createElement("p");
     pSub.className = "bloom-settings-sub";
     pTitles.append(pTitle, pSub);
@@ -432,9 +410,7 @@ function ensurePanel(root: ShadowRoot) {
     pluginPane.append(pHead, fields);
 
     panel.append(list, pluginPane);
-    root.append(panel);
 
-    panelEl = panel;
     listEl = list;
     pluginEl = pluginPane;
     gridEl = grid;
@@ -442,112 +418,190 @@ function ensurePanel(root: ShadowRoot) {
     pluginSubEl = pSub;
     pluginFieldsEl = fields;
     fillGrid();
+    return panel;
+}
+
+function closeMenuView(menu: HTMLElement | null) {
+    bloomOpen = false;
+    menu?.classList.remove(OPEN_CLASS);
+    document.getElementById(PANEL_ID)?.remove();
 }
 
 function hidePanel() {
-    open = false;
-    concealPanel(panelEl);
-    fabEl?.setAttribute("aria-expanded", "false");
     showListView();
-    unbindEsc();
+    closeMenuView(watchedMenu);
+    document.getElementById(SIDEBAR_ID)?.remove();
 }
 
-function showPanel() {
-    if (!fabEl?.isConnected || !panelEl?.isConnected) mountFab();
-    if (!panelEl) return;
-    showListView();
-    open = true;
-    fabEl?.setAttribute("aria-expanded", "true");
-    revealPanel(panelEl);
-    bindEsc();
-    emitBloomEvent("settingsOpen", undefined);
-}
-
-function togglePanel() {
-    if (open) hidePanel();
-    else showPanel();
-}
-
-function onEsc(e: KeyboardEvent) {
-    if (e.key !== "Escape") return;
-    if (!open) return;
-    e.preventDefault();
-    if (pluginView) {
+function openBloomInMenu(menu: HTMLElement) {
+    const existing = menu.querySelector(`#${PANEL_ID}`);
+    if (existing) {
+        bloomOpen = true;
+        menu.classList.add(OPEN_CLASS);
         showListView();
         return;
     }
-    hidePanel();
+    const panel = buildPanel(PANEL_ID);
+    menu.appendChild(panel);
+    bloomOpen = true;
+    menu.classList.add(OPEN_CLASS);
+    showListView();
+    emitBloomEvent("settingsOpen", undefined);
 }
 
-function unbindEsc() {
-    escAbort?.abort();
-    escAbort = null;
+function watchMenu(menu: HTMLElement) {
+    if (watchedMenu === menu && menuWatch) return;
+    menuWatch?.disconnect();
+    watchedMenu = menu;
+    menuWatch = new MutationObserver(() => {
+        if (!menu.isConnected) {
+            menuWatch?.disconnect();
+            menuWatch = null;
+            watchedMenu = null;
+            return;
+        }
+        injectAccountItem(menu);
+        if (bloomOpen) {
+            menu.classList.add(OPEN_CLASS);
+            if (!menu.querySelector(`#${PANEL_ID}`)) openBloomInMenu(menu);
+        }
+    });
+    menuWatch.observe(menu, { childList: true });
 }
 
-function bindEsc() {
-    unbindEsc();
-    if (!open) return;
+function injectAccountItem(menu: HTMLElement) {
+    watchMenu(menu);
+    if (menu.querySelector(`#${ITEM_ID}`)) return;
+    const item = document.createElement("button");
+    item.type = "button";
+    item.id = ITEM_ID;
+    item.className = "bloom-account-item";
+    item.setAttribute("role", "menuitem");
+    item.innerHTML = `${blossomSvg()}<span>Bloom++</span>`;
+    item.addEventListener("pointerdown", eatMenuSelect);
+    item.addEventListener("pointerup", eatMenuSelect);
+    item.addEventListener("click", ev => {
+        eatMenuSelect(ev);
+        const existing = menu.querySelector(`#${PANEL_ID}`);
+        if (existing) {
+            closeMenuView(menu);
+            return;
+        }
+        openBloomInMenu(menu);
+        window.setTimeout(() => {
+            if (!menu.isConnected) mountSidebarFallback();
+        }, 80);
+    });
+    menu.insertBefore(item, menu.firstChild);
+}
+
+function mountSidebarFallback() {
+    const anchor = findSidebarAnchor();
+    if (!anchor) return;
+    if (document.getElementById(SIDEBAR_ID)) return;
+    const panel = buildPanel(SIDEBAR_ID);
+    anchor.appendChild(panel);
+    bloomOpen = true;
+    showListView();
+    emitBloomEvent("settingsOpen", undefined);
+}
+
+function tryInjectMenu() {
+    const menu = findAccountMenu();
+    if (!menu) return false;
+    injectAccountItem(menu);
+    return true;
+}
+
+function onDocClick(e: Event) {
+    if (!pathHitsProfile(e)) return;
+    queueMicrotask(tryInjectMenu);
+    requestAnimationFrame(() => { tryInjectMenu(); });
+    window.setTimeout(tryInjectMenu, 60);
+    window.setTimeout(tryInjectMenu, 180);
+}
+
+function bindAccountMenu() {
+    menuAbort?.abort();
     const ac = new AbortController();
-    escAbort = ac;
-    window.addEventListener("keydown", onEsc, { signal: ac.signal });
+    menuAbort = ac;
+    document.addEventListener("click", onDocClick, { signal: ac.signal });
 }
 
-function mountFab() {
-    const root = ensureHost();
-    root.querySelector(".bloom-settings-fab")?.remove();
-
-    const fab = document.createElement("button");
-    fab.type = "button";
-    fab.className = "bloom-settings-fab";
-    fab.setAttribute("aria-label", "Bloom++ settings");
-    fab.setAttribute("aria-expanded", "false");
-    fab.setAttribute("aria-haspopup", "menu");
-    fab.innerHTML = blossomSvg();
-    fab.addEventListener("click", togglePanel);
-    root.appendChild(fab);
-    fabEl = fab;
-    ensurePanel(root);
+function unbindAccountMenu() {
+    menuAbort?.abort();
+    menuAbort = null;
+    menuWatch?.disconnect();
+    menuWatch = null;
+    watchedMenu = null;
 }
 
 export function openSettings() {
     requestIdleReady();
-    whenShellReady(() => showPanel());
+    whenShellReady(() => {
+        injectCss();
+        stripLegacyChrome();
+        const menu = findAccountMenu();
+        if (menu) {
+            injectAccountItem(menu);
+            openBloomInMenu(menu);
+            return;
+        }
+        const profile = findProfileButton();
+        if (profile) {
+            profile.click();
+            window.setTimeout(() => {
+                const opened = findAccountMenu();
+                if (opened) {
+                    injectAccountItem(opened);
+                    openBloomInMenu(opened);
+                    return;
+                }
+                mountSidebarFallback();
+            }, 80);
+            return;
+        }
+        mountSidebarFallback();
+    });
 }
 
 export default definePlugin({
     name: "Settings",
-    description: "Bloom++ settings, a header menu in the top layer.",
+    description: "Bloom++ settings, injected into the account menu.",
     authors: [Devs.p],
     required: true,
     hidden: true,
     enabledByDefault: true,
     settings,
     startAt: StartAt.HostShell,
-    cleanupSelectors: [`#${ROOT_ID}`],
+    cleanupSelectors: [`#${ROOT_ID}`, `#${ITEM_ID}`, `#${PANEL_ID}`, `#${SIDEBAR_ID}`, `#${STYLE_ID}`],
 
     start() {
-        mountFab();
-        paintScheme();
+        injectCss();
+        stripLegacyChrome();
+        bindAccountMenu();
         unwatchHost?.();
         unwatchHost = watchHostScheme(paintScheme);
+        paintScheme();
     },
 
     stop() {
-        unbindEsc();
+        unbindAccountMenu();
         unwatchHost?.();
         unwatchHost = null;
         hidePanel();
-        host?.remove();
+        document.getElementById(ITEM_ID)?.remove();
+        document.getElementById(STYLE_ID)?.remove();
         host = null;
         shadow = null;
-        fabEl = null;
-        panelEl = null;
         listEl = null;
         pluginEl = null;
         gridEl = null;
         pluginTitleEl = null;
         pluginSubEl = null;
         pluginFieldsEl = null;
+        bloomOpen = false;
+        pluginView = false;
     },
 
     onSettingsChange: paintScheme,

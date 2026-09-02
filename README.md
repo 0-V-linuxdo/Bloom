@@ -2,9 +2,9 @@
 
 English · [中文](README.zh.md)
 
-A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, a floating settings button.
+A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings in the account menu.
 
-Current release: **[v1.3.8](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.8)** (`userscript/Bloom.user.js`, `@version [20260902] v1.3.8`).
+Current release: **[v1.3.9](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.9)** (`userscript/Bloom.user.js`, `@version [20260902] v1.3.9`).
 
 v1.3.0 ships:
 
@@ -22,7 +22,7 @@ The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in th
 1. Install [Violentmonkey](https://violentmonkey.github.io/) or Tampermonkey.
 2. Open [`userscript/Bloom.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/main/userscript/Bloom.user.js).
 3. Confirm install. Reload `chatgpt.com`.
-4. Use the blossom button (top-right) to open plugins.
+4. Open your profile (bottom-left) and click **Bloom++**.
 
 Auto-update uses the same GitHub raw URL (`@updateURL` / `@downloadURL`). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
 
@@ -42,7 +42,7 @@ The blossom mark is the 24-unit evenodd path from the existing Chat-State-Favico
 - Esc cancels recall
 - Enter (no Shift) and Send both store the prompt
 - Slider 10–500 entries (default 100)
-- History panel lives in the floating settings shell
+- History panel lives in Bloom++ inside the account menu
 
 ## NoShareLink / NoDictation
 
@@ -91,6 +91,8 @@ v1.3.6: FAB docks to the header Download / profile control, never the left-rail 
 v1.3.7: Settings is a CSS-anchored cluster above the composer (no header hunting, no `resize` layout, no capture `pointerdown`). Opening the panel no longer freezes the page or spikes memory. Single-column cards so names are not clipped.
 
 v1.3.8: Settings is a **top-layer popover** (`popover=manual`) anchored to a header FAB. Compact menu rows (no PluginCard / no author footer). Host is a pass-through overlay so the panel cannot expand document overflow.
+
+v1.3.9: Settings is injected into ChatGPT's **account menu** (Void++-style). No FAB, no popover, no viewport overlay. HUD mounts on `document.body`.
 
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.

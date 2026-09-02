@@ -2,9 +2,9 @@
 
 [English](README.md) · 中文
 
-面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、顶栏浮层按钮。
+面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置挂在头像菜单里。
 
-当前版本：**[v1.3.8](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.8)**（`userscript/Bloom.user.js`，`@version [20260902] v1.3.8`）。
+当前版本：**[v1.3.9](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.9)**（`userscript/Bloom.user.js`，`@version [20260902] v1.3.9`）。
 
 v1.3.0：
 
@@ -22,7 +22,7 @@ v1.3.0：
 1. 安装 [Violentmonkey](https://violentmonkey.github.io/) 或 Tampermonkey。
 2. 打开 [`userscript/Bloom.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/main/userscript/Bloom.user.js)。
 3. 确认安装后刷新 `chatgpt.com`。
-4. 右下角可拖动的 blossom 按钮打开插件设置。
+4. 打开左下角头像菜单，点 **Bloom++**。
 
 自动更新走同一条 GitHub raw 地址。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
 
@@ -75,6 +75,8 @@ v1.3.6：花瓣锚到顶栏 Download / 头像，不再贴左侧栏。面板约 5
 v1.3.7：设置改为输入框上方的 CSS 锚簇（不再寻顶栏、不再 `resize` 写布局、不再 capture `pointerdown`）。开面板不再卡死或内存暴涨。单列卡片，插件名完整显示。
 
 v1.3.8：设置改为顶层 **popover**（`popover=manual`），花瓣钉在顶栏右。紧凑菜单行（去掉 PluginCard / 作者条）。host 是穿透 overlay，面板不再撑文档滚动条。
+
+v1.3.9：设置注入到 ChatGPT **头像菜单**（对齐 Void++）。去掉 FAB / popover / 全屏 overlay。HUD 挂在 `document.body`。
 
 ## 构建
 

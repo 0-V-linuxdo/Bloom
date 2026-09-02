@@ -3,8 +3,8 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * IdleReady mounts the FAB. HostReady plugins start after the island
- * gate + idle sequence. The blossom only opens settings — it does not
+ * IdleReady fires the shell (account-menu injection). HostReady plugins
+ * start after the island gate + idle sequence. Opening settings does not
  * start HostReady plugins.
  */
 
@@ -68,7 +68,7 @@ export function whenChromeReady(fn: () => void) {
     else chromeWaiters.push(fn);
 }
 
-/** FAB exists; does not start HostReady plugins. */
+/** Shell exists; does not start HostReady plugins. */
 export function requestIdleReady() {
     fireShell();
     fireIdle();
