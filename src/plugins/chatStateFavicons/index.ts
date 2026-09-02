@@ -52,7 +52,7 @@ const settings = definePluginSettings({
 });
 
 let officialHref = "";
-let scheme: ColorScheme = "dark";
+let scheme: ColorScheme = "light";
 let icons = buildIcons("badge", "", scheme);
 let kind: FaviconKind = "wait";
 let wasStreaming = false;

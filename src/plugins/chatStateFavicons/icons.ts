@@ -32,8 +32,8 @@ const KIND_COLOR: Record<Exclude<FaviconKind, "wait">, string> = {
 type Palette = { plate: string; mark: string; ring: string; glyph: string };
 
 const PALETTE: Record<ColorScheme, Palette> = {
-    dark: { plate: "#050505", mark: "#FCFCFC", ring: "#050505", glyph: "#ffffff" },
-    light: { plate: "#F3F1EB", mark: "#171816", ring: "#F3F1EB", glyph: "#ffffff" },
+    dark: { plate: "#212121", mark: "#ececec", ring: "#212121", glyph: "#ffffff" },
+    light: { plate: "#ffffff", mark: "#0d0d0d", ring: "#ffffff", glyph: "#ffffff" },
 };
 
 /** 24-unit OpenAI blossom (evenodd), used at translate(8 8) scale(2) on a 64 canvas. */

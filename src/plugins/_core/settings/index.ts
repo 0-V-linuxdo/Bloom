@@ -10,18 +10,20 @@ import { emitBloomEvent } from "../../../api/Events";
 import { definePluginSettings, Settings } from "../../../api/Settings";
 import { isPluginEnabled, plugins, togglePlugin } from "../../../api/PluginManager";
 import {
+    applySchemeTokens,
     isSchemePref,
     resolveScheme,
     watchHostScheme,
     type SchemePref,
 } from "../../../host/theme";
 import { Devs } from "../../../utils/constants";
-import { registerStyle } from "../../../utils/css";
+import { registerStyle, registeredStyleText } from "../../../utils/css";
 import definePlugin, { OptionType, StartAt } from "../../../utils/types";
 import css from "./styles.css";
 
 const ROOT_ID = "bloom-root";
 const FAB_POS_KEY = "bloom-fab-pos";
+const FAB_SIZE = 40;
 
 const settings = definePluginSettings({
     appearance: {
@@ -59,7 +61,19 @@ function paintScheme() {
     const pref = appearancePref();
     const scheme = resolveScheme(pref);
     host.setAttribute("data-bloom-scheme", scheme);
+    applySchemeTokens(host, scheme, pref === "auto");
     emitBloomEvent("schemeChange", { scheme, pref });
+}
+
+function syncShadowStyles() {
+    if (!shadow) return;
+    let el = shadow.querySelector<HTMLStyleElement>("style[data-bloom-plugins]");
+    if (!el) {
+        el = document.createElement("style");
+        el.dataset.bloomPlugins = "1";
+        shadow.appendChild(el);
+    }
+    el.textContent = registeredStyleText();
 }
 
 function loadFabPos(): { x: number; y: number } | null {
@@ -77,7 +91,11 @@ function saveFabPos(x: number, y: number) {
 }
 
 function ensureHost(): ShadowRoot {
-    if (shadow) return shadow;
+    if (shadow) {
+        paintScheme();
+        syncShadowStyles();
+        return shadow;
+    }
     host = document.getElementById(ROOT_ID) as HTMLElement | null;
     if (!host) {
         host = document.createElement("div");
@@ -92,6 +110,7 @@ function ensureHost(): ShadowRoot {
         shadow.appendChild(style);
     }
     paintScheme();
+    syncShadowStyles();
     return shadow;
 }
 
@@ -194,6 +213,7 @@ function renderAppearance(modal: HTMLElement) {
 
 function renderModal(root: ShadowRoot) {
     closeModal();
+    syncShadowStyles();
     open = true;
     const backdrop = document.createElement("button");
     backdrop.type = "button";
@@ -205,6 +225,7 @@ function renderModal(root: ShadowRoot) {
     modal.setAttribute("role", "dialog");
     modal.setAttribute("aria-modal", "true");
     modal.setAttribute("aria-labelledby", "bloom-settings-title");
+    modal.tabIndex = -1;
     modal.addEventListener("click", e => e.stopPropagation());
 
     const head = document.createElement("div");
@@ -254,7 +275,7 @@ function renderModal(root: ShadowRoot) {
         });
         const track = document.createElement("span");
         sw.append(box, track);
-        toggle.append(sw, document.createTextNode(box.checked ? "On" : "Off"));
+        toggle.append(sw);
         header.append(meta, toggle);
         card.appendChild(header);
 
@@ -268,6 +289,7 @@ function renderModal(root: ShadowRoot) {
     }
 
     root.append(backdrop, modal);
+    modal.focus();
     emitBloomEvent("settingsOpen", undefined);
 }
 
@@ -302,8 +324,8 @@ function mountFab() {
     fab.addEventListener("pointermove", e => {
         if (!drag) return;
         moved = true;
-        const x = Math.max(8, Math.min(window.innerWidth - 56, e.clientX - ox));
-        const y = Math.max(8, Math.min(window.innerHeight - 56, e.clientY - oy));
+        const x = Math.max(8, Math.min(window.innerWidth - FAB_SIZE - 8, e.clientX - ox));
+        const y = Math.max(8, Math.min(window.innerHeight - FAB_SIZE - 8, e.clientY - oy));
         fab.style.left = `${x}px`;
         fab.style.top = `${y}px`;
         fab.style.right = "auto";
@@ -323,6 +345,13 @@ function mountFab() {
         else renderModal(root);
     });
     root.appendChild(fab);
+}
+
+function onDocKey(e: KeyboardEvent) {
+    if (e.key === "Escape" && open) {
+        closeModal();
+        e.stopPropagation();
+    }
 }
 
 export function openSettings() {
@@ -346,12 +375,14 @@ export default definePlugin({
         paintScheme();
         unwatchHost?.();
         unwatchHost = watchHostScheme(paintScheme);
+        document.addEventListener("keydown", onDocKey, true);
         try {
             GM_registerMenuCommand?.("Bloom++ settings", openSettings);
         } catch { /* optional */ }
     },
 
     stop() {
+        document.removeEventListener("keydown", onDocKey, true);
         unwatchHost?.();
         unwatchHost = null;
         closeModal();

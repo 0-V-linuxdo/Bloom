@@ -322,7 +322,9 @@ function mountHistoryPanel(root: HTMLElement): () => void {
 
         const search = document.createElement("input");
         search.className = "bloom-ih-search";
+        search.type = "search";
         search.placeholder = "Search history";
+        search.autocomplete = "off";
         search.value = query;
         search.addEventListener("input", () => {
             query = search.value;
@@ -375,6 +377,7 @@ function mountHistoryPanel(root: HTMLElement): () => void {
         pager.className = "bloom-ih-pager";
         const prev = document.createElement("button");
         prev.type = "button";
+        prev.className = "bloom-ih-btn";
         prev.textContent = "Prev";
         prev.disabled = page <= 0;
         prev.addEventListener("click", () => { page -= 1; render(); });
@@ -382,6 +385,7 @@ function mountHistoryPanel(root: HTMLElement): () => void {
         info.textContent = `${page + 1} / ${pages}`;
         const next = document.createElement("button");
         next.type = "button";
+        next.className = "bloom-ih-btn";
         next.textContent = "Next";
         next.disabled = page + 1 >= pages;
         next.addEventListener("click", () => { page += 1; render(); });

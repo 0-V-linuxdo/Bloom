@@ -20,7 +20,7 @@
 3. 确认安装后刷新 `chatgpt.com`。
 4. 右下角可拖动的 blossom 按钮打开插件设置。
 
-外观（自动 / 浅色 / 深色）在设置面板顶部，默认跟随 `chatgpt.com`。ChatStateFavicons 在 **wait** 时不替换站点原图标，只在 streaming / done / ready / error 时叠状态。
+外观（自动 / 浅色 / 深色）在设置面板顶部。**自动跟随 `chatgpt.com` 自己的主题**（`html.dark` 与 `--main-surface-primary`），不跟操作系统的深色模式。ChatStateFavicons 在 **wait** 时不替换站点原图标，只在 streaming / done / ready / error 时叠状态。
 
 ## 构建
 

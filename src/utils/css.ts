@@ -37,3 +37,7 @@ export function removeStyle(name: string) {
     el?.remove();
     styles.delete(name);
 }
+
+export function registeredStyleText(): string {
+    return Array.from(styles.values()).map(el => el.textContent || "").join("\n");
+}

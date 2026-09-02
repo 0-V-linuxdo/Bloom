@@ -2,14 +2,14 @@
     contain: content;
     position: fixed;
     z-index: 2147483646;
-    padding: 0.25rem 0.5rem;
-    border: 1px solid var(--border-light, color-mix(in srgb, currentColor 18%, transparent));
-    border-radius: 0.5rem;
-    background: var(--main-surface-primary, #212121);
-    color: var(--text-secondary, #b4b4b4);
-    font-size: 0.75rem;
+    padding: 4px 10px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--main-surface-primary, #ffffff);
+    color: var(--text-secondary, #5d5d5d);
+    box-shadow: 0 0 0 1px var(--border-light, rgba(0, 0, 0, 0.1)), 0 2px 8px rgba(0, 0, 0, 0.08);
+    font: 12px/1.2 ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
     font-variant-numeric: tabular-nums;
-    line-height: 1.2;
     pointer-events: none;
     opacity: 0;
     transform: translate(-50%, -100%);
@@ -24,30 +24,40 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 10px;
 }
 
 .bloom-ih-search {
     width: 100%;
+    height: 40px;
     box-sizing: border-box;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.5rem;
-    border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
-    background: color-mix(in srgb, currentColor 6%, transparent);
-    color: inherit;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-medium, rgba(0, 0, 0, 0.15));
+    background: var(--main-surface-primary, #ffffff);
+    color: var(--text-primary, inherit);
     font: inherit;
+}
+
+.bloom-ih-search::placeholder {
+    color: var(--text-tertiary, #8f8f8f);
+}
+
+.bloom-ih-search:focus {
+    outline: 2px solid var(--text-primary, currentColor);
+    outline-offset: 1px;
 }
 
 .bloom-ih-empty {
     margin: 0;
-    color: color-mix(in srgb, currentColor 55%, transparent);
+    color: var(--text-secondary, #5d5d5d);
     font-size: 0.8125rem;
 }
 
 .bloom-ih-list {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 6px;
     overflow: auto;
     max-height: min(22rem, 45vh);
 }
@@ -55,25 +65,33 @@
 .bloom-ih-item {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.75rem;
+    gap: 8px;
     width: 100%;
-    padding: 0.75rem;
-    border: 1px solid transparent;
-    border-radius: 0.75rem;
-    background: color-mix(in srgb, currentColor 6%, transparent);
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--main-surface-primary, #ffffff);
     text-align: left;
 }
 
 .bloom-ih-item:hover {
-    background: color-mix(in srgb, currentColor 10%, transparent);
+    background: var(--interactive-bg-secondary-hover, rgba(0, 0, 0, 0.04));
 }
 
 .bloom-ih-body {
     display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+    font: inherit;
     font-size: 0.8125rem;
     line-height: 1.45;
+    text-align: left;
+    cursor: pointer;
 }
 
 .bloom-ih-clamp {
@@ -85,35 +103,70 @@
 
 .bloom-ih-actions {
     display: flex;
-    gap: 0.25rem;
+    gap: 2px;
 }
 
 .bloom-ih-actions button {
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 32px;
+    height: 32px;
     border: 0;
-    border-radius: 0.5rem;
-    background: color-mix(in srgb, currentColor 10%, transparent);
-    color: inherit;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary, inherit);
     cursor: pointer;
+}
+
+.bloom-ih-actions button:hover {
+    background: var(--interactive-bg-secondary-hover, rgba(0, 0, 0, 0.05));
+    color: inherit;
 }
 
 .bloom-ih-pager {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
+    gap: 6px;
     font-size: 0.8125rem;
     font-variant-numeric: tabular-nums;
+    color: var(--text-secondary, inherit);
+}
+
+.bloom-ih-btn {
+    height: 32px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--main-surface-primary, #ffffff);
+    color: var(--text-primary, inherit);
+    font: inherit;
+    font-size: 0.8125rem;
+    cursor: pointer;
+}
+
+.bloom-ih-btn:hover:not(:disabled) {
+    background: var(--interactive-bg-secondary-hover, rgba(0, 0, 0, 0.05));
+}
+
+.bloom-ih-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
 }
 
 .bloom-ih-clear {
+    margin-left: auto;
+    height: 32px;
+    padding: 0 12px;
     border: 0;
+    border-radius: 999px;
     background: transparent;
-    color: inherit;
-    text-decoration: underline;
+    color: var(--text-secondary, inherit);
     cursor: pointer;
     font: inherit;
+    font-size: 0.8125rem;
+}
+
+.bloom-ih-clear:hover {
+    color: var(--text-primary, inherit);
+    background: var(--interactive-bg-secondary-hover, rgba(0, 0, 0, 0.05));
 }
 
 @media (prefers-reduced-motion: reduce) {

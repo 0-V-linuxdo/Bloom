@@ -20,7 +20,7 @@ The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in th
 3. Confirm install. Reload `chatgpt.com`.
 4. Use the blossom button (bottom-right, draggable) to open plugins.
 
-Appearance (auto / light / dark) lives at the top of that panel and follows `chatgpt.com` by default. ChatStateFavicons **does not replace** the site favicon while idle (`wait`); overlays only appear for streaming / done / ready / error.
+Appearance (auto / light / dark) lives at the top of that panel. **Auto follows chatgpt.com's own theme** (`html.dark` and `--main-surface-primary`), not the operating-system color scheme. ChatStateFavicons **does not replace** the site favicon while idle (`wait`); overlays only appear for streaming / done / ready / error.
 
 ## ChatStateFavicons styles
 

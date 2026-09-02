@@ -1,79 +1,99 @@
-:host {
-  all: initial;
-}
+/* ChatGPT-native shell. Tokens come from :host (copied from chatgpt.com).
+   No `all: initial` — that blocked --main-surface-* inheritance. */
 
 :host {
-  --bloom-bg: #0c0d0c;
-  --bloom-surface: #161816;
-  --bloom-elevated: #1e211e;
-  --bloom-fg: #e8efe9;
-  --bloom-muted: #8b958c;
-  --bloom-border: rgb(232 239 233 / 14%);
-  --bloom-shadow: 0 1px 2px rgb(0 0 0 / 18%), 0 18px 48px rgb(0 0 0 / 38%);
-  --bloom-fab-shadow: 0 1px 2px rgb(0 0 0 / 20%), 0 10px 28px rgb(0 0 0 / 28%);
-  --bloom-ring: #c5d0c6;
-  --bloom-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  color-scheme: dark;
-  font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --bloom-bg: var(--main-surface-primary, #ffffff);
+  --bloom-surface: var(--main-surface-primary, #ffffff);
+  --bloom-elevated: var(--main-surface-secondary, #f4f4f4);
+  --bloom-tertiary: var(--main-surface-tertiary, #ececec);
+  --bloom-fg: var(--text-primary, #0d0d0d);
+  --bloom-muted: var(--text-secondary, #5d5d5d);
+  --bloom-faint: var(--text-tertiary, #8f8f8f);
+  --bloom-border: var(--border-light, rgba(0, 0, 0, 0.1));
+  --bloom-border-strong: var(--border-medium, rgba(0, 0, 0, 0.15));
+  --bloom-hover: var(--interactive-bg-secondary-hover, rgba(0, 0, 0, 0.05));
+  --bloom-icon: var(--icon-primary, #0d0d0d);
+  --bloom-shadow: 0 0 0 1px var(--bloom-border), 0 8px 24px rgba(0, 0, 0, 0.12);
+  --bloom-fab-shadow: 0 0 0 1px var(--bloom-border), 0 2px 8px rgba(0, 0, 0, 0.08);
+  --bloom-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  color-scheme: light;
+  font: 14px/1.5 ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
   color: var(--bloom-fg);
   -webkit-font-smoothing: antialiased;
 }
 
-:host([data-bloom-scheme="light"]) {
-  color-scheme: light;
-  --bloom-bg: #f3f1eb;
-  --bloom-surface: #fffcf7;
-  --bloom-elevated: #ebe7df;
-  --bloom-fg: #171816;
-  --bloom-muted: #5e635f;
-  --bloom-border: rgb(23 24 22 / 12%);
-  --bloom-shadow: 0 1px 2px rgb(23 24 22 / 6%), 0 18px 48px rgb(23 24 22 / 14%);
-  --bloom-fab-shadow: 0 1px 2px rgb(23 24 22 / 8%), 0 10px 28px rgb(23 24 22 / 12%);
-  --bloom-ring: #3d423e;
+:host([data-bloom-scheme="dark"]) {
+  color-scheme: dark;
+  --bloom-bg: var(--main-surface-primary, #212121);
+  --bloom-surface: var(--main-surface-primary, #212121);
+  --bloom-elevated: var(--main-surface-secondary, #2f2f2f);
+  --bloom-tertiary: var(--main-surface-tertiary, #424242);
+  --bloom-fg: var(--text-primary, #ececec);
+  --bloom-muted: var(--text-secondary, #b4b4b4);
+  --bloom-faint: var(--text-tertiary, #8f8f8f);
+  --bloom-border: var(--border-light, rgba(255, 255, 255, 0.1));
+  --bloom-border-strong: var(--border-medium, rgba(255, 255, 255, 0.15));
+  --bloom-hover: var(--interactive-bg-secondary-hover, rgba(255, 255, 255, 0.06));
+  --bloom-icon: var(--icon-primary, #ececec);
+  --bloom-shadow: 0 0 0 1px var(--bloom-border), 0 16px 40px rgba(0, 0, 0, 0.48);
+  --bloom-fab-shadow: 0 0 0 1px var(--bloom-border), 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+:host *,
+:host *::before,
+:host *::after {
+  box-sizing: border-box;
+}
+
+:host button,
+:host input,
+:host select {
+  font: inherit;
+  color: inherit;
 }
 
 .bloom-settings-fab {
   position: fixed;
   z-index: 2147483645;
-  right: 24px;
-  bottom: 24px;
-  width: 48px;
-  height: 48px;
+  right: 16px;
+  bottom: 16px;
+  width: 40px;
+  height: 40px;
   margin: 0;
   padding: 0;
-  border: 1px solid var(--bloom-border);
+  border: 0;
   border-radius: 999px;
   background: var(--bloom-surface);
-  color: var(--bloom-fg);
+  color: var(--bloom-icon);
   box-shadow: var(--bloom-fab-shadow);
-  cursor: grab;
+  cursor: pointer;
   display: grid;
   place-items: center;
   transition:
-    transform 180ms var(--bloom-ease),
-    box-shadow 180ms var(--bloom-ease),
-    background-color 180ms var(--bloom-ease),
-    color 180ms var(--bloom-ease);
+    transform 160ms var(--bloom-ease),
+    background-color 160ms var(--bloom-ease),
+    box-shadow 160ms var(--bloom-ease),
+    color 160ms var(--bloom-ease);
 }
 
 .bloom-settings-fab:hover {
-  transform: translateY(-1px);
+  background: var(--bloom-elevated);
 }
 
 .bloom-settings-fab:active,
 .bloom-settings-fab.is-dragging {
   cursor: grabbing;
-  transform: scale(0.98);
+  transform: scale(0.96);
 }
 
 .bloom-settings-fab:focus-visible {
-  outline: 2px solid var(--bloom-ring);
-  outline-offset: 3px;
+  outline: 2px solid var(--bloom-fg);
+  outline-offset: 2px;
 }
 
 .bloom-settings-fab svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: block;
 }
 
@@ -84,12 +104,8 @@
   border: 0;
   padding: 0;
   margin: 0;
-  background: rgb(0 0 0 / 46%);
+  background: rgba(0, 0, 0, 0.5);
   cursor: pointer;
-}
-
-:host([data-bloom-scheme="light"]) .bloom-settings-backdrop {
-  background: rgb(23 24 22 / 28%);
 }
 
 .bloom-settings-modal {
@@ -98,12 +114,12 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: min(520px, calc(100vw - 32px));
+  width: min(512px, calc(100vw - 32px));
   max-height: min(80vh, 720px);
   overflow: auto;
-  padding: 20px;
-  border: 1px solid var(--bloom-border);
-  border-radius: 28px;
+  padding: 16px 16px 20px;
+  border: 0;
+  border-radius: 16px;
   background: var(--bloom-surface);
   color: var(--bloom-fg);
   box-shadow: var(--bloom-shadow);
@@ -114,44 +130,43 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  margin: 0 4px 12px;
 }
 
 .bloom-settings-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
 .bloom-settings-mark {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: var(--bloom-elevated);
-  color: var(--bloom-fg);
+  width: 20px;
+  height: 20px;
+  color: var(--bloom-icon);
   display: grid;
   place-items: center;
   flex: 0 0 auto;
 }
 
 .bloom-settings-mark svg {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 }
 
 .bloom-settings-head h2 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.0625rem;
   font-weight: 600;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
 }
 
 .bloom-icon-btn {
-  width: 44px;
-  height: 44px;
+  width: 32px;
+  height: 32px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 8px;
   background: transparent;
   color: var(--bloom-muted);
   display: grid;
@@ -162,7 +177,7 @@
 
 .bloom-icon-btn:hover {
   color: var(--bloom-fg);
-  background: var(--bloom-elevated);
+  background: var(--bloom-hover);
 }
 
 .bloom-icon-btn svg {
@@ -173,17 +188,17 @@
 .bloom-seg {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  margin: 0 0 16px;
-  padding: 4px;
-  border-radius: 16px;
+  gap: 2px;
+  margin: 0 0 12px;
+  padding: 3px;
+  border-radius: 999px;
   background: var(--bloom-elevated);
 }
 
 .bloom-seg button {
-  height: 36px;
+  height: 32px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 999px;
   background: transparent;
   color: var(--bloom-muted);
   font: inherit;
@@ -192,17 +207,22 @@
   cursor: pointer;
 }
 
+.bloom-seg button:hover {
+  color: var(--bloom-fg);
+}
+
 .bloom-seg button[aria-pressed="true"] {
   background: var(--bloom-surface);
   color: var(--bloom-fg);
-  box-shadow: 0 0 0 1px var(--bloom-border);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--bloom-border), 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .bloom-plugin-card {
-  padding: 16px;
-  border-radius: 20px;
+  padding: 14px 14px 12px;
+  border-radius: 16px;
   background: var(--bloom-elevated);
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .bloom-plugin-card:last-child {
@@ -218,15 +238,16 @@
 
 .bloom-plugin-card h3 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.9375rem;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 .bloom-plugin-card p {
   margin: 4px 0 0;
   color: var(--bloom-muted);
   font-size: 0.8125rem;
+  line-height: 1.45;
 }
 
 .bloom-toggle {
@@ -241,8 +262,8 @@
 
 .bloom-switch {
   position: relative;
-  width: 44px;
-  height: 26px;
+  width: 40px;
+  height: 24px;
   flex: 0 0 auto;
 }
 
@@ -256,24 +277,23 @@
 
 .bloom-switch span {
   display: block;
-  width: 44px;
-  height: 26px;
+  width: 40px;
+  height: 24px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bloom-fg) 16%, transparent);
-  border: 1px solid var(--bloom-border);
+  background: var(--bloom-tertiary);
   transition: background-color 150ms var(--bloom-ease);
 }
 
 .bloom-switch span::after {
   content: "";
   position: absolute;
-  top: 3px;
-  left: 3px;
+  top: 2px;
+  left: 2px;
   width: 20px;
   height: 20px;
   border-radius: 999px;
-  background: var(--bloom-surface);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
   transition: transform 150ms var(--bloom-ease);
 }
 
@@ -282,12 +302,11 @@
 }
 
 .bloom-switch input:checked + span::after {
-  transform: translateX(18px);
-  background: var(--bloom-bg);
+  transform: translateX(16px);
 }
 
 .bloom-switch input:focus-visible + span {
-  outline: 2px solid var(--bloom-ring);
+  outline: 2px solid var(--bloom-fg);
   outline-offset: 2px;
 }
 
@@ -313,16 +332,26 @@
 
 .bloom-field select {
   height: 40px;
-  border-radius: 12px;
-  border: 1px solid var(--bloom-border);
+  border-radius: 10px;
+  border: 1px solid var(--bloom-border-strong);
   background: var(--bloom-surface);
   color: inherit;
-  padding: 0 10px;
+  padding: 0 12px;
   font: inherit;
+}
+
+.bloom-field select:hover {
+  border-color: var(--bloom-fg);
+}
+
+.bloom-field select:focus {
+  outline: 2px solid var(--bloom-fg);
+  outline-offset: 1px;
 }
 
 .bloom-field input[type="range"] {
   accent-color: var(--bloom-fg);
+  height: 24px;
 }
 
 @media (prefers-reduced-motion: reduce) {
