@@ -4,9 +4,9 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.9](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.9)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.9`）。
+当前版本：**[v1.4.10](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.10)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.10`）。
 
-v1.4.9：
+v1.4.10：
 
 | 插件 | 默认 | 说明 |
 | --- | --- | --- |
@@ -97,6 +97,8 @@ v1.4.7：设置面板对齐 Void++ Plugins 页。居中约 56rem 宽，两列名
 v1.4.8：新增 **NoSidebarIdentity**（纯 CSS，默认开）隐藏账号芯片显示名，头像和 Bloom++ 行保留。新增 **RecentTopics**（默认开）：Ctrl+` 切换最近会话。HUD 挂在 `document.body`（`#bloom-rt-host`），不是 popover / 全屏 overlay。访问记录来自 URL + Recents 链接 + 当前轮 DOM，不轮询 conversations API。`@version` 是 **1.4.8**（不是 1.4.6）：油猴不会从已发布的 1.4.7 降级到 1.4.6。
 
 v1.4.9：NoSidebarIdentity **保留名字/邮箱占位**。文字用 `visibility:hidden`（不用 `display:none`），`.min-w-0` 列留在文档流里，头像行不会缩成一颗图标。
+
+v1.4.10：恢复 **v1.4.7 设置面板**（居中约 56rem、Favorites/All/Chat/UI/Privacy 标签、搜索、图钉、星标、滑块齿轮）。1.4.8 合入时被旧的 280px 左侧停靠盖掉了。
 
 ## 构建
 

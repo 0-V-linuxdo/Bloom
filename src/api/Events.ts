@@ -8,6 +8,8 @@ import type { ColorScheme, SchemePref } from "../host/theme";
 
 export interface BloomEventMap {
     pluginToggle: { name: string; enabled: boolean };
+    pluginPin: { name: string; pinned: boolean };
+    pluginStar: { name: string; starred: boolean };
     settingsOpen: undefined;
     schemeChange: { scheme: ColorScheme; pref: SchemePref };
 }

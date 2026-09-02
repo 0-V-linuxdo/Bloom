@@ -95,3 +95,50 @@ export function bindPluginSettings(name: string, settings: DefinedSettings | und
         return defaultFor(settings.def, key);
     });
 }
+
+export interface SettingsPluginData {
+    pinnedPlugins?: string[];
+    starredPlugins?: string[];
+    [key: string]: unknown;
+}
+
+function settingsRow(): SettingsPluginData {
+    if (!Settings.plain.plugins.Settings) Settings.store.plugins.Settings = {};
+    return Settings.store.plugins.Settings as SettingsPluginData;
+}
+
+export function getPinnedPlugins(): string[] {
+    return settingsRow().pinnedPlugins ?? [];
+}
+
+export function isPluginPinned(name: string): boolean {
+    return getPinnedPlugins().includes(name);
+}
+
+export function togglePluginPinned(name: string): boolean {
+    const current = getPinnedPlugins();
+    const pinned = current.includes(name);
+    Settings.store.plugins.Settings = {
+        ...Settings.plain.plugins.Settings,
+        pinnedPlugins: pinned ? current.filter(n => n !== name) : [name, ...current],
+    };
+    return !pinned;
+}
+
+export function getStarredPlugins(): string[] {
+    return settingsRow().starredPlugins ?? [];
+}
+
+export function isPluginStarred(name: string): boolean {
+    return getStarredPlugins().includes(name);
+}
+
+export function togglePluginStarred(name: string): boolean {
+    const current = getStarredPlugins();
+    const starred = current.includes(name);
+    Settings.store.plugins.Settings = {
+        ...Settings.plain.plugins.Settings,
+        starredPlugins: starred ? current.filter(n => n !== name) : [name, ...current],
+    };
+    return !starred;
+}

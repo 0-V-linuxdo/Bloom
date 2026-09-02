@@ -4,9 +4,9 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.9](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.9)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.9`).
+Current release: **[v1.4.10](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.10)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.10`).
 
-v1.4.9 ships:
+v1.4.10 ships:
 
 | Plugin | Default | What it does |
 | --- | --- | --- |
@@ -113,6 +113,8 @@ v1.4.7: Settings panel matches Void++ Plugins tab chrome. Centered ~56rem dock s
 v1.4.8: **NoSidebarIdentity** (CSS-only, default on) hides the account-chip display name; avatar and the Bloom++ row stay. **RecentTopics** (default on) is Ctrl+` recent-chat switcher. HUD is body-docked (`#bloom-rt-host`), not a popover / inset:0 overlay. Visits come from the URL + Recents links + the current turn in the DOM — no conversations API. `@version` is **1.4.8** (not 1.4.6): Tampermonkey / Violentmonkey will not auto-update from published 1.4.7 down to 1.4.6.
 
 v1.4.9: NoSidebarIdentity keeps the name/email **slot**. Text is `visibility:hidden` (not `display:none`); the `.min-w-0` column stays in flow so the avatar chip does not collapse next to Bloom++.
+
+v1.4.10: Restore the **v1.4.7 settings panel** (centered ~56rem dock, Favorites/All/Chat/UI/Privacy tabs, search, pin, star, Settings2 gear). 1.4.8 had overwritten it with the older 280px left dock.
 
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.
