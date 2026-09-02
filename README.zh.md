@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.5](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.5)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.5`）。
+当前版本：**[v1.4.6](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.6)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.6`）。
 
 v1.3.0：
 
@@ -22,7 +22,7 @@ v1.3.0：
 1. 安装 [Violentmonkey](https://violentmonkey.github.io/) 或 Tampermonkey。
 2. 打开 [`userscript/Bloom.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/main/userscript/Bloom.user.js)。
 3. 确认安装后刷新 `chatgpt.com`。
-4. 左侧栏头像上方会出现 **Bloom++**。油猴菜单 **Bloom++ settings** 也会打开同一块面板（再点一次关闭）。面板永远停在页面左侧的 `document.body` 上，不会插入侧栏 DOM。插件列表是 **Void++ BaseCard** 栈（图标砖、两行描述、作者栏、齿轮 + 开关）。
+4. 左侧栏头像上方会出现 **Bloom++**。油猴菜单 **Bloom++ settings** 也会打开同一块面板（再点一次关闭）。面板**居中浮在页面上**（挂在 `document.body`），不会插入侧栏 DOM。插件列表对齐 **Void++ Plugins 页**：两列 BaseCard、搜索、Favorites/All、star/pin。
 
 若还装着旧版 Bloom++，先卸掉再从 GitHub raw 装。自动更新走同一条 GitHub raw 地址。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
 
@@ -89,6 +89,8 @@ v1.4.3：设置面板永远停在 `document.body`（`.bloom-rail-dock`，`z-inde
 v1.4.4：Bloom++ 图标槽改成 32px（与头像同宽）。内边距和间距跟账号芯片对齐，花标和名称与头像、用户名同一条竖线。
 
 v1.4.5：设置列表在现有 280px body-dock 里改回 Void++ **BaseCard** 栈（图标砖、两行描述、作者栏、齿轮 + 开关）。齿轮仍在同面板切视图。无模态 / popover / FAB。
+
+v1.4.6：设置面板**居中**（约 32rem），对齐 Void++ PluginsTab：两列卡片、搜索 + All/Enabled/Disabled、Favorites/All/标签页、star（收藏）和 pin（置顶）。仍是 body 上的 fixed 面板，不是模态 / overlay。
 
 ## 构建
 

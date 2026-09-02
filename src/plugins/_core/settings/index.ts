@@ -10,8 +10,17 @@
  * no inset:0 overlay. #bloom-root is a zero-size HUD host only.
  */
 
-import { emitBloomEvent } from "../../../api/Events";
-import { definePluginSettings, Settings } from "../../../api/Settings";
+import { emitBloomEvent, onBloomEvent } from "../../../api/Events";
+import {
+    definePluginSettings,
+    getPinnedPlugins,
+    getStarredPlugins,
+    isPluginPinned,
+    isPluginStarred,
+    Settings,
+    togglePluginPinned,
+    togglePluginStarred,
+} from "../../../api/Settings";
 import { isPluginEnabled, plugins, togglePlugin } from "../../../api/PluginManager";
 import {
     findAccountMenu,
@@ -71,6 +80,32 @@ let gridEl: HTMLDivElement | null = null;
 let pluginTitleEl: HTMLElement | null = null;
 let pluginSubEl: HTMLElement | null = null;
 let pluginFieldsEl: HTMLDivElement | null = null;
+let emptyEl: HTMLParagraphElement | null = null;
+let searchInput: HTMLInputElement | null = null;
+let filterSelect: HTMLSelectElement | null = null;
+let tabsEl: HTMLDivElement | null = null;
+let unsubList: Array<() => void> = [];
+
+type ListFilter = "all" | "enabled" | "disabled";
+type PluginCategory = "favorites" | "all" | "chat" | "ui" | "privacy";
+
+const FILTER_OPTIONS: readonly { value: ListFilter; label: string }[] = [
+    { value: "all", label: "All" },
+    { value: "enabled", label: "Enabled" },
+    { value: "disabled", label: "Disabled" },
+];
+
+const CATEGORY_TABS: readonly { id: PluginCategory; label: string }[] = [
+    { id: "favorites", label: "Favorites" },
+    { id: "all", label: "All" },
+    { id: "chat", label: "Chat" },
+    { id: "ui", label: "UI" },
+    { id: "privacy", label: "Privacy" },
+];
+
+let searchQuery = "";
+let listFilter: ListFilter = "all";
+let category: PluginCategory = "all";
 
 function blossomSvg(): string {
     return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M21.55 10.004a5.416 5.416 0 00-.478-4.501c-1.217-2.09-3.662-3.166-6.05-2.66A5.59 5.59 0 0010.831 1C8.39.995 6.224 2.546 5.473 4.838A5.553 5.553 0 001.76 7.496a5.487 5.487 0 00.691 6.5 5.416 5.416 0 00.477 4.502c1.217 2.09 3.662 3.165 6.05 2.66A5.586 5.586 0 0013.168 23c2.443.006 4.61-1.546 5.361-3.84a5.553 5.553 0 003.715-2.66 5.488 5.488 0 00-.693-6.497v.001z"/></svg>`;
@@ -85,7 +120,19 @@ function backSvg(): string {
 }
 
 function gearSvg(): string {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l-.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`;
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`;
+}
+
+function starSvg(filled: boolean): string {
+    return filled
+        ? `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.8l2.7 5.6 6.2.9-4.5 4.3 1.1 6.2L12 16.9 6.5 19.8l1.1-6.2L3.1 9.3l6.2-.9L12 2.8z"/></svg>`
+        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.4l2.4 5.1 5.6.8-4 3.9 1 5.6L12 16.2 7 18.8l1-5.6-4-3.9 5.6-.8L12 3.4z"/></svg>`;
+}
+
+function pinSvg(filled: boolean): string {
+    return filled
+        ? `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.2 3.5H7.8l-.8 2.4H5v1.8h1.1l1.3 7.2H9v5.6h6v-5.6h1.6l1.3-7.2H19V5.9h-2.2l-.6-2.4z"/></svg>`
+        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4H8l-.8 2.5H5v2h1.1L7.5 16H9v5h6v-5h1.5l1.4-7.5H19v-2h-2.2L16 4z"/></svg>`;
 }
 
 const PLUGIN_ICONS: Record<string, string> = {
@@ -339,6 +386,37 @@ function pluginCard(plugin: Plugin): HTMLElement {
 
     const controls = document.createElement("div");
     controls.className = "bloom-card-controls";
+
+    const starred = isPluginStarred(plugin.name);
+    const star = document.createElement("button");
+    star.type = "button";
+    star.className = `bloom-icon-btn bloom-card-star${starred ? " bloom-card-star-active" : ""}`;
+    star.setAttribute("aria-label", starred ? "Remove from favorites" : "Add to favorites");
+    star.innerHTML = starSvg(starred);
+    star.addEventListener("click", ev => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const next = togglePluginStarred(plugin.name);
+        emitBloomEvent("pluginStar", { name: plugin.name, starred: next });
+    });
+    controls.appendChild(star);
+
+    if (!plugin.required) {
+        const pinned = isPluginPinned(plugin.name);
+        const pin = document.createElement("button");
+        pin.type = "button";
+        pin.className = `bloom-icon-btn bloom-card-pin${pinned ? " bloom-card-pin-active" : ""}`;
+        pin.setAttribute("aria-label", pinned ? "Unpin from top" : "Pin to top");
+        pin.innerHTML = pinSvg(pinned);
+        pin.addEventListener("click", ev => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            const next = togglePluginPinned(plugin.name);
+            emitBloomEvent("pluginPin", { name: plugin.name, pinned: next });
+        });
+        controls.appendChild(pin);
+    }
+
     if (hasSettings(plugin)) {
         const gear = document.createElement("button");
         gear.type = "button";
@@ -380,12 +458,88 @@ function pluginCard(plugin: Plugin): HTMLElement {
     return card;
 }
 
+function visiblePlugins(): Plugin[] {
+    return Object.values(plugins).filter(p => !p.hidden && p.name !== "Settings");
+}
+
+function pluginMatchesCategory(plugin: Plugin, tab: PluginCategory): boolean {
+    if (tab === "all" || tab === "favorites") return true;
+    return (plugin.tags ?? []).includes(tab);
+}
+
+function searchKey(plugin: Plugin): string {
+    return `${plugin.name} ${plugin.description ?? ""} ${(plugin.tags ?? []).join(" ")}`.toLowerCase();
+}
+
+function emptyHint(): string {
+    if (searchQuery.trim()) return "No plugins match your search.";
+    if (category === "favorites") return "No favorites yet. Star a plugin to see it here.";
+    return "No plugins available.";
+}
+
+function visibleTabs(): typeof CATEGORY_TABS[number][] {
+    const pool = visiblePlugins();
+    return CATEGORY_TABS.filter(t => {
+        if (t.id === "favorites" || t.id === "all") return true;
+        return pool.some(p => pluginMatchesCategory(p, t.id));
+    });
+}
+
+function paintTabs() {
+    if (!tabsEl) return;
+    tabsEl.replaceChildren();
+    for (const tab of visibleTabs()) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `bloom-plugin-tab${category === tab.id ? " bloom-plugin-tab-active" : ""}`;
+        btn.textContent = tab.label;
+        btn.addEventListener("click", () => {
+            category = tab.id;
+            fillGrid();
+        });
+        tabsEl.appendChild(btn);
+    }
+}
+
+function listedPlugins(): Plugin[] {
+    let list = visiblePlugins();
+    if (category === "favorites") {
+        const starred = new Set(getStarredPlugins());
+        list = list.filter(p => starred.has(p.name));
+    } else if (category !== "all") {
+        list = list.filter(p => pluginMatchesCategory(p, category));
+    }
+    if (listFilter === "enabled") list = list.filter(p => isPluginEnabled(p.name));
+    if (listFilter === "disabled") list = list.filter(p => !isPluginEnabled(p.name));
+    return list;
+}
+
 function fillGrid() {
     if (!gridEl) return;
+    paintTabs();
+    const beforeSearch = listedPlugins();
+    if (searchInput) searchInput.placeholder = `Search ${beforeSearch.length} plugins...`;
+    let list = beforeSearch;
+    const q = searchQuery.trim().toLowerCase();
+    if (q) list = list.filter(p => searchKey(p).includes(q));
+    if (category !== "favorites") {
+        const pinned = getPinnedPlugins();
+        if (pinned.length) {
+            const rank = new Map(pinned.map((n, i) => [n, i]));
+            list = list.slice().sort((a, b) => {
+                const pa = rank.has(a.name);
+                const pb = rank.has(b.name);
+                if (pa !== pb) return pa ? -1 : 1;
+                if (pa) return (rank.get(a.name) ?? 0) - (rank.get(b.name) ?? 0);
+                return a.name.localeCompare(b.name);
+            });
+        }
+    }
     gridEl.replaceChildren();
-    for (const plugin of Object.values(plugins)) {
-        if (plugin.hidden || plugin.name === "Settings") continue;
-        gridEl.appendChild(pluginCard(plugin));
+    for (const plugin of list) gridEl.appendChild(pluginCard(plugin));
+    if (emptyEl) {
+        emptyEl.hidden = list.length > 0;
+        emptyEl.textContent = emptyHint();
     }
 }
 
@@ -419,6 +573,9 @@ function panelVisible(el: HTMLElement): boolean {
 
 function hidePanel() {
     showListView();
+    searchQuery = "";
+    listFilter = "all";
+    category = "all";
     document.getElementById(SIDEBAR_ID)?.remove();
     bloomOpen = false;
     syncRailExpanded();
@@ -458,13 +615,50 @@ function buildPanel(id: string): HTMLElement {
     const sectionTitle = document.createElement("h3");
     sectionTitle.textContent = "Plugins";
     const sectionHint = document.createElement("p");
-    sectionHint.textContent = "Toggle plugins. Gear opens options.";
+    sectionHint.textContent = "Turn Bloom++ features on or off. Gear opens options.";
     section.append(sectionTitle, sectionHint);
     list.appendChild(section);
+
+    const tabs = document.createElement("div");
+    tabs.className = "bloom-plugin-tabs";
+    list.appendChild(tabs);
+
+    const searchBar = document.createElement("div");
+    searchBar.className = "bloom-search-bar";
+    const input = document.createElement("input");
+    input.type = "search";
+    input.className = "bloom-search-input";
+    input.setAttribute("aria-label", "Search plugins");
+    input.placeholder = "Search plugins...";
+    input.addEventListener("input", () => {
+        searchQuery = input.value;
+        fillGrid();
+    });
+    const filter = document.createElement("select");
+    filter.className = "bloom-search-filter";
+    filter.setAttribute("aria-label", "Filter plugins");
+    for (const opt of FILTER_OPTIONS) {
+        const o = document.createElement("option");
+        o.value = opt.value;
+        o.textContent = opt.label;
+        filter.appendChild(o);
+    }
+    filter.value = listFilter;
+    filter.addEventListener("change", () => {
+        listFilter = filter.value as ListFilter;
+        fillGrid();
+    });
+    searchBar.append(input, filter);
+    list.appendChild(searchBar);
 
     const grid = document.createElement("div");
     grid.className = "bloom-plugin-list";
     list.appendChild(grid);
+
+    const empty = document.createElement("p");
+    empty.className = "bloom-tab-empty";
+    empty.hidden = true;
+    list.appendChild(empty);
 
     const pluginPane = document.createElement("div");
     pluginPane.className = "bloom-settings-plugin";
@@ -504,11 +698,15 @@ function buildPanel(id: string): HTMLElement {
     pluginTitleEl = pTitle;
     pluginSubEl = pSub;
     pluginFieldsEl = fields;
+    emptyEl = empty;
+    searchInput = input;
+    filterSelect = filter;
+    tabsEl = tabs;
     fillGrid();
     return panel;
 }
 
-function dockToLeftRail(panel: HTMLElement) {
+function dockToBody(panel: HTMLElement) {
     panel.classList.add("bloom-rail-dock");
 }
 
@@ -523,13 +721,13 @@ function mountPanel() {
     document.getElementById(SIDEBAR_ID)?.remove();
     if (!document.body) return;
     const panel = buildPanel(SIDEBAR_ID);
-    dockToLeftRail(panel);
+    dockToBody(panel);
     document.body.appendChild(panel);
     bloomOpen = true;
     showListView();
     syncRailExpanded();
     emitBloomEvent("settingsOpen", undefined);
-    console.info("[Bloom++] settings open", { version: VERSION, dock: "body", rail: !!liveRail() });
+    console.info("[Bloom++] settings open", { version: VERSION, dock: "center", rail: !!liveRail() });
 }
 
 function togglePanel() {
@@ -815,6 +1013,11 @@ export default definePlugin({
         unwatchHost?.();
         unwatchHost = watchHostScheme(paintScheme);
         paintScheme();
+        unsubList = [
+            onBloomEvent("pluginToggle", () => { if (bloomOpen && !pluginView) fillGrid(); }),
+            onBloomEvent("pluginPin", () => { if (bloomOpen && !pluginView) fillGrid(); }),
+            onBloomEvent("pluginStar", () => { if (bloomOpen && !pluginView) fillGrid(); }),
+        ];
     },
 
     stop() {
@@ -822,6 +1025,8 @@ export default definePlugin({
         unbindAccountMenu();
         unwatchHost?.();
         unwatchHost = null;
+        for (const u of unsubList) u();
+        unsubList = [];
         hidePanel();
         document.getElementById(RAIL_ID)?.remove();
         document.getElementById(ITEM_ID)?.remove();
@@ -834,6 +1039,10 @@ export default definePlugin({
         pluginTitleEl = null;
         pluginSubEl = null;
         pluginFieldsEl = null;
+        emptyEl = null;
+        searchInput = null;
+        filterSelect = null;
+        tabsEl = null;
         bloomOpen = false;
         pluginView = false;
     },
