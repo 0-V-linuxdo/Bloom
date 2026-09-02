@@ -2,6 +2,8 @@
 
 Plugin host for chatgpt.com. Architecture follows Void++ (`definePlugin`, PluginManager, SettingsStore, Bun/Node userscript build) without Grok turbopack.
 
+**先拉取 GitHub 上的最新版，再修改。** GitHub `main` (`https://github.com/0-V-linuxdo/Bloom`) is the source of truth. Before any code change: clone/pull `main`, then patch that snapshot. Never rsync or copy a stale sandbox tree over `main` — that is how 1.4.8 wiped the 1.4.7 settings panel. Diff against GitHub HEAD, then edit. Do not bump `@version` until after that pull (Tampermonkey will not downgrade).
+
 - Brand: **Bloom++**. Repo: `Bloom`. Package: `bloompp`. Global: `window.Bloom`. CSS: `bloom-`.
 - Do not put `ChatGPT` in the product/repo/package name. `@match` may still target chatgpt.com.
 - v1 plugins: ChatStateFavicons, InputHistory, NoShareLink, NoDictation, NoSidebarIdentity, RecentTopics, required `_core/settings` (sidebar rail row in the exporter pocket + body-docked panel, no FAB). Plugin list in that panel is a Void++ BaseCard stack (icon tile, 2-line description, author footer, gear + switch) — not compact 36px rows.
