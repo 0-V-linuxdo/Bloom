@@ -10,7 +10,7 @@ import { requestIdleReady, runIdleSequence, whenChromeReady, whenIdleReady, when
 import { Logger } from "./utils/Logger";
 import { VERSION } from "./utils/constants";
 import { flushStyles } from "./utils/css";
-import { hasLateIslands } from "./utils/hydration";
+import { hasComposer, hasLateIslands } from "./utils/hydration";
 import { StartAt, type Plugin } from "./utils/types";
 import settingsPlugin, { openSettings } from "./plugins/_core/settings";
 import chatStateFavicons from "./plugins/chatStateFavicons";
@@ -56,15 +56,12 @@ function waitForBody(): Promise<void> {
     });
 }
 
-/** MCP SuperAssistant #190: 8s is a floor, not a license to write DOM. */
-const HYDRATION_FLOOR_MS = 8_000;
-const HYDRATION_CEILING_MS = 20_000;
+/** 8s is a ceiling for the island wait, not a license to write DOM early. */
+const HYDRATION_CEILING_MS = 8_000;
 const HYDRATION_SETTLE_MS = 300;
-const HYDRATION_SPARSE_MS = 2_000;
+const HYDRATION_SPARSE_MS = 250;
 
 async function waitForHydrated(): Promise<boolean> {
-    const remain = HYDRATION_FLOOR_MS - (Date.now() - BOOT_AT);
-    if (remain > 0) await wait(remain);
     if (hasLateIslands()) {
         await wait(HYDRATION_SETTLE_MS);
         return true;
@@ -76,7 +73,7 @@ async function waitForHydrated(): Promise<boolean> {
             return true;
         }
     }
-    return false;
+    return hasLateIslands() || hasComposer();
 }
 
 function offerMenu() {

@@ -6,16 +6,19 @@
  * State machine adapted from Void++ ChatStateFavicons; ChatGPT streaming
  * detectors from Chat-State-Favicons (MIT). Streaming is NOT gated on empty input.
  * Wait keeps the host favicon (original / badge / dot). Overlays follow light/dark.
+ * Favicon link lives in document.head with a head-only competitor guard.
  */
 
 import { onBloomEvent } from "../../api/Events";
 import { definePluginSettings } from "../../api/Settings";
+import { getComposerRoot } from "../../host/composer";
 import { resolveScheme, type ColorScheme, type SchemePref } from "../../host/theme";
 import { Devs } from "../../utils/constants";
 import {
     applyFavicon,
     isUsableOfficialHref,
     restoreOfficialFavicon,
+    startFaviconGuard,
 } from "../../utils/faviconGuard";
 import { Logger } from "../../utils/Logger";
 import definePlugin, { OptionType, StartAt } from "../../utils/types";
@@ -62,9 +65,12 @@ let inputCtrl: AbortController | null = null;
 let unsubScheme: (() => void) | null = null;
 let raf = 0;
 let pollTimer: ReturnType<typeof setInterval> | undefined;
+let faviconObs: MutationObserver | null = null;
+let composerObs: MutationObserver | null = null;
+let composerRoot: HTMLElement | null = null;
 let started = false;
 const boundEditors = new WeakSet<HTMLElement>();
-const POLL_MS = 2_000;
+const POLL_MS = 400;
 
 function currentStyle(): IconStyle {
     const value = settings.store.style;
@@ -198,12 +204,31 @@ function evaluateState() {
     else setKind("wait");
 }
 
+function observeComposer() {
+    const root = getComposerRoot();
+    if (composerObs && composerRoot === root && root.isConnected) return;
+    composerObs?.disconnect();
+    composerRoot = root;
+    if (!root || root === document.body) {
+        composerObs = null;
+        return;
+    }
+    composerObs = new MutationObserver(() => scheduleEvaluate());
+    composerObs.observe(root, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["aria-label", "aria-disabled", "disabled", "data-testid", "class"],
+    });
+}
+
 function scheduleEvaluate() {
     if (!started || raf) return;
     raf = requestAnimationFrame(() => {
         raf = 0;
         if (!started) return;
         bindEditorInput();
+        observeComposer();
         evaluateState();
     });
 }
@@ -236,6 +261,15 @@ export default definePlugin({
         scheme = currentScheme();
         officialHref = captureOfficial() || officialHref;
         rebuildIcons();
+        faviconObs?.disconnect();
+        faviconObs = startFaviconGuard(ICON_ID, href => {
+            if (isUsableOfficialHref(href)) officialHref = href;
+            if (kind === "wait" && keepsOfficialWait(currentStyle())) {
+                restoreOfficialFavicon(ICON_ID, officialHref);
+                return;
+            }
+            rebuildIcons();
+        });
         unsubScheme = onBloomEvent("schemeChange", () => {
             const recaptured = captureOfficial();
             if (recaptured) officialHref = recaptured;
@@ -245,6 +279,7 @@ export default definePlugin({
         inputCtrl = new AbortController();
         window.addEventListener("popstate", scheduleEvaluate, { signal: inputCtrl.signal });
         bindEditorInput();
+        observeComposer();
         if (pollTimer !== undefined) clearInterval(pollTimer);
         pollTimer = setInterval(scheduleEvaluate, POLL_MS);
         evaluateState();
@@ -263,6 +298,11 @@ export default definePlugin({
         inputCtrl = null;
         unsubScheme?.();
         unsubScheme = null;
+        composerObs?.disconnect();
+        composerObs = null;
+        composerRoot = null;
+        faviconObs?.disconnect();
+        faviconObs = null;
         resetStreamFlags();
         lastConvId = "";
         primedReady = true;

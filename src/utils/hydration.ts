@@ -9,10 +9,10 @@
  * during that window drop the islands.
  */
 
-/** Conversation rows in the sidebar. Present in SSR HTML — not a hydrate signal alone. */
+/** Conversation / project rows in the sidebar. Present in SSR HTML — not a hydrate signal alone. */
 export function hasRecentsIsland(): boolean {
     try {
-        return !!document.querySelector('a[href^="/c/"]');
+        return !!document.querySelector('a[href^="/c/"], a[href^="/g/"]');
     } catch {
         return false;
     }
@@ -37,15 +37,18 @@ export function hasAvatarIsland(): boolean {
 
 export function hasComposer(): boolean {
     try {
-        return !!document.querySelector("#prompt-textarea");
+        return !!document.querySelector(
+            '#prompt-textarea, [data-testid="prompt-textarea"], form[data-type="unified-composer"] [contenteditable="true"]',
+        );
     } catch {
         return false;
     }
 }
 
 /**
- * Composer is client-hydrated. Recents `/c/` links exist in SSR, so they
- * only count together with the composer (or a real avatar).
+ * Composer is client-hydrated. Recents `/c/` and project `/g/` links
+ * exist in SSR, so they only count together with the composer (or a
+ * real avatar).
  */
 export function hasLateIslands(): boolean {
     if (!hasComposer()) return false;

@@ -98,8 +98,8 @@ export function ensureHost(): ShadowRoot {
         host.id = ROOT_ID;
         host.style.pointerEvents = "none";
     }
-    const root = document.documentElement;
-    if (host.parentNode !== root) {
+    const root = document.body;
+    if (root && host.parentNode !== root) {
         root.appendChild(host);
     }
     shadow = host.shadowRoot ?? host.attachShadow({ mode: "open" });
@@ -112,7 +112,7 @@ export function ensureHost(): ShadowRoot {
     paintScheme();
     syncShadowStyles();
     if (!shadowKeysBound) {
-        shadow.addEventListener("keydown", onDocKey);
+        shadow.addEventListener("keydown", onDocKey as EventListener);
         shadowKeysBound = true;
     }
     return shadow;
@@ -157,7 +157,8 @@ function hasSettings(plugin: Plugin): boolean {
     return !!plugin.settings && Object.keys(plugin.settings.def).length > 0;
 }
 
-function fieldControl(pluginName: string, key: string, spec: { type: OptionType; description?: string; min?: number; max?: number; options?: readonly { label: string; value: string }[]; render?: (el: HTMLElement) => () => void }): HTMLElement | null {
+function fieldControl(pluginName: string, key: string, spec: { type: OptionType; description?: string; min?: number; max?: number; hidden?: boolean; options?: readonly { label: string; value: string }[]; render?: (el: HTMLElement) => () => void }): HTMLElement | null {
+    if (spec.hidden) return null;
     if (spec.type === OptionType.COMPONENT && spec.render) {
         const wrap = document.createElement("details");
         wrap.className = "bloom-field bloom-field-block";

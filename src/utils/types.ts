@@ -36,6 +36,7 @@ export interface SettingDef {
     max?: number;
     options?: readonly SelectOption[];
     render?: (el: HTMLElement) => () => void;
+    hidden?: boolean;
 }
 
 export type SettingsDefinition = Record<string, SettingDef>;

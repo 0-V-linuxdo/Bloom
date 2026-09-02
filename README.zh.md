@@ -56,6 +56,8 @@ v1.2.3：去掉 PageTouch。不再用第一次点击启动 Host，改为 8 秒�
 
 v1.2.4：`#bloom-root` 挂到 `document.documentElement`，不进 `body`。页面 CSS 写在 `<html>` 上，不用 `GM_addStyle` / `<head>`。CSF / InputHistory / NoShareLink / NoDictation 等点花瓣或菜单后才启动。CSF 不改站点 favicon、不观察作曲器（2 秒轮询）。InputHistory 只用 window 冒泡。
 
+v1.3.0：岛门 + idle 之后自动启动 HostReady 插件（花瓣只开设置）。页面 CSS 和状态 favicon 写在 `document.head`。`#bloom-root` 挂 `document.body`。CSF 用 head-only FaviconGuard，并观察 composer root。InputHistory 用捕获阶段 `keydown`。NoDictation 隐藏听写（`Start dictation` / `Dictate button` / 听写），不隐藏 Voice（`composer-speech-button`）。Stop / Send / 编辑器选择器集中在 `src/host`。
+
 ## 构建
 
 ```bash

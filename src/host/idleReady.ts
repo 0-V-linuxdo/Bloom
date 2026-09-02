@@ -3,9 +3,9 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * IdleReady mounts the FAB. HostReady plugins wait for a Bloom-chrome
- * gesture (FAB or Violentmonkey menu) so they never write head / observe
- * the composer during ChatGPT's remaining hydrate.
+ * IdleReady mounts the FAB. HostReady plugins start after the island
+ * gate + idle sequence (or immediately on a FAB / Violentmonkey menu
+ * gesture). The blossom is a settings entry, not a feature kill-switch.
  */
 
 let shellReady = false;
@@ -37,6 +37,7 @@ function fireChrome() {
     if (chromeReady) return;
     chromeReady = true;
     if (!shellReady) fireShell();
+    if (!idleReady) fireIdle();
     flush(chromeWaiters);
 }
 
@@ -73,7 +74,7 @@ export function requestIdleReady() {
     fireIdle();
 }
 
-/** FAB or Violentmonkey menu. Starts HostReady plugins. */
+/** FAB, Violentmonkey menu, or idle sequence after islands. Starts HostReady plugins. */
 export function requestChromeReady() {
     fireChrome();
 }
@@ -96,4 +97,5 @@ export async function runIdleSequence() {
     fireShell();
     await whenBrowserIdle(4_000);
     fireIdle();
+    fireChrome();
 }

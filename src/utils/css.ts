@@ -3,9 +3,9 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Page CSS is a <style> on documentElement (never head, never GM_addStyle).
- * A copy is also mirrored into #bloom-root's shadow for HUD / shell.
- * flushStyles runs after a Bloom-chrome gesture.
+ * registerStyle queues in memory. flushStyles (chrome-ready) appends
+ * <style data-bloom-style> to document.head — never documentElement.
+ * A copy is mirrored into #bloom-root's shadow for HUD / shell.
  */
 
 type StyleEntry = {
@@ -19,6 +19,10 @@ let flushed = false;
 
 function shadowRoot(): ShadowRoot | null {
     return document.getElementById("bloom-root")?.shadowRoot ?? null;
+}
+
+function styleHost(): HTMLElement | null {
+    return document.head ?? null;
 }
 
 function syncShadow() {
@@ -35,21 +39,24 @@ function syncShadow() {
 
 function applyEntry(name: string, entry: StyleEntry) {
     if (!flushed) return;
+    const host = styleHost();
+    if (!host) return;
     if (entry.disabled) {
         if (entry.el) entry.el.disabled = true;
         syncShadow();
         return;
     }
-    if (entry.el?.isConnected) {
+    if (entry.el?.isConnected && entry.el.parentElement === host) {
         if (entry.el.textContent !== entry.css) entry.el.textContent = entry.css;
         entry.el.disabled = false;
         syncShadow();
         return;
     }
+    entry.el?.remove();
     const el = document.createElement("style");
     el.dataset.bloomStyle = name;
     el.textContent = entry.css;
-    document.documentElement.appendChild(el);
+    host.appendChild(el);
     entry.el = el;
     syncShadow();
 }

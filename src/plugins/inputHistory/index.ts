@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Adapted from Void++ InputHistory (GPL-3.0-or-later).
- * Editor: ChatGPT #prompt-textarea. Write path: execCommand insertText first.
+ * Editor: ChatGPT #prompt-textarea (and related composer editors).
+ * Write path: execCommand insertText first, then InputEvent.
+ * Keydown is capture-phase so ProseMirror does not swallow ArrowUp/Down.
  */
 
 import { definePluginSettings } from "../../api/Settings";
-import { EDITOR_SEL, editorText, getActiveEditor, getComposerRoot, SEND_SEL } from "../../host/composer";
+import { EDITOR_SEL, editorText, getActiveEditor, getComposerRoot, SEND_SEL, isStopControl } from "../../host/composer";
 import { Devs } from "../../utils/constants";
 import { registerStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -39,6 +41,12 @@ const settings = definePluginSettings({
         type: OptionType.COMPONENT,
         description: "Stored prompts",
         render: mountHistoryPanel,
+    },
+    entries: {
+        type: OptionType.STRING,
+        description: "Stored prompts",
+        hidden: true,
+        default: [],
     },
 });
 
@@ -75,7 +83,8 @@ function normalize(text: string): string {
 function chatEditor(t: EventTarget | null): HTMLElement | null {
     const el = t instanceof Element ? t : t instanceof Node ? t.parentElement : null;
     const hit = el?.closest?.(EDITOR_SEL);
-    return hit instanceof HTMLElement ? hit : null;
+    if (hit instanceof HTMLElement) return hit;
+    return getActiveEditor();
 }
 
 function caretOnEdge(el: HTMLElement): { first: boolean; last: boolean } {
@@ -152,8 +161,8 @@ function setEditorText(el: HTMLElement, text: string, atStart: boolean) {
     } catch (err) {
         logger.debug("insertText failed:", err);
         el.textContent = text;
-        el.dispatchEvent(new InputEvent("input", { bubbles: true, data: text, inputType: "insertText" }));
     }
+    el.dispatchEvent(new InputEvent("input", { bubbles: true, data: text, inputType: text ? "insertText" : "deleteContent" }));
     placeCaret(el, atStart);
     scheduleApplyEnd(gen);
 }
@@ -287,7 +296,7 @@ function onClick(e: MouseEvent) {
     const t = e.target;
     if (!(t instanceof Element)) return;
     const send = t.closest(SEND_SEL);
-    if (!send) return;
+    if (!send || !(send instanceof HTMLElement) || isStopControl(send)) return;
     const editor = getActiveEditor();
     if (editor) pushEntry(editorText(editor));
 }
@@ -306,11 +315,12 @@ function bindWindow() {
     if (keys) return;
     keys = new AbortController();
     const { signal } = keys;
-    window.addEventListener("keydown", onKeyDown, { signal });
-    window.addEventListener("input", onInput, { signal });
-    window.addEventListener("submit", onSubmit, { signal });
-    window.addEventListener("click", onClick, { signal });
-    window.addEventListener("pointerdown", onPointerDown, { signal });
+    const opts: AddEventListenerOptions = { capture: true, signal };
+    window.addEventListener("keydown", onKeyDown, opts);
+    window.addEventListener("input", onInput, opts);
+    window.addEventListener("submit", onSubmit, opts);
+    window.addEventListener("click", onClick, opts);
+    window.addEventListener("pointerdown", onPointerDown, opts);
 }
 
 function removeEntry(index: number) {

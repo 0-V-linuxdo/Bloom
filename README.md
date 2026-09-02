@@ -44,7 +44,7 @@ The blossom mark is the 24-unit evenodd path from the existing Chat-State-Favico
 
 ## NoShareLink / NoDictation
 
-Both plugins stay **off** until you toggle them. They adopt CSS after HostReady (late islands + 8s floor) and do **not** walk the tree with `MutationObserver` or `querySelectorAll("button")`.
+Both plugins stay **off** until you toggle them. They adopt CSS after HostReady and do **not** walk the tree with `MutationObserver` or `querySelectorAll("button")`.
 
 v1.1.2: `registerStyle` waits for `document.head` and never appends to `<html>`.
 
@@ -72,8 +72,10 @@ v1.2.3: PageTouch is gone. The host starts on `requestIdleCallback` after the 8s
 
 v1.2.4: `#bloom-root` mounts on `document.documentElement`, never `body`. Page CSS is a `<style>` on `<html>`, not `GM_addStyle` / `<head>`. HostReady plugins (CSF, InputHistory, NoShareLink, NoDictation) start after a Bloom-chrome gesture (FAB or menu). CSF does not write ChatGPT's icon link or observe the composer (2s poll). InputHistory uses window bubble listeners only.
 
+v1.3.0: HostReady plugins start after the island gate + idle (blossom is settings only). Page CSS and the state favicon live in `document.head`. `#bloom-root` mounts on `document.body`. CSF uses a head-only FaviconGuard (`removeCompetitors`, insert first) and watches the composer root. InputHistory uses capture-phase `keydown`. NoDictation hides Dictation (`Start dictation` / `Dictate button` / 听写) and leaves Voice (`composer-speech-button`) alone. Composer Stop/Send/editor selectors are a union table in `src/host`.
+
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
-- NoDictation: `button[data-testid="composer-speech-button"]` and composer-scoped Dictate / 听写 labels. Leaves `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.
+- NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.
 
 ## Build
 
