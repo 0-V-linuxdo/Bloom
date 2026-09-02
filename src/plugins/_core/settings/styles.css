@@ -1,4 +1,4 @@
-/* Sidebar rail row + in-flow panel. No overlay, no FAB, no popover. */
+/* Sidebar rail chip + body-docked panel. No overlay, no FAB, no popover. */
 
 .bloom-rail-item,
 .bloom-account-item {
@@ -66,10 +66,10 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  width: 100%;
+  width: min(280px, calc(100vw - 16px));
   max-height: min(60vh, 420px);
   overflow: auto;
-  margin: 8px 8px 4px;
+  margin: 0;
   padding: 10px;
   border-radius: 12px;
   color: var(--text-primary, inherit);
@@ -87,7 +87,7 @@
   width: min(280px, calc(100vw - 16px));
   max-height: min(60vh, 420px);
   margin: 0;
-  z-index: 80;
+  z-index: 10000;
   pointer-events: auto;
 }
 

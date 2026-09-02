@@ -5,9 +5,9 @@
  *
  * Persistent Bloom++ row in the chatgpt-exporter pocket (sibling of the
  * avatar chip, inside the account footer — never a direct child of nav /
- * #stage-slideover-sidebar). Settings panel is in-flow above that row, or
- * left-docked on body. No FAB, no popover, no inset:0 overlay.
- * #bloom-root is a zero-size HUD host only.
+ * #stage-slideover-sidebar). Settings panel always docks on document.body
+ * (never rail.before / never in-flow in the footer). No FAB, no popover,
+ * no inset:0 overlay. #bloom-root is a zero-size HUD host only.
  */
 
 import { emitBloomEvent } from "../../../api/Events";
@@ -39,6 +39,7 @@ const RAIL_ID = "bloom-rail-item";
 const ITEM_ID = "bloom-account-item";
 const SIDEBAR_ID = "bloom-sidebar-panel";
 const STYLE_ID = "bloom-settings-css";
+const RAIL_POLL_MS = 2_000;
 
 const settings = definePluginSettings({
     appearance: {
@@ -477,24 +478,18 @@ function liveRail(): HTMLElement | null {
     return null;
 }
 
+/** Panel is always a body dock. Never rail.before — that inflates the React footer. */
 function mountPanel() {
     document.getElementById(SIDEBAR_ID)?.remove();
     if (!document.body) return;
     const panel = buildPanel(SIDEBAR_ID);
-    const rail = liveRail();
-    let dock: "rail" | "body" = "body";
-    if (rail) {
-        rail.before(panel);
-        dock = "rail";
-    } else {
-        dockToLeftRail(panel);
-        document.body.appendChild(panel);
-    }
+    dockToLeftRail(panel);
+    document.body.appendChild(panel);
     bloomOpen = true;
     showListView();
     syncRailExpanded();
     emitBloomEvent("settingsOpen", undefined);
-    console.info("[Bloom++] settings open", { version: VERSION, dock });
+    console.info("[Bloom++] settings open", { version: VERSION, dock: "body", rail: !!liveRail() });
 }
 
 function togglePanel() {
@@ -536,49 +531,45 @@ function isNavOrStage(el: HTMLElement): boolean {
         || el.id === "stage-sidebar-tiny-bar";
 }
 
-function pinRail() {
-    if (!document.body) return;
-    const existing = document.getElementById(RAIL_ID);
-    const row = existing instanceof HTMLButtonElement ? existing : buildRailItem();
-    const profile = findProfileButton();
-    const tiny = findTinyBar();
-
-    if (profile) {
-        const anchor = railAnchor(profile);
-        const parent = anchor.parentElement;
-        if (isNavOrStage(anchor) || (parent && isNavOrStage(parent))) {
-            /* would become a nav/stage direct child — skip, wait for a pocket */
-            syncRailExpanded();
-            return;
-        }
-        if (!(row.isConnected && row.nextElementSibling === anchor)) {
-            anchor.before(row);
-        }
-        syncCollapsed(row);
-    } else if (tiny) {
-        if (row.parentElement !== tiny) tiny.appendChild(row);
-        syncCollapsed(row, true);
-    } else {
-        if (row.isConnected && !isOnscreenRail(row)) row.remove();
-        syncRailExpanded();
+function resumeSidebarWatch() {
+    if (watchedSidebar?.isConnected && sidebarWatch) {
+        sidebarWatch.observe(watchedSidebar, { childList: true });
         return;
     }
+    watchSidebar();
+}
 
-    const panel = document.getElementById(SIDEBAR_ID);
-    if (bloomOpen) {
-        if (panel instanceof HTMLElement && panel.isConnected && !panelVisible(panel)) {
-            panel.remove();
-            mountPanel();
-        } else if (panel instanceof HTMLElement && panel.isConnected) {
-            const rail = liveRail();
-            if (rail && panel.nextElementSibling !== rail && !panel.classList.contains("bloom-rail-dock")) {
-                rail.before(panel);
+/** Chip only. Never mount or move the settings panel. */
+function pinRail() {
+    if (!document.body) return;
+    sidebarWatch?.disconnect();
+    try {
+        const existing = document.getElementById(RAIL_ID);
+        const row = existing instanceof HTMLButtonElement ? existing : buildRailItem();
+        const profile = findProfileButton();
+        const tiny = findTinyBar();
+
+        if (profile) {
+            const anchor = railAnchor(profile);
+            const parent = anchor.parentElement;
+            if (isNavOrStage(anchor) || (parent && isNavOrStage(parent))) {
+                /* would become a nav/stage direct child — skip, wait for a pocket */
+                return;
             }
-        } else {
-            mountPanel();
+            if (!(row.isConnected && row.nextElementSibling === anchor)) {
+                anchor.before(row);
+            }
+            syncCollapsed(row);
+        } else if (tiny) {
+            if (row.parentElement !== tiny) tiny.appendChild(row);
+            syncCollapsed(row, true);
+        } else if (row.isConnected && !isOnscreenRail(row)) {
+            row.remove();
         }
+    } finally {
+        resumeSidebarWatch();
+        syncRailExpanded();
     }
-    syncRailExpanded();
 }
 
 function watchSidebar() {
@@ -588,7 +579,8 @@ function watchSidebar() {
     sidebarWatch?.disconnect();
     watchedSidebar = root;
     sidebarWatch = new MutationObserver(() => {
-        if (!document.getElementById(RAIL_ID)?.isConnected) pinRail();
+        if (document.getElementById(RAIL_ID)?.isConnected) return;
+        pinRail();
     });
     sidebarWatch.observe(root, { childList: true });
 }
@@ -598,9 +590,9 @@ function bindRail() {
     watchSidebar();
     if (railTimer === undefined) {
         railTimer = window.setInterval(() => {
-            pinRail();
+            if (!document.getElementById(RAIL_ID)?.isConnected) pinRail();
             watchSidebar();
-        }, 1000);
+        }, RAIL_POLL_MS);
     }
 }
 

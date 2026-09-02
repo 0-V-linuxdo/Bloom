@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.2](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.2)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.2`).
+Current release: **[v1.4.3](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.3)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.3`).
 
 v1.3.0 ships:
 
@@ -22,7 +22,7 @@ The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in th
 1. Install [Violentmonkey](https://violentmonkey.github.io/) or Tampermonkey.
 2. Open [`userscript/Bloom.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/main/userscript/Bloom.user.js).
 3. Confirm install. Reload `chatgpt.com`.
-4. Look for **Bloom++** above your profile in the left sidebar. Tampermonkey / Violentmonkey → **Bloom++ settings** also opens the panel (second click closes it). If the rail is not on screen yet, the menu docks the panel to the left of the page.
+4. Look for **Bloom++** above your profile in the left sidebar. Tampermonkey / Violentmonkey → **Bloom++ settings** also opens the panel (second click closes it). The panel always docks to the left of the page on `document.body` — it is never inserted into the sidebar tree.
 
 If an older Bloom++ is still installed, remove it first, then install from GitHub raw. Auto-update uses the same GitHub raw URL (`@updateURL` / `@downloadURL`). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
 
@@ -99,6 +99,8 @@ v1.4.0: Persistent **Bloom++** row next to the sidebar profile (`accounts-profil
 v1.4.1: Bloom++ is the **previous sibling** of the whole account footer (`nav.nextElementSibling` or `.sticky.bottom-0`), never a child of that overflow-hidden sticky box. Profile pick prefers the on-screen left-rail chip. HostShell starts when the sidebar exists (no extra idle wait). Collapsed rail shows the blossom only.
 
 v1.4.2: Pin waits for HostReady (do not mutate `nav` mid-hydration — React #418). Exporter pocket: sibling of the avatar chip inside the footer, never a `nav` / `#stage-slideover-sidebar` direct child. `findProfileButton` has no off-screen fallback. Userscript menu docks to `document.body` when the rail is not on screen. Invisible connected panels are torn down, not toggled shut. Collapsed rail may pin to `#stage-sidebar-tiny-bar`.
+
+v1.4.3: Settings panel always docks on `document.body` (`.bloom-rail-dock`, `z-index: 10000`). Never `rail.before(panel)` — that inflated the account footer and froze long chats. `pinRail` only restores the chip. Sidebar observer disconnects before mutating and only watches `#bloom-rail-item`. Rail poll is 2s and skips when the chip is still connected.
 
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.
