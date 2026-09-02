@@ -5,8 +5,9 @@
  *
  * Locate ChatGPT's left-rail profile and optional account portal.
  * Observe nothing on <html> or document.body[subtree].
- * The persistent entry is the previous sibling of the whole account
- * footer (never a child of .sticky.bottom-0 — that box clips).
+ * Bloom++ is the previous sibling of the avatar chip (or its single-child
+ * wrapper) inside the account footer — chatgpt-exporter pocket. Never a
+ * direct child of nav / #stage-slideover-sidebar (that blows React hydration).
  */
 
 const PROFILE_SEL = [
@@ -61,6 +62,12 @@ function visible(el: Element | null): el is HTMLElement {
     return el.getClientRects().length > 0;
 }
 
+function isNavOrStage(el: HTMLElement): boolean {
+    return el.tagName === "NAV"
+        || el.id === "stage-slideover-sidebar"
+        || el.id === "stage-sidebar-tiny-bar";
+}
+
 function allProfileButtons(): HTMLElement[] {
     const hits: HTMLElement[] = [];
     for (const hit of document.querySelectorAll(PROFILE_SEL)) {
@@ -71,47 +78,62 @@ function allProfileButtons(): HTMLElement[] {
     return hits;
 }
 
-/** Screen-left rail, not a translated-off slideover (negative left). */
-function onscreenLeftRail(el: HTMLElement): boolean {
+/**
+ * Screen-left rail the user can actually see. Translated-off
+ * #stage-slideover-sidebar copies fail this (negative left, or tiny box).
+ */
+export function isOnscreenRail(el: HTMLElement): boolean {
+    if (!el.isConnected || isBloomChrome(el)) return false;
     const r = el.getBoundingClientRect();
-    return r.width > 2
-        && r.height > 2
+    return r.width > 40
+        && r.height > 16
         && r.left >= 0
         && r.left < window.innerWidth / 3
-        && r.bottom > 0
-        && r.top < window.innerHeight;
+        && r.top < window.innerHeight
+        && r.bottom > 0;
 }
 
 export function findProfileButton(): HTMLElement | null {
-    const hits = allProfileButtons();
-    const onscreen = hits.filter(onscreenLeftRail);
-    if (onscreen.length) return onscreen[0];
-    return hits[0] ?? null;
+    const onscreen = allProfileButtons().filter(isOnscreenRail);
+    return onscreen[0] ?? null;
+}
+
+export function findTinyBar(): HTMLElement | null {
+    const bar = document.getElementById("stage-sidebar-tiny-bar");
+    if (!(bar instanceof HTMLElement) || !bar.isConnected) return null;
+    if (isBloomChrome(bar)) return null;
+    const r = bar.getBoundingClientRect();
+    if (r.width < 8 || r.height < 40 || r.left < 0 || r.left >= window.innerWidth / 3) return null;
+    return bar;
 }
 
 /**
- * Block that owns the whole account chip (avatar + bag / plan).
- * Bloom++ is inserted as this node's previous sibling — never inside
- * `.sticky.bottom-0` (one-row height + overflow:hidden).
+ * chatgpt-exporter pocket: insert before the avatar chip, or before its
+ * single-child wrapper. If the chip sits in a horizontal flex row (avatar +
+ * bag), insert before that whole row — but only when the row's parent is
+ * not nav / stage.
  */
 export function railAnchor(profile: HTMLElement): HTMLElement {
-    const sticky = profile.closest<HTMLElement>(".sticky.bottom-0");
-    if (sticky?.parentElement && !isBloomChrome(sticky.parentElement)) return sticky;
-
-    const nav = profile.closest("nav");
-    if (nav?.parentElement) {
-        const sib = nav.nextElementSibling;
-        if (sib instanceof HTMLElement && sib.contains(profile) && !isBloomChrome(sib)) return sib;
+    let target: HTMLElement = profile;
+    const wrap = profile.parentElement;
+    if (
+        wrap
+        && wrap.children.length === 1
+        && !isBloomChrome(wrap)
+        && !isNavOrStage(wrap)
+    ) {
+        target = wrap;
     }
 
-    let n: HTMLElement = profile;
-    while (n.parentElement && n.parentElement !== document.body) {
-        const p: HTMLElement = n.parentElement;
-        if (p.id === "stage-slideover-sidebar") return n;
-        if (p.tagName === "NAV") return n;
-        n = p;
+    const row = target.parentElement;
+    if (row && !isNavOrStage(row) && !isBloomChrome(row) && row.children.length > 1) {
+        const cls = row.getAttribute("class") || "";
+        const horizontal = /\bflex\b/.test(cls) && !/flex-col/.test(cls);
+        if (horizontal && row.parentElement && !isNavOrStage(row.parentElement)) {
+            return row;
+        }
     }
-    return n;
+    return target;
 }
 
 /** @deprecated use railAnchor — kept so older call sites compile. */
@@ -136,19 +158,22 @@ export function findAccountMenu(): HTMLElement | null {
     return null;
 }
 
+/** Footer / tiny-bar pocket for childList observers. Never the whole slideover. */
 export function findSidebarHost(): HTMLElement | null {
-    const stage = document.getElementById("stage-slideover-sidebar");
-    if (stage instanceof HTMLElement && stage.isConnected) return stage;
-    for (const nav of document.querySelectorAll("nav")) {
-        if (nav instanceof HTMLElement && nav.isConnected) return nav;
+    const profile = findProfileButton();
+    if (profile) {
+        const anchor = railAnchor(profile);
+        const parent = anchor.parentElement;
+        if (parent && !isNavOrStage(parent)) return parent;
+        if (!isNavOrStage(anchor)) return anchor;
     }
-    return null;
+    return findTinyBar();
 }
 
 export function findSidebarAnchor(): HTMLElement | null {
     const profile = findProfileButton();
     if (profile) return railAnchor(profile);
-    return null;
+    return findTinyBar();
 }
 
 export function pathHitsProfile(e: Event): boolean {

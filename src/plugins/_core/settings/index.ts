@@ -3,10 +3,11 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Persistent Bloom++ row as the previous sibling of the account footer
- * (never inside .sticky.bottom-0). The settings panel is in-flow above
- * that row, or left-docked on body as a last resort. No FAB, no popover,
- * no inset:0 overlay. #bloom-root is a zero-size HUD host only.
+ * Persistent Bloom++ row in the chatgpt-exporter pocket (sibling of the
+ * avatar chip, inside the account footer — never a direct child of nav /
+ * #stage-slideover-sidebar). Settings panel is in-flow above that row, or
+ * left-docked on body. No FAB, no popover, no inset:0 overlay.
+ * #bloom-root is a zero-size HUD host only.
  */
 
 import { emitBloomEvent } from "../../../api/Events";
@@ -16,6 +17,8 @@ import {
     findAccountMenu,
     findProfileButton,
     findSidebarHost,
+    findTinyBar,
+    isOnscreenRail,
     pathHitsProfile,
     railAnchor,
 } from "../../../host/accountMenu";
@@ -25,8 +28,8 @@ import {
     watchHostScheme,
     type SchemePref,
 } from "../../../host/theme";
-import { requestIdleReady, whenShellReady } from "../../../host/idleReady";
-import { Devs } from "../../../utils/constants";
+import { requestIdleReady } from "../../../host/idleReady";
+import { Devs, VERSION } from "../../../utils/constants";
 import { registerStyle, syncShadowPluginStyles } from "../../../utils/css";
 import definePlugin, { OptionType, StartAt, type Plugin } from "../../../utils/types";
 import css from "./styles.css";
@@ -366,6 +369,17 @@ function syncRailExpanded() {
     rail?.setAttribute("aria-expanded", bloomOpen ? "true" : "false");
 }
 
+function panelVisible(el: HTMLElement): boolean {
+    if (!el.isConnected) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 40
+        && r.height > 16
+        && r.left >= 0
+        && r.right <= window.innerWidth + 16
+        && r.top < window.innerHeight
+        && r.bottom > 0;
+}
+
 function hidePanel() {
     showListView();
     document.getElementById(SIDEBAR_ID)?.remove();
@@ -457,36 +471,39 @@ function dockToLeftRail(panel: HTMLElement) {
     panel.classList.add("bloom-rail-dock");
 }
 
+function liveRail(): HTMLElement | null {
+    const rail = document.getElementById(RAIL_ID);
+    if (rail instanceof HTMLElement && rail.isConnected && rail.parentElement && isOnscreenRail(rail)) return rail;
+    return null;
+}
+
 function mountPanel() {
     document.getElementById(SIDEBAR_ID)?.remove();
+    if (!document.body) return;
     const panel = buildPanel(SIDEBAR_ID);
-    const rail = document.getElementById(RAIL_ID);
-    const railBox = rail?.isConnected ? rail.getBoundingClientRect() : null;
-    if (rail?.isConnected && rail.parentElement && railBox && railBox.width > 2 && railBox.height > 2) {
+    const rail = liveRail();
+    let dock: "rail" | "body" = "body";
+    if (rail) {
         rail.before(panel);
+        dock = "rail";
     } else {
-        const profile = findProfileButton();
-        if (profile) {
-            railAnchor(profile).before(panel);
-        } else if (document.body) {
-            dockToLeftRail(panel);
-            document.body.appendChild(panel);
-        } else {
-            return;
-        }
+        dockToLeftRail(panel);
+        document.body.appendChild(panel);
     }
     bloomOpen = true;
     showListView();
     syncRailExpanded();
     emitBloomEvent("settingsOpen", undefined);
+    console.info("[Bloom++] settings open", { version: VERSION, dock });
 }
 
 function togglePanel() {
     const el = document.getElementById(SIDEBAR_ID);
-    if (el?.isConnected) {
+    if (el instanceof HTMLElement && el.isConnected && panelVisible(el)) {
         hidePanel();
         return;
     }
+    el?.remove();
     mountPanel();
 }
 
@@ -507,33 +524,59 @@ function buildRailItem(): HTMLButtonElement {
     return row;
 }
 
-function syncCollapsed(row: HTMLElement) {
+function syncCollapsed(row: HTMLElement, force?: boolean) {
     const parent = row.parentElement;
     const w = parent?.getBoundingClientRect().width ?? row.getBoundingClientRect().width;
-    row.classList.toggle("bloom-rail-compact", w > 0 && w < 80);
+    row.classList.toggle("bloom-rail-compact", force === true || (w > 0 && w < 80));
+}
+
+function isNavOrStage(el: HTMLElement): boolean {
+    return el.tagName === "NAV"
+        || el.id === "stage-slideover-sidebar"
+        || el.id === "stage-sidebar-tiny-bar";
 }
 
 function pinRail() {
     if (!document.body) return;
     const existing = document.getElementById(RAIL_ID);
+    const row = existing instanceof HTMLButtonElement ? existing : buildRailItem();
     const profile = findProfileButton();
-    if (!profile) {
-        /* do not append into .sticky.bottom-0 — wait for the next poll */
+    const tiny = findTinyBar();
+
+    if (profile) {
+        const anchor = railAnchor(profile);
+        const parent = anchor.parentElement;
+        if (isNavOrStage(anchor) || (parent && isNavOrStage(parent))) {
+            /* would become a nav/stage direct child — skip, wait for a pocket */
+            syncRailExpanded();
+            return;
+        }
+        if (!(row.isConnected && row.nextElementSibling === anchor)) {
+            anchor.before(row);
+        }
+        syncCollapsed(row);
+    } else if (tiny) {
+        if (row.parentElement !== tiny) tiny.appendChild(row);
+        syncCollapsed(row, true);
+    } else {
+        if (row.isConnected && !isOnscreenRail(row)) row.remove();
         syncRailExpanded();
         return;
     }
-    const anchor = railAnchor(profile);
-    const row = existing instanceof HTMLButtonElement ? existing : buildRailItem();
-    if (!(row.isConnected && row.nextElementSibling === anchor)) {
-        anchor.before(row);
-    }
-    syncCollapsed(row);
 
     const panel = document.getElementById(SIDEBAR_ID);
-    if (bloomOpen && panel?.isConnected) {
-        if (panel.nextElementSibling !== row) row.before(panel);
-    } else if (bloomOpen && panel && !panel.isConnected) {
-        mountPanel();
+    if (bloomOpen) {
+        if (panel instanceof HTMLElement && panel.isConnected && !panelVisible(panel)) {
+            panel.remove();
+            mountPanel();
+        } else if (panel instanceof HTMLElement && panel.isConnected) {
+            const rail = liveRail();
+            if (rail && panel.nextElementSibling !== rail && !panel.classList.contains("bloom-rail-dock")) {
+                rail.before(panel);
+            }
+        } else {
+            mountPanel();
+        }
     }
     syncRailExpanded();
 }
@@ -547,7 +590,7 @@ function watchSidebar() {
     sidebarWatch = new MutationObserver(() => {
         if (!document.getElementById(RAIL_ID)?.isConnected) pinRail();
     });
-    sidebarWatch.observe(root, { childList: true, subtree: true });
+    sidebarWatch.observe(root, { childList: true });
 }
 
 function bindRail() {
@@ -637,13 +680,11 @@ function unbindAccountMenu() {
 
 export function openSettings() {
     requestIdleReady();
-    whenShellReady(() => {
-        whenBody(() => {
-            injectCss();
-            stripLegacyChrome();
-            pinRail();
-            togglePanel();
-        });
+    whenBody(() => {
+        injectCss();
+        stripLegacyChrome();
+        pinRail();
+        togglePanel();
     });
 }
 
@@ -655,7 +696,7 @@ export default definePlugin({
     hidden: true,
     enabledByDefault: true,
     settings,
-    startAt: StartAt.HostShell,
+    startAt: StartAt.HostReady,
     cleanupSelectors: [`#${ROOT_ID}`, `#${RAIL_ID}`, `#${ITEM_ID}`, `#${SIDEBAR_ID}`, `#${STYLE_ID}`, "#bloom-menu-panel"],
 
     start() {

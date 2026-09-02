@@ -23,8 +23,6 @@
 
 .bloom-rail-item {
   flex: 0 0 auto;
-  position: sticky;
-  bottom: 3.5rem;
   z-index: 2;
   background: var(--sidebar-surface-primary, var(--main-surface-primary, transparent));
 }
@@ -57,7 +55,6 @@
   width: auto;
   padding: 8px;
   justify-content: center;
-  bottom: auto;
 }
 
 .bloom-rail-item.bloom-rail-compact > span {

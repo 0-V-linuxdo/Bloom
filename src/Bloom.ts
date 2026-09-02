@@ -83,7 +83,7 @@ function sidebarPresent(): boolean {
     );
 }
 
-/** Pin the rail as soon as the left sidebar exists — do not wait for idle. */
+/** Sidebar HTML may exist before hydrateRoot finishes — do not pin into it here. */
 async function waitForSidebar(): Promise<boolean> {
     if (sidebarPresent()) return true;
     const until = Date.now() + HYDRATION_CEILING_MS;

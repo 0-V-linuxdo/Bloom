@@ -3,11 +3,10 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * HostShell (sidebar rail pin) fires as soon as the left rail exists —
- * not after two requestIdleCallback turns. HostReady plugins still start
- * after the island gate + idle sequence. If the gate fails, Bloom still
- * fires HostReady so default-on plugins are not left dead. Opening
- * settings does not start HostReady plugins.
+ * HostShell fires when the left rail HTML exists. Settings pin waits for
+ * HostReady (after island gate + idle) so we do not mutate nav mid-hydration.
+ * If the gate fails, Bloom still fires HostReady so default-on plugins are
+ * not left dead. Opening settings does not start HostReady plugins.
  */
 
 let shellReady = false;
