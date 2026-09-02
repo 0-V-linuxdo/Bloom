@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.3](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.3)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.3`）。
+当前版本：**[v1.4.4](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.4)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.4`）。
 
 v1.3.0：
 
@@ -85,6 +85,8 @@ v1.4.1：Bloom++ 是账号 footer 整块（`nav` 的下一个兄弟或 `.sticky.
 v1.4.2：钉点等到 HostReady（水合中途不改 `nav`，避免 React #418）。exporter 口袋：footer 里头像芯片的兄弟，绝不当 `nav` / `#stage-slideover-sidebar` 的直子。`findProfileButton` 不再退回出屏节点。油猴菜单在没有屏内轨时把面板停到 `document.body`。看不见但仍连着的板先拆再画，不当作已打开。折叠轨可钉到 `#stage-sidebar-tiny-bar`。
 
 v1.4.3：设置面板永远停在 `document.body`（`.bloom-rail-dock`，`z-index: 10000`）。禁止 `rail.before(panel)`，避免把账号 footer 撑开、长对话卡死。`pinRail` 只补芯片。侧栏 observer 改 DOM 前 disconnect，只盯 `#bloom-rail-item`。轮询 2 秒，芯片还在就跳过。
+
+v1.4.4：Bloom++ 图标槽改成 32px（与头像同宽）。内边距和间距跟账号芯片对齐，花标和名称与头像、用户名同一条竖线。
 
 ## 构建
 

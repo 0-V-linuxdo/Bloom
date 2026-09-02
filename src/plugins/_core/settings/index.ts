@@ -509,7 +509,7 @@ function buildRailItem(): HTMLButtonElement {
     row.className = "bloom-rail-item";
     row.setAttribute("aria-controls", SIDEBAR_ID);
     row.setAttribute("aria-expanded", bloomOpen ? "true" : "false");
-    row.innerHTML = `${blossomSvg()}<span>Bloom++</span>`;
+    row.innerHTML = `<span class="bloom-rail-mark">${blossomSvg()}</span><span>Bloom++</span>`;
     row.addEventListener("pointerdown", ev => ev.stopPropagation());
     row.addEventListener("click", ev => {
         ev.preventDefault();
@@ -523,6 +523,75 @@ function syncCollapsed(row: HTMLElement, force?: boolean) {
     const parent = row.parentElement;
     const w = parent?.getBoundingClientRect().width ?? row.getBoundingClientRect().width;
     row.classList.toggle("bloom-rail-compact", force === true || (w > 0 && w < 80));
+}
+
+function profileFace(profile: HTMLElement): HTMLElement | null {
+    const img = profile.querySelector("img");
+    if (img instanceof HTMLElement) {
+        const r = img.getBoundingClientRect();
+        if (r.width > 8 && r.height > 8) return img;
+    }
+    for (const hit of profile.querySelectorAll('[class*="rounded-full"]')) {
+        if (!(hit instanceof HTMLElement)) continue;
+        const r = hit.getBoundingClientRect();
+        if (r.width > 8 && r.height > 8) return hit;
+    }
+    return null;
+}
+
+function profileName(profile: HTMLElement, face: HTMLElement | null): HTMLElement | null {
+    for (const hit of profile.querySelectorAll("div, span, p")) {
+        if (!(hit instanceof HTMLElement)) continue;
+        if (face && (hit === face || hit.contains(face) || face.contains(hit))) continue;
+        const text = (hit.textContent || "").trim();
+        if (text.length < 2) continue;
+        const r = hit.getBoundingClientRect();
+        if (r.width > 16 && r.height > 8 && r.height < 40) return hit;
+    }
+    return null;
+}
+
+function setPx(el: HTMLElement, prop: string, px: number) {
+    const next = `${px}px`;
+    if (el.style.getPropertyValue(prop) !== next) el.style.setProperty(prop, next);
+}
+
+/** Match avatar box + name column so Bloom++ lines up with the account chip. */
+function syncRailAlign(row: HTMLElement, profile: HTMLElement) {
+    if (row.classList.contains("bloom-rail-compact")) return;
+    const mark = row.querySelector(".bloom-rail-mark");
+    if (!(mark instanceof HTMLElement) || !row.isConnected || !profile.isConnected) return;
+
+    const face = profileFace(profile);
+    const cs = getComputedStyle(profile);
+    const padT = Number.parseFloat(cs.paddingTop);
+    const padB = Number.parseFloat(cs.paddingBottom);
+    if (Number.isFinite(padT)) setPx(row, "padding-top", Math.round(padT));
+    if (Number.isFinite(padB)) setPx(row, "padding-bottom", Math.round(padB));
+
+    if (face) {
+        const fr = face.getBoundingClientRect();
+        const size = Math.max(20, Math.round(fr.width));
+        setPx(mark, "width", size);
+        setPx(mark, "height", Math.max(20, Math.round(fr.height)));
+
+        const rowR = row.getBoundingClientRect();
+        const padL = Math.round(fr.left - rowR.left);
+        if (padL >= 0 && padL <= 40) setPx(row, "padding-left", padL);
+
+        const name = profileName(profile, face);
+        if (name) {
+            const nr = name.getBoundingClientRect();
+            const mr = mark.getBoundingClientRect();
+            const gap = Math.round(nr.left - mr.right);
+            if (gap >= 0 && gap <= 24) setPx(row, "gap", gap);
+        }
+    } else {
+        const padL = Number.parseFloat(cs.paddingLeft);
+        const gap = Number.parseFloat(cs.columnGap || cs.gap);
+        if (Number.isFinite(padL)) setPx(row, "padding-left", Math.round(padL));
+        if (Number.isFinite(gap) && gap > 0) setPx(row, "gap", Math.round(gap));
+    }
 }
 
 function isNavOrStage(el: HTMLElement): boolean {
@@ -560,6 +629,7 @@ function pinRail() {
                 anchor.before(row);
             }
             syncCollapsed(row);
+            syncRailAlign(row, profile);
         } else if (tiny) {
             if (row.parentElement !== tiny) tiny.appendChild(row);
             syncCollapsed(row, true);
@@ -590,7 +660,13 @@ function bindRail() {
     watchSidebar();
     if (railTimer === undefined) {
         railTimer = window.setInterval(() => {
-            if (!document.getElementById(RAIL_ID)?.isConnected) pinRail();
+            const rail = document.getElementById(RAIL_ID);
+            if (!(rail instanceof HTMLElement) || !rail.isConnected) {
+                pinRail();
+            } else {
+                const profile = findProfileButton();
+                if (profile) syncRailAlign(rail, profile);
+            }
             watchSidebar();
         }, RAIL_POLL_MS);
     }
