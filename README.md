@@ -4,9 +4,9 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.14](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.14)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.14`).
+Current release: **[v1.4.15](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.15)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.15`).
 
-v1.4.14 ships:
+v1.4.15 ships:
 
 | Plugin | Default | What it does |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ v1.4.14 ships:
 | InputHistory | On | Recall previous prompts with Arrow Up / Arrow Down, like a shell. |
 | NoShareLink | Off | Hide the conversation header Share button and the project Share button. CSS-only. |
 | NoDictation | Off | Hide the composer Dictation (speech-to-text) button. Does not hide Voice mode. CSS-only. |
-| NoSidebarIdentity | On | Hide the display name next to the sidebar avatar. Avatar stays clickable. CSS-only. |
+| NoSidebarIdentity | On | Hide the display name next to the sidebar avatar. Optional: enlarge Plus/Pro/Free type to match Bloom++. CSS-only. |
 | RecentTopics | On | Switch recently opened chats with Ctrl+` (title + last-turn preview). |
 | Cleaner | On | Hide the Download apps button and the composer “can make mistakes” notice. CSS-only. |
 
@@ -125,9 +125,11 @@ v1.4.13: NoSidebarIdentity `enlargePlan` (default on, only while the name is hid
 
 v1.4.14: **Revert** 1.4.13 `enlargePlan`. Hiding the name with `display:none` plus restyling `.min-w-0` stacked Pro under the avatar. Name hide is `visibility:hidden` again (keep the slot).
 
+v1.4.15: NoSidebarIdentity `enlargePlan` again — **font size / line-height only** (14px / 1.25 / 500). No flex, no `display:none` on the name, no `.min-w-0` restyle. Pro stays beside the avatar.
+
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.
-- NoSidebarIdentity: `[data-testid="accounts-profile-button"] .flex.min-w-0 > .truncate`. Toggles `hideUsername` and `hideEmail` (mailto only; Plus/Pro labels are left alone).
+- NoSidebarIdentity: `[data-testid="accounts-profile-button"] .flex.min-w-0 > .truncate`. Toggles `hideUsername` and `hideEmail` (mailto only; Plus/Pro labels are left alone). `enlargePlan` (default on, while the name is hidden) sets the plan label to 14px/1.25/500. Layout unchanged.
 - RecentTopics: Ctrl+` / Ctrl+Shift+` / Esc / Enter. `maxRecent` 3–12 (default 5). `includeHome` (default on).
 - Cleaner: Download apps via `a[href*="/download"]` / `download-app-button` / aria-label. Disclaimer via `[data-testid="thread-disclaimer"]` and `[class*="--vt-disclaimer"]` inside `#thread-bottom-container`. `display:none` (those controls should leave the layout).
 
