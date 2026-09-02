@@ -4,9 +4,9 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.16](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.16)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.16`）。
+当前版本：**[v1.4.17](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.17)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.17`）。
 
-v1.4.16：
+v1.4.17：
 
 | 插件 | 默认 | 说明 |
 | --- | --- | --- |
@@ -112,6 +112,8 @@ v1.4.14：**撤回** 1.4.13 的 `enlargePlan`。`display:none` 名字再改 `.mi
 v1.4.15：NoSidebarIdentity `enlargePlan` 重做——**只改字号/行高**（14px / 1.25 / 500）。不改 flex、不 `display:none` 名字、不重排 `.min-w-0`。Pro 仍在头像右侧。
 
 v1.4.16：扩大 `enlargePlan` 选择器。Plan 经常是第二条 `.truncate`（1.4.15 的 `:not(.truncate)` 打空），或头像旁直接的 `.text-xs` / `.text-token-text-secondary`。隐藏名字时只用 `.truncate:first-child:not(:last-child)`，最后一条 / 唯一一条 truncate（Plus/Pro/Free）保持可见。
+
+v1.4.17：**修正** 1.4.16。唯一的 `.truncate` 是显示名——`:first-child:not(:last-child)` 没藏住，`:last-child` 还把它放大了。恢复隐藏所有 `.min-w-0 > .truncate`。只放大 `.text-xs` / `.text-token-text-*:not(.truncate)` / 非 truncate 兄弟，不动 `.truncate`。
 
 ## 构建
 
