@@ -3,8 +3,10 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Settings live in ChatGPT's account menu (Void++-style). No FAB, no
- * popover, no inset:0 overlay. #bloom-root is a zero-size HUD host only.
+ * Persistent Bloom++ row next to the sidebar profile (chatgpt-exporter
+ * style). The settings panel is in-flow in the rail, or left-docked on
+ * body as a last resort. No FAB, no popover, no inset:0 overlay.
+ * #bloom-root is a zero-size HUD host only.
  */
 
 import { emitBloomEvent } from "../../../api/Events";
@@ -14,7 +16,9 @@ import {
     findAccountMenu,
     findProfileButton,
     findSidebarAnchor,
+    findSidebarHost,
     pathHitsProfile,
+    profileInsertionTarget,
 } from "../../../host/accountMenu";
 import {
     applySchemeTokens,
@@ -29,11 +33,10 @@ import definePlugin, { OptionType, StartAt, type Plugin } from "../../../utils/t
 import css from "./styles.css";
 
 const ROOT_ID = "bloom-root";
+const RAIL_ID = "bloom-rail-item";
 const ITEM_ID = "bloom-account-item";
-const PANEL_ID = "bloom-menu-panel";
 const SIDEBAR_ID = "bloom-sidebar-panel";
 const STYLE_ID = "bloom-settings-css";
-const OPEN_CLASS = "bloom-menu-open";
 
 const settings = definePluginSettings({
     appearance: {
@@ -56,6 +59,9 @@ let unwatchHost: (() => void) | null = null;
 let menuAbort: AbortController | null = null;
 let menuWatch: MutationObserver | null = null;
 let watchedMenu: HTMLElement | null = null;
+let sidebarWatch: MutationObserver | null = null;
+let watchedSidebar: HTMLElement | null = null;
+let railTimer: ReturnType<typeof setInterval> | undefined;
 let listEl: HTMLDivElement | null = null;
 let pluginEl: HTMLDivElement | null = null;
 let gridEl: HTMLDivElement | null = null;
@@ -76,7 +82,7 @@ function backSvg(): string {
 }
 
 function gearSvg(): string {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`;
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l-.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`;
 }
 
 const PLUGIN_ICONS: Record<string, string> = {
@@ -114,7 +120,7 @@ function setDismissed(el: HTMLElement | null, dismissed: boolean) {
 
 function stripLegacyChrome() {
     document.querySelectorAll(
-        ".bloom-settings-fab, .bloom-settings-panel, .bloom-settings-backdrop, [popover].bloom-settings-panel",
+        ".bloom-settings-fab, .bloom-settings-panel, .bloom-settings-backdrop, [popover].bloom-settings-panel, #bloom-menu-panel",
     ).forEach(n => n.remove());
 }
 
@@ -159,6 +165,22 @@ function injectCss() {
     el.id = STYLE_ID;
     el.textContent = css;
     document.head.appendChild(el);
+}
+
+function whenBody(fn: () => void) {
+    if (document.body) {
+        fn();
+        return;
+    }
+    let done = false;
+    const finish = () => {
+        if (done || !document.body) return;
+        done = true;
+        clearInterval(poll);
+        fn();
+    };
+    const poll = setInterval(finish, 20);
+    document.addEventListener("DOMContentLoaded", finish, { once: true });
 }
 
 function clearFields() {
@@ -340,10 +362,21 @@ function eatMenuSelect(ev: Event) {
     }
 }
 
+function syncRailExpanded() {
+    const rail = document.getElementById(RAIL_ID);
+    rail?.setAttribute("aria-expanded", bloomOpen ? "true" : "false");
+}
+
+function hidePanel() {
+    showListView();
+    document.getElementById(SIDEBAR_ID)?.remove();
+    bloomOpen = false;
+    syncRailExpanded();
+}
+
 function buildPanel(id: string): HTMLElement {
     const panel = document.createElement("div");
     panel.id = id;
-    panel.className = id === SIDEBAR_ID ? "" : "bloom-menu-panel";
     panel.addEventListener("pointerdown", holdMenu);
     panel.addEventListener("pointerup", holdMenu);
     panel.addEventListener("click", holdMenu);
@@ -421,32 +454,123 @@ function buildPanel(id: string): HTMLElement {
     return panel;
 }
 
-function closeMenuView(menu: HTMLElement | null) {
-    bloomOpen = false;
-    menu?.classList.remove(OPEN_CLASS);
-    document.getElementById(PANEL_ID)?.remove();
+function dockToLeftRail(panel: HTMLElement) {
+    panel.classList.add("bloom-rail-dock");
 }
 
-function hidePanel() {
-    showListView();
-    closeMenuView(watchedMenu);
+function mountPanel() {
     document.getElementById(SIDEBAR_ID)?.remove();
+    const panel = buildPanel(SIDEBAR_ID);
+    const rail = document.getElementById(RAIL_ID);
+    if (rail?.isConnected && rail.parentElement) {
+        rail.before(panel);
+    } else {
+        const anchor = findSidebarAnchor();
+        if (anchor) {
+            const profile = findProfileButton();
+            if (profile && anchor.contains(profile)) {
+                profileInsertionTarget(profile).before(panel);
+            } else {
+                anchor.appendChild(panel);
+            }
+        } else if (document.body) {
+            dockToLeftRail(panel);
+            document.body.appendChild(panel);
+        } else {
+            return;
+        }
+    }
+    bloomOpen = true;
+    showListView();
+    syncRailExpanded();
+    emitBloomEvent("settingsOpen", undefined);
 }
 
-function openBloomInMenu(menu: HTMLElement) {
-    const existing = menu.querySelector(`#${PANEL_ID}`);
-    if (existing) {
-        bloomOpen = true;
-        menu.classList.add(OPEN_CLASS);
-        showListView();
+function togglePanel() {
+    const el = document.getElementById(SIDEBAR_ID);
+    if (el?.isConnected) {
+        hidePanel();
         return;
     }
-    const panel = buildPanel(PANEL_ID);
-    menu.appendChild(panel);
-    bloomOpen = true;
-    menu.classList.add(OPEN_CLASS);
-    showListView();
-    emitBloomEvent("settingsOpen", undefined);
+    mountPanel();
+}
+
+function buildRailItem(): HTMLButtonElement {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.id = RAIL_ID;
+    row.className = "bloom-rail-item";
+    row.setAttribute("aria-controls", SIDEBAR_ID);
+    row.setAttribute("aria-expanded", bloomOpen ? "true" : "false");
+    row.innerHTML = `${blossomSvg()}<span>Bloom++</span>`;
+    row.addEventListener("pointerdown", ev => ev.stopPropagation());
+    row.addEventListener("click", ev => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        togglePanel();
+    });
+    return row;
+}
+
+function pinRail() {
+    if (!document.body) return;
+    const existing = document.getElementById(RAIL_ID);
+    const profile = findProfileButton();
+    if (profile) {
+        const target = profileInsertionTarget(profile);
+        if (existing?.isConnected && existing.nextElementSibling === target) {
+            /* already pinned */
+        } else {
+            const row = existing instanceof HTMLButtonElement ? existing : buildRailItem();
+            target.before(row);
+        }
+    } else {
+        const hostEl = findSidebarHost();
+        if (hostEl) {
+            const sticky = hostEl.querySelector<HTMLElement>(".sticky.bottom-0") ?? hostEl;
+            if (!(existing?.isConnected && existing.parentElement === sticky)) {
+                const row = existing instanceof HTMLButtonElement ? existing : buildRailItem();
+                sticky.appendChild(row);
+            }
+        }
+    }
+
+    const panel = document.getElementById(SIDEBAR_ID);
+    if (bloomOpen && panel && !panel.isConnected) mountPanel();
+    syncRailExpanded();
+}
+
+function watchSidebar() {
+    const root = findSidebarHost();
+    if (!root) return;
+    if (watchedSidebar === root && sidebarWatch) return;
+    sidebarWatch?.disconnect();
+    watchedSidebar = root;
+    sidebarWatch = new MutationObserver(() => {
+        if (!document.getElementById(RAIL_ID)?.isConnected) pinRail();
+    });
+    sidebarWatch.observe(root, { childList: true, subtree: true });
+}
+
+function bindRail() {
+    pinRail();
+    watchSidebar();
+    if (railTimer === undefined) {
+        railTimer = window.setInterval(() => {
+            pinRail();
+            watchSidebar();
+        }, 1000);
+    }
+}
+
+function unbindRail() {
+    if (railTimer !== undefined) {
+        clearInterval(railTimer);
+        railTimer = undefined;
+    }
+    sidebarWatch?.disconnect();
+    sidebarWatch = null;
+    watchedSidebar = null;
 }
 
 function watchMenu(menu: HTMLElement) {
@@ -461,10 +585,6 @@ function watchMenu(menu: HTMLElement) {
             return;
         }
         injectAccountItem(menu);
-        if (bloomOpen) {
-            menu.classList.add(OPEN_CLASS);
-            if (!menu.querySelector(`#${PANEL_ID}`)) openBloomInMenu(menu);
-        }
     });
     menuWatch.observe(menu, { childList: true });
 }
@@ -482,28 +602,9 @@ function injectAccountItem(menu: HTMLElement) {
     item.addEventListener("pointerup", eatMenuSelect);
     item.addEventListener("click", ev => {
         eatMenuSelect(ev);
-        const existing = menu.querySelector(`#${PANEL_ID}`);
-        if (existing) {
-            closeMenuView(menu);
-            return;
-        }
-        openBloomInMenu(menu);
-        window.setTimeout(() => {
-            if (!menu.isConnected) mountSidebarFallback();
-        }, 80);
+        togglePanel();
     });
     menu.insertBefore(item, menu.firstChild);
-}
-
-function mountSidebarFallback() {
-    const anchor = findSidebarAnchor();
-    if (!anchor) return;
-    if (document.getElementById(SIDEBAR_ID)) return;
-    const panel = buildPanel(SIDEBAR_ID);
-    anchor.appendChild(panel);
-    bloomOpen = true;
-    showListView();
-    emitBloomEvent("settingsOpen", undefined);
 }
 
 function tryInjectMenu() {
@@ -539,46 +640,30 @@ function unbindAccountMenu() {
 export function openSettings() {
     requestIdleReady();
     whenShellReady(() => {
-        injectCss();
-        stripLegacyChrome();
-        const menu = findAccountMenu();
-        if (menu) {
-            injectAccountItem(menu);
-            openBloomInMenu(menu);
-            return;
-        }
-        const profile = findProfileButton();
-        if (profile) {
-            profile.click();
-            window.setTimeout(() => {
-                const opened = findAccountMenu();
-                if (opened) {
-                    injectAccountItem(opened);
-                    openBloomInMenu(opened);
-                    return;
-                }
-                mountSidebarFallback();
-            }, 80);
-            return;
-        }
-        mountSidebarFallback();
+        whenBody(() => {
+            injectCss();
+            stripLegacyChrome();
+            pinRail();
+            togglePanel();
+        });
     });
 }
 
 export default definePlugin({
     name: "Settings",
-    description: "Bloom++ settings, injected into the account menu.",
+    description: "Bloom++ settings, pinned next to the account row.",
     authors: [Devs.p],
     required: true,
     hidden: true,
     enabledByDefault: true,
     settings,
     startAt: StartAt.HostShell,
-    cleanupSelectors: [`#${ROOT_ID}`, `#${ITEM_ID}`, `#${PANEL_ID}`, `#${SIDEBAR_ID}`, `#${STYLE_ID}`],
+    cleanupSelectors: [`#${ROOT_ID}`, `#${RAIL_ID}`, `#${ITEM_ID}`, `#${SIDEBAR_ID}`, `#${STYLE_ID}`, "#bloom-menu-panel"],
 
     start() {
         injectCss();
         stripLegacyChrome();
+        bindRail();
         bindAccountMenu();
         unwatchHost?.();
         unwatchHost = watchHostScheme(paintScheme);
@@ -586,10 +671,12 @@ export default definePlugin({
     },
 
     stop() {
+        unbindRail();
         unbindAccountMenu();
         unwatchHost?.();
         unwatchHost = null;
         hidePanel();
+        document.getElementById(RAIL_ID)?.remove();
         document.getElementById(ITEM_ID)?.remove();
         document.getElementById(STYLE_ID)?.remove();
         host = null;

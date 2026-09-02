@@ -3,9 +3,10 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * IdleReady fires the shell (account-menu injection). HostReady plugins
- * start after the island gate + idle sequence. Opening settings does not
- * start HostReady plugins.
+ * IdleReady fires the shell (sidebar rail pin). HostReady plugins start
+ * after the island gate + idle sequence. If the gate fails, Bloom still
+ * fires HostReady so default-on plugins are not left dead. Opening
+ * settings does not start HostReady plugins.
  */
 
 let shellReady = false;
@@ -74,7 +75,7 @@ export function requestIdleReady() {
     fireIdle();
 }
 
-/** Island + idle sequence. Starts HostReady plugins. */
+/** Island + idle sequence, or island-gate fallback. Starts HostReady plugins. */
 export function requestChromeReady() {
     fireChrome();
 }

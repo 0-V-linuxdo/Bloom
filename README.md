@@ -2,9 +2,9 @@
 
 English · [中文](README.zh.md)
 
-A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings in the account menu.
+A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.3.9](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.9)** (`userscript/Bloom.user.js`, `@version [20260902] v1.3.9`).
+Current release: **[v1.4.0](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.0)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.0`).
 
 v1.3.0 ships:
 
@@ -22,9 +22,9 @@ The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in th
 1. Install [Violentmonkey](https://violentmonkey.github.io/) or Tampermonkey.
 2. Open [`userscript/Bloom.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/main/userscript/Bloom.user.js).
 3. Confirm install. Reload `chatgpt.com`.
-4. Open your profile (bottom-left) and click **Bloom++**.
+4. Look for **Bloom++** above your profile in the left sidebar. Tampermonkey / Violentmonkey → **Bloom++ settings** also opens the panel (second click closes it).
 
-Auto-update uses the same GitHub raw URL (`@updateURL` / `@downloadURL`). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
+If an older Bloom++ is still installed, remove it first, then install from GitHub raw. Auto-update uses the same GitHub raw URL (`@updateURL` / `@downloadURL`). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
 
 The settings shell **follows chatgpt.com's own theme** (`html.dark` and `--main-surface-primary`), not the operating-system color scheme. ChatStateFavicons draws a **white blossom** (PNG, dark halo, no official black mark) from the first paint.
 
@@ -42,7 +42,7 @@ The blossom mark is the 24-unit evenodd path from the existing Chat-State-Favico
 - Esc cancels recall
 - Enter (no Shift) and Send both store the prompt
 - Slider 10–500 entries (default 100)
-- History panel lives in Bloom++ inside the account menu
+- History panel lives in Bloom++ (sidebar rail)
 
 ## NoShareLink / NoDictation
 
@@ -93,6 +93,8 @@ v1.3.7: Settings is a CSS-anchored cluster above the composer (no header hunting
 v1.3.8: Settings is a **top-layer popover** (`popover=manual`) anchored to a header FAB. Compact menu rows (no PluginCard / no author footer). Host is a pass-through overlay so the panel cannot expand document overflow.
 
 v1.3.9: Settings is injected into ChatGPT's **account menu** (Void++-style). No FAB, no popover, no viewport overlay. HUD mounts on `document.body`.
+
+v1.4.0: Persistent **Bloom++** row next to the sidebar profile (`accounts-profile-button` / `#stage-slideover-sidebar`, chatgpt-exporter style). The userscript menu always paints (or toggles) the same in-flow panel — it does not click the profile. Island-gate miss still starts default-on plugins. A second installed copy replaces `window.Bloom` instead of exiting silently.
 
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.

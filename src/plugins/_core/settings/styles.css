@@ -1,14 +1,15 @@
-/* Injected into ChatGPT's account menu (light DOM). No overlay, no FAB, no popover. */
+/* Sidebar rail row + in-flow panel. No overlay, no FAB, no popover. */
 
+.bloom-rail-item,
 .bloom-account-item {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
   margin: 0;
-  padding: 10px 14px;
+  padding: 10px 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   color: var(--text-primary, inherit);
   font: inherit;
@@ -17,30 +18,33 @@
   cursor: pointer;
   text-align: left;
   box-sizing: border-box;
+  min-width: 0;
 }
 
+.bloom-rail-item:hover,
+.bloom-rail-item:focus-visible,
 .bloom-account-item:hover,
 .bloom-account-item:focus-visible {
   background: var(--interactive-bg-secondary-hover, rgba(0, 0, 0, 0.05));
   outline: none;
 }
 
+.bloom-rail-item svg,
 .bloom-account-item svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   flex: 0 0 auto;
   color: var(--icon-primary, currentColor);
 }
 
-.bloom-menu-open > :not(#bloom-account-item):not(#bloom-menu-panel) {
-  display: none !important;
+.bloom-rail-item > span,
+.bloom-account-item > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.bloom-menu-open > #bloom-account-item {
-  display: none !important;
-}
-
-.bloom-menu-panel,
 #bloom-sidebar-panel {
   box-sizing: border-box;
   display: flex;
@@ -49,20 +53,28 @@
   width: 100%;
   max-height: min(60vh, 420px);
   overflow: auto;
-  padding: 4px 8px 10px;
-  color: var(--text-primary, inherit);
-  font: 14px/1.4 ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
-}
-
-#bloom-sidebar-panel {
-  margin: 8px;
+  margin: 8px 8px 4px;
   padding: 10px;
   border-radius: 12px;
+  color: var(--text-primary, inherit);
+  font: 14px/1.4 ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
   background: var(--main-surface-primary, #fff);
   border: 1px solid var(--border-light, rgba(0, 0, 0, 0.1));
 }
 
-.bloom-menu-panel[hidden],
+#bloom-sidebar-panel.bloom-rail-dock {
+  position: fixed;
+  left: 8px;
+  right: auto;
+  top: auto;
+  bottom: 72px;
+  width: min(280px, calc(100vw - 16px));
+  max-height: min(60vh, 420px);
+  margin: 0;
+  z-index: 80;
+  pointer-events: auto;
+}
+
 .bloom-settings-list[hidden],
 .bloom-settings-plugin[hidden],
 #bloom-sidebar-panel[hidden] {

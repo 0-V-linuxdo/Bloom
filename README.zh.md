@@ -2,9 +2,9 @@
 
 [English](README.md) · 中文
 
-面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置挂在头像菜单里。
+面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.3.9](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.9)**（`userscript/Bloom.user.js`，`@version [20260902] v1.3.9`）。
+当前版本：**[v1.4.0](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.0)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.0`）。
 
 v1.3.0：
 
@@ -22,9 +22,9 @@ v1.3.0：
 1. 安装 [Violentmonkey](https://violentmonkey.github.io/) 或 Tampermonkey。
 2. 打开 [`userscript/Bloom.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/main/userscript/Bloom.user.js)。
 3. 确认安装后刷新 `chatgpt.com`。
-4. 打开左下角头像菜单，点 **Bloom++**。
+4. 左侧栏头像上方会出现 **Bloom++**。油猴菜单 **Bloom++ settings** 也会打开同一块面板（再点一次关闭）。
 
-自动更新走同一条 GitHub raw 地址。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
+若还装着旧版 Bloom++，先卸掉再从 GitHub raw 装。自动更新走同一条 GitHub raw 地址。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
 
 设置面板**跟随 `chatgpt.com` 自己的主题**（`html.dark` 与 `--main-surface-primary`），不跟操作系统的深色模式。ChatStateFavicons 从首屏起画**白色 blossom**（PNG，深色描边，不用官方黑标）。
 
@@ -77,6 +77,8 @@ v1.3.7：设置改为输入框上方的 CSS 锚簇（不再寻顶栏、不再 `r
 v1.3.8：设置改为顶层 **popover**（`popover=manual`），花瓣钉在顶栏右。紧凑菜单行（去掉 PluginCard / 作者条）。host 是穿透 overlay，面板不再撑文档滚动条。
 
 v1.3.9：设置注入到 ChatGPT **头像菜单**（对齐 Void++）。去掉 FAB / popover / 全屏 overlay。HUD 挂在 `document.body`。
+
+v1.4.0：常驻 **Bloom++** 行钉在侧栏头像旁（`accounts-profile-button` / `#stage-slideover-sidebar`，chatgpt-exporter 写法）。油猴菜单无条件画出（或关掉）同一块流式面板，不再去点头像。岛门失败仍启动默认插件。第二份安装会替换 `window.Bloom`，不再静默跳过。
 
 ## 构建
 

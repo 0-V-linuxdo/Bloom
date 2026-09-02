@@ -6,7 +6,7 @@
 
 import { initPluginManager, registerPlugin, startAllPlugins } from "./api/PluginManager";
 import { initSettings as loadSettings } from "./api/Settings";
-import { requestIdleReady, runIdleSequence, whenChromeReady, whenIdleReady, whenShellReady } from "./host/idleReady";
+import { requestChromeReady, requestIdleReady, runIdleSequence, whenChromeReady, whenIdleReady, whenShellReady } from "./host/idleReady";
 import { Logger } from "./utils/Logger";
 import { VERSION } from "./utils/constants";
 import { flushStyles } from "./utils/css";
@@ -123,8 +123,9 @@ export async function init() {
     await waitForBody();
     const islands = await waitForHydrated();
     if (!islands) {
-        logger.warn("late islands not detected; shell only", VERSION);
+        logger.warn("late islands not detected; starting default plugins", VERSION);
         requestIdleReady();
+        requestChromeReady();
         return;
     }
     await runIdleSequence();
