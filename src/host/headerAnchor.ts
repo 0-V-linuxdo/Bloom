@@ -3,9 +3,8 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Locate ChatGPT's "Download the ChatGPT app" control, then the sidebar
- * store/bag next to the profile. Bloom's button is position:fixed in our
- * shadow — we never insert into the host tree.
+ * Locate ChatGPT's Download / store control. Bloom's button is
+ * position:fixed in our shadow — we never insert into the host tree.
  */
 
 const HEADER_TRY = [
@@ -18,6 +17,12 @@ const SIDEBAR_TRY = [
     "aside",
     '[data-testid="left-sidebar"]',
     '[data-testid="sidebar"]',
+];
+
+const PROFILE_TRY = [
+    '[data-testid="accounts-profile-button"]',
+    '[data-testid="profile-button"]',
+    '[data-testid="user-menu-button"]',
 ];
 
 function visible(el: Element | null): el is HTMLElement {
@@ -85,7 +90,7 @@ function looksLikeStore(el: Element): boolean {
 }
 
 function scan(root: ParentNode, test: (el: Element) => boolean): HTMLElement | null {
-    for (const el of root.querySelectorAll("a[href], button")) {
+    for (const el of root.querySelectorAll("a[href], button, [role='button']")) {
         if (visible(el) && test(el)) return el;
     }
     return null;
@@ -103,23 +108,93 @@ export function findDownloadAppButton(): HTMLElement | null {
     return visible(direct) ? direct : null;
 }
 
-function findSidebarAnchor(): HTMLElement | null {
+function leftBottom(el: HTMLElement): boolean {
+    const r = el.getBoundingClientRect();
+    return r.left < window.innerWidth / 2 && r.bottom > window.innerHeight - 180;
+}
+
+function findLeftRailProfile(): HTMLElement | null {
+    for (const sel of PROFILE_TRY) {
+        for (const el of document.querySelectorAll(sel)) {
+            if (visible(el) && leftBottom(el)) return el;
+        }
+    }
     const side = findSidebar();
     if (!side) return null;
-    const download = scan(side, looksLikeDownload);
-    if (download) return download;
-    const store = scan(side, looksLikeStore);
-    if (store) return store;
-    const profile = side.querySelector(
-        '[data-testid="accounts-profile-button"], [data-testid="profile-button"]',
-    );
-    if (!(profile instanceof HTMLElement) || !visible(profile)) return null;
-    const row = profile.parentElement;
-    if (!row) return null;
-    for (const el of row.querySelectorAll("a, button")) {
-        if (visible(el) && el !== profile) return el;
+    for (const sel of PROFILE_TRY) {
+        const el = side.querySelector(sel);
+        if (visible(el) && leftBottom(el)) return el;
     }
     return null;
+}
+
+function climbFooterRow(profile: HTMLElement): HTMLElement {
+    let node: HTMLElement | null = profile;
+    let best = profile;
+    for (let i = 0; i < 8 && node; i++) {
+        const r = node.getBoundingClientRect();
+        if (r.width >= 160 && r.left < 96 && r.bottom > window.innerHeight - 180) {
+            best = node;
+        }
+        node = node.parentElement;
+    }
+    return best;
+}
+
+function findBagInRow(row: HTMLElement, profile: HTMLElement): HTMLElement | null {
+    const pr = profile.getBoundingClientRect();
+    let best: HTMLElement | null = null;
+    let bestRight = -1;
+    for (const el of row.querySelectorAll("a, button, [role='button']")) {
+        if (!visible(el) || el === profile || profile.contains(el)) continue;
+        const r = el.getBoundingClientRect();
+        if (r.left < pr.right - 8) continue;
+        if (r.width > 64 || r.height > 64) continue;
+        if (r.right > bestRight) {
+            best = el;
+            bestRight = r.right;
+        }
+    }
+    return best;
+}
+
+function probeSeamBag(): HTMLElement | null {
+    const y = window.innerHeight - 28;
+    const xs = [200, 240, 268, 292];
+    for (const x of xs) {
+        if (x >= window.innerWidth / 2) continue;
+        const stack = document.elementsFromPoint(x, y);
+        for (const el of stack) {
+            if (!(el instanceof Element) || el.closest("#bloom-root")) continue;
+            const btn = el.closest("a, button, [role='button']");
+            if (!visible(btn)) continue;
+            const r = btn.getBoundingClientRect();
+            if (r.width <= 56 && r.height <= 56 && r.left < window.innerWidth / 2 && leftBottom(btn)) {
+                return btn;
+            }
+        }
+    }
+    return null;
+}
+
+function findFooterAnchor(): HTMLElement | null {
+    const profile = findLeftRailProfile();
+    if (profile) {
+        const row = climbFooterRow(profile);
+        const labeled = scan(row, looksLikeStore) ?? scan(row, looksLikeDownload);
+        if (labeled) return labeled;
+        const bag = findBagInRow(row, profile);
+        if (bag) return bag;
+        return profile;
+    }
+    const side = findSidebar();
+    if (side) {
+        const download = scan(side, looksLikeDownload);
+        if (download && leftBottom(download)) return download;
+        const store = scan(side, looksLikeStore);
+        if (store && leftBottom(store)) return store;
+    }
+    return probeSeamBag();
 }
 
 export function findHeaderProfile(): HTMLElement | null {
@@ -133,8 +208,9 @@ export function findHeaderProfile(): HTMLElement | null {
 
 export function fabPlacement(size: number): { x: number; y: number; size: number } {
     const gap = 8;
-    const target = findDownloadAppButton() ?? findSidebarAnchor();
-    const profile = findHeaderProfile();
+    const headerDl = findDownloadAppButton();
+    const foot = findFooterAnchor();
+    const target = headerDl ?? foot;
     let side = size;
     let x: number;
     let y: number;
@@ -144,10 +220,6 @@ export function fabPlacement(size: number): { x: number; y: number; size: number
         side = Math.max(32, Math.min(36, Math.round(r.height) || size));
         x = r.right + gap;
         y = r.top + (r.height - side) / 2;
-    } else if (profile) {
-        const p = profile.getBoundingClientRect();
-        x = p.left - gap - side;
-        y = p.top + (p.height - side) / 2;
     } else {
         x = window.innerWidth - side - 16;
         y = 12;

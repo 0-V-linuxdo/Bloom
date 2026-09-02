@@ -134,10 +134,28 @@ function clearFields() {
     fieldUnmounts = [];
 }
 
+function modalParts(modal?: Element | null) {
+    const root = modal ?? shadow?.querySelector(".bloom-settings-modal");
+    if (!(root instanceof HTMLElement)) return null;
+    return {
+        modal: root,
+        grid: root.querySelector<HTMLElement>(".bloom-plugin-grid"),
+        sub: root.querySelector<HTMLElement>(".bloom-settings-sub"),
+        pane: root.querySelector<HTMLElement>(".bloom-plugin-pane"),
+    };
+}
+
 function closePluginDialog() {
     dialogOpen = false;
     clearFields();
-    shadow?.querySelector(".bloom-plugin-dialog")?.remove();
+    const parts = modalParts();
+    if (!parts) return;
+    parts.grid?.removeAttribute("hidden");
+    parts.sub?.removeAttribute("hidden");
+    if (parts.pane) {
+        parts.pane.replaceChildren();
+        parts.pane.hidden = true;
+    }
 }
 
 function closeModal() {
@@ -234,9 +252,12 @@ function fieldControl(pluginName: string, key: string, spec: { type: OptionType;
 
 function openPluginDialog(modal: HTMLElement, plugin: Plugin) {
     closePluginDialog();
+    const parts = modalParts(modal);
+    if (!parts?.pane) return;
     dialogOpen = true;
-    const pane = document.createElement("div");
-    pane.className = "bloom-plugin-dialog";
+    parts.grid?.setAttribute("hidden", "");
+    parts.sub?.setAttribute("hidden", "");
+    parts.pane.hidden = false;
 
     const bar = document.createElement("div");
     bar.className = "bloom-dialog-bar";
@@ -245,7 +266,11 @@ function openPluginDialog(modal: HTMLElement, plugin: Plugin) {
     back.className = "bloom-icon-btn";
     back.setAttribute("aria-label", "Back to plugins");
     back.innerHTML = backSvg();
-    back.addEventListener("click", closePluginDialog);
+    back.addEventListener("click", e => {
+        e.preventDefault();
+        e.stopPropagation();
+        closePluginDialog();
+    });
     const titles = document.createElement("div");
     titles.className = "bloom-dialog-titles";
     const h3 = document.createElement("h3");
@@ -254,7 +279,6 @@ function openPluginDialog(modal: HTMLElement, plugin: Plugin) {
     sub.textContent = plugin.description;
     titles.append(h3, sub);
     bar.append(back, titles);
-    pane.appendChild(bar);
 
     const list = document.createElement("div");
     list.className = "bloom-plugin-settings";
@@ -270,8 +294,7 @@ function openPluginDialog(modal: HTMLElement, plugin: Plugin) {
         empty.textContent = "No configurable settings.";
         list.appendChild(empty);
     }
-    pane.appendChild(list);
-    modal.appendChild(pane);
+    parts.pane.append(bar, list);
 }
 
 function pluginCard(modal: HTMLElement, plugin: Plugin): HTMLElement {
@@ -300,10 +323,13 @@ function pluginCard(modal: HTMLElement, plugin: Plugin): HTMLElement {
         gear.className = "bloom-icon-btn bloom-card-gear";
         gear.setAttribute("aria-label", `${plugin.name} settings`);
         gear.innerHTML = gearSvg();
-        gear.addEventListener("click", e => {
+        const openGear = (e: Event) => {
+            e.preventDefault();
             e.stopPropagation();
             openPluginDialog(modal, plugin);
-        });
+        };
+        gear.addEventListener("click", openGear);
+        gear.addEventListener("pointerdown", e => e.stopPropagation());
         controls.appendChild(gear);
     }
     const toggle = pluginToggle(plugin.name, isPluginEnabled(plugin.name), !!plugin.required);
@@ -376,6 +402,11 @@ function renderModal(root: ShadowRoot) {
         grid.appendChild(pluginCard(modal, plugin));
     }
     modal.appendChild(grid);
+
+    const pane = document.createElement("div");
+    pane.className = "bloom-plugin-pane";
+    pane.hidden = true;
+    modal.appendChild(pane);
 
     root.append(backdrop, modal);
     modal.focus();

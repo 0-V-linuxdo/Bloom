@@ -51,6 +51,7 @@
 :host select {
   font: inherit;
   color: inherit;
+  pointer-events: auto;
 }
 
 .bloom-settings-fab {
@@ -94,6 +95,7 @@
   width: 22px;
   height: 22px;
   display: block;
+  pointer-events: none;
 }
 
 .bloom-settings-backdrop {
@@ -182,6 +184,7 @@
   place-items: center;
   cursor: pointer;
   flex: 0 0 auto;
+  pointer-events: auto;
 }
 
 .bloom-icon-btn:hover {
@@ -192,6 +195,7 @@
 .bloom-icon-btn svg {
   width: 16px;
   height: 16px;
+  pointer-events: none;
 }
 
 .bloom-plugin-grid {
@@ -279,6 +283,7 @@
   width: 28px;
   height: 28px;
   color: var(--bloom-faint);
+  pointer-events: auto;
 }
 
 .bloom-card-desc {
@@ -310,17 +315,20 @@
   white-space: nowrap;
 }
 
-.bloom-plugin-dialog {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  background: var(--bloom-bg);
-  padding: 24px;
-  overflow: auto;
+.bloom-plugin-pane {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  border-radius: 16px;
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  pointer-events: auto;
+}
+
+.bloom-plugin-pane[hidden],
+.bloom-plugin-grid[hidden],
+.bloom-settings-sub[hidden] {
+  display: none !important;
 }
 
 .bloom-dialog-bar {
@@ -359,6 +367,7 @@
   cursor: pointer;
   user-select: none;
   flex: 0 0 auto;
+  pointer-events: auto;
 }
 
 .bloom-switch {
