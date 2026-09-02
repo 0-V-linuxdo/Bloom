@@ -109,9 +109,10 @@ export function findTinyBar(): HTMLElement | null {
 
 /**
  * chatgpt-exporter pocket: insert before the avatar chip, or before its
- * single-child wrapper. If the chip sits in a horizontal flex row (avatar +
- * bag), insert before that whole row — but only when the row's parent is
- * not nav / stage.
+ * single-child wrapper. Never walk up to a wrapper whose parent is nav /
+ * stage — that would pin as a direct child of the slideover (React wipe).
+ * If the chip sits in a horizontal flex row (avatar + bag), insert before
+ * that whole row — but only when the row's parent is not nav / stage.
  */
 export function railAnchor(profile: HTMLElement): HTMLElement {
     let target: HTMLElement = profile;
@@ -121,6 +122,8 @@ export function railAnchor(profile: HTMLElement): HTMLElement {
         && wrap.children.length === 1
         && !isBloomChrome(wrap)
         && !isNavOrStage(wrap)
+        && wrap.parentElement
+        && !isNavOrStage(wrap.parentElement)
     ) {
         target = wrap;
     }

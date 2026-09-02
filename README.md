@@ -4,9 +4,9 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.7](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.7)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.7`).
+Current release: **[v1.4.8](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.8)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.8`).
 
-v1.3.0 ships:
+v1.4.8 ships:
 
 | Plugin | Default | What it does |
 | --- | --- | --- |
@@ -14,6 +14,8 @@ v1.3.0 ships:
 | InputHistory | On | Recall previous prompts with Arrow Up / Arrow Down, like a shell. |
 | NoShareLink | Off | Hide the conversation header Share button and the project Share button. CSS-only. |
 | NoDictation | Off | Hide the composer Dictation (speech-to-text) button. Does not hide Voice mode. CSS-only. |
+| NoSidebarIdentity | On | Hide the display name next to the sidebar avatar. Avatar stays clickable. CSS-only. |
+| RecentTopics | On | Switch recently opened chats with Ctrl+` (title + last-turn preview). |
 
 The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in the brand string is `ChatGPT`.
 
@@ -22,7 +24,7 @@ The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in th
 1. Install [Violentmonkey](https://violentmonkey.github.io/) or Tampermonkey.
 2. Open [`userscript/Bloom.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/main/userscript/Bloom.user.js).
 3. Confirm install. Reload `chatgpt.com`.
-4. Look for **Bloom++** above your profile in the left sidebar. Tampermonkey / Violentmonkey → **Bloom++ settings** also opens the panel (second click closes it). The panel is **centered on the page** (`document.body`) — it is never inserted into the sidebar tree. Plugins render as a **Void++ Plugins tab**: two-column BaseCards, search, Favorites/All, star/pin.
+4. Look for **Bloom++** above your profile in the left sidebar. Tampermonkey / Violentmonkey → **Bloom++ settings** also opens the panel (second click closes it). The panel always docks to the left of the page on `document.body` — it is never inserted into the sidebar tree. Plugins render as a **Void++ BaseCard** stack (icon tile, two-line description, author footer, gear + switch).
 
 If an older Bloom++ is still installed, remove it first, then install from GitHub raw. Auto-update uses the same GitHub raw URL (`@updateURL` / `@downloadURL`). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
 
@@ -106,12 +108,14 @@ v1.4.4: Bloom++ icon slot is 32px (same as the account avatar). Padding and gap 
 
 v1.4.5: Settings list is a Void++ **BaseCard** stack again (icon tile, 2-line description, author footer, gear + switch) inside the existing 280px body dock. Gear still swaps an in-panel view. No modal / popover / FAB.
 
-v1.4.6: Settings panel is **centered on the page** (~32rem) and matches Void++ PluginsTab chrome: two-column cards, search + All/Enabled/Disabled, Favorites/All/tag tabs, star (favorites) and pin (sort to top). Still a body-fixed panel, not a modal / overlay.
+v1.4.7: Settings panel matches Void++ Plugins tab chrome. Centered ~56rem dock so two-column names are not clipped. Card actions use Void++ Settings2 (sliders), pin, and star. Plugin icons sit next to the name.
 
-v1.4.7: Panel widens to ~56rem so plugin names are not clipped. Card actions use Void++ Settings2 / pin / star glyphs. Plugin icons have no chip background.
+v1.4.8: **NoSidebarIdentity** (CSS-only, default on) hides the account-chip display name; avatar and the Bloom++ row stay. **RecentTopics** (default on) is Ctrl+` recent-chat switcher. HUD is body-docked (`#bloom-rt-host`), not a popover / inset:0 overlay. Visits come from the URL + Recents links + the current turn in the DOM — no conversations API. `@version` is **1.4.8** (not 1.4.6): Tampermonkey / Violentmonkey will not auto-update from published 1.4.7 down to 1.4.6.
 
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.
+- NoSidebarIdentity: `[data-testid="accounts-profile-button"] .flex.min-w-0 > .truncate`. Toggles `hideUsername` and `hideEmail` (mailto only; Plus/Pro labels are left alone).
+- RecentTopics: Ctrl+` / Ctrl+Shift+` / Esc / Enter. `maxRecent` 3–12 (default 5). `includeHome` (default on).
 
 ## Build
 

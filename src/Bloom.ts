@@ -17,6 +17,8 @@ import chatStateFavicons from "./plugins/chatStateFavicons";
 import inputHistory from "./plugins/inputHistory";
 import noShareLink from "./plugins/noShareLink";
 import noDictation from "./plugins/noDictation";
+import noSidebarIdentity from "./plugins/noSidebarIdentity";
+import recentTopics from "./plugins/recentTopics";
 
 const logger = new Logger("Bloom");
 let initialized = false;
@@ -28,6 +30,8 @@ const pluginList: Plugin[] = [
     inputHistory,
     noShareLink,
     noDictation,
+    noSidebarIdentity,
+    recentTopics,
 ];
 
 function wait(ms: number): Promise<void> {

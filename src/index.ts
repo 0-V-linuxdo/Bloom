@@ -8,7 +8,8 @@ import * as Bloom from "./Bloom";
 
 const target = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
 
-if (window === window.top) {
+const playground = document.documentElement?.hasAttribute("data-bloom-playground") === true;
+if (window === window.top || playground) {
     const prev = (target as { Bloom?: { VERSION?: string } }).Bloom;
     if (prev) {
         console.warn("[Bloom++] replacing previous instance", prev.VERSION ?? "(unknown)", "→", Bloom.VERSION);

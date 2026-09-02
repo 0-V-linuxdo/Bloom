@@ -4,9 +4,9 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.7](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.7)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.7`）。
+当前版本：**[v1.4.8](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.8)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.8`）。
 
-v1.3.0：
+v1.4.8：
 
 | 插件 | 默认 | 说明 |
 | --- | --- | --- |
@@ -14,6 +14,8 @@ v1.3.0：
 | InputHistory | 开 | 在输入框用 ↑ / ↓ 翻看历史提示词，类似终端。 |
 | NoShareLink | 关 | 隐藏对话顶栏 Share 和项目里的 Share project。纯 CSS。 |
 | NoDictation | 关 | 隐藏输入栏听写（语音转文字）按钮，不隐藏 Voice。纯 CSS。 |
+| NoSidebarIdentity | 开 | 隐藏侧栏头像旁的显示名，头像仍可点。纯 CSS。 |
+| RecentTopics | 开 | Ctrl+` 切换最近打开的会话（标题 + 上轮预览）。 |
 
 品牌名是 **Bloom++**，仓库名是 `Bloom`，都不含 `ChatGPT`。
 
@@ -22,7 +24,7 @@ v1.3.0：
 1. 安装 [Violentmonkey](https://violentmonkey.github.io/) 或 Tampermonkey。
 2. 打开 [`userscript/Bloom.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/main/userscript/Bloom.user.js)。
 3. 确认安装后刷新 `chatgpt.com`。
-4. 左侧栏头像上方会出现 **Bloom++**。油猴菜单 **Bloom++ settings** 也会打开同一块面板（再点一次关闭）。面板**居中浮在页面上**（挂在 `document.body`），不会插入侧栏 DOM。插件列表对齐 **Void++ Plugins 页**：两列 BaseCard、搜索、Favorites/All、star/pin。
+4. 左侧栏头像上方会出现 **Bloom++**。油猴菜单 **Bloom++ settings** 也会打开同一块面板（再点一次关闭）。面板永远停在页面左侧的 `document.body` 上，不会插入侧栏 DOM。插件列表是 **Void++ BaseCard** 栈（图标砖、两行描述、作者栏、齿轮 + 开关）。
 
 若还装着旧版 Bloom++，先卸掉再从 GitHub raw 装。自动更新走同一条 GitHub raw 地址。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
 
@@ -90,9 +92,9 @@ v1.4.4：Bloom++ 图标槽改成 32px（与头像同宽）。内边距和间距�
 
 v1.4.5：设置列表在现有 280px body-dock 里改回 Void++ **BaseCard** 栈（图标砖、两行描述、作者栏、齿轮 + 开关）。齿轮仍在同面板切视图。无模态 / popover / FAB。
 
-v1.4.6：设置面板**居中**（约 32rem），对齐 Void++ PluginsTab：两列卡片、搜索 + All/Enabled/Disabled、Favorites/All/标签页、star（收藏）和 pin（置顶）。仍是 body 上的 fixed 面板，不是模态 / overlay。
+v1.4.7：设置面板对齐 Void++ Plugins 页。居中约 56rem 宽，两列名称不再被裁。卡片操作是 Void++ 滑块齿轮、图钉、星标。插件图标挨着名称。
 
-v1.4.7：面板加宽到约 56rem，插件名不再被裁。卡片操作改用 Void++ 的 Settings2 / pin / star。插件图标去掉灰底砖。
+v1.4.8：新增 **NoSidebarIdentity**（纯 CSS，默认开）隐藏账号芯片显示名，头像和 Bloom++ 行保留。新增 **RecentTopics**（默认开）：Ctrl+` 切换最近会话。HUD 挂在 `document.body`（`#bloom-rt-host`），不是 popover / 全屏 overlay。访问记录来自 URL + Recents 链接 + 当前轮 DOM，不轮询 conversations API。`@version` 是 **1.4.8**（不是 1.4.6）：油猴不会从已发布的 1.4.7 降级到 1.4.6。
 
 ## 构建
 
