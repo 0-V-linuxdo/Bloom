@@ -44,7 +44,7 @@ The blossom mark is the 24-unit evenodd path from the existing Chat-State-Favico
 
 ## NoShareLink / NoDictation
 
-Both plugins queue CSS at `document-start` and inject into `document.head` only after HostReady. They do **not** walk the tree with `MutationObserver` or `querySelectorAll("button")`.
+Both plugins stay **off** until you toggle them. They adopt CSS after HostReady (late islands + 8s floor) and do **not** walk the tree with `MutationObserver` or `querySelectorAll("button")`.
 
 v1.1.2: `registerStyle` waits for `document.head` and never appends to `<html>`.
 
@@ -56,7 +56,9 @@ v1.1.5: Init does not append nodes or observe `<html>`. Styles flush to `head` a
 
 v1.1.6: Settings panel no longer has an appearance switch; the shell follows the host theme. NoShareLink and NoDictation default off.
 
-- NoShareLink: `button[data-testid="share-chat-button"]` plus header-scoped `aria-label` (Share / 分享). Project: `share-project-button` / Share project / 分享项目. Toggles `hideShareChat` and `hideShareProject`.
+v1.1.7: HostReady waits `max(8s from boot, late islands)` — Recents `a[href^="/c/"]`, profile `img`, or a personalized greeting. 8s is a floor again. No DOM writes (including `flushStyles` / `#bloom-root` / favicon) until that gate. NoShareLink and NoDictation start at HostReady with testid-only CSS via adopted stylesheets. InputHistory listens on the composer, not `document`.
+
+- NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: `button[data-testid="composer-speech-button"]` and composer-scoped Dictate / 听写 labels. Leaves `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.
 
 ## Build

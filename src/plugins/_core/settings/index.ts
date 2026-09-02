@@ -17,7 +17,7 @@ import {
 } from "../../../host/theme";
 import { Devs } from "../../../utils/constants";
 import { isDocumentInteractive } from "../../../utils/hydration";
-import { registerStyle, registeredStyleText } from "../../../utils/css";
+import { registeredStyleText } from "../../../utils/css";
 import definePlugin, { OptionType, StartAt } from "../../../utils/types";
 import css from "./styles.css";
 
@@ -347,7 +347,6 @@ export default definePlugin({
     cleanupSelectors: [`#${ROOT_ID}`],
 
     start() {
-        registerStyle("settings", "");
         if (isDocumentInteractive()) mountFab();
         paintScheme();
         unwatchHost?.();

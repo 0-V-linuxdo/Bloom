@@ -34,6 +34,7 @@ const header = `// ==UserScript==
 // @match        https://free.share-ai.top/*
 // @match        https://chatgpt.aicnm.cc/*
 // @run-at       document-start
+// @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_setClipboard

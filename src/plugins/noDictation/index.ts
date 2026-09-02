@@ -6,7 +6,7 @@
  * Adapted from Void++ NoDictation (GPL-3.0-or-later). CSS-only: no
  * MutationObserver, no querySelectorAll("button"), no wrapper :has().
  * Does not hide voice-mode-button (advanced Voice).
- * start() queues CSS at Init; Bloom.flushStyles appends to head at HostReady.
+ * Styles adopt after HostReady (island gate). Default off.
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -18,27 +18,11 @@ const STYLE_NAME = "noDictation";
 
 const BUTTON_SELECTORS = [
     'button[data-testid="composer-speech-button"]',
-    'form[data-type="unified-composer"] button[data-testid="composer-speech-button"]',
-    'form[data-type="unified-composer"] button[aria-label="Dictate"]',
-    'form[data-type="unified-composer"] button[aria-label="Dictate button"]',
-    'form[data-type="unified-composer"] button[aria-label="Start dictation"]',
-    'form[data-type="unified-composer"] button[aria-label="Stop dictation"]',
-    'form[data-type="unified-composer"] button[aria-label^="Dictate"]',
-    'form[data-type="unified-composer"] button[aria-label="听写"]',
-    'form[data-type="unified-composer"] button[aria-label="开始听写"]',
-    'form[data-type="unified-composer"] button[aria-label="停止听写"]',
-    'form[data-type="unified-composer"] button[aria-label="语音输入"]',
-    'form[data-type="unified-composer"] button[aria-label^="听写"]',
 ];
 
 const SETTINGS_SELECTORS = [
     '[role="dialog"] [data-testid*="dictation"]',
     '[role="dialog"] [data-testid*="speech-to-text"]',
-    '[role="dialog"] [aria-label="Dictation"]',
-    '[role="dialog"] [aria-label*="Dictation"]',
-    '[role="dialog"] [aria-label*="speech-to-text"]',
-    '[role="dialog"] [aria-label*="听写"]',
-    '[role="dialog"] [aria-label*="语音输入"]',
 ];
 
 const settings = definePluginSettings({
@@ -50,7 +34,7 @@ const settings = definePluginSettings({
 });
 
 function hide(selectors: string[]): string {
-    return `${selectors.join(",\n")}{display:none!important}`;
+    return `${selectors.join(",")}{display:none!important}`;
 }
 
 function apply() {
@@ -65,7 +49,7 @@ export default definePlugin({
     authors: [Devs.p],
     tags: ["chat", "ui"],
     enabledByDefault: false,
-    startAt: StartAt.Init,
+    startAt: StartAt.HostReady,
     settings,
     start: apply,
     onSettingsChange: apply,

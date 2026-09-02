@@ -28,7 +28,7 @@ v1.1：
 
 ## NoShareLink / NoDictation
 
-两个插件在 `document-start` 只排队 CSS，真正插入 `document.head` 放到 HostReady，**不**用 `MutationObserver` 扫整棵树，也**不** `querySelectorAll("button")`。
+两个插件默认关闭。HostReady（晚到的岛 + 8 秒下限）之后才采用 CSS，**不**用 `MutationObserver` 扫整棵树，也**不** `querySelectorAll("button")`。
 
 v1.1.2：样式只挂到 `document.head`，没有 head 就等，禁止挂到 `<html>`。
 
@@ -39,6 +39,8 @@ v1.1.4：HostReady 从脚本启动起至少约 8 秒才往 body 挂节点。Inpu
 v1.1.5：Init 不再往 DOM 插节点，也不观察 `<html>`。样式等检测到 React host 后再进 `head`（8 秒是上限不是下限）。取消 remount。ChatStateFavicons 不再观察整棵 `document.body`。`#bloom-root` 为 `pointer-events: none`，只给花瓣按钮 `auto`。检测不到可交互宿主就不自动往 body 挂节点；Violentmonkey 菜单仍可打开设置。
 
 v1.1.6：去掉设置顶部的外观切换，面板跟随站点主题。NoShareLink / NoDictation 默认关闭。
+
+v1.1.7：HostReady 等到 `max(启动起 8 秒, 晚到的岛)`——侧栏 `a[href^="/c/"]`、头像 `img`、或个性化问候。8 秒再次作为下限。此前不写 DOM（包括 `flushStyles` / `#bloom-root` / favicon）。NoShareLink / NoDictation 改到 HostReady，只用 testid，走 adopted stylesheets。InputHistory 监听挂在 composer 上，不再捕获整页。
 
 ## 构建
 

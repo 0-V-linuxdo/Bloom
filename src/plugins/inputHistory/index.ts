@@ -49,6 +49,8 @@ let recalling = false;
 let applying = false;
 let applyGen = 0;
 let keys: AbortController | null = null;
+let boundRoot: HTMLElement | null = null;
+let rebindTimer: ReturnType<typeof setInterval> | undefined;
 let applyTimer: ReturnType<typeof setTimeout> | undefined;
 let applyEl: HTMLElement | null = null;
 let applyAtStart = true;
@@ -162,15 +164,13 @@ function hudEl(): HTMLElement {
     if (!el) {
         el = document.createElement("div");
         el.className = "bloom-ih-hud";
-    }
-    if (document.body && el.parentNode !== document.body) {
-        document.body.appendChild(el);
+        if (document.body) document.body.appendChild(el);
     }
     return el;
 }
 
 function hideHud() {
-    hudEl().classList.remove("bloom-ih-hud-on");
+    document.querySelector(".bloom-ih-hud")?.classList.remove("bloom-ih-hud-on");
 }
 
 function showHud(label: string, editor: HTMLElement) {
@@ -299,6 +299,22 @@ function onPointerDown() {
     hideHud();
 }
 
+function bindComposer(): boolean {
+    const root = getComposerRoot();
+    if (!root || root === document.body) return false;
+    if (boundRoot === root && keys) return true;
+    keys?.abort();
+    keys = new AbortController();
+    boundRoot = root;
+    const { signal } = keys;
+    root.addEventListener("keydown", onKeyDown, { capture: true, signal });
+    root.addEventListener("input", onInput, { capture: true, signal });
+    root.addEventListener("submit", onSubmit, { capture: true, signal });
+    root.addEventListener("click", onClick, { capture: true, signal });
+    root.addEventListener("pointerdown", onPointerDown, { capture: true, signal });
+    return true;
+}
+
 function removeEntry(index: number) {
     const next = getEntries().slice();
     next.splice(index, 1);
@@ -423,21 +439,21 @@ export default definePlugin({
 
     start() {
         registerStyle("inputHistory", css);
-        if (keys) return;
         cursor = getEntries().length;
         recalling = false;
-        keys = new AbortController();
-        const { signal } = keys;
-        document.addEventListener("keydown", onKeyDown, { capture: true, signal });
-        document.addEventListener("input", onInput, { capture: true, signal });
-        document.addEventListener("submit", onSubmit, { capture: true, signal });
-        document.addEventListener("click", onClick, { capture: true, signal });
-        document.addEventListener("pointerdown", onPointerDown, { capture: true, signal });
+        bindComposer();
+        if (rebindTimer !== undefined) clearInterval(rebindTimer);
+        rebindTimer = setInterval(bindComposer, 1_500);
     },
 
     stop() {
         keys?.abort();
         keys = null;
+        boundRoot = null;
+        if (rebindTimer !== undefined) {
+            clearInterval(rebindTimer);
+            rebindTimer = undefined;
+        }
         hideHud();
         recentAt.clear();
         clearTimeout(applyTimer);
