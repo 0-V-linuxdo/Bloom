@@ -13,7 +13,9 @@
  * enlargePlan (when the name is hidden) only bumps Plus/Pro/Free
  * `font-size` / `line-height` to 14px / 1.25 — same as Bloom++. It does
  * not change flex, hide the name node, or restyle `.min-w-0`.
- * Styles adopt after HostReady. Default on.
+ * Plan is often a second `.truncate` (1.4.15's `:not(.truncate)` missed it)
+ * or a direct `.text-xs` / `.text-token-text-secondary` sibling of the
+ * avatar (no `.min-w-0`). Styles adopt after HostReady. Default on.
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -28,11 +30,20 @@ const PROFILE = [
     '[data-testid="profile-button"]',
     '[data-testid="user-menu-button"]',
     '[data-testid="account-menu-button"]',
+    'button[aria-label*="profile" i][aria-haspopup]',
+    'button[aria-label*="account" i][aria-haspopup]',
+    '[aria-haspopup="menu"][data-testid*="profile" i]',
 ];
 
 const NAME_TRUNCATE = PROFILE.flatMap(root => [
     `${root} .min-w-0 > .truncate`,
     `${root} .min-w-0.flex-1 .truncate`,
+]);
+
+/** First truncate only when a sibling exists — a lone truncate is the plan. */
+const NAME_TRUNCATE_FIRST = PROFILE.flatMap(root => [
+    `${root} .min-w-0 > .truncate:first-child:not(:last-child)`,
+    `${root} .min-w-0.flex-1 > .truncate:first-child:not(:last-child)`,
 ]);
 
 const NAME_LOOSE = PROFILE.flatMap(root => [
@@ -47,6 +58,16 @@ const EMAIL_SELECTORS = PROFILE.map(root => `${root} a[href^="mailto:"]`);
 const PLAN_SELECTORS = PROFILE.flatMap(root => [
     `${root} .min-w-0 > :not(.truncate)`,
     `${root} .min-w-0 > :not(.truncate) *`,
+    `${root} .min-w-0 > .truncate:last-child`,
+    `${root} .min-w-0 > .truncate:last-child *`,
+    `${root} .min-w-0 .text-token-text-secondary`,
+    `${root} .min-w-0 .text-token-text-tertiary`,
+    `${root} .min-w-0 .text-xs`,
+    `${root} > .text-token-text-secondary`,
+    `${root} > .text-token-text-tertiary`,
+    `${root} > .text-xs`,
+    `${root} > span`,
+    `${root} > p`,
 ]);
 
 const settings = definePluginSettings({
@@ -83,8 +104,8 @@ function apply() {
     const enlarge = hideName && settings.store.enlargePlan !== false;
     const rules: string[] = [];
     if (hideName) {
-        // Truncate only while enlarging — `.min-w-0 > span` would hide Pro too.
-        rules.push(hideKeepSlot(enlarge ? NAME_TRUNCATE : NAME_SELECTORS));
+        // First truncate only while enlarging — a last-child truncate is Plus/Pro/Free.
+        rules.push(hideKeepSlot(enlarge ? NAME_TRUNCATE_FIRST : NAME_SELECTORS));
     }
     if (hideMail) rules.push(hideKeepSlot(EMAIL_SELECTORS));
     if (enlarge) rules.push(enlargePlanCss());

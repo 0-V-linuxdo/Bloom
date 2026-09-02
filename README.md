@@ -4,9 +4,9 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.15](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.15)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.15`).
+Current release: **[v1.4.16](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.16)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.16`).
 
-v1.4.15 ships:
+v1.4.16 ships:
 
 | Plugin | Default | What it does |
 | --- | --- | --- |
@@ -127,9 +127,11 @@ v1.4.14: **Revert** 1.4.13 `enlargePlan`. Hiding the name with `display:none` pl
 
 v1.4.15: NoSidebarIdentity `enlargePlan` again — **font size / line-height only** (14px / 1.25 / 500). No flex, no `display:none` on the name, no `.min-w-0` restyle. Pro stays beside the avatar.
 
+v1.4.16: `enlargePlan` selectors expanded. ChatGPT’s plan label is often a second `.truncate` (1.4.15’s `:not(.truncate)` missed it) or a direct `.text-xs` / `.text-token-text-secondary` next to the avatar. Name hide while enlarging is `.truncate:first-child:not(:last-child)` so a lone / last truncate (Plus/Pro/Free) stays visible.
+
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.
-- NoSidebarIdentity: `[data-testid="accounts-profile-button"] .flex.min-w-0 > .truncate`. Toggles `hideUsername` and `hideEmail` (mailto only; Plus/Pro labels are left alone). `enlargePlan` (default on, while the name is hidden) sets the plan label to 14px/1.25/500. Layout unchanged.
+- NoSidebarIdentity: `[data-testid="accounts-profile-button"] .flex.min-w-0 > .truncate`. Toggles `hideUsername` and `hideEmail` (mailto only; Plus/Pro labels are left alone). `enlargePlan` (default on, while the name is hidden) sets the plan label to 14px/1.25/500 — second `.truncate`, `.text-xs`, `.text-token-text-secondary`, or a direct child of the chip. Layout unchanged.
 - RecentTopics: Ctrl+` / Ctrl+Shift+` / Esc / Enter. `maxRecent` 3–12 (default 5). `includeHome` (default on).
 - Cleaner: Download apps via `a[href*="/download"]` / `download-app-button` / aria-label. Disclaimer via `[data-testid="thread-disclaimer"]` and `[class*="--vt-disclaimer"]` inside `#thread-bottom-container`. `display:none` (those controls should leave the layout).
 
