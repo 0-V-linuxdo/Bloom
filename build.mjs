@@ -23,7 +23,7 @@ const header = `// ==UserScript==
 // @name         Bloom++
 // @namespace    ${repo}
 // @version      ${displayVersion}
-// @description  Void++-style plugin host for chatgpt.com. Tab favicon, input history, recent chats, hide Share, Dictation, and sidebar name.
+// @description  Void++-style plugin host for chatgpt.com. Tab favicon, input history, recent chats, hide Share, Dictation, sidebar name, Download apps, and the mistake notice.
 // @author       ${pkg.author}
 // @homepageURL  ${repo}
 // @supportURL   ${repo}/issues

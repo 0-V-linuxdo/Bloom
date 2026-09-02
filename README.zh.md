@@ -4,9 +4,9 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.10](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.10)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.10`）。
+当前版本：**[v1.4.11](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.11)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.11`）。
 
-v1.4.10：
+v1.4.11：
 
 | 插件 | 默认 | 说明 |
 | --- | --- | --- |
@@ -16,6 +16,7 @@ v1.4.10：
 | NoDictation | 关 | 隐藏输入栏听写（语音转文字）按钮，不隐藏 Voice。纯 CSS。 |
 | NoSidebarIdentity | 开 | 隐藏侧栏头像旁的显示名，头像仍可点。纯 CSS。 |
 | RecentTopics | 开 | Ctrl+` 切换最近打开的会话（标题 + 上轮预览）。 |
+| Cleaner | 开 | 隐藏 Download apps 按钮和输入栏下方「也会犯错」提示。纯 CSS。 |
 
 品牌名是 **Bloom++**，仓库名是 `Bloom`，都不含 `ChatGPT`。
 
@@ -99,6 +100,8 @@ v1.4.8：新增 **NoSidebarIdentity**（纯 CSS，默认开）隐藏账号芯片
 v1.4.9：NoSidebarIdentity **保留名字/邮箱占位**。文字用 `visibility:hidden`（不用 `display:none`），`.min-w-0` 列留在文档流里，头像行不会缩成一颗图标。
 
 v1.4.10：恢复 **v1.4.7 设置面板**（居中约 56rem、Favorites/All/Chat/UI/Privacy 标签、搜索、图钉、星标、滑块齿轮）。1.4.8 合入时被旧的 280px 左侧停靠盖掉了。
+
+v1.4.11：新增 **Cleaner**（纯 CSS，默认开）。隐藏 Download apps 和输入栏下的「也会犯错」提示。开关 `hideDownloadApps` / `hideDisclaimer`。不藏 Voice、Share、头像或 Bloom++。
 
 ## 构建
 
