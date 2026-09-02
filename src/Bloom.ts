@@ -7,6 +7,7 @@
 import { initPluginManager, registerPlugin, startAllPlugins } from "./api/PluginManager";
 import { initSettings as loadSettings } from "./api/Settings";
 import { Logger } from "./utils/Logger";
+import { VERSION } from "./utils/constants";
 import { StartAt, type Plugin } from "./utils/types";
 import settingsPlugin from "./plugins/_core/settings";
 import chatStateFavicons from "./plugins/chatStateFavicons";
@@ -38,18 +39,31 @@ function waitForBody(): Promise<void> {
         const obs = new MutationObserver(() => {
             if (document.body) finish();
         });
-        const root = document.documentElement;
-        if (root) obs.observe(root, { childList: true });
+        const rootEl = document.documentElement;
+        if (rootEl) obs.observe(rootEl, { childList: true });
         document.addEventListener("DOMContentLoaded", finish, { once: true });
         setTimeout(finish, 15_000);
     });
 }
 
-function waitForParsed(): Promise<void> {
-    if (document.readyState !== "loading") return Promise.resolve();
+function waitForWindowLoad(): Promise<void> {
+    if (document.readyState === "complete") return Promise.resolve();
     return new Promise(resolve => {
-        document.addEventListener("DOMContentLoaded", () => resolve(), { once: true });
+        window.addEventListener("load", () => resolve(), { once: true });
+        setTimeout(resolve, 8_000);
     });
+}
+
+function wait(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ChatGPT hydrates html/body after DCL. DOMContentLoaded is not "hydrated".
+// Extra siblings under <html> or body appends in that window can drop
+// client islands (sidebar Recents, profile avatar) even with a silent console.
+async function waitForHydrated(): Promise<void> {
+    await waitForWindowLoad();
+    await wait(1_000);
 }
 
 export async function initSettings() {
@@ -75,9 +89,9 @@ export async function init() {
     }
 
     await waitForBody();
-    await waitForParsed();
+    await waitForHydrated();
     startAllPlugins(StartAt.HostReady);
-    logger.info("ready");
+    logger.info("ready", VERSION);
 }
 
 export { plugins } from "./api/PluginManager";
