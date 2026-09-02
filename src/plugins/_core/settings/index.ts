@@ -119,20 +119,23 @@ function backSvg(): string {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>`;
 }
 
-function gearSvg(): string {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`;
+function settings2Svg(): string {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>`;
 }
 
 function starSvg(filled: boolean): string {
+    const path = `<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>`;
     return filled
-        ? `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.8l2.7 5.6 6.2.9-4.5 4.3 1.1 6.2L12 16.9 6.5 19.8l1.1-6.2L3.1 9.3l6.2-.9L12 2.8z"/></svg>`
-        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.4l2.4 5.1 5.6.8-4 3.9 1 5.6L12 16.2 7 18.8l1-5.6-4-3.9 5.6-.8L12 3.4z"/></svg>`;
+        ? `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${path}</svg>`
+        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
 }
 
 function pinSvg(filled: boolean): string {
+    const stem = `<path d="M12 17v5"/>`;
+    const head = `<path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>`;
     return filled
-        ? `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.2 3.5H7.8l-.8 2.4H5v1.8h1.1l1.3 7.2H9v5.6h6v-5.6h1.6l1.3-7.2H19V5.9h-2.2l-.6-2.4z"/></svg>`
-        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4H8l-.8 2.5H5v2h1.1L7.5 16H9v5h6v-5h1.5l1.4-7.5H19v-2h-2.2L16 4z"/></svg>`;
+        ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${stem}<path fill="currentColor" d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>`
+        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${stem}${head}</svg>`;
 }
 
 const PLUGIN_ICONS: Record<string, string> = {
@@ -420,9 +423,9 @@ function pluginCard(plugin: Plugin): HTMLElement {
     if (hasSettings(plugin)) {
         const gear = document.createElement("button");
         gear.type = "button";
-        gear.className = "bloom-icon-btn";
+        gear.className = "bloom-icon-btn bloom-card-settings";
         gear.setAttribute("aria-label", `${plugin.name} settings`);
-        gear.innerHTML = gearSvg();
+        gear.innerHTML = settings2Svg();
         gear.addEventListener("click", ev => {
             ev.preventDefault();
             ev.stopPropagation();
@@ -615,7 +618,7 @@ function buildPanel(id: string): HTMLElement {
     const sectionTitle = document.createElement("h3");
     sectionTitle.textContent = "Plugins";
     const sectionHint = document.createElement("p");
-    sectionHint.textContent = "Turn Bloom++ features on or off. Gear opens options.";
+    sectionHint.textContent = "Turn Bloom++ features on or off. Sliders icon opens options.";
     section.append(sectionTitle, sectionHint);
     list.appendChild(section);
 

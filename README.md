@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.6](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.6)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.6`).
+Current release: **[v1.4.7](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.7)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.7`).
 
 v1.3.0 ships:
 
@@ -107,6 +107,8 @@ v1.4.4: Bloom++ icon slot is 32px (same as the account avatar). Padding and gap 
 v1.4.5: Settings list is a Void++ **BaseCard** stack again (icon tile, 2-line description, author footer, gear + switch) inside the existing 280px body dock. Gear still swaps an in-panel view. No modal / popover / FAB.
 
 v1.4.6: Settings panel is **centered on the page** (~32rem) and matches Void++ PluginsTab chrome: two-column cards, search + All/Enabled/Disabled, Favorites/All/tag tabs, star (favorites) and pin (sort to top). Still a body-fixed panel, not a modal / overlay.
+
+v1.4.7: Panel widens to ~56rem so plugin names are not clipped. Card actions use Void++ Settings2 / pin / star glyphs. Plugin icons have no chip background.
 
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.

@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.6](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.6)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.6`）。
+当前版本：**[v1.4.7](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.7)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.7`）。
 
 v1.3.0：
 
@@ -91,6 +91,8 @@ v1.4.4：Bloom++ 图标槽改成 32px（与头像同宽）。内边距和间距�
 v1.4.5：设置列表在现有 280px body-dock 里改回 Void++ **BaseCard** 栈（图标砖、两行描述、作者栏、齿轮 + 开关）。齿轮仍在同面板切视图。无模态 / popover / FAB。
 
 v1.4.6：设置面板**居中**（约 32rem），对齐 Void++ PluginsTab：两列卡片、搜索 + All/Enabled/Disabled、Favorites/All/标签页、star（收藏）和 pin（置顶）。仍是 body 上的 fixed 面板，不是模态 / overlay。
+
+v1.4.7：面板加宽到约 56rem，插件名不再被裁。卡片操作改用 Void++ 的 Settings2 / pin / star。插件图标去掉灰底砖。
 
 ## 构建
 
