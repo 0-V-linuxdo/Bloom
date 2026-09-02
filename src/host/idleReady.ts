@@ -3,7 +3,8 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * IdleReady fires the shell (sidebar rail pin). HostReady plugins start
+ * HostShell (sidebar rail pin) fires as soon as the left rail exists —
+ * not after two requestIdleCallback turns. HostReady plugins still start
  * after the island gate + idle sequence. If the gate fails, Bloom still
  * fires HostReady so default-on plugins are not left dead. Opening
  * settings does not start HostReady plugins.
@@ -69,7 +70,12 @@ export function whenChromeReady(fn: () => void) {
     else chromeWaiters.push(fn);
 }
 
-/** Shell exists; does not start HostReady plugins. */
+/** Sidebar rail exists. Does not start HostReady plugins. */
+export function requestShellReady() {
+    fireShell();
+}
+
+/** Shell + idle; does not start HostReady plugins. */
 export function requestIdleReady() {
     fireShell();
     fireIdle();

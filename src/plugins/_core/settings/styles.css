@@ -21,6 +21,14 @@
   min-width: 0;
 }
 
+.bloom-rail-item {
+  flex: 0 0 auto;
+  position: sticky;
+  bottom: 3.5rem;
+  z-index: 2;
+  background: var(--sidebar-surface-primary, var(--main-surface-primary, transparent));
+}
+
 .bloom-rail-item:hover,
 .bloom-rail-item:focus-visible,
 .bloom-account-item:hover,
@@ -43,6 +51,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.bloom-rail-item.bloom-rail-compact {
+  width: auto;
+  padding: 8px;
+  justify-content: center;
+  bottom: auto;
+}
+
+.bloom-rail-item.bloom-rail-compact > span {
+  display: none;
 }
 
 #bloom-sidebar-panel {

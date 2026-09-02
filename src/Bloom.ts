@@ -6,7 +6,7 @@
 
 import { initPluginManager, registerPlugin, startAllPlugins } from "./api/PluginManager";
 import { initSettings as loadSettings } from "./api/Settings";
-import { requestChromeReady, requestIdleReady, runIdleSequence, whenChromeReady, whenIdleReady, whenShellReady } from "./host/idleReady";
+import { requestChromeReady, requestIdleReady, requestShellReady, runIdleSequence, whenChromeReady, whenIdleReady, whenShellReady } from "./host/idleReady";
 import { Logger } from "./utils/Logger";
 import { VERSION } from "./utils/constants";
 import { flushStyles } from "./utils/css";
@@ -76,6 +76,24 @@ async function waitForHydrated(): Promise<boolean> {
     return hasLateIslands() || hasComposer();
 }
 
+function sidebarPresent(): boolean {
+    return !!(
+        document.getElementById("stage-slideover-sidebar")
+        || document.querySelector('[data-testid="accounts-profile-button"], [data-testid="profile-button"]')
+    );
+}
+
+/** Pin the rail as soon as the left sidebar exists — do not wait for idle. */
+async function waitForSidebar(): Promise<boolean> {
+    if (sidebarPresent()) return true;
+    const until = Date.now() + HYDRATION_CEILING_MS;
+    while (Date.now() < until) {
+        await wait(100);
+        if (sidebarPresent()) return true;
+    }
+    return sidebarPresent();
+}
+
 function offerMenu() {
     try { GM_registerMenuCommand?.("Bloom++ settings", openSettings); }
     catch { /* optional */ }
@@ -121,6 +139,9 @@ export async function init() {
     }
 
     await waitForBody();
+    void waitForSidebar().then(found => {
+        if (found) requestShellReady();
+    });
     const islands = await waitForHydrated();
     if (!islands) {
         logger.warn("late islands not detected; starting default plugins", VERSION);
@@ -131,7 +152,7 @@ export async function init() {
     await runIdleSequence();
 }
 
-export { requestChromeReady, requestIdleReady, whenChromeReady, whenIdleReady, whenShellReady } from "./host/idleReady";
+export { requestChromeReady, requestIdleReady, requestShellReady, whenChromeReady, whenIdleReady, whenShellReady } from "./host/idleReady";
 export { plugins } from "./api/PluginManager";
 export { Settings } from "./api/Settings";
 export { VERSION, REPO_URL } from "./utils/constants";

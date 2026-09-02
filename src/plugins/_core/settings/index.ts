@@ -3,10 +3,10 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Persistent Bloom++ row next to the sidebar profile (chatgpt-exporter
- * style). The settings panel is in-flow in the rail, or left-docked on
- * body as a last resort. No FAB, no popover, no inset:0 overlay.
- * #bloom-root is a zero-size HUD host only.
+ * Persistent Bloom++ row as the previous sibling of the account footer
+ * (never inside .sticky.bottom-0). The settings panel is in-flow above
+ * that row, or left-docked on body as a last resort. No FAB, no popover,
+ * no inset:0 overlay. #bloom-root is a zero-size HUD host only.
  */
 
 import { emitBloomEvent } from "../../../api/Events";
@@ -15,10 +15,9 @@ import { isPluginEnabled, plugins, togglePlugin } from "../../../api/PluginManag
 import {
     findAccountMenu,
     findProfileButton,
-    findSidebarAnchor,
     findSidebarHost,
     pathHitsProfile,
-    profileInsertionTarget,
+    railAnchor,
 } from "../../../host/accountMenu";
 import {
     applySchemeTokens,
@@ -462,17 +461,13 @@ function mountPanel() {
     document.getElementById(SIDEBAR_ID)?.remove();
     const panel = buildPanel(SIDEBAR_ID);
     const rail = document.getElementById(RAIL_ID);
-    if (rail?.isConnected && rail.parentElement) {
+    const railBox = rail?.isConnected ? rail.getBoundingClientRect() : null;
+    if (rail?.isConnected && rail.parentElement && railBox && railBox.width > 2 && railBox.height > 2) {
         rail.before(panel);
     } else {
-        const anchor = findSidebarAnchor();
-        if (anchor) {
-            const profile = findProfileButton();
-            if (profile && anchor.contains(profile)) {
-                profileInsertionTarget(profile).before(panel);
-            } else {
-                anchor.appendChild(panel);
-            }
+        const profile = findProfileButton();
+        if (profile) {
+            railAnchor(profile).before(panel);
         } else if (document.body) {
             dockToLeftRail(panel);
             document.body.appendChild(panel);
@@ -512,31 +507,34 @@ function buildRailItem(): HTMLButtonElement {
     return row;
 }
 
+function syncCollapsed(row: HTMLElement) {
+    const parent = row.parentElement;
+    const w = parent?.getBoundingClientRect().width ?? row.getBoundingClientRect().width;
+    row.classList.toggle("bloom-rail-compact", w > 0 && w < 80);
+}
+
 function pinRail() {
     if (!document.body) return;
     const existing = document.getElementById(RAIL_ID);
     const profile = findProfileButton();
-    if (profile) {
-        const target = profileInsertionTarget(profile);
-        if (existing?.isConnected && existing.nextElementSibling === target) {
-            /* already pinned */
-        } else {
-            const row = existing instanceof HTMLButtonElement ? existing : buildRailItem();
-            target.before(row);
-        }
-    } else {
-        const hostEl = findSidebarHost();
-        if (hostEl) {
-            const sticky = hostEl.querySelector<HTMLElement>(".sticky.bottom-0") ?? hostEl;
-            if (!(existing?.isConnected && existing.parentElement === sticky)) {
-                const row = existing instanceof HTMLButtonElement ? existing : buildRailItem();
-                sticky.appendChild(row);
-            }
-        }
+    if (!profile) {
+        /* do not append into .sticky.bottom-0 — wait for the next poll */
+        syncRailExpanded();
+        return;
     }
+    const anchor = railAnchor(profile);
+    const row = existing instanceof HTMLButtonElement ? existing : buildRailItem();
+    if (!(row.isConnected && row.nextElementSibling === anchor)) {
+        anchor.before(row);
+    }
+    syncCollapsed(row);
 
     const panel = document.getElementById(SIDEBAR_ID);
-    if (bloomOpen && panel && !panel.isConnected) mountPanel();
+    if (bloomOpen && panel?.isConnected) {
+        if (panel.nextElementSibling !== row) row.before(panel);
+    } else if (bloomOpen && panel && !panel.isConnected) {
+        mountPanel();
+    }
     syncRailExpanded();
 }
 
@@ -651,7 +649,7 @@ export function openSettings() {
 
 export default definePlugin({
     name: "Settings",
-    description: "Bloom++ settings, pinned next to the account row.",
+    description: "Bloom++ settings, pinned above the account row.",
     authors: [Devs.p],
     required: true,
     hidden: true,
