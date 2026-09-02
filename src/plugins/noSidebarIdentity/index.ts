@@ -7,7 +7,10 @@
  * MutationObserver, no querySelectorAll("button"), no wrapper :has().
  * Hides the display name (and mailto, if present) next to the account
  * avatar. Does not hide the avatar, #bloom-rail-item, or the chip itself.
- * Styles adopt after HostReady. Default on.
+ * The name/email nodes stay in layout (`visibility:hidden`) so the chip
+ * keeps its slot next to Bloom++. Never `display:none` the `.min-w-0`
+ * text column — that collapses the row to the avatar. Styles adopt after
+ * HostReady. Default on.
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -37,19 +40,6 @@ const EMAIL_SELECTORS = [
     '[data-testid="account-menu-button"] a[href^="mailto:"]',
 ];
 
-const TEXT_COL_SELECTORS = [
-    '[data-testid="accounts-profile-button"] > .flex.min-w-0',
-    '[data-testid="profile-button"] > .flex.min-w-0',
-    '[data-testid="user-menu-button"] > .flex.min-w-0',
-    '[data-testid="account-menu-button"] > .flex.min-w-0',
-    '[data-testid="accounts-profile-button"] > .min-w-0',
-    '[data-testid="profile-button"] > .min-w-0',
-    '[data-testid="accounts-profile-button"] .min-w-0.flex-1',
-    '[data-testid="profile-button"] .min-w-0.flex-1',
-    '[data-testid="accounts-profile-button"] .min-w-0.flex-col',
-    '[data-testid="profile-button"] .min-w-0.flex-col',
-];
-
 const settings = definePluginSettings({
     hideUsername: {
         type: OptionType.BOOLEAN,
@@ -63,17 +53,17 @@ const settings = definePluginSettings({
     },
 });
 
-function hide(selectors: string[]): string {
-    return `${selectors.join(",")}{display:none!important}`;
+/** Hide ink, keep the box. `display:none` drops the slot and shrinks the chip. */
+function hideKeepSlot(selectors: string[]): string {
+    return `${selectors.join(",")}{visibility:hidden!important;color:transparent!important;user-select:none!important;pointer-events:none!important}`;
 }
 
 function apply() {
     const hideName = settings.store.hideUsername !== false;
     const hideMail = settings.store.hideEmail !== false;
     const rules: string[] = [];
-    if (hideName) rules.push(hide(NAME_SELECTORS));
-    if (hideMail) rules.push(hide(EMAIL_SELECTORS));
-    if (hideName && hideMail) rules.push(hide(TEXT_COL_SELECTORS));
+    if (hideName) rules.push(hideKeepSlot(NAME_SELECTORS));
+    if (hideMail) rules.push(hideKeepSlot(EMAIL_SELECTORS));
     if (!rules.length) {
         removeStyle(STYLE_NAME);
         return;
