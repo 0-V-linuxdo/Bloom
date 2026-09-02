@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, a floating settings button.
 
-Current release: **[v1.3.2](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.2)** (`userscript/Bloom.user.js`, `@version [20260902] v1.3.2`).
+Current release: **[v1.3.3](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.3)** (`userscript/Bloom.user.js`, `@version [20260902] v1.3.3`).
 
 v1.3.0 ships:
 
@@ -79,6 +79,8 @@ v1.3.0: HostReady plugins start after the island gate + idle (blossom is setting
 v1.3.1: Favicon is a white blossom on a dark plate in every state (the official black ChatGPT icon disappears against chat backgrounds). Plugin card icons have no chip background.
 
 v1.3.2: FAB click only toggles a prebuilt modal (does not start HostReady plugins). Favicon is a white blossom rasterized to PNG, last `rel=icon` in `head`, head-subtree guard, no SMIL. CSF starts at DOMContentLoaded.
+
+v1.3.3: Settings is a **non-modal flyout** next to the blossom. No full-viewport backdrop button, so chatgpt.com stays clickable while the panel is open. Gear swaps an in-panel view. Theme watch no longer observes `<html>`.
 
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.

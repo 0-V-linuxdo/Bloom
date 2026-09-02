@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、右下角浮层按钮。
 
-当前版本：**[v1.3.2](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.2)**（`userscript/Bloom.user.js`，`@version [20260902] v1.3.2`）。
+当前版本：**[v1.3.3](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.3)**（`userscript/Bloom.user.js`，`@version [20260902] v1.3.3`）。
 
 v1.3.0：
 
@@ -63,6 +63,8 @@ v1.3.0：岛门 + idle 之后自动启动 HostReady 插件（花瓣只开设置�
 v1.3.1：标签页图标各状态都用深色底上的白色 blossom（官方黑色图标在聊天背景上对比度不够）。插件卡片图标去掉灰底。
 
 v1.3.2：点花瓣只切换预建面板，不再启动 HostReady 插件。favicon 改为白色 blossom 栅格成 PNG，插在 `head` 最后一个 `rel=icon`，head subtree 守卫，无 SMIL。CSF 在 DOMContentLoaded 启动。
+
+v1.3.3：设置改为花瓣旁的**非模态 flyout**。去掉全屏 backdrop 按钮，打开面板后 chatgpt.com 仍可点击。齿轮在面板内切视图。主题监听不再观察 `<html>`。
 
 ## 构建
 

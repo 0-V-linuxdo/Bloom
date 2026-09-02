@@ -3,8 +3,8 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Void++-style plugin cards. The blossom is position:fixed next to
- * ChatGPT's Download / store control — never patched into the host tree.
+ * Non-modal flyout next to the blossom. Never a full-viewport backdrop,
+ * never patched into the host tree.
  */
 
 import { emitBloomEvent } from "../../../api/Events";
@@ -24,6 +24,8 @@ import definePlugin, { OptionType, StartAt, type Plugin } from "../../../utils/t
 import css from "./styles.css";
 
 const ROOT_ID = "bloom-root";
+const Z_FAB = "10000";
+const Z_PANEL = "10001";
 
 const settings = definePluginSettings({
     appearance: {
@@ -40,14 +42,19 @@ const settings = definePluginSettings({
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
 let open = false;
-let dialogOpen = false;
+let pluginView = false;
 let fieldUnmounts: Array<() => void> = [];
 let unwatchHost: (() => void) | null = null;
-let shadowKeysBound = false;
 let fabAbort: AbortController | null = null;
-let backdropEl: HTMLButtonElement | null = null;
-let modalEl: HTMLDivElement | null = null;
+let winAbort: AbortController | null = null;
+let fabEl: HTMLButtonElement | null = null;
+let panelEl: HTMLDivElement | null = null;
+let listEl: HTMLDivElement | null = null;
+let pluginEl: HTMLDivElement | null = null;
 let gridEl: HTMLDivElement | null = null;
+let pluginTitleEl: HTMLElement | null = null;
+let pluginSubEl: HTMLElement | null = null;
+let pluginFieldsEl: HTMLDivElement | null = null;
 
 function blossomSvg(): string {
     return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M21.55 10.004a5.416 5.416 0 00-.478-4.501c-1.217-2.09-3.662-3.166-6.05-2.66A5.59 5.59 0 0010.831 1C8.39.995 6.224 2.546 5.473 4.838A5.553 5.553 0 001.76 7.496a5.487 5.487 0 00.691 6.5 5.416 5.416 0 00.477 4.502c1.217 2.09 3.662 3.165 6.05 2.66A5.586 5.586 0 0013.168 23c2.443.006 4.61-1.546 5.361-3.84a5.553 5.553 0 003.715-2.66 5.488 5.488 0 00-.693-6.497v.001z"/></svg>`;
@@ -55,6 +62,10 @@ function blossomSvg(): string {
 
 function closeSvg(): string {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
+}
+
+function backSvg(): string {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>`;
 }
 
 function gearSvg(): string {
@@ -89,6 +100,23 @@ function syncShadowStyles() {
     syncShadowPluginStyles();
 }
 
+/** Take a node out of the hit-test tree. `hidden` alone is not enough if CSS display wins. */
+function setDismissed(el: HTMLElement | null, dismissed: boolean) {
+    if (!el) return;
+    el.hidden = dismissed;
+    el.toggleAttribute("inert", dismissed);
+    if (dismissed) el.setAttribute("aria-hidden", "true");
+    else el.removeAttribute("aria-hidden");
+    el.style.pointerEvents = dismissed ? "none" : "auto";
+}
+
+function pathHitsBloom(e: Event): boolean {
+    const path = e.composedPath();
+    if (panelEl && path.includes(panelEl)) return true;
+    if (fabEl && path.includes(fabEl)) return true;
+    return false;
+}
+
 export function ensureHost(): ShadowRoot {
     if (shadow) return shadow;
     host = document.getElementById(ROOT_ID) as HTMLElement | null;
@@ -110,27 +138,12 @@ export function ensureHost(): ShadowRoot {
     }
     paintScheme();
     syncShadowStyles();
-    if (!shadowKeysBound) {
-        shadow.addEventListener("keydown", onDocKey as EventListener);
-        shadowKeysBound = true;
-    }
     return shadow;
 }
 
 function clearFields() {
     for (const u of fieldUnmounts) u();
     fieldUnmounts = [];
-}
-
-function closePluginDialog() {
-    dialogOpen = false;
-    clearFields();
-    shadow?.querySelector(".bloom-plugin-backdrop")?.remove();
-    shadow?.querySelector(".bloom-plugin-dialog")?.remove();
-}
-
-function closeModal() {
-    hideModal();
 }
 
 function pluginToggle(name: string, checked: boolean, required: boolean): HTMLElement {
@@ -219,65 +232,36 @@ function fieldControl(pluginName: string, key: string, spec: { type: OptionType;
     return wrap;
 }
 
-function openPluginDialog(plugin: Plugin) {
-    closePluginDialog();
-    const root = shadow;
-    if (!root) return;
-    dialogOpen = true;
+function showListView() {
+    pluginView = false;
+    clearFields();
+    if (pluginFieldsEl) pluginFieldsEl.replaceChildren();
+    setDismissed(pluginEl, true);
+    setDismissed(listEl, false);
+}
 
-    const backdrop = document.createElement("button");
-    backdrop.type = "button";
-    backdrop.className = "bloom-plugin-backdrop";
-    backdrop.setAttribute("aria-label", "Close plugin settings");
-    backdrop.addEventListener("click", e => {
-        e.preventDefault();
-        e.stopPropagation();
-        closePluginDialog();
-    });
-
-    const pane = document.createElement("div");
-    pane.className = "bloom-plugin-dialog";
-    pane.setAttribute("role", "dialog");
-    pane.setAttribute("aria-modal", "true");
-    pane.addEventListener("click", e => e.stopPropagation());
-
-    const bar = document.createElement("div");
-    bar.className = "bloom-dialog-bar";
-    const titles = document.createElement("div");
-    titles.className = "bloom-dialog-titles";
-    const h3 = document.createElement("h3");
-    h3.textContent = plugin.name;
-    const sub = document.createElement("p");
-    sub.textContent = plugin.description;
-    titles.append(h3, sub);
-    const close = document.createElement("button");
-    close.type = "button";
-    close.className = "bloom-icon-btn";
-    close.setAttribute("aria-label", "Close plugin settings");
-    close.innerHTML = closeSvg();
-    close.addEventListener("click", e => {
-        e.preventDefault();
-        e.stopPropagation();
-        closePluginDialog();
-    });
-    bar.append(titles, close);
-
-    const list = document.createElement("div");
-    list.className = "bloom-plugin-settings";
-    if (plugin.settings) {
-        for (const [key, spec] of Object.entries(plugin.settings.def)) {
-            const field = fieldControl(plugin.name, key, spec);
-            if (field) list.appendChild(field);
+function showPluginView(plugin: Plugin) {
+    clearFields();
+    pluginView = true;
+    if (pluginTitleEl) pluginTitleEl.textContent = plugin.name;
+    if (pluginSubEl) pluginSubEl.textContent = plugin.description;
+    if (pluginFieldsEl) {
+        pluginFieldsEl.replaceChildren();
+        if (plugin.settings) {
+            for (const [key, spec] of Object.entries(plugin.settings.def)) {
+                const field = fieldControl(plugin.name, key, spec);
+                if (field) pluginFieldsEl.appendChild(field);
+            }
+        }
+        if (!pluginFieldsEl.childElementCount) {
+            const empty = document.createElement("p");
+            empty.className = "bloom-dialog-empty";
+            empty.textContent = "No configurable settings.";
+            pluginFieldsEl.appendChild(empty);
         }
     }
-    if (!list.childElementCount) {
-        const empty = document.createElement("p");
-        empty.className = "bloom-dialog-empty";
-        empty.textContent = "No configurable settings.";
-        list.appendChild(empty);
-    }
-    pane.append(bar, list);
-    root.append(backdrop, pane);
+    setDismissed(listEl, true);
+    setDismissed(pluginEl, false);
 }
 
 function pluginCard(plugin: Plugin): HTMLElement {
@@ -306,13 +290,7 @@ function pluginCard(plugin: Plugin): HTMLElement {
         gear.className = "bloom-icon-btn bloom-card-gear";
         gear.setAttribute("aria-label", `${plugin.name} settings`);
         gear.innerHTML = gearSvg();
-        const openGear = (e: Event) => {
-            e.preventDefault();
-            e.stopPropagation();
-            openPluginDialog(plugin);
-        };
-        gear.addEventListener("click", openGear);
-        gear.addEventListener("pointerdown", e => e.stopPropagation());
+        gear.addEventListener("click", () => showPluginView(plugin));
         controls.appendChild(gear);
     }
     const toggle = pluginToggle(plugin.name, isPluginEnabled(plugin.name), !!plugin.required);
@@ -345,27 +323,21 @@ function fillGrid() {
     }
 }
 
-function ensureModal(root: ShadowRoot) {
-    if (backdropEl && modalEl && gridEl && backdropEl.isConnected && modalEl.isConnected) return;
+function ensurePanel(root: ShadowRoot) {
+    if (panelEl && listEl && pluginEl && gridEl && panelEl.isConnected) return;
 
-    backdropEl?.remove();
-    modalEl?.remove();
+    panelEl?.remove();
 
-    const backdrop = document.createElement("button");
-    backdrop.type = "button";
-    backdrop.className = "bloom-settings-backdrop";
-    backdrop.setAttribute("aria-label", "Close settings");
-    backdrop.hidden = true;
-    backdrop.addEventListener("click", hideModal);
+    const panel = document.createElement("div");
+    panel.className = "bloom-settings-panel";
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-modal", "false");
+    panel.setAttribute("aria-labelledby", "bloom-settings-title");
+    panel.style.zIndex = Z_PANEL;
+    setDismissed(panel, true);
 
-    const modal = document.createElement("div");
-    modal.className = "bloom-settings-modal";
-    modal.setAttribute("role", "dialog");
-    modal.setAttribute("aria-modal", "true");
-    modal.setAttribute("aria-labelledby", "bloom-settings-title");
-    modal.tabIndex = -1;
-    modal.hidden = true;
-    modal.addEventListener("click", e => e.stopPropagation());
+    const list = document.createElement("div");
+    list.className = "bloom-settings-list";
 
     const head = document.createElement("div");
     head.className = "bloom-settings-head";
@@ -383,49 +355,114 @@ function ensureModal(root: ShadowRoot) {
     close.className = "bloom-icon-btn";
     close.setAttribute("aria-label", "Close");
     close.innerHTML = closeSvg();
-    close.addEventListener("click", hideModal);
+    close.addEventListener("click", hidePanel);
     head.append(brand, close);
-    modal.appendChild(head);
+    list.appendChild(head);
 
     const sub = document.createElement("p");
     sub.className = "bloom-settings-sub";
     sub.textContent = "Plugins";
-    modal.appendChild(sub);
+    list.appendChild(sub);
 
     const grid = document.createElement("div");
     grid.className = "bloom-plugin-grid";
-    modal.appendChild(grid);
+    list.appendChild(grid);
 
-    root.append(backdrop, modal);
-    backdropEl = backdrop;
-    modalEl = modal;
+    const pluginPane = document.createElement("div");
+    pluginPane.className = "bloom-settings-plugin";
+    setDismissed(pluginPane, true);
+
+    const pHead = document.createElement("div");
+    pHead.className = "bloom-settings-head";
+    const back = document.createElement("button");
+    back.type = "button";
+    back.className = "bloom-icon-btn";
+    back.setAttribute("aria-label", "Back");
+    back.innerHTML = backSvg();
+    back.addEventListener("click", showListView);
+    const pTitles = document.createElement("div");
+    pTitles.className = "bloom-dialog-titles";
+    const pTitle = document.createElement("h2");
+    pTitle.textContent = "";
+    const pSub = document.createElement("p");
+    pSub.className = "bloom-settings-sub";
+    pTitles.append(pTitle, pSub);
+    const pClose = document.createElement("button");
+    pClose.type = "button";
+    pClose.className = "bloom-icon-btn";
+    pClose.setAttribute("aria-label", "Close");
+    pClose.innerHTML = closeSvg();
+    pClose.addEventListener("click", hidePanel);
+    pHead.append(back, pTitles, pClose);
+
+    const fields = document.createElement("div");
+    fields.className = "bloom-plugin-settings";
+    pluginPane.append(pHead, fields);
+
+    panel.append(list, pluginPane);
+    root.append(panel);
+
+    panelEl = panel;
+    listEl = list;
+    pluginEl = pluginPane;
     gridEl = grid;
+    pluginTitleEl = pTitle;
+    pluginSubEl = pSub;
+    pluginFieldsEl = fields;
     fillGrid();
 }
 
-function hideModal() {
-    open = false;
-    closePluginDialog();
-    if (backdropEl) backdropEl.hidden = true;
-    if (modalEl) modalEl.hidden = true;
-}
+function placePanel() {
+    if (!panelEl || !fabEl) return;
+    const fab = fabEl.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const width = Math.min(640, Math.max(280, vw - 24));
+    const maxH = Math.min(vh - 24, 640);
+    panelEl.style.width = `${Math.round(width)}px`;
+    panelEl.style.maxHeight = `${Math.round(maxH)}px`;
 
-function showModal() {
-    const root = ensureHost();
-    ensureModal(root);
-    fillGrid();
-    open = true;
-    if (backdropEl) backdropEl.hidden = false;
-    if (modalEl) {
-        modalEl.hidden = false;
-        modalEl.focus();
+    let left = fab.right - width;
+    if (left < 12) left = 12;
+    if (left + width > vw - 12) left = Math.max(12, vw - 12 - width);
+
+    const spaceBelow = vh - fab.bottom - 8;
+    const spaceAbove = fab.top - 8;
+    const openBelow = spaceBelow >= 240 || spaceBelow >= spaceAbove;
+    if (openBelow) {
+        panelEl.style.top = `${Math.round(fab.bottom + 8)}px`;
+        panelEl.style.bottom = "auto";
+    } else {
+        panelEl.style.top = "auto";
+        panelEl.style.bottom = `${Math.round(vh - fab.top + 8)}px`;
     }
+    panelEl.style.left = `${Math.round(left)}px`;
+    panelEl.style.right = "auto";
+}
+
+function hidePanel() {
+    open = false;
+    setDismissed(panelEl, true);
+    fabEl?.setAttribute("aria-expanded", "false");
+    showListView();
+}
+
+function showPanel() {
+    const root = ensureHost();
+    ensurePanel(root);
+    paintScheme();
+    fillGrid();
+    showListView();
+    open = true;
+    fabEl?.setAttribute("aria-expanded", "true");
+    placePanel();
+    setDismissed(panelEl, false);
     emitBloomEvent("settingsOpen", undefined);
 }
 
-function toggleModal() {
-    if (open) hideModal();
-    else showModal();
+function togglePanel() {
+    if (open) hidePanel();
+    else showPanel();
 }
 
 function placeFab(fab: HTMLElement) {
@@ -436,6 +473,31 @@ function placeFab(fab: HTMLElement) {
     fab.style.top = `${Math.round(box.y)}px`;
     fab.style.right = "auto";
     fab.style.bottom = "auto";
+    fab.style.zIndex = Z_FAB;
+}
+
+function onWinPointerDown(e: PointerEvent) {
+    if (!open) return;
+    if (pathHitsBloom(e)) return;
+    hidePanel();
+}
+
+function onWinKey(e: KeyboardEvent) {
+    if (e.key !== "Escape") return;
+    if (!open) return;
+    if (pluginView) {
+        showListView();
+        return;
+    }
+    hidePanel();
+}
+
+function bindWindowDismiss() {
+    winAbort?.abort();
+    const ac = new AbortController();
+    winAbort = ac;
+    window.addEventListener("pointerdown", onWinPointerDown, { capture: true, signal: ac.signal });
+    window.addEventListener("keydown", onWinKey, { capture: true, signal: ac.signal });
 }
 
 function mountFab() {
@@ -447,37 +509,31 @@ function mountFab() {
     fab.type = "button";
     fab.className = "bloom-settings-fab";
     fab.setAttribute("aria-label", "Bloom++ settings");
+    fab.setAttribute("aria-expanded", "false");
+    fab.setAttribute("aria-haspopup", "dialog");
     fab.innerHTML = blossomSvg();
-    fab.addEventListener("click", toggleModal);
+    fab.addEventListener("click", togglePanel);
     root.appendChild(fab);
-    ensureModal(root);
+    fabEl = fab;
+    ensurePanel(root);
 
     const ac = new AbortController();
     fabAbort = ac;
     const relayout = () => {
         invalidateFabAnchor();
         placeFab(fab);
+        if (open) placePanel();
     };
     window.addEventListener("resize", relayout, { signal: ac.signal });
-    whenIdleReady(() => placeFab(fab));
-}
-
-function onDocKey(e: KeyboardEvent) {
-    if (e.key !== "Escape") return;
-    if (dialogOpen) {
-        closePluginDialog();
-        e.stopPropagation();
-        return;
-    }
-    if (open) {
-        closeModal();
-        e.stopPropagation();
-    }
+    whenIdleReady(() => {
+        placeFab(fab);
+        if (open) placePanel();
+    });
 }
 
 export function openSettings() {
     requestIdleReady();
-    whenShellReady(() => showModal());
+    whenShellReady(() => showPanel());
 }
 
 export default definePlugin({
@@ -493,6 +549,7 @@ export default definePlugin({
 
     start() {
         mountFab();
+        bindWindowDismiss();
         paintScheme();
         unwatchHost?.();
         unwatchHost = watchHostScheme(paintScheme);
@@ -501,16 +558,22 @@ export default definePlugin({
     stop() {
         fabAbort?.abort();
         fabAbort = null;
+        winAbort?.abort();
+        winAbort = null;
         unwatchHost?.();
         unwatchHost = null;
-        closeModal();
+        hidePanel();
         host?.remove();
         host = null;
         shadow = null;
-        shadowKeysBound = false;
-        backdropEl = null;
-        modalEl = null;
+        fabEl = null;
+        panelEl = null;
+        listEl = null;
+        pluginEl = null;
         gridEl = null;
+        pluginTitleEl = null;
+        pluginSubEl = null;
+        pluginFieldsEl = null;
     },
 
     onSettingsChange: paintScheme,

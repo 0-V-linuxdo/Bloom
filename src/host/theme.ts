@@ -170,7 +170,16 @@ export function applySchemeTokens(target: HTMLElement, scheme: ColorScheme, from
 }
 
 export function watchHostScheme(onChange: () => void): () => void {
-    const obs = new MutationObserver(onChange);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme", "data-color-scheme", "style"] });
-    return () => obs.disconnect();
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onVisible = () => {
+        if (document.visibilityState === "visible") onChange();
+    };
+    mq.addEventListener("change", onChange);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onChange);
+    return () => {
+        mq.removeEventListener("change", onChange);
+        document.removeEventListener("visibilitychange", onVisible);
+        window.removeEventListener("focus", onChange);
+    };
 }
