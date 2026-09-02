@@ -100,7 +100,11 @@ function ensureHost(): ShadowRoot {
     if (!host) {
         host = document.createElement("div");
         host.id = ROOT_ID;
-        document.documentElement.appendChild(host);
+    }
+    // Never append to document.documentElement — extra <html> siblings
+    // during ChatGPT hydration drop Recents and the profile avatar.
+    if (document.body && host.parentNode !== document.body) {
+        document.body.appendChild(host);
     }
     shadow = host.shadowRoot ?? host.attachShadow({ mode: "open" });
     if (!shadow.querySelector("style[data-bloom]")) {

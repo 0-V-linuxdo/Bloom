@@ -162,7 +162,9 @@ function hudEl(): HTMLElement {
     if (!el) {
         el = document.createElement("div");
         el.className = "bloom-ih-hud";
-        document.documentElement.appendChild(el);
+    }
+    if (document.body && el.parentNode !== document.body) {
+        document.body.appendChild(el);
     }
     return el;
 }

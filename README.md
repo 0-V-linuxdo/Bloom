@@ -46,7 +46,9 @@ The blossom mark is the 24-unit evenodd path from the existing Chat-State-Favico
 
 Both plugins inject CSS at `document-start` and then stop. They do **not** walk the tree with `MutationObserver` or `querySelectorAll("button")`.
 
-v1.1.2: `registerStyle` waits for `document.head` and never appends to `<html>`. HostReady waits for `body` then `DOMContentLoaded` (no parse-time `subtree` observer). That keeps ChatGPT's React hydration from going blank.
+v1.1.2: `registerStyle` waits for `document.head` and never appends to `<html>`.
+
+v1.1.3: HostReady waits for `window` load plus a short settle delay (not `DOMContentLoaded`). `#bloom-root` and the InputHistory HUD mount on `document.body` only — extra siblings under `<html>` during hydration dropped Recents and the profile avatar.
 
 - NoShareLink: `button[data-testid="share-chat-button"]` plus header-scoped `aria-label` (Share / 分享). Project: `share-project-button` / Share project / 分享项目. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: `button[data-testid="composer-speech-button"]` and composer-scoped Dictate / 听写 labels. Leaves `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.
