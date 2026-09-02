@@ -27,12 +27,12 @@ const PROJECT_SELECTORS = [
 const settings = definePluginSettings({
     hideShareChat: {
         type: OptionType.BOOLEAN,
-        description: "Hide the header Share button on conversations.",
+        description: "Hide conversation Share",
         default: true,
     },
     hideShareProject: {
         type: OptionType.BOOLEAN,
-        description: "Inside a project: hide the Share / Share project button.",
+        description: "Hide project Share",
         default: true,
     },
 });
@@ -54,7 +54,7 @@ function apply() {
 
 export default definePlugin({
     name: "NoShareLink",
-    description: "Hide share buttons: conversation Share (header) and Share project.",
+    description: "Hide Share on conversations and inside projects.",
     authors: [Devs.p],
     tags: ["ui", "privacy"],
     enabledByDefault: false,

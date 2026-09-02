@@ -28,7 +28,7 @@ const SETTINGS_SELECTORS = [
 const settings = definePluginSettings({
     hideDictationSettings: {
         type: OptionType.BOOLEAN,
-        description: "Hide dictation / speech-to-text rows in chatgpt.com Settings.",
+        description: "Hide dictation rows in Settings",
         default: true,
     },
 });
@@ -45,7 +45,7 @@ function apply() {
 
 export default definePlugin({
     name: "NoDictation",
-    description: "Hide the Dictation (speech-to-text) button from the composer. Optional: hide dictation rows in Settings.",
+    description: "Hide the composer Dictation button. Optional: hide Settings rows.",
     authors: [Devs.p],
     tags: ["chat", "ui"],
     enabledByDefault: false,

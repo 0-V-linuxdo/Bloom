@@ -1,5 +1,4 @@
-/* ChatGPT-native shell. Tokens come from :host (copied from chatgpt.com).
-   No `all: initial` — that blocked --main-surface-* inheritance. */
+/* Void++ / Vencord-style plugin cards. Tokens from chatgpt.com via :host. */
 
 :host {
   --bloom-bg: var(--main-surface-primary, #ffffff);
@@ -13,11 +12,12 @@
   --bloom-border-strong: var(--border-medium, rgba(0, 0, 0, 0.15));
   --bloom-hover: var(--interactive-bg-secondary-hover, rgba(0, 0, 0, 0.05));
   --bloom-icon: var(--icon-primary, #0d0d0d);
+  --bloom-accent: var(--text-accent, #10a37f);
   --bloom-shadow: 0 0 0 1px var(--bloom-border), 0 8px 24px rgba(0, 0, 0, 0.12);
   --bloom-fab-shadow: 0 0 0 1px var(--bloom-border), 0 2px 8px rgba(0, 0, 0, 0.08);
   --bloom-ease: cubic-bezier(0.32, 0.72, 0, 1);
   color-scheme: light;
-  font: 14px/1.5 ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+  font: 14px/1.45 ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
   color: var(--bloom-fg);
   -webkit-font-smoothing: antialiased;
   pointer-events: none;
@@ -57,11 +57,11 @@
   position: fixed;
   z-index: 2147483645;
   right: 16px;
-  bottom: 16px;
-  width: 40px;
-  height: 40px;
+  top: 12px;
+  width: 36px;
+  height: 36px;
   margin: 0;
-  padding: 0;
+  padding: 3px;
   border: 0;
   border-radius: 999px;
   background: var(--bloom-surface);
@@ -74,17 +74,14 @@
   transition:
     transform 160ms var(--bloom-ease),
     background-color 160ms var(--bloom-ease),
-    box-shadow 160ms var(--bloom-ease),
-    color 160ms var(--bloom-ease);
+    box-shadow 160ms var(--bloom-ease);
 }
 
 .bloom-settings-fab:hover {
   background: var(--bloom-elevated);
 }
 
-.bloom-settings-fab:active,
-.bloom-settings-fab.is-dragging {
-  cursor: grabbing;
+.bloom-settings-fab:active {
   transform: scale(0.96);
 }
 
@@ -94,8 +91,8 @@
 }
 
 .bloom-settings-fab svg {
-  width: 18px;
-  height: 18px;
+  width: 100%;
+  height: 100%;
   display: block;
 }
 
@@ -117,13 +114,13 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: min(512px, calc(100vw - 32px));
-  max-height: min(80vh, 720px);
+  width: min(540px, calc(100vw - 32px));
+  max-height: min(82vh, 760px);
   overflow: auto;
   padding: 16px 16px 20px;
   border: 0;
-  border-radius: 16px;
-  background: var(--bloom-surface);
+  border-radius: 12px;
+  background: var(--bloom-bg);
   color: var(--bloom-fg);
   box-shadow: var(--bloom-shadow);
   pointer-events: auto;
@@ -134,19 +131,19 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 0 4px 12px;
+  margin: 0 4px 4px;
 }
 
 .bloom-settings-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
 }
 
 .bloom-settings-mark {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   color: var(--bloom-icon);
   display: grid;
   place-items: center;
@@ -154,16 +151,22 @@
 }
 
 .bloom-settings-mark svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
 }
 
 .bloom-settings-head h2 {
   margin: 0;
-  font-size: 1.0625rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.3;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.bloom-settings-sub {
+  margin: 0 4px 14px;
+  font-size: 0.8125rem;
+  color: var(--bloom-muted);
 }
 
 .bloom-icon-btn {
@@ -190,10 +193,11 @@
 }
 
 .bloom-plugin-card {
-  padding: 14px 14px 12px;
-  border-radius: 16px;
+  padding: 16px;
+  border-radius: 8px;
   background: var(--bloom-elevated);
-  margin-bottom: 8px;
+  border: 1px solid var(--bloom-border);
+  margin-bottom: 10px;
 }
 
 .bloom-plugin-card:last-child {
@@ -202,33 +206,60 @@
 
 .bloom-plugin-card header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
+}
+
+.bloom-plugin-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.bloom-plugin-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .bloom-plugin-card h3 {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+  line-height: 1.3;
 }
 
-.bloom-plugin-card p {
+.bloom-plugin-authors {
+  font-size: 0.75rem;
+  color: var(--bloom-faint);
+  font-weight: 500;
+}
+
+.bloom-plugin-card header p {
   margin: 4px 0 0;
   color: var(--bloom-muted);
   font-size: 0.8125rem;
-  line-height: 1.45;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bloom-plugin-settings {
+  margin-top: 12px;
+  padding-top: 4px;
+  border-top: 1px solid var(--bloom-border);
 }
 
 .bloom-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.75rem;
-  color: var(--bloom-muted);
   cursor: pointer;
   user-select: none;
+  flex: 0 0 auto;
 }
 
 .bloom-switch {
@@ -269,7 +300,7 @@
 }
 
 .bloom-switch input:checked + span {
-  background: var(--bloom-fg);
+  background: var(--bloom-accent, #10a37f);
 }
 
 .bloom-switch input:checked + span::after {
@@ -286,29 +317,64 @@
 }
 
 .bloom-field {
-  display: grid;
-  gap: 6px;
-  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--bloom-border);
 }
 
-.bloom-field > span:first-child {
-  font-size: 0.75rem;
+.bloom-field:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.bloom-field > span:first-child,
+.bloom-field > summary {
+  font-size: 0.875rem;
+  color: var(--bloom-fg);
+  line-height: 1.35;
+  min-width: 0;
+  flex: 1;
+}
+
+.bloom-field-block {
+  display: block;
+  padding-top: 12px;
+}
+
+.bloom-field-block > summary {
+  cursor: pointer;
+  list-style: none;
+  font-weight: 500;
+}
+
+.bloom-field-block > summary::-webkit-details-marker {
+  display: none;
+}
+
+.bloom-field-block > summary::before {
+  content: "▸ ";
   color: var(--bloom-muted);
 }
 
-.bloom-field select,
-.bloom-field input[type="range"] {
-  width: 100%;
+.bloom-field-block[open] > summary::before {
+  content: "▾ ";
 }
 
 .bloom-field select {
-  height: 40px;
-  border-radius: 10px;
+  height: 32px;
+  min-width: 148px;
+  max-width: 52%;
+  border-radius: 6px;
   border: 1px solid var(--bloom-border-strong);
   background: var(--bloom-surface);
   color: inherit;
-  padding: 0 12px;
+  padding: 0 10px;
   font: inherit;
+  font-size: 0.8125rem;
 }
 
 .bloom-field select:hover {
@@ -321,8 +387,23 @@
 }
 
 .bloom-field input[type="range"] {
-  accent-color: var(--bloom-fg);
+  width: 140px;
+  accent-color: var(--bloom-accent, #10a37f);
   height: 24px;
+}
+
+.bloom-field-slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.bloom-field-slider > span {
+  min-width: 2ch;
+  font-size: 0.75rem;
+  color: var(--bloom-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 @media (prefers-reduced-motion: reduce) {

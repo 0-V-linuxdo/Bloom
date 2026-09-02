@@ -45,7 +45,7 @@ const ICON_ID = "bloom-chat-state-favicon";
 const settings = definePluginSettings({
     style: {
         type: OptionType.SELECT,
-        description: "How the blossom mark is overlaid with chat state.",
+        description: "Favicon overlay",
         options: STYLE_OPTIONS,
     },
 });
@@ -244,7 +244,7 @@ function observeComposer() {
 
 export default definePlugin({
     name: "ChatStateFavicons",
-    description: "Show streaming, done, ready, and error states on the tab favicon.",
+    description: "Streaming, done, ready, and error on the tab favicon.",
     authors: [Devs.p],
     tags: ["chat", "ui"],
     enabledByDefault: true,

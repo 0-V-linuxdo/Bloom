@@ -15,11 +15,11 @@ export type IconStyle = (typeof ICON_STYLES)[number];
 export type FaviconKind = "wait" | "rotate" | "done" | "ready" | "error";
 
 export const STYLE_OPTIONS = [
-    { label: "only emoji", value: "original" },
-    { label: "Badge + glyph", value: "badge", default: true },
-    { label: "Color dot", value: "dot" },
-    { label: "Mark tint", value: "hole" },
-    { label: "Background tint", value: "bg" },
+    { label: "Emoji", value: "original" },
+    { label: "Badge", value: "badge", default: true },
+    { label: "Dot", value: "dot" },
+    { label: "Tint", value: "hole" },
+    { label: "Fill", value: "bg" },
 ] as const;
 
 const KIND_COLOR: Record<Exclude<FaviconKind, "wait">, string> = {

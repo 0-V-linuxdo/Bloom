@@ -44,6 +44,8 @@ v1.1.7：HostReady 等到 `max(启动起 8 秒, 晚到的岛)`——侧栏 `a[hr
 
 v1.1.8：ScriptReady（8 秒 + 岛）只挂 Violentmonkey 菜单。`flushStyles`、`#bloom-root`、CSF、InputHistory 等到一次可信点击（或菜单）并错开该事件后再跑。CSF 只改已有 icon `link`，不 `prepend`、不观察 `head`。页面 CSS 只用 `GM_addStyle`。InputHistory HUD 进 Bloom 的 shadow。
 
+v1.1.9：设置卡片改成 Void++ 布局（名称 + 作者 + 开关，选项一行一个）。花瓣按钮用 `position:fixed` 贴在「下载 ChatGPT 应用」右侧，不插入顶栏 DOM。按钮里的花瓣更大。
+
 ## 构建
 
 ```bash

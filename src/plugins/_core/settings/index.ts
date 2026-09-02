@@ -3,12 +3,15 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Self-hosted settings shell (floating button). Does not patch the host menu.
+ * Self-hosted settings shell. The blossom sits beside ChatGPT's
+ * "Download the ChatGPT app" control via position:fixed — never patched
+ * into the host header tree.
  */
 
 import { emitBloomEvent } from "../../../api/Events";
 import { definePluginSettings, Settings } from "../../../api/Settings";
 import { isPluginEnabled, plugins, togglePlugin } from "../../../api/PluginManager";
+import { fabPlacement } from "../../../host/headerAnchor";
 import {
     applySchemeTokens,
     resolveScheme,
@@ -22,8 +25,6 @@ import definePlugin, { OptionType, StartAt } from "../../../utils/types";
 import css from "./styles.css";
 
 const ROOT_ID = "bloom-root";
-const FAB_POS_KEY = "bloom-fab-pos";
-const FAB_SIZE = 40;
 
 const settings = definePluginSettings({
     appearance: {
@@ -43,6 +44,8 @@ let open = false;
 let unmounts: Array<() => void> = [];
 let unwatchHost: (() => void) | null = null;
 let shadowKeysBound = false;
+let fabAbort: AbortController | null = null;
+let fabTimer: ReturnType<typeof setInterval> | undefined;
 
 function blossomSvg(): string {
     return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M21.55 10.004a5.416 5.416 0 00-.478-4.501c-1.217-2.09-3.662-3.166-6.05-2.66A5.59 5.59 0 0010.831 1C8.39.995 6.224 2.546 5.473 4.838A5.553 5.553 0 001.76 7.496a5.487 5.487 0 00.691 6.5 5.416 5.416 0 00.477 4.502c1.217 2.09 3.662 3.165 6.05 2.66A5.586 5.586 0 0013.168 23c2.443.006 4.61-1.546 5.361-3.84a5.553 5.553 0 003.715-2.66 5.488 5.488 0 00-.693-6.497v.001z"/></svg>`;
@@ -76,20 +79,6 @@ function syncShadowStyles() {
     el.textContent = registeredStyleText();
 }
 
-function loadFabPos(): { x: number; y: number } | null {
-    try {
-        const raw = localStorage.getItem(FAB_POS_KEY);
-        if (!raw) return null;
-        const p = JSON.parse(raw) as { x?: number; y?: number };
-        if (typeof p.x === "number" && typeof p.y === "number") return { x: p.x, y: p.y };
-    } catch { /* ignore */ }
-    return null;
-}
-
-function saveFabPos(x: number, y: number) {
-    try { localStorage.setItem(FAB_POS_KEY, JSON.stringify({ x, y })); } catch { /* ignore */ }
-}
-
 export function ensureHost(): ShadowRoot {
     if (shadow) {
         paintScheme();
@@ -102,8 +91,6 @@ export function ensureHost(): ShadowRoot {
         host.id = ROOT_ID;
         host.style.pointerEvents = "none";
     }
-    // Never append to document.documentElement. Only mount on body after
-    // hydrateRoot(document) has attached, or when the user opens settings.
     if (document.body && host.parentNode !== document.body) {
         document.body.appendChild(host);
     }
@@ -131,14 +118,35 @@ function closeModal() {
     shadow?.querySelector(".bloom-settings-modal")?.remove();
 }
 
+function pluginToggle(name: string, checked: boolean, required: boolean): HTMLElement {
+    const toggle = document.createElement("label");
+    toggle.className = "bloom-toggle";
+    const sw = document.createElement("span");
+    sw.className = "bloom-switch";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = checked;
+    box.disabled = required;
+    box.setAttribute("aria-label", `${name} enabled`);
+    const track = document.createElement("span");
+    sw.append(box, track);
+    toggle.append(sw);
+    return toggle;
+}
+
 function fieldControl(pluginName: string, key: string, spec: { type: OptionType; description?: string; min?: number; max?: number; options?: readonly { label: string; value: string }[]; render?: (el: HTMLElement) => () => void }): HTMLElement | null {
     if (spec.type === OptionType.COMPONENT && spec.render) {
-        const wrap = document.createElement("div");
-        wrap.className = "bloom-field";
-        unmounts.push(spec.render(wrap));
+        const wrap = document.createElement("details");
+        wrap.className = "bloom-field bloom-field-block";
+        const sum = document.createElement("summary");
+        sum.textContent = spec.description || key;
+        const inner = document.createElement("div");
+        unmounts.push(spec.render(inner));
+        wrap.append(sum, inner);
         return wrap;
     }
-    const wrap = document.createElement("label");
+
+    const wrap = document.createElement("div");
     wrap.className = "bloom-field";
     const cap = document.createElement("span");
     cap.textContent = spec.description || key;
@@ -160,6 +168,8 @@ function fieldControl(pluginName: string, key: string, spec: { type: OptionType;
     }
 
     if (spec.type === OptionType.SLIDER) {
+        const row = document.createElement("div");
+        row.className = "bloom-field-slider";
         const input = document.createElement("input");
         input.type = "range";
         input.min = String(spec.min ?? 0);
@@ -171,22 +181,17 @@ function fieldControl(pluginName: string, key: string, spec: { type: OptionType;
             store[key] = Number(input.value);
             val.textContent = input.value;
         });
-        wrap.append(input, val);
+        row.append(input, val);
+        wrap.appendChild(row);
         return wrap;
     }
 
     if (spec.type === OptionType.BOOLEAN) {
-        const toggle = document.createElement("label");
-        toggle.className = "bloom-toggle";
-        const sw = document.createElement("span");
-        sw.className = "bloom-switch";
-        const input = document.createElement("input");
-        input.type = "checkbox";
-        input.checked = Boolean(store[key]);
-        input.addEventListener("change", () => { store[key] = input.checked; });
-        const track = document.createElement("span");
-        sw.append(input, track);
-        toggle.append(sw);
+        const toggle = pluginToggle(key, Boolean(store[key]), false);
+        const input = toggle.querySelector("input");
+        input?.addEventListener("change", () => {
+            if (input) store[key] = input.checked;
+        });
         wrap.appendChild(toggle);
         return wrap;
     }
@@ -231,41 +236,49 @@ function renderModal(root: ShadowRoot) {
     head.append(brand, close);
     modal.appendChild(head);
 
+    const sub = document.createElement("p");
+    sub.className = "bloom-settings-sub";
+    sub.textContent = "Plugins";
+    modal.appendChild(sub);
+
     for (const plugin of Object.values(plugins)) {
         if (plugin.hidden || plugin.name === "Settings") continue;
         const card = document.createElement("section");
         card.className = "bloom-plugin-card";
         const header = document.createElement("header");
-        const meta = document.createElement("div");
+        const info = document.createElement("div");
+        info.className = "bloom-plugin-info";
+        const titleRow = document.createElement("div");
+        titleRow.className = "bloom-plugin-title";
         const h3 = document.createElement("h3");
         h3.textContent = plugin.name;
+        titleRow.appendChild(h3);
+        if (plugin.authors?.length) {
+            const by = document.createElement("span");
+            by.className = "bloom-plugin-authors";
+            by.textContent = plugin.authors.join(", ");
+            titleRow.appendChild(by);
+        }
         const p = document.createElement("p");
         p.textContent = plugin.description;
-        meta.append(h3, p);
-        const toggle = document.createElement("label");
-        toggle.className = "bloom-toggle";
-        const sw = document.createElement("span");
-        sw.className = "bloom-switch";
-        const box = document.createElement("input");
-        box.type = "checkbox";
-        box.checked = isPluginEnabled(plugin.name);
-        box.disabled = !!plugin.required;
-        box.setAttribute("aria-label", `${plugin.name} enabled`);
-        box.addEventListener("change", () => {
+        info.append(titleRow, p);
+        const toggle = pluginToggle(plugin.name, isPluginEnabled(plugin.name), !!plugin.required);
+        const box = toggle.querySelector("input");
+        box?.addEventListener("change", () => {
             togglePlugin(plugin.name);
             renderModal(root);
         });
-        const track = document.createElement("span");
-        sw.append(box, track);
-        toggle.append(sw);
-        header.append(meta, toggle);
+        header.append(info, toggle);
         card.appendChild(header);
 
         if (isPluginEnabled(plugin.name) && plugin.settings) {
+            const body = document.createElement("div");
+            body.className = "bloom-plugin-settings";
             for (const [key, spec] of Object.entries(plugin.settings.def)) {
                 const field = fieldControl(plugin.name, key, spec);
-                if (field) card.appendChild(field);
+                if (field) body.appendChild(field);
             }
+            if (body.childElementCount) card.appendChild(body);
         }
         modal.appendChild(card);
     }
@@ -275,58 +288,43 @@ function renderModal(root: ShadowRoot) {
     emitBloomEvent("settingsOpen", undefined);
 }
 
+function placeFab(fab: HTMLElement) {
+    const box = fabPlacement(36);
+    fab.style.width = `${box.size}px`;
+    fab.style.height = `${box.size}px`;
+    fab.style.left = `${Math.round(box.x)}px`;
+    fab.style.top = `${Math.round(box.y)}px`;
+    fab.style.right = "auto";
+    fab.style.bottom = "auto";
+}
+
 function mountFab() {
     const root = ensureHost();
     root.querySelector(".bloom-settings-fab")?.remove();
+    fabAbort?.abort();
+    if (fabTimer !== undefined) {
+        clearInterval(fabTimer);
+        fabTimer = undefined;
+    }
+
     const fab = document.createElement("button");
     fab.type = "button";
     fab.className = "bloom-settings-fab";
     fab.setAttribute("aria-label", "Bloom++ settings");
     fab.innerHTML = blossomSvg();
-    const pos = loadFabPos();
-    if (pos) {
-        fab.style.left = `${pos.x}px`;
-        fab.style.top = `${pos.y}px`;
-        fab.style.right = "auto";
-        fab.style.bottom = "auto";
-    }
-
-    let drag = false;
-    let moved = false;
-    let ox = 0;
-    let oy = 0;
-    fab.addEventListener("pointerdown", e => {
-        drag = true;
-        moved = false;
-        ox = e.clientX - fab.getBoundingClientRect().left;
-        oy = e.clientY - fab.getBoundingClientRect().top;
-        fab.classList.add("is-dragging");
-        fab.setPointerCapture(e.pointerId);
-    });
-    fab.addEventListener("pointermove", e => {
-        if (!drag) return;
-        moved = true;
-        const x = Math.max(8, Math.min(window.innerWidth - FAB_SIZE - 8, e.clientX - ox));
-        const y = Math.max(8, Math.min(window.innerHeight - FAB_SIZE - 8, e.clientY - oy));
-        fab.style.left = `${x}px`;
-        fab.style.top = `${y}px`;
-        fab.style.right = "auto";
-        fab.style.bottom = "auto";
-    });
-    fab.addEventListener("pointerup", () => {
-        fab.classList.remove("is-dragging");
-        if (drag && moved) {
-            const r = fab.getBoundingClientRect();
-            saveFabPos(r.left, r.top);
-        }
-        drag = false;
-    });
     fab.addEventListener("click", () => {
-        if (moved) return;
         if (open) closeModal();
         else renderModal(root);
     });
     root.appendChild(fab);
+
+    const ac = new AbortController();
+    fabAbort = ac;
+    const relayout = () => placeFab(fab);
+    window.addEventListener("resize", relayout, { signal: ac.signal });
+    window.addEventListener("scroll", relayout, { capture: true, passive: true, signal: ac.signal });
+    fabTimer = setInterval(relayout, 1000);
+    relayout();
 }
 
 function onDocKey(e: KeyboardEvent) {
@@ -343,7 +341,7 @@ export function openSettings() {
 
 export default definePlugin({
     name: "Settings",
-    description: "Floating Bloom++ settings button.",
+    description: "Bloom++ settings, docked next to Download the ChatGPT app.",
     authors: [Devs.p],
     required: true,
     hidden: true,
@@ -360,6 +358,12 @@ export default definePlugin({
     },
 
     stop() {
+        fabAbort?.abort();
+        fabAbort = null;
+        if (fabTimer !== undefined) {
+            clearInterval(fabTimer);
+            fabTimer = undefined;
+        }
         unwatchHost?.();
         unwatchHost = null;
         closeModal();

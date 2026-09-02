@@ -30,14 +30,14 @@ const PAGE_SIZE = 10;
 const settings = definePluginSettings({
     maxEntries: {
         type: OptionType.SLIDER,
-        description: "Maximum stored prompts.",
+        description: "Max stored prompts",
         min: MAX_MIN,
         max: MAX_MAX,
         default: MAX_DEFAULT,
     },
     history: {
         type: OptionType.COMPONENT,
-        description: "Stored prompts.",
+        description: "Stored prompts",
         render: mountHistoryPanel,
     },
 });
@@ -431,7 +431,7 @@ function mountHistoryPanel(root: HTMLElement): () => void {
 
 export default definePlugin({
     name: "InputHistory",
-    description: "Recall previous chat prompts with Arrow Up and Arrow Down, like a shell.",
+    description: "Recall prompts with Arrow Up / Arrow Down.",
     authors: [Devs.p],
     tags: ["chat"],
     enabledByDefault: true,
