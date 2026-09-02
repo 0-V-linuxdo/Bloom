@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, a floating settings button.
 
-Current release: **[v1.3.3](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.3)** (`userscript/Bloom.user.js`, `@version [20260902] v1.3.3`).
+Current release: **[v1.3.4](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.4)** (`userscript/Bloom.user.js`, `@version [20260902] v1.3.4`).
 
 v1.3.0 ships:
 
@@ -20,11 +20,11 @@ The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in th
 ## Install
 
 1. Install [Violentmonkey](https://violentmonkey.github.io/) or Tampermonkey.
-2. Open [`userscript/Bloom.user.js`](https://cdn.jsdelivr.net/gh/0-V-linuxdo/Bloom@heads/main/userscript/Bloom.user.js).
+2. Open [`userscript/Bloom.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/main/userscript/Bloom.user.js).
 3. Confirm install. Reload `chatgpt.com`.
 4. Use the blossom button (bottom-right, draggable) to open plugins.
 
-Auto-update uses the same jsDelivr URL (`@updateURL` / `@downloadURL`). GitHub's `raw/refs/heads` URL returns HTML and Tampermonkey / Violentmonkey cannot pull updates from it.
+Auto-update uses the same GitHub raw URL (`@updateURL` / `@downloadURL`). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
 
 The settings shell **follows chatgpt.com's own theme** (`html.dark` and `--main-surface-primary`), not the operating-system color scheme. ChatStateFavicons draws a **white blossom** (PNG, dark halo, no official black mark) from the first paint.
 
@@ -81,6 +81,8 @@ v1.3.1: Favicon is a white blossom on a dark plate in every state (the official 
 v1.3.2: FAB click only toggles a prebuilt modal (does not start HostReady plugins). Favicon is a white blossom rasterized to PNG, last `rel=icon` in `head`, head-subtree guard, no SMIL. CSF starts at DOMContentLoaded.
 
 v1.3.3: Settings is a **non-modal flyout** next to the blossom. No full-viewport backdrop button, so chatgpt.com stays clickable while the panel is open. Gear swaps an in-panel view. Theme watch no longer observes `<html>`.
+
+v1.3.4: `@updateURL` / `@downloadURL` / install link are GitHub raw (`raw.githubusercontent.com/.../main/userscript/Bloom.user.js`). jsDelivr `@heads/main` is no longer used.
 
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.

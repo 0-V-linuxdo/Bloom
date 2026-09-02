@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、右下角浮层按钮。
 
-当前版本：**[v1.3.3](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.3)**（`userscript/Bloom.user.js`，`@version [20260902] v1.3.3`）。
+当前版本：**[v1.3.4](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.4)**（`userscript/Bloom.user.js`，`@version [20260902] v1.3.4`）。
 
 v1.3.0：
 
@@ -20,11 +20,11 @@ v1.3.0：
 ## 安装
 
 1. 安装 [Violentmonkey](https://violentmonkey.github.io/) 或 Tampermonkey。
-2. 打开 [`userscript/Bloom.user.js`](https://cdn.jsdelivr.net/gh/0-V-linuxdo/Bloom@heads/main/userscript/Bloom.user.js)。
+2. 打开 [`userscript/Bloom.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/main/userscript/Bloom.user.js)。
 3. 确认安装后刷新 `chatgpt.com`。
 4. 右下角可拖动的 blossom 按钮打开插件设置。
 
-自动更新走同一条 jsDelivr 地址。GitHub `raw/refs/heads` 会返回 HTML，Tampermonkey / Violentmonkey 拉不到更新。
+自动更新走同一条 GitHub raw 地址。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
 
 设置面板**跟随 `chatgpt.com` 自己的主题**（`html.dark` 与 `--main-surface-primary`），不跟操作系统的深色模式。ChatStateFavicons 从首屏起画**白色 blossom**（PNG，深色描边，不用官方黑标）。
 
@@ -65,6 +65,8 @@ v1.3.1：标签页图标各状态都用深色底上的白色 blossom（官方黑
 v1.3.2：点花瓣只切换预建面板，不再启动 HostReady 插件。favicon 改为白色 blossom 栅格成 PNG，插在 `head` 最后一个 `rel=icon`，head subtree 守卫，无 SMIL。CSF 在 DOMContentLoaded 启动。
 
 v1.3.3：设置改为花瓣旁的**非模态 flyout**。去掉全屏 backdrop 按钮，打开面板后 chatgpt.com 仍可点击。齿轮在面板内切视图。主题监听不再观察 `<html>`。
+
+v1.3.4：`@updateURL` / `@downloadURL` / 安装链接改为 GitHub raw。不再使用 jsDelivr `@heads/main`。
 
 ## 构建
 

@@ -17,7 +17,7 @@ const date = new Date();
 const stamp = `${date.getUTCFullYear()}${String(date.getUTCMonth() + 1).padStart(2, "0")}${String(date.getUTCDate()).padStart(2, "0")}`;
 const displayVersion = `[${stamp}] v${pkg.version}`;
 const repo = "https://github.com/0-V-linuxdo/Bloom";
-const jsdelivr = "https://cdn.jsdelivr.net/gh/0-V-linuxdo/Bloom@heads/main";
+const raw = "https://raw.githubusercontent.com/0-V-linuxdo/Bloom/main";
 
 const header = `// ==UserScript==
 // @name         Bloom++
@@ -27,7 +27,7 @@ const header = `// ==UserScript==
 // @author       ${pkg.author}
 // @homepageURL  ${repo}
 // @supportURL   ${repo}/issues
-// @icon         ${jsdelivr}/assets/logos/bloom-icon.svg
+// @icon         ${raw}/assets/logos/bloom-icon.svg
 // @match        https://chatgpt.com/*
 // @match        https://*.chatgpt.com/*
 // @match        https://chat.openai.com/*
@@ -46,8 +46,8 @@ const header = `// ==UserScript==
 // @compatible   firefox
 // @compatible   edge
 // @license      GPL-3.0-or-later
-// @downloadURL  ${jsdelivr}/userscript/Bloom.user.js
-// @updateURL    ${jsdelivr}/userscript/Bloom.user.js
+// @downloadURL  ${raw}/userscript/Bloom.user.js
+// @updateURL    ${raw}/userscript/Bloom.user.js
 // ==/UserScript==
 `;
 
