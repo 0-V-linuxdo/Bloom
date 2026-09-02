@@ -315,20 +315,37 @@
   white-space: nowrap;
 }
 
-.bloom-plugin-pane {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  overflow: auto;
-  min-height: 0;
-  flex: 1;
+.bloom-plugin-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.35);
+  cursor: pointer;
   pointer-events: auto;
 }
 
-.bloom-plugin-pane[hidden],
-.bloom-plugin-grid[hidden],
-.bloom-settings-sub[hidden] {
-  display: none !important;
+.bloom-plugin-dialog {
+  position: fixed;
+  z-index: 2147483647;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(480px, calc(100vw - 48px));
+  max-height: min(72vh, 640px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px 24px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--bloom-bg);
+  color: var(--bloom-fg);
+  box-shadow: var(--bloom-shadow);
+  pointer-events: auto;
 }
 
 .bloom-dialog-bar {

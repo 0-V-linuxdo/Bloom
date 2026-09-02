@@ -158,25 +158,6 @@ function findBagInRow(row: HTMLElement, profile: HTMLElement): HTMLElement | nul
     return best;
 }
 
-function probeSeamBag(): HTMLElement | null {
-    const y = window.innerHeight - 28;
-    const xs = [200, 240, 268, 292];
-    for (const x of xs) {
-        if (x >= window.innerWidth / 2) continue;
-        const stack = document.elementsFromPoint(x, y);
-        for (const el of stack) {
-            if (!(el instanceof Element) || el.closest("#bloom-root")) continue;
-            const btn = el.closest("a, button, [role='button']");
-            if (!visible(btn)) continue;
-            const r = btn.getBoundingClientRect();
-            if (r.width <= 56 && r.height <= 56 && r.left < window.innerWidth / 2 && leftBottom(btn)) {
-                return btn;
-            }
-        }
-    }
-    return null;
-}
-
 function findFooterAnchor(): HTMLElement | null {
     const profile = findLeftRailProfile();
     if (profile) {
@@ -194,7 +175,7 @@ function findFooterAnchor(): HTMLElement | null {
         const store = scan(side, looksLikeStore);
         if (store && leftBottom(store)) return store;
     }
-    return probeSeamBag();
+    return null;
 }
 
 export function findHeaderProfile(): HTMLElement | null {
@@ -206,11 +187,21 @@ export function findHeaderProfile(): HTMLElement | null {
     return visible(el) ? el : null;
 }
 
+let cachedTarget: HTMLElement | null = null;
+
+export function invalidateFabAnchor() {
+    cachedTarget = null;
+}
+
+function resolveTarget(): HTMLElement | null {
+    if (cachedTarget && visible(cachedTarget)) return cachedTarget;
+    cachedTarget = findDownloadAppButton() ?? findFooterAnchor();
+    return cachedTarget;
+}
+
 export function fabPlacement(size: number): { x: number; y: number; size: number } {
     const gap = 8;
-    const headerDl = findDownloadAppButton();
-    const foot = findFooterAnchor();
-    const target = headerDl ?? foot;
+    const target = resolveTarget();
     let side = size;
     let x: number;
     let y: number;

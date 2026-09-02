@@ -60,30 +60,23 @@ function waitForBody(): Promise<void> {
 const HYDRATION_FLOOR_MS = 8_000;
 const HYDRATION_CEILING_MS = 20_000;
 const HYDRATION_SETTLE_MS = 300;
-const HYDRATION_POLL_MS = 100;
+const HYDRATION_SPARSE_MS = 2_000;
 
-function waitForHydrated(): Promise<boolean> {
-    return new Promise(resolve => {
-        let done = false;
-        const finish = (ok: boolean) => {
-            if (done) return;
-            done = true;
-            clearInterval(poll);
-            if (ok) void wait(HYDRATION_SETTLE_MS).then(() => resolve(true));
-            else resolve(false);
-        };
-        const tick = () => {
-            const elapsed = Date.now() - BOOT_AT;
-            if (elapsed < HYDRATION_FLOOR_MS) return;
-            if (hasLateIslands()) {
-                finish(true);
-                return;
-            }
-            if (elapsed >= HYDRATION_CEILING_MS) finish(false);
-        };
-        const poll = setInterval(tick, HYDRATION_POLL_MS);
-        tick();
-    });
+async function waitForHydrated(): Promise<boolean> {
+    const remain = HYDRATION_FLOOR_MS - (Date.now() - BOOT_AT);
+    if (remain > 0) await wait(remain);
+    if (hasLateIslands()) {
+        await wait(HYDRATION_SETTLE_MS);
+        return true;
+    }
+    while (Date.now() - BOOT_AT < HYDRATION_CEILING_MS) {
+        await wait(HYDRATION_SPARSE_MS);
+        if (hasLateIslands()) {
+            await wait(HYDRATION_SETTLE_MS);
+            return true;
+        }
+    }
+    return false;
 }
 
 function offerMenu() {
