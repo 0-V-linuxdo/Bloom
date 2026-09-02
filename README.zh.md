@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、右下角浮层按钮。
 
-当前版本：**[v1.3.5](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.5)**（`userscript/Bloom.user.js`，`@version [20260902] v1.3.5`）。
+当前版本：**[v1.3.6](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.6)**（`userscript/Bloom.user.js`，`@version [20260902] v1.3.6`）。
 
 v1.3.0：
 
@@ -69,6 +69,8 @@ v1.3.3：设置改为花瓣旁的**非模态 flyout**。去掉全屏 backdrop �
 v1.3.4：`@updateURL` / `@downloadURL` / 安装链接改为 GitHub raw。不再使用 jsDelivr `@heads/main`。
 
 v1.3.5：`#bloom-root` 改为零尺寸 fixed host，不再铺满页面。设置面板约 360px。window capture `pointerdown` 仅在面板打开时绑定。
+
+v1.3.6：花瓣锚到顶栏 Download / 头像，不再贴左侧栏。面板约 520px，插件名不再被裁成 “C…”。
 
 ## 构建
 

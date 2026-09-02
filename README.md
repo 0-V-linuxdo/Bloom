@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, a floating settings button.
 
-Current release: **[v1.3.5](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.5)** (`userscript/Bloom.user.js`, `@version [20260902] v1.3.5`).
+Current release: **[v1.3.6](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.6)** (`userscript/Bloom.user.js`, `@version [20260902] v1.3.6`).
 
 v1.3.0 ships:
 
@@ -85,6 +85,8 @@ v1.3.3: Settings is a **non-modal flyout** next to the blossom. No full-viewport
 v1.3.4: `@updateURL` / `@downloadURL` / install link are GitHub raw (`raw.githubusercontent.com/.../main/userscript/Bloom.user.js`). jsDelivr `@heads/main` is no longer used.
 
 v1.3.5: `#bloom-root` is a zero-size fixed host (cannot cover the page). Settings flyout is ~360px, not full-bleed. Window capture `pointerdown` binds only while the panel is open.
+
+v1.3.6: FAB docks to the header Download / profile control, never the left-rail avatar. Flyout is ~520px so plugin names are not clipped.
 
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.

@@ -26,8 +26,8 @@ import css from "./styles.css";
 const ROOT_ID = "bloom-root";
 const Z_FAB = "10000";
 const Z_PANEL = "10001";
-const PANEL_W = 360;
-const PANEL_W_MAX = 420;
+const PANEL_W = 520;
+const PANEL_W_MAX = 560;
 
 const settings = definePluginSettings({
     appearance: {
@@ -438,7 +438,7 @@ function placePanel() {
     const fab = fabEl.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const width = Math.min(PANEL_W_MAX, Math.max(280, Math.min(PANEL_W, vw - 24)));
+    const width = Math.min(PANEL_W_MAX, Math.max(320, Math.min(PANEL_W, vw - 24)));
     const maxH = Math.min(Math.round(vh * 0.7), 560);
     panelEl.style.width = `${Math.round(width)}px`;
     panelEl.style.maxWidth = `${PANEL_W_MAX}px`;
@@ -446,19 +446,26 @@ function placePanel() {
     panelEl.style.right = "auto";
     panelEl.style.inset = "";
 
-    let left = fab.right - width;
-    if (left < 12) left = 12;
-    if (left + width > vw - 12) left = Math.max(12, vw - 12 - width);
+    const margin = 12;
+    const gap = 8;
+    let left: number;
+    if (fab.left < vw / 2) {
+        left = fab.right + gap;
+        if (left + width > vw - margin) left = Math.max(margin, vw - margin - width);
+    } else {
+        left = fab.right - width;
+        if (left < margin) left = margin;
+    }
 
-    const spaceBelow = vh - fab.bottom - 8;
-    const spaceAbove = fab.top - 8;
+    const spaceBelow = vh - fab.bottom - gap;
+    const spaceAbove = fab.top - gap;
     const openBelow = spaceBelow >= 240 || spaceBelow >= spaceAbove;
     if (openBelow) {
-        panelEl.style.top = `${Math.round(fab.bottom + 8)}px`;
+        panelEl.style.top = `${Math.round(fab.bottom + gap)}px`;
         panelEl.style.bottom = "auto";
     } else {
         panelEl.style.top = "auto";
-        panelEl.style.bottom = `${Math.round(vh - fab.top + 8)}px`;
+        panelEl.style.bottom = `${Math.round(vh - fab.top + gap)}px`;
     }
     panelEl.style.left = `${Math.round(left)}px`;
 }

@@ -110,8 +110,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  width: 360px;
-  max-width: min(420px, calc(100vw - 24px));
+  width: 520px;
+  max-width: min(560px, calc(100vw - 24px));
   max-height: min(70vh, 560px);
   padding: 20px;
   border: 0;
@@ -507,7 +507,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 680px) {
+@media (max-width: 560px) {
   .bloom-plugin-grid {
     grid-template-columns: 1fr;
   }
