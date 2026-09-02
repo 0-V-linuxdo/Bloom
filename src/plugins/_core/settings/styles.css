@@ -189,39 +189,6 @@
   height: 16px;
 }
 
-.bloom-seg {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
-  margin: 0 0 12px;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--bloom-elevated);
-}
-
-.bloom-seg button {
-  height: 32px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--bloom-muted);
-  font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.bloom-seg button:hover {
-  color: var(--bloom-fg);
-}
-
-.bloom-seg button[aria-pressed="true"] {
-  background: var(--bloom-surface);
-  color: var(--bloom-fg);
-  font-weight: 600;
-  box-shadow: 0 0 0 1px var(--bloom-border), 0 1px 2px rgba(0, 0, 0, 0.06);
-}
-
 .bloom-plugin-card {
   padding: 14px 14px 12px;
   border-radius: 16px;

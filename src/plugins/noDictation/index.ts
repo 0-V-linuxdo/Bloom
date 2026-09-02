@@ -64,7 +64,7 @@ export default definePlugin({
     description: "Hide the Dictation (speech-to-text) button from the composer. Optional: hide dictation rows in Settings.",
     authors: [Devs.p],
     tags: ["chat", "ui"],
-    enabledByDefault: true,
+    enabledByDefault: false,
     startAt: StartAt.Init,
     settings,
     start: apply,

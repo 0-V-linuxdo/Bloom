@@ -10,8 +10,8 @@ v1.1：
 | --- | --- | --- |
 | ChatStateFavicons | 开 | 标签页图标反映会话状态（streaming / done / ready / error），五种叠层样式。 |
 | InputHistory | 开 | 在输入框用 ↑ / ↓ 翻看历史提示词，类似终端。 |
-| NoShareLink | 开 | 隐藏对话顶栏 Share 和项目里的 Share project。纯 CSS。 |
-| NoDictation | 开 | 隐藏输入栏听写（语音转文字）按钮，不隐藏 Voice。纯 CSS。 |
+| NoShareLink | 关 | 隐藏对话顶栏 Share 和项目里的 Share project。纯 CSS。 |
+| NoDictation | 关 | 隐藏输入栏听写（语音转文字）按钮，不隐藏 Voice。纯 CSS。 |
 
 品牌名是 **Bloom++**，仓库名是 `Bloom`，都不含 `ChatGPT`。
 
@@ -24,7 +24,7 @@ v1.1：
 
 自动更新走同一条 jsDelivr 地址。GitHub `raw/refs/heads` 会返回 HTML，Tampermonkey / Violentmonkey 拉不到更新。
 
-外观（自动 / 浅色 / 深色）在设置面板顶部。**自动跟随 `chatgpt.com` 自己的主题**（`html.dark` 与 `--main-surface-primary`），不跟操作系统的深色模式。ChatStateFavicons 在 **wait** 时不替换站点原图标，只在 streaming / done / ready / error 时叠状态。
+设置面板**跟随 `chatgpt.com` 自己的主题**（`html.dark` 与 `--main-surface-primary`），不跟操作系统的深色模式。ChatStateFavicons 在 **wait** 时不替换站点原图标，只在 streaming / done / ready / error 时叠状态。
 
 ## NoShareLink / NoDictation
 
@@ -37,6 +37,8 @@ v1.1.3：HostReady 等到 `window` load 再短暂停一下（不再把 `DOMConte
 v1.1.4：HostReady 从脚本启动起至少约 8 秒才往 body 挂节点。InputHistory 改到 HostReady。若 React 拆掉 `#bloom-root` 会重挂一次。document-start 仍往 head 插样式，页面能画出来但点不动、输不了字。
 
 v1.1.5：Init 不再往 DOM 插节点，也不观察 `<html>`。样式等检测到 React host 后再进 `head`（8 秒是上限不是下限）。取消 remount。ChatStateFavicons 不再观察整棵 `document.body`。`#bloom-root` 为 `pointer-events: none`，只给花瓣按钮 `auto`。检测不到可交互宿主就不自动往 body 挂节点；Violentmonkey 菜单仍可打开设置。
+
+v1.1.6：去掉设置顶部的外观切换，面板跟随站点主题。NoShareLink / NoDictation 默认关闭。
 
 ## 构建
 

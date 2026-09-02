@@ -11,7 +11,6 @@ import { definePluginSettings, Settings } from "../../../api/Settings";
 import { isPluginEnabled, plugins, togglePlugin } from "../../../api/PluginManager";
 import {
     applySchemeTokens,
-    isSchemePref,
     resolveScheme,
     watchHostScheme,
     type SchemePref,
@@ -53,8 +52,7 @@ function closeSvg(): string {
 }
 
 function appearancePref(): SchemePref {
-    const raw = settings.store.appearance;
-    return isSchemePref(raw) ? raw : "auto";
+    return "auto";
 }
 
 function paintScheme() {
@@ -191,32 +189,6 @@ function fieldControl(pluginName: string, key: string, spec: { type: OptionType;
     return wrap;
 }
 
-function renderAppearance(modal: HTMLElement) {
-    const pref = appearancePref();
-    const seg = document.createElement("div");
-    seg.className = "bloom-seg";
-    seg.setAttribute("role", "radiogroup");
-    seg.setAttribute("aria-label", "Appearance");
-    const choices: { value: SchemePref; label: string }[] = [
-        { value: "auto", label: "自动" },
-        { value: "light", label: "浅色" },
-        { value: "dark", label: "深色" },
-    ];
-    for (const choice of choices) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.textContent = choice.label;
-        btn.setAttribute("aria-pressed", String(pref === choice.value));
-        btn.addEventListener("click", () => {
-            settings.store.appearance = choice.value;
-            paintScheme();
-            if (shadow) renderModal(shadow);
-        });
-        seg.appendChild(btn);
-    }
-    modal.appendChild(seg);
-}
-
 function renderModal(root: ShadowRoot) {
     closeModal();
     syncShadowStyles();
@@ -253,7 +225,6 @@ function renderModal(root: ShadowRoot) {
     close.addEventListener("click", closeModal);
     head.append(brand, close);
     modal.appendChild(head);
-    renderAppearance(modal);
 
     for (const plugin of Object.values(plugins)) {
         if (plugin.hidden || plugin.name === "Settings") continue;

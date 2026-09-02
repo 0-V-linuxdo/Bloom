@@ -10,8 +10,8 @@ v1.1 ships:
 | --- | --- | --- |
 | ChatStateFavicons | On | Tab favicon reflects chat state (streaming / done / ready / error) with five overlay styles. |
 | InputHistory | On | Recall previous prompts with Arrow Up / Arrow Down, like a shell. |
-| NoShareLink | On | Hide the conversation header Share button and the project Share button. CSS-only. |
-| NoDictation | On | Hide the composer Dictation (speech-to-text) button. Does not hide Voice mode. CSS-only. |
+| NoShareLink | Off | Hide the conversation header Share button and the project Share button. CSS-only. |
+| NoDictation | Off | Hide the composer Dictation (speech-to-text) button. Does not hide Voice mode. CSS-only. |
 
 The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in the brand string is `ChatGPT`.
 
@@ -24,7 +24,7 @@ The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in th
 
 Auto-update uses the same jsDelivr URL (`@updateURL` / `@downloadURL`). GitHub's `raw/refs/heads` URL returns HTML and Tampermonkey / Violentmonkey cannot pull updates from it.
 
-Appearance (auto / light / dark) lives at the top of that panel. **Auto follows chatgpt.com's own theme** (`html.dark` and `--main-surface-primary`), not the operating-system color scheme. ChatStateFavicons **does not replace** the site favicon while idle (`wait`); overlays only appear for streaming / done / ready / error.
+The settings shell **follows chatgpt.com's own theme** (`html.dark` and `--main-surface-primary`), not the operating-system color scheme. ChatStateFavicons **does not replace** the site favicon while idle (`wait`); overlays only appear for streaming / done / ready / error.
 
 ## ChatStateFavicons styles
 
@@ -53,6 +53,8 @@ v1.1.3: HostReady waits for `window` load plus a short settle delay (not `DOMCon
 v1.1.4: HostReady waits `max(window load, ~8s from init)` before any body mount. InputHistory starts at HostReady. Remount-once if React detaches `#bloom-root`. Still injected CSS at document-start, which left chatgpt.com painted but unclickable / untypeable.
 
 v1.1.5: Init does not append nodes or observe `<html>`. Styles flush to `head` after a React-host signal (8s ceiling, not a minimum). No remount. ChatStateFavicons no longer observes `document.body` subtree. `#bloom-root` is `pointer-events: none` (FAB is `auto`). If the host is not interactive, skip the automatic body mount; Violentmonkey menu still opens settings.
+
+v1.1.6: Settings panel no longer has an appearance switch; the shell follows the host theme. NoShareLink and NoDictation default off.
 
 - NoShareLink: `button[data-testid="share-chat-button"]` plus header-scoped `aria-label` (Share / 分享). Project: `share-project-button` / Share project / 分享项目. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: `button[data-testid="composer-speech-button"]` and composer-scoped Dictate / 听写 labels. Leaves `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.

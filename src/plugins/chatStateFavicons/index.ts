@@ -9,7 +9,7 @@
  */
 
 import { onBloomEvent } from "../../api/Events";
-import { definePluginSettings, Settings } from "../../api/Settings";
+import { definePluginSettings } from "../../api/Settings";
 import { resolveScheme, type ColorScheme, type SchemePref } from "../../host/theme";
 import { Devs } from "../../utils/constants";
 import {
@@ -75,8 +75,7 @@ function currentStyle(): IconStyle {
 }
 
 function appearancePref(): SchemePref {
-    const raw = Settings.plain.plugins.Settings?.appearance;
-    return raw === "light" || raw === "dark" ? raw : "auto";
+    return "auto";
 }
 
 function currentScheme(): ColorScheme {

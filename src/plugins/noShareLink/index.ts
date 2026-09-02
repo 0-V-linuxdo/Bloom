@@ -79,7 +79,7 @@ export default definePlugin({
     description: "Hide share buttons: conversation Share (header) and Share project.",
     authors: [Devs.p],
     tags: ["ui", "privacy"],
-    enabledByDefault: true,
+    enabledByDefault: false,
     startAt: StartAt.Init,
     settings,
     start: apply,
