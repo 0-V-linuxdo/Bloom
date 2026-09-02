@@ -46,6 +46,8 @@ v1.1.8：ScriptReady（8 秒 + 岛）只挂 Violentmonkey 菜单。`flushStyles`
 
 v1.1.9：设置卡片改成 Void++ 布局（名称 + 作者 + 开关，选项一行一个）。花瓣按钮用 `position:fixed` 贴在「下载 ChatGPT 应用」右侧，不插入顶栏 DOM。按钮里的花瓣更大。
 
+v1.2.0：插件卡片对齐 Void++ BaseCard（图标砖、齿轮、开关、两行描述、底栏作者）。选项进二级面板，不再堆在卡片里。两列网格。花瓣先贴顶栏 Download App，没有则贴侧栏头像旁的商店/袋标。
+
 ## 构建
 
 ```bash

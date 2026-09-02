@@ -3,9 +3,8 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Self-hosted settings shell. The blossom sits beside ChatGPT's
- * "Download the ChatGPT app" control via position:fixed — never patched
- * into the host header tree.
+ * Void++-style plugin cards. The blossom is position:fixed next to
+ * ChatGPT's Download / store control — never patched into the host tree.
  */
 
 import { emitBloomEvent } from "../../../api/Events";
@@ -21,7 +20,7 @@ import {
 import { requestPageTouch, whenPageTouched } from "../../../host/pageTouch";
 import { Devs } from "../../../utils/constants";
 import { registeredStyleText } from "../../../utils/css";
-import definePlugin, { OptionType, StartAt } from "../../../utils/types";
+import definePlugin, { OptionType, StartAt, type Plugin } from "../../../utils/types";
 import css from "./styles.css";
 
 const ROOT_ID = "bloom-root";
@@ -41,7 +40,8 @@ const settings = definePluginSettings({
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
 let open = false;
-let unmounts: Array<() => void> = [];
+let dialogOpen = false;
+let fieldUnmounts: Array<() => void> = [];
 let unwatchHost: (() => void) | null = null;
 let shadowKeysBound = false;
 let fabAbort: AbortController | null = null;
@@ -53,6 +53,25 @@ function blossomSvg(): string {
 
 function closeSvg(): string {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
+}
+
+function backSvg(): string {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>`;
+}
+
+function gearSvg(): string {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`;
+}
+
+const PLUGIN_ICONS: Record<string, string> = {
+    ChatStateFavicons: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="8" cy="9" r="1.25" fill="currentColor" stroke="none"/><path d="M21 15l-5-5-4 4-2-2-5 5"/></svg>`,
+    InputHistory: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7h11M8 12h11M8 17h7"/><path d="M5 7v.01M5 12v.01M5 17v.01"/></svg>`,
+    NoShareLink: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>`,
+    NoDictation: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a3 3 0 00-3 3v5a3 3 0 006 0V6a3 3 0 00-3-3z"/><path d="M19 10a7 7 0 01-14 0M12 17v4M8 21h8"/></svg>`,
+};
+
+function pluginIcon(name: string): string {
+    return PLUGIN_ICONS[name] ?? blossomSvg();
 }
 
 function appearancePref(): SchemePref {
@@ -110,10 +129,20 @@ export function ensureHost(): ShadowRoot {
     return shadow;
 }
 
+function clearFields() {
+    for (const u of fieldUnmounts) u();
+    fieldUnmounts = [];
+}
+
+function closePluginDialog() {
+    dialogOpen = false;
+    clearFields();
+    shadow?.querySelector(".bloom-plugin-dialog")?.remove();
+}
+
 function closeModal() {
     open = false;
-    for (const u of unmounts) u();
-    unmounts = [];
+    closePluginDialog();
     shadow?.querySelector(".bloom-settings-backdrop")?.remove();
     shadow?.querySelector(".bloom-settings-modal")?.remove();
 }
@@ -134,6 +163,10 @@ function pluginToggle(name: string, checked: boolean, required: boolean): HTMLEl
     return toggle;
 }
 
+function hasSettings(plugin: Plugin): boolean {
+    return !!plugin.settings && Object.keys(plugin.settings.def).length > 0;
+}
+
 function fieldControl(pluginName: string, key: string, spec: { type: OptionType; description?: string; min?: number; max?: number; options?: readonly { label: string; value: string }[]; render?: (el: HTMLElement) => () => void }): HTMLElement | null {
     if (spec.type === OptionType.COMPONENT && spec.render) {
         const wrap = document.createElement("details");
@@ -141,7 +174,7 @@ function fieldControl(pluginName: string, key: string, spec: { type: OptionType;
         const sum = document.createElement("summary");
         sum.textContent = spec.description || key;
         const inner = document.createElement("div");
-        unmounts.push(spec.render(inner));
+        fieldUnmounts.push(spec.render(inner));
         wrap.append(sum, inner);
         return wrap;
     }
@@ -199,6 +232,101 @@ function fieldControl(pluginName: string, key: string, spec: { type: OptionType;
     return wrap;
 }
 
+function openPluginDialog(modal: HTMLElement, plugin: Plugin) {
+    closePluginDialog();
+    dialogOpen = true;
+    const pane = document.createElement("div");
+    pane.className = "bloom-plugin-dialog";
+
+    const bar = document.createElement("div");
+    bar.className = "bloom-dialog-bar";
+    const back = document.createElement("button");
+    back.type = "button";
+    back.className = "bloom-icon-btn";
+    back.setAttribute("aria-label", "Back to plugins");
+    back.innerHTML = backSvg();
+    back.addEventListener("click", closePluginDialog);
+    const titles = document.createElement("div");
+    titles.className = "bloom-dialog-titles";
+    const h3 = document.createElement("h3");
+    h3.textContent = plugin.name;
+    const sub = document.createElement("p");
+    sub.textContent = plugin.description;
+    titles.append(h3, sub);
+    bar.append(back, titles);
+    pane.appendChild(bar);
+
+    const list = document.createElement("div");
+    list.className = "bloom-plugin-settings";
+    if (plugin.settings) {
+        for (const [key, spec] of Object.entries(plugin.settings.def)) {
+            const field = fieldControl(plugin.name, key, spec);
+            if (field) list.appendChild(field);
+        }
+    }
+    if (!list.childElementCount) {
+        const empty = document.createElement("p");
+        empty.className = "bloom-dialog-empty";
+        empty.textContent = "No configurable settings.";
+        list.appendChild(empty);
+    }
+    pane.appendChild(list);
+    modal.appendChild(pane);
+}
+
+function pluginCard(modal: HTMLElement, plugin: Plugin): HTMLElement {
+    const card = document.createElement("section");
+    card.className = "bloom-plugin-card";
+
+    const body = document.createElement("div");
+    body.className = "bloom-card-body";
+    const top = document.createElement("div");
+    top.className = "bloom-card-top";
+
+    const name = document.createElement("div");
+    name.className = "bloom-card-name";
+    const icon = document.createElement("span");
+    icon.className = "bloom-card-icon";
+    icon.innerHTML = pluginIcon(plugin.name);
+    const h3 = document.createElement("h3");
+    h3.textContent = plugin.name;
+    name.append(icon, h3);
+
+    const controls = document.createElement("div");
+    controls.className = "bloom-card-controls";
+    if (hasSettings(plugin)) {
+        const gear = document.createElement("button");
+        gear.type = "button";
+        gear.className = "bloom-icon-btn bloom-card-gear";
+        gear.setAttribute("aria-label", `${plugin.name} settings`);
+        gear.innerHTML = gearSvg();
+        gear.addEventListener("click", e => {
+            e.stopPropagation();
+            openPluginDialog(modal, plugin);
+        });
+        controls.appendChild(gear);
+    }
+    const toggle = pluginToggle(plugin.name, isPluginEnabled(plugin.name), !!plugin.required);
+    const box = toggle.querySelector("input");
+    box?.addEventListener("change", () => { togglePlugin(plugin.name); });
+    controls.appendChild(toggle);
+    top.append(name, controls);
+
+    const desc = document.createElement("p");
+    desc.className = "bloom-card-desc";
+    desc.textContent = plugin.description;
+    body.append(top, desc);
+
+    const sep = document.createElement("div");
+    sep.className = "bloom-card-sep";
+    const footer = document.createElement("div");
+    footer.className = "bloom-card-footer";
+    footer.textContent = plugin.authors?.join(", ") || "\u00A0";
+
+    card.append(body, sep, footer);
+    return card;
+}
+
 function renderModal(root: ShadowRoot) {
     closeModal();
     syncShadowStyles();
@@ -241,47 +369,13 @@ function renderModal(root: ShadowRoot) {
     sub.textContent = "Plugins";
     modal.appendChild(sub);
 
+    const grid = document.createElement("div");
+    grid.className = "bloom-plugin-grid";
     for (const plugin of Object.values(plugins)) {
         if (plugin.hidden || plugin.name === "Settings") continue;
-        const card = document.createElement("section");
-        card.className = "bloom-plugin-card";
-        const header = document.createElement("header");
-        const info = document.createElement("div");
-        info.className = "bloom-plugin-info";
-        const titleRow = document.createElement("div");
-        titleRow.className = "bloom-plugin-title";
-        const h3 = document.createElement("h3");
-        h3.textContent = plugin.name;
-        titleRow.appendChild(h3);
-        if (plugin.authors?.length) {
-            const by = document.createElement("span");
-            by.className = "bloom-plugin-authors";
-            by.textContent = plugin.authors.join(", ");
-            titleRow.appendChild(by);
-        }
-        const p = document.createElement("p");
-        p.textContent = plugin.description;
-        info.append(titleRow, p);
-        const toggle = pluginToggle(plugin.name, isPluginEnabled(plugin.name), !!plugin.required);
-        const box = toggle.querySelector("input");
-        box?.addEventListener("change", () => {
-            togglePlugin(plugin.name);
-            renderModal(root);
-        });
-        header.append(info, toggle);
-        card.appendChild(header);
-
-        if (isPluginEnabled(plugin.name) && plugin.settings) {
-            const body = document.createElement("div");
-            body.className = "bloom-plugin-settings";
-            for (const [key, spec] of Object.entries(plugin.settings.def)) {
-                const field = fieldControl(plugin.name, key, spec);
-                if (field) body.appendChild(field);
-            }
-            if (body.childElementCount) card.appendChild(body);
-        }
-        modal.appendChild(card);
+        grid.appendChild(pluginCard(modal, plugin));
     }
+    modal.appendChild(grid);
 
     root.append(backdrop, modal);
     modal.focus();
@@ -323,12 +417,18 @@ function mountFab() {
     const relayout = () => placeFab(fab);
     window.addEventListener("resize", relayout, { signal: ac.signal });
     window.addEventListener("scroll", relayout, { capture: true, passive: true, signal: ac.signal });
-    fabTimer = setInterval(relayout, 1000);
+    fabTimer = setInterval(relayout, 400);
     relayout();
 }
 
 function onDocKey(e: KeyboardEvent) {
-    if (e.key === "Escape" && open) {
+    if (e.key !== "Escape") return;
+    if (dialogOpen) {
+        closePluginDialog();
+        e.stopPropagation();
+        return;
+    }
+    if (open) {
         closeModal();
         e.stopPropagation();
     }
