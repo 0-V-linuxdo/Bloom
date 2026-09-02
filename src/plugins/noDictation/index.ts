@@ -70,6 +70,7 @@ export default definePlugin({
     description: "Hide the composer Dictation button. Optional: hide Settings rows.",
     authors: [Devs.p],
     tags: ["chat", "ui"],
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a3 3 0 00-3 3v5a3 3 0 006 0V6a3 3 0 00-3-3z"/><path d="M19 10a7 7 0 01-14 0M12 17v4M8 21h8"/></svg>`,
     enabledByDefault: false,
     startAt: StartAt.HostReady,
     settings,

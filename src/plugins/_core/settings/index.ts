@@ -95,8 +95,8 @@ const PLUGIN_ICONS: Record<string, string> = {
     NoDictation: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a3 3 0 00-3 3v5a3 3 0 006 0V6a3 3 0 00-3-3z"/><path d="M19 10a7 7 0 01-14 0M12 17v4M8 21h8"/></svg>`,
 };
 
-function pluginIcon(name: string): string {
-    return PLUGIN_ICONS[name] ?? blossomSvg();
+function pluginIcon(plugin: Plugin): string {
+    return plugin.icon || PLUGIN_ICONS[plugin.name] || blossomSvg();
 }
 
 function appearancePref(): SchemePref {
@@ -225,8 +225,9 @@ function fieldControl(pluginName: string, key: string, spec: { type: OptionType;
     }
 
     const wrap = document.createElement("div");
-    wrap.className = "bloom-field";
+    wrap.className = spec.type === OptionType.SLIDER ? "bloom-field bloom-field-stack" : "bloom-field";
     const cap = document.createElement("span");
+    cap.className = "bloom-field-label";
     cap.textContent = spec.description || key;
     wrap.appendChild(cap);
     const store = Settings.store.plugins[pluginName] ?? (Settings.store.plugins[pluginName] = {});
@@ -292,13 +293,19 @@ function showPluginView(plugin: Plugin) {
     if (pluginSubEl) pluginSubEl.textContent = plugin.description;
     if (pluginFieldsEl) {
         pluginFieldsEl.replaceChildren();
+        if (plugin.authors?.length) {
+            const authors = document.createElement("p");
+            authors.className = "bloom-plugin-authors";
+            authors.textContent = plugin.authors.join(", ");
+            pluginFieldsEl.appendChild(authors);
+        }
         if (plugin.settings) {
             for (const [key, spec] of Object.entries(plugin.settings.def)) {
                 const field = fieldControl(plugin.name, key, spec);
                 if (field) pluginFieldsEl.appendChild(field);
             }
         }
-        if (!pluginFieldsEl.childElementCount) {
+        if (!pluginFieldsEl.querySelector(".bloom-field, .bloom-dialog-empty")) {
             const empty = document.createElement("p");
             empty.className = "bloom-dialog-empty";
             empty.textContent = "No configurable settings.";
@@ -309,19 +316,29 @@ function showPluginView(plugin: Plugin) {
     setDismissed(pluginEl, false);
 }
 
-function pluginRow(plugin: Plugin): HTMLElement {
-    const row = document.createElement("div");
-    row.className = "bloom-plugin-row";
+function pluginCard(plugin: Plugin): HTMLElement {
+    const card = document.createElement("div");
+    card.className = "bloom-plugin-card";
 
+    const body = document.createElement("div");
+    body.className = "bloom-card-body";
+
+    const top = document.createElement("div");
+    top.className = "bloom-card-top";
+
+    const name = document.createElement("div");
+    name.className = "bloom-card-name";
     const icon = document.createElement("span");
-    icon.className = "bloom-plugin-icon";
-    icon.innerHTML = pluginIcon(plugin.name);
+    icon.className = "bloom-card-icon";
+    icon.innerHTML = pluginIcon(plugin);
+    const title = document.createElement("span");
+    title.className = "bloom-card-title";
+    title.textContent = plugin.name;
+    title.title = plugin.name;
+    name.append(icon, title);
 
-    const label = document.createElement("span");
-    label.className = "bloom-plugin-label";
-    label.textContent = plugin.name;
-    row.append(icon, label);
-
+    const controls = document.createElement("div");
+    controls.className = "bloom-card-controls";
     if (hasSettings(plugin)) {
         const gear = document.createElement("button");
         gear.type = "button";
@@ -333,15 +350,34 @@ function pluginRow(plugin: Plugin): HTMLElement {
             ev.stopPropagation();
             showPluginView(plugin);
         });
-        row.appendChild(gear);
+        controls.appendChild(gear);
     }
-
     const toggle = pluginToggle(plugin.name, isPluginEnabled(plugin.name), !!plugin.required);
     const box = toggle.querySelector("input");
     box?.addEventListener("click", ev => ev.stopPropagation());
     box?.addEventListener("change", () => { togglePlugin(plugin.name); });
-    row.appendChild(toggle);
-    return row;
+    controls.appendChild(toggle);
+    top.append(name, controls);
+    body.appendChild(top);
+
+    if (plugin.description) {
+        const desc = document.createElement("div");
+        desc.className = "bloom-card-desc";
+        desc.textContent = plugin.description;
+        body.appendChild(desc);
+    }
+
+    const sep = document.createElement("div");
+    sep.className = "bloom-card-separator";
+    const footer = document.createElement("div");
+    footer.className = "bloom-card-footer";
+    const author = document.createElement("div");
+    author.className = "bloom-card-author";
+    author.textContent = plugin.authors?.filter(Boolean).join(", ") || "\u00A0";
+    footer.appendChild(author);
+
+    card.append(body, sep, footer);
+    return card;
 }
 
 function fillGrid() {
@@ -349,7 +385,7 @@ function fillGrid() {
     gridEl.replaceChildren();
     for (const plugin of Object.values(plugins)) {
         if (plugin.hidden || plugin.name === "Settings") continue;
-        gridEl.appendChild(pluginRow(plugin));
+        gridEl.appendChild(pluginCard(plugin));
     }
 }
 
@@ -417,10 +453,14 @@ function buildPanel(id: string): HTMLElement {
     head.append(brand, close);
     list.appendChild(head);
 
-    const sub = document.createElement("p");
-    sub.className = "bloom-settings-sub";
-    sub.textContent = "Plugins";
-    list.appendChild(sub);
+    const section = document.createElement("div");
+    section.className = "bloom-section-head";
+    const sectionTitle = document.createElement("h3");
+    sectionTitle.textContent = "Plugins";
+    const sectionHint = document.createElement("p");
+    sectionHint.textContent = "Toggle plugins. Gear opens options.";
+    section.append(sectionTitle, sectionHint);
+    list.appendChild(section);
 
     const grid = document.createElement("div");
     grid.className = "bloom-plugin-list";

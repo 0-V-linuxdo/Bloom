@@ -239,6 +239,7 @@ export default definePlugin({
     description: "Streaming, done, ready, and error on the tab favicon.",
     authors: [Devs.p],
     tags: ["chat", "ui"],
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="8" cy="9" r="1.25" fill="currentColor" stroke="none"/><path d="M21 15l-5-5-4 4-2-2-5 5"/></svg>`,
     enabledByDefault: true,
     settings,
     startAt: StartAt.DOMContentLoaded,

@@ -441,6 +441,7 @@ export default definePlugin({
     description: "Recall prompts with Arrow Up / Arrow Down.",
     authors: [Devs.p],
     tags: ["chat"],
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7h11M8 12h11M8 17h7"/><path d="M5 7v.01M5 12v.01M5 17v.01"/></svg>`,
     enabledByDefault: true,
     settings,
     startAt: StartAt.HostReady,

@@ -57,6 +57,7 @@ export interface PluginDef {
     required?: boolean;
     hidden?: boolean;
     startAt?: StartAt;
+    icon?: string;
     settings?: DefinedSettings;
     managedStyle?: string;
     cleanupSelectors?: string[];
