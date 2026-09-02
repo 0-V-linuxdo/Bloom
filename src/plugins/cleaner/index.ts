@@ -6,7 +6,9 @@
  * ChatGPT-side rewrite of Void++ Cleaner (GPL-3.0-or-later). CSS-only:
  * no MutationObserver, no querySelectorAll("button"), no wrapper :has().
  * Hides the Download-apps CTA and the composer "can make mistakes"
- * disclaimer. Does not hide Voice, Share, the avatar, or #bloom-rail-item.
+ * disclaimer (`thread-disclaimer` / `--vt-disclaimer` in
+ * `#thread-bottom-container`). Does not hide Voice, Share, the avatar,
+ * `#bloom-rail-item`, or the whole thread-bottom container.
  * Styles adopt after HostReady. Default on.
  */
 
@@ -47,14 +49,13 @@ const DOWNLOAD_SELECTORS = [
 ];
 
 const DISCLAIMER_SELECTORS = [
-    '[data-testid="disclaimer"]',
-    '[data-testid="composer-disclaimer"]',
-    '[data-testid="model-disclaimer"]',
-    '[data-testid="frustration-free-disclaimer"]',
-    'form[data-type="unified-composer"] + .text-token-text-secondary',
-    'form[data-type="unified-composer"] + div.text-xs',
-    '.text-token-text-secondary.min-h-8.text-center.text-xs',
-    '.min-h-8.w-full.items-center.justify-center.text-center.text-xs',
+    '[data-testid="thread-disclaimer"]',
+    '[data-testid*="disclaimer"]',
+    '[class*="--vt-disclaimer"]',
+    '[class*="[view-transition-name:var(--vt-disclaimer)]"]',
+    '#thread-bottom-container [class*="vt-disclaimer"]',
+    '#thread-bottom-container .text-token-text-secondary.text-center.text-xs',
+    '#thread-bottom-container .text-token-text-tertiary.text-center.text-xs',
 ];
 
 const settings = definePluginSettings({

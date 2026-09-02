@@ -4,9 +4,9 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.11](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.11)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.11`）。
+当前版本：**[v1.4.12](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.12)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.12`）。
 
-v1.4.11：
+v1.4.12：
 
 | 插件 | 默认 | 说明 |
 | --- | --- | --- |
@@ -102,6 +102,8 @@ v1.4.9：NoSidebarIdentity **保留名字/邮箱占位**。文字用 `visibility
 v1.4.10：恢复 **v1.4.7 设置面板**（居中约 56rem、Favorites/All/Chat/UI/Privacy 标签、搜索、图钉、星标、滑块齿轮）。1.4.8 合入时被旧的 280px 左侧停靠盖掉了。
 
 v1.4.11：新增 **Cleaner**（纯 CSS，默认开）。隐藏 Download apps 和输入栏下的「也会犯错」提示。开关 `hideDownloadApps` / `hideDisclaimer`。不藏 Voice、Share、头像或 Bloom++。
+
+v1.4.12：Cleaner 的提示选择器对齐 chatgpt.com：`thread-disclaimer` 与 `--vt-disclaimer`（不再用假的 `composer-disclaimer` / `form +` 兄弟）。不藏整个 `#thread-bottom-container`。
 
 ## 构建
 

@@ -4,9 +4,9 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.11](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.11)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.11`).
+Current release: **[v1.4.12](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.12)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.12`).
 
-v1.4.11 ships:
+v1.4.12 ships:
 
 | Plugin | Default | What it does |
 | --- | --- | --- |
@@ -119,11 +119,13 @@ v1.4.10: Restore the **v1.4.7 settings panel** (centered ~56rem dock, Favorites/
 
 v1.4.11: **Cleaner** (CSS-only, default on). Hides the Download apps CTA and the composer “can make mistakes” notice. Toggles `hideDownloadApps` and `hideDisclaimer`. Does not hide Voice, Share, the avatar, or Bloom++.
 
+v1.4.12: Cleaner disclaimer selectors match chatgpt.com: `thread-disclaimer` and `--vt-disclaimer` (not the fake `composer-disclaimer` / `form +` sibling). Do not hide `#thread-bottom-container`.
+
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.
 - NoSidebarIdentity: `[data-testid="accounts-profile-button"] .flex.min-w-0 > .truncate`. Toggles `hideUsername` and `hideEmail` (mailto only; Plus/Pro labels are left alone).
 - RecentTopics: Ctrl+` / Ctrl+Shift+` / Esc / Enter. `maxRecent` 3–12 (default 5). `includeHome` (default on).
-- Cleaner: Download apps via `a[href*="/download"]` / `download-app-button` / aria-label. Disclaimer via `composer-disclaimer` / the `min-h-8` text-xs footer under the composer. `display:none` (those controls should leave the layout).
+- Cleaner: Download apps via `a[href*="/download"]` / `download-app-button` / aria-label. Disclaimer via `[data-testid="thread-disclaimer"]` and `[class*="--vt-disclaimer"]` inside `#thread-bottom-container`. `display:none` (those controls should leave the layout).
 
 ## Build
 
