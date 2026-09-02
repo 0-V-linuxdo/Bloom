@@ -16,7 +16,6 @@ import {
     applyFavicon,
     isUsableOfficialHref,
     restoreOfficialFavicon,
-    startFaviconGuard,
 } from "../../utils/faviconGuard";
 import { Logger } from "../../utils/Logger";
 import definePlugin, { OptionType, StartAt } from "../../utils/types";
@@ -61,13 +60,13 @@ let streamContext: string | null = null;
 let lockedToken = "";
 let lastConvId = "";
 let primedReady = true;
-let faviconObs: MutationObserver | null = null;
 let composerObs: MutationObserver | null = null;
 let inputCtrl: AbortController | null = null;
 let unsubScheme: (() => void) | null = null;
 let raf = 0;
 let pollTimer: ReturnType<typeof setInterval> | undefined;
 let started = false;
+const boundEditors = new WeakSet<HTMLElement>();
 
 function currentStyle(): IconStyle {
     const value = settings.store.style;
@@ -222,8 +221,8 @@ function onEditorInput() {
 
 function bindEditorInput() {
     const editor = getActiveEditor();
-    if (!editor || editor.dataset.bloomCsfBound === "1") return;
-    editor.dataset.bloomCsfBound = "1";
+    if (!editor || boundEditors.has(editor)) return;
+    boundEditors.add(editor);
     editor.addEventListener("input", onEditorInput, { passive: true });
     editor.addEventListener("compositionend", onEditorInput, { passive: true });
 }
@@ -258,14 +257,6 @@ export default definePlugin({
         scheme = currentScheme();
         officialHref = captureOfficial() || officialHref;
         rebuildIcons();
-        faviconObs = startFaviconGuard(ICON_ID, href => {
-            if (isUsableOfficialHref(href)) officialHref = href;
-            if (kind === "wait" && keepsOfficialWait(currentStyle())) {
-                restoreOfficialFavicon(ICON_ID, officialHref);
-                return;
-            }
-            rebuildIcons();
-        });
         unsubScheme = onBloomEvent("schemeChange", () => {
             const recaptured = captureOfficial();
             if (recaptured) officialHref = recaptured;
@@ -296,8 +287,6 @@ export default definePlugin({
         unsubScheme = null;
         composerObs?.disconnect();
         composerObs = null;
-        faviconObs?.disconnect();
-        faviconObs = null;
         resetStreamFlags();
         lastConvId = "";
         primedReady = true;

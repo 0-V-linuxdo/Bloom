@@ -14,6 +14,7 @@ import { registerStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
 import { clamp, copyToClipboard } from "../../utils/misc";
 import definePlugin, { OptionType, StartAt } from "../../utils/types";
+import { ensureHost } from "../_core/settings";
 import css from "./styles.css";
 
 const logger = new Logger("InputHistory");
@@ -160,17 +161,19 @@ function setEditorText(el: HTMLElement, text: string, atStart: boolean) {
 }
 
 function hudEl(): HTMLElement {
-    let el = document.querySelector<HTMLElement>(".bloom-ih-hud");
+    const root = ensureHost();
+    let el = root.querySelector<HTMLElement>(".bloom-ih-hud");
     if (!el) {
         el = document.createElement("div");
         el.className = "bloom-ih-hud";
-        if (document.body) document.body.appendChild(el);
+        root.appendChild(el);
     }
     return el;
 }
 
 function hideHud() {
-    document.querySelector(".bloom-ih-hud")?.classList.remove("bloom-ih-hud-on");
+    const root = document.getElementById("bloom-root")?.shadowRoot;
+    root?.querySelector(".bloom-ih-hud")?.classList.remove("bloom-ih-hud-on");
 }
 
 function showHud(label: string, editor: HTMLElement) {
@@ -300,8 +303,8 @@ function onPointerDown() {
 }
 
 function bindComposer(): boolean {
-    const root = getComposerRoot();
-    if (!root || root === document.body) return false;
+    const root = document.querySelector("form[data-type=\"unified-composer\"]");
+    if (!(root instanceof HTMLElement)) return false;
     if (boundRoot === root && keys) return true;
     keys?.abort();
     keys = new AbortController();
@@ -435,10 +438,10 @@ export default definePlugin({
     settings,
     startAt: StartAt.HostReady,
     managedStyle: "inputHistory",
-    cleanupSelectors: [".bloom-ih-hud"],
 
     start() {
         registerStyle("inputHistory", css);
+        ensureHost();
         cursor = getEntries().length;
         recalling = false;
         bindComposer();

@@ -15,8 +15,8 @@ import {
     watchHostScheme,
     type SchemePref,
 } from "../../../host/theme";
+import { requestPageTouch, whenPageTouched } from "../../../host/pageTouch";
 import { Devs } from "../../../utils/constants";
-import { isDocumentInteractive } from "../../../utils/hydration";
 import { registeredStyleText } from "../../../utils/css";
 import definePlugin, { OptionType, StartAt } from "../../../utils/types";
 import css from "./styles.css";
@@ -42,6 +42,7 @@ let shadow: ShadowRoot | null = null;
 let open = false;
 let unmounts: Array<() => void> = [];
 let unwatchHost: (() => void) | null = null;
+let shadowKeysBound = false;
 
 function blossomSvg(): string {
     return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M21.55 10.004a5.416 5.416 0 00-.478-4.501c-1.217-2.09-3.662-3.166-6.05-2.66A5.59 5.59 0 0010.831 1C8.39.995 6.224 2.546 5.473 4.838A5.553 5.553 0 001.76 7.496a5.487 5.487 0 00.691 6.5 5.416 5.416 0 00.477 4.502c1.217 2.09 3.662 3.165 6.05 2.66A5.586 5.586 0 0013.168 23c2.443.006 4.61-1.546 5.361-3.84a5.553 5.553 0 003.715-2.66 5.488 5.488 0 00-.693-6.497v.001z"/></svg>`;
@@ -89,7 +90,7 @@ function saveFabPos(x: number, y: number) {
     try { localStorage.setItem(FAB_POS_KEY, JSON.stringify({ x, y })); } catch { /* ignore */ }
 }
 
-function ensureHost(): ShadowRoot {
+export function ensureHost(): ShadowRoot {
     if (shadow) {
         paintScheme();
         syncShadowStyles();
@@ -115,6 +116,10 @@ function ensureHost(): ShadowRoot {
     }
     paintScheme();
     syncShadowStyles();
+    if (!shadowKeysBound) {
+        shadow.addEventListener("keydown", onDocKey);
+        shadowKeysBound = true;
+    }
     return shadow;
 }
 
@@ -332,7 +337,8 @@ function onDocKey(e: KeyboardEvent) {
 }
 
 export function openSettings() {
-    renderModal(ensureHost());
+    requestPageTouch();
+    whenPageTouched(() => renderModal(ensureHost()));
 }
 
 export default definePlugin({
@@ -347,24 +353,20 @@ export default definePlugin({
     cleanupSelectors: [`#${ROOT_ID}`],
 
     start() {
-        if (isDocumentInteractive()) mountFab();
+        mountFab();
         paintScheme();
         unwatchHost?.();
         unwatchHost = watchHostScheme(paintScheme);
-        document.addEventListener("keydown", onDocKey, true);
-        try {
-            GM_registerMenuCommand?.("Bloom++ settings", openSettings);
-        } catch { /* optional */ }
     },
 
     stop() {
-        document.removeEventListener("keydown", onDocKey, true);
         unwatchHost?.();
         unwatchHost = null;
         closeModal();
         host?.remove();
         host = null;
         shadow = null;
+        shadowKeysBound = false;
     },
 
     onSettingsChange: paintScheme,

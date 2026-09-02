@@ -6,6 +6,7 @@
 
 import { initPluginManager, registerPlugin, startAllPlugins } from "./api/PluginManager";
 import { initSettings as loadSettings } from "./api/Settings";
+import { armPageTouch, markScriptReady, requestPageTouch, whenPageTouched } from "./host/pageTouch";
 import { Logger } from "./utils/Logger";
 import { VERSION } from "./utils/constants";
 import { flushStyles } from "./utils/css";
@@ -55,7 +56,7 @@ function waitForBody(): Promise<void> {
     });
 }
 
-/** MCP SuperAssistant #190: 8s is a floor, not a ceiling. */
+/** MCP SuperAssistant #190: 8s is a floor, not a license to write DOM. */
 const HYDRATION_FLOOR_MS = 8_000;
 const HYDRATION_CEILING_MS = 20_000;
 const HYDRATION_SETTLE_MS = 300;
@@ -90,6 +91,14 @@ function offerMenu() {
     catch { /* optional */ }
 }
 
+function startOnPageTouch() {
+    whenPageTouched(() => {
+        flushStyles();
+        startAllPlugins(StartAt.HostReady);
+        logger.info("page touch", VERSION);
+    });
+}
+
 export async function initSettings() {
     await loadSettings();
 }
@@ -104,6 +113,7 @@ export async function init() {
     }
     initPluginManager();
     startAllPlugins(StartAt.Init);
+    offerMenu();
 
     const fireDom = () => startAllPlugins(StartAt.DOMContentLoaded);
     if (document.readyState === "loading") {
@@ -113,17 +123,18 @@ export async function init() {
     }
 
     await waitForBody();
-    const interactive = await waitForHydrated();
-    if (!interactive) {
-        logger.warn("late islands not detected; skipping DOM writes", VERSION);
-        offerMenu();
+    const islands = await waitForHydrated();
+    markScriptReady();
+    startOnPageTouch();
+    if (!islands) {
+        logger.warn("late islands not detected; waiting for menu", VERSION);
         return;
     }
-    flushStyles();
-    startAllPlugins(StartAt.HostReady);
-    logger.info("ready", VERSION, { interactive });
+    armPageTouch();
+    logger.info("script ready", VERSION);
 }
 
+export { requestPageTouch, whenPageTouched } from "./host/pageTouch";
 export { plugins } from "./api/PluginManager";
 export { Settings } from "./api/Settings";
 export { VERSION, REPO_URL } from "./utils/constants";
