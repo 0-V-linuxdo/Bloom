@@ -62,11 +62,11 @@ let lockedToken = "";
 let lastConvId = "";
 let primedReady = true;
 let faviconObs: MutationObserver | null = null;
-let globalObs: MutationObserver | null = null;
 let composerObs: MutationObserver | null = null;
 let inputCtrl: AbortController | null = null;
 let unsubScheme: (() => void) | null = null;
 let raf = 0;
+let pollTimer: ReturnType<typeof setInterval> | undefined;
 let started = false;
 
 function currentStyle(): IconStyle {
@@ -211,7 +211,7 @@ function scheduleEvaluate() {
         if (!started) return;
         bindEditorInput();
         const root = getComposerRoot();
-        if (!composerObs || !root.isConnected) observeComposer();
+        if (root !== document.body && (!composerObs || !root.isConnected)) observeComposer();
         evaluateState();
     });
 }
@@ -231,7 +231,9 @@ function bindEditorInput() {
 
 function observeComposer() {
     composerObs?.disconnect();
+    composerObs = null;
     const root = getComposerRoot();
+    if (!root || root === document.body) return;
     composerObs = new MutationObserver(() => scheduleEvaluate());
     composerObs.observe(root, {
         childList: true,
@@ -273,11 +275,10 @@ export default definePlugin({
         inputCtrl?.abort();
         inputCtrl = new AbortController();
         window.addEventListener("popstate", scheduleEvaluate, { signal: inputCtrl.signal });
-        globalObs?.disconnect();
-        globalObs = new MutationObserver(() => scheduleEvaluate());
-        if (document.body) globalObs.observe(document.body, { childList: true, subtree: true });
         bindEditorInput();
         observeComposer();
+        if (pollTimer !== undefined) clearInterval(pollTimer);
+        pollTimer = setInterval(scheduleEvaluate, 1_500);
         evaluateState();
         logger.debug("favicon watch started");
     },
@@ -286,12 +287,14 @@ export default definePlugin({
         started = false;
         if (raf) cancelAnimationFrame(raf);
         raf = 0;
+        if (pollTimer !== undefined) {
+            clearInterval(pollTimer);
+            pollTimer = undefined;
+        }
         inputCtrl?.abort();
         inputCtrl = null;
         unsubScheme?.();
         unsubScheme = null;
-        globalObs?.disconnect();
-        globalObs = null;
         composerObs?.disconnect();
         composerObs = null;
         faviconObs?.disconnect();

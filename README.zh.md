@@ -28,13 +28,15 @@ v1.1：
 
 ## NoShareLink / NoDictation
 
-两个插件只在 `document-start` 注入 CSS，**不**用 `MutationObserver` 扫整棵树，也**不** `querySelectorAll("button")`。刷新后不应再卡几十秒。
+两个插件在 `document-start` 只排队 CSS，真正插入 `document.head` 放到 HostReady，**不**用 `MutationObserver` 扫整棵树，也**不** `querySelectorAll("button")`。
 
 v1.1.2：样式只挂到 `document.head`，没有 head 就等，禁止挂到 `<html>`。
 
 v1.1.3：HostReady 等到 `window` load 再短暂停一下（不再把 `DOMContentLoaded` 当成水合完成）。`#bloom-root` 和 InputHistory HUD 只挂到 `document.body`。
 
-v1.1.4：HostReady 从脚本启动起至少约 8 秒，且等 `window` load，之后才往 body 挂节点。InputHistory 改到 HostReady，不再默认 DCL。若 React 拆掉 `#bloom-root`，只重挂一次。`load+1s` 仍落在水合窗口里，会出现 Recents / 头像丢失、按钮点不动、花瓣按钮不出现。
+v1.1.4：HostReady 从脚本启动起至少约 8 秒才往 body 挂节点。InputHistory 改到 HostReady。若 React 拆掉 `#bloom-root` 会重挂一次。document-start 仍往 head 插样式，页面能画出来但点不动、输不了字。
+
+v1.1.5：Init 不再往 DOM 插节点，也不观察 `<html>`。样式等检测到 React host 后再进 `head`（8 秒是上限不是下限）。取消 remount。ChatStateFavicons 不再观察整棵 `document.body`。`#bloom-root` 为 `pointer-events: none`，只给花瓣按钮 `auto`。检测不到可交互宿主就不自动往 body 挂节点；Violentmonkey 菜单仍可打开设置。
 
 ## 构建
 

@@ -8,6 +8,8 @@ import { initPluginManager, registerPlugin, startAllPlugins } from "./api/Plugin
 import { initSettings as loadSettings } from "./api/Settings";
 import { Logger } from "./utils/Logger";
 import { VERSION } from "./utils/constants";
+import { flushStyles } from "./utils/css";
+import { isDocumentInteractive } from "./utils/hydration";
 import { StartAt, type Plugin } from "./utils/types";
 import settingsPlugin from "./plugins/_core/settings";
 import chatStateFavicons from "./plugins/chatStateFavicons";
@@ -26,51 +28,60 @@ const pluginList: Plugin[] = [
     noDictation,
 ];
 
-function waitForBody(): Promise<void> {
-    return new Promise(resolve => {
-        if (document.body) {
-            resolve();
-            return;
-        }
-        const finish = () => {
-            obs.disconnect();
-            resolve();
-        };
-        const obs = new MutationObserver(() => {
-            if (document.body) finish();
-        });
-        const rootEl = document.documentElement;
-        if (rootEl) obs.observe(rootEl, { childList: true });
-        document.addEventListener("DOMContentLoaded", finish, { once: true });
-        setTimeout(finish, 15_000);
-    });
-}
-
-function waitForWindowLoad(): Promise<void> {
-    if (document.readyState === "complete") return Promise.resolve();
-    return new Promise(resolve => {
-        window.addEventListener("load", () => resolve(), { once: true });
-        setTimeout(resolve, 8_000);
-    });
-}
-
 function wait(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-const HYDRATION_MIN_MS = 8_000;
-const HYDRATION_SETTLE_MS = 1_000;
+function waitForBody(): Promise<void> {
+    if (document.body) return Promise.resolve();
+    return new Promise(resolve => {
+        let done = false;
+        const finish = () => {
+            if (done) return;
+            if (!document.body) return;
+            done = true;
+            clearInterval(poll);
+            resolve();
+        };
+        const poll = setInterval(finish, 20);
+        document.addEventListener("DOMContentLoaded", finish, { once: true });
+        setTimeout(() => {
+            if (done) return;
+            done = true;
+            clearInterval(poll);
+            resolve();
+        }, 15_000);
+    });
+}
 
-// ChatGPT hydrates html/body and late client islands (Recents, avatar,
-// click handlers) well after DCL and often after window load.
-// MCP SuperAssistant #190: delay ALL chatgpt.com DOM mounts ~8s from start.
-// load+1s (v1.1.3) was still inside that window: Recents/avatar dropped,
-// buttons stayed dead, and React detached #bloom-root so the FAB never appeared.
-async function waitForHydrated(): Promise<void> {
-    const started = Date.now();
-    await waitForWindowLoad();
-    const elapsed = Date.now() - started;
-    await wait(Math.max(HYDRATION_MIN_MS - elapsed, HYDRATION_SETTLE_MS));
+const HYDRATION_CEILING_MS = 8_000;
+const HYDRATION_SETTLE_MS = 300;
+const HYDRATION_POLL_MS = 50;
+
+function waitForHydrated(): Promise<boolean> {
+    const deadline = Date.now() + HYDRATION_CEILING_MS;
+    return new Promise(resolve => {
+        const finish = (ok: boolean) => {
+            if (done) return;
+            done = true;
+            clearInterval(poll);
+            window.removeEventListener("load", onLoad);
+            if (ok) void wait(HYDRATION_SETTLE_MS).then(() => resolve(true));
+            else resolve(false);
+        };
+        let done = false;
+        const tick = () => {
+            if (isDocumentInteractive()) {
+                finish(true);
+                return;
+            }
+            if (Date.now() >= deadline) finish(isDocumentInteractive());
+        };
+        const onLoad = () => tick();
+        const poll = setInterval(tick, HYDRATION_POLL_MS);
+        window.addEventListener("load", onLoad);
+        tick();
+    });
 }
 
 export async function initSettings() {
@@ -96,11 +107,16 @@ export async function init() {
     }
 
     await waitForBody();
-    await waitForHydrated();
+    const interactive = await waitForHydrated();
+    flushStyles();
+    if (!interactive) {
+        logger.warn("React host not detected; skipping automatic body mounts", VERSION);
+    }
     startAllPlugins(StartAt.HostReady);
-    logger.info("ready", VERSION);
+    logger.info("ready", VERSION, { interactive });
 }
 
 export { plugins } from "./api/PluginManager";
 export { Settings } from "./api/Settings";
 export { VERSION, REPO_URL } from "./utils/constants";
+export { isDocumentInteractive } from "./utils/hydration";

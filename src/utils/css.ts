@@ -2,42 +2,20 @@
  * Bloom++, a modification for chatgpt.com
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * Styles are queued in memory at document-start. Nothing is appended to
+ * document.head until flushStyles() (HostReady). Never observe
+ * document.documentElement and never append to <html>.
  */
 
 const styles = new Map<string, HTMLStyleElement>();
-let headObs: MutationObserver | null = null;
+let flushed = false;
 
 function attachToHead(el: HTMLStyleElement): boolean {
     const head = document.head;
     if (!head) return false;
     if (el.parentNode !== head) head.appendChild(el);
     return true;
-}
-
-function flushPendingStyles(): boolean {
-    if (!document.head) return false;
-    if (headObs) {
-        headObs.disconnect();
-        headObs = null;
-    }
-    for (const el of styles.values()) attachToHead(el);
-    return true;
-}
-
-function ensureHeadWaiter() {
-    if (headObs || document.head) return;
-    const root = document.documentElement;
-    if (root) {
-        headObs = new MutationObserver(() => {
-            flushPendingStyles();
-        });
-        // head/body are direct children of <html>. subtree:true during
-        // document-start would scan ChatGPT's hydrating tree.
-        headObs.observe(root, { childList: true });
-    }
-    document.addEventListener("DOMContentLoaded", () => {
-        flushPendingStyles();
-    }, { once: true });
 }
 
 export function classNameFactory(prefix: string) {
@@ -53,9 +31,14 @@ export function registerStyle(name: string, css: string) {
         styles.set(name, el);
     }
     el.textContent = css;
-    // Never append to document.documentElement: extra <html> children
-    // break ChatGPT's React hydration (minified error #418, blank page).
-    if (!attachToHead(el)) ensureHeadWaiter();
+    if (flushed) attachToHead(el);
+}
+
+export function flushStyles(): boolean {
+    flushed = true;
+    if (!document.head) return false;
+    for (const el of styles.values()) attachToHead(el);
+    return true;
 }
 
 export function enableStyle(name: string) {

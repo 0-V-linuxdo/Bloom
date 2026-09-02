@@ -17,6 +17,7 @@ import {
     type SchemePref,
 } from "../../../host/theme";
 import { Devs } from "../../../utils/constants";
+import { isDocumentInteractive } from "../../../utils/hydration";
 import { registerStyle, registeredStyleText } from "../../../utils/css";
 import definePlugin, { OptionType, StartAt } from "../../../utils/types";
 import css from "./styles.css";
@@ -42,9 +43,6 @@ let shadow: ShadowRoot | null = null;
 let open = false;
 let unmounts: Array<() => void> = [];
 let unwatchHost: (() => void) | null = null;
-let remountObs: MutationObserver | null = null;
-let remountTimer: ReturnType<typeof setTimeout> | undefined;
-let remountUsed = false;
 
 function blossomSvg(): string {
     return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M21.55 10.004a5.416 5.416 0 00-.478-4.501c-1.217-2.09-3.662-3.166-6.05-2.66A5.59 5.59 0 0010.831 1C8.39.995 6.224 2.546 5.473 4.838A5.553 5.553 0 001.76 7.496a5.487 5.487 0 00.691 6.5 5.416 5.416 0 00.477 4.502c1.217 2.09 3.662 3.165 6.05 2.66A5.586 5.586 0 0013.168 23c2.443.006 4.61-1.546 5.361-3.84a5.553 5.553 0 003.715-2.66 5.488 5.488 0 00-.693-6.497v.001z"/></svg>`;
@@ -103,9 +101,10 @@ function ensureHost(): ShadowRoot {
     if (!host) {
         host = document.createElement("div");
         host.id = ROOT_ID;
+        host.style.pointerEvents = "none";
     }
-    // Never append to document.documentElement — extra <html> siblings
-    // during ChatGPT hydration drop Recents and the profile avatar.
+    // Never append to document.documentElement. Only mount on body after
+    // hydrateRoot(document) has attached, or when the user opens settings.
     if (document.body && host.parentNode !== document.body) {
         document.body.appendChild(host);
     }
@@ -361,42 +360,6 @@ function onDocKey(e: KeyboardEvent) {
     }
 }
 
-function hostOnBody(): boolean {
-    return !!(host && document.body && host.isConnected && host.parentNode === document.body);
-}
-
-function stopRemountWatch() {
-    remountObs?.disconnect();
-    remountObs = null;
-    if (remountTimer !== undefined) {
-        clearTimeout(remountTimer);
-        remountTimer = undefined;
-    }
-}
-
-// React may detach #bloom-root during a late body reconcile. Remount once.
-function watchHostDetached() {
-    stopRemountWatch();
-    remountUsed = false;
-    if (!document.body) return;
-    const remount = () => {
-        if (remountUsed || hostOnBody()) return;
-        remountUsed = true;
-        stopRemountWatch();
-        host = null;
-        shadow = null;
-        mountFab();
-    };
-    remountObs = new MutationObserver(() => {
-        if (!hostOnBody()) remount();
-    });
-    remountObs.observe(document.body, { childList: true });
-    remountTimer = setTimeout(() => {
-        if (!hostOnBody()) remount();
-        else stopRemountWatch();
-    }, 20_000);
-}
-
 export function openSettings() {
     renderModal(ensureHost());
 }
@@ -414,9 +377,8 @@ export default definePlugin({
 
     start() {
         registerStyle("settings", "");
-        mountFab();
+        if (isDocumentInteractive()) mountFab();
         paintScheme();
-        watchHostDetached();
         unwatchHost?.();
         unwatchHost = watchHostScheme(paintScheme);
         document.addEventListener("keydown", onDocKey, true);
@@ -427,7 +389,6 @@ export default definePlugin({
 
     stop() {
         document.removeEventListener("keydown", onDocKey, true);
-        stopRemountWatch();
         unwatchHost?.();
         unwatchHost = null;
         closeModal();

@@ -6,6 +6,7 @@
  * Adapted from Void++ NoDictation (GPL-3.0-or-later). CSS-only: no
  * MutationObserver, no querySelectorAll("button"), no wrapper :has().
  * Does not hide voice-mode-button (advanced Voice).
+ * start() queues CSS at Init; Bloom.flushStyles appends to head at HostReady.
  */
 
 import { definePluginSettings } from "../../api/Settings";

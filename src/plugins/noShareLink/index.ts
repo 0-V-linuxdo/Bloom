@@ -5,6 +5,7 @@
  *
  * Adapted from Void++ NoShareLink (GPL-3.0-or-later). CSS-only: no
  * MutationObserver, no querySelectorAll("button"), no wrapper :has().
+ * start() queues CSS at Init; Bloom.flushStyles appends to head at HostReady.
  */
 
 import { definePluginSettings } from "../../api/Settings";

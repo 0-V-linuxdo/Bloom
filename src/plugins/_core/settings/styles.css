@@ -20,6 +20,7 @@
   font: 14px/1.5 ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
   color: var(--bloom-fg);
   -webkit-font-smoothing: antialiased;
+  pointer-events: none;
 }
 
 :host([data-bloom-scheme="dark"]) {
@@ -69,6 +70,7 @@
   cursor: pointer;
   display: grid;
   place-items: center;
+  pointer-events: auto;
   transition:
     transform 160ms var(--bloom-ease),
     background-color 160ms var(--bloom-ease),
@@ -106,6 +108,7 @@
   margin: 0;
   background: rgba(0, 0, 0, 0.5);
   cursor: pointer;
+  pointer-events: auto;
 }
 
 .bloom-settings-modal {
@@ -123,6 +126,7 @@
   background: var(--bloom-surface);
   color: var(--bloom-fg);
   box-shadow: var(--bloom-shadow);
+  pointer-events: auto;
 }
 
 .bloom-settings-head {
