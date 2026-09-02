@@ -1,7 +1,13 @@
 /* Void++ BaseCard / PluginCard chrome. Tokens from chatgpt.com via :host.
-   Settings is a non-modal flyout. Never a full-viewport backdrop. */
+   Zero-size host. Narrow non-modal flyout. Never a full-viewport backdrop. */
 
 :host {
+  position: fixed;
+  width: 0;
+  height: 0;
+  inset: auto;
+  overflow: visible;
+  pointer-events: none;
   --bloom-bg: var(--main-surface-primary, #ffffff);
   --bloom-surface: var(--main-surface-primary, #ffffff);
   --bloom-elevated: var(--main-surface-secondary, #f4f4f4);
@@ -21,7 +27,6 @@
   font: 14px/1.45 ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
   color: var(--bloom-fg);
   -webkit-font-smoothing: antialiased;
-  pointer-events: none;
 }
 
 :host([data-bloom-scheme="dark"]) {
@@ -105,8 +110,9 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  width: min(640px, calc(100vw - 24px));
-  max-height: min(72vh, 640px);
+  width: 360px;
+  max-width: min(420px, calc(100vw - 24px));
+  max-height: min(70vh, 560px);
   padding: 20px;
   border: 0;
   border-radius: 16px;

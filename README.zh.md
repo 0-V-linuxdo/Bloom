@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、右下角浮层按钮。
 
-当前版本：**[v1.3.4](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.4)**（`userscript/Bloom.user.js`，`@version [20260902] v1.3.4`）。
+当前版本：**[v1.3.5](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.5)**（`userscript/Bloom.user.js`，`@version [20260902] v1.3.5`）。
 
 v1.3.0：
 
@@ -67,6 +67,8 @@ v1.3.2：点花瓣只切换预建面板，不再启动 HostReady 插件。favico
 v1.3.3：设置改为花瓣旁的**非模态 flyout**。去掉全屏 backdrop 按钮，打开面板后 chatgpt.com 仍可点击。齿轮在面板内切视图。主题监听不再观察 `<html>`。
 
 v1.3.4：`@updateURL` / `@downloadURL` / 安装链接改为 GitHub raw。不再使用 jsDelivr `@heads/main`。
+
+v1.3.5：`#bloom-root` 改为零尺寸 fixed host，不再铺满页面。设置面板约 360px。window capture `pointerdown` 仅在面板打开时绑定。
 
 ## 构建
 

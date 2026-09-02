@@ -3,8 +3,8 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Non-modal flyout next to the blossom. Never a full-viewport backdrop,
- * never patched into the host tree.
+ * Zero-size fixed host. Narrow flyout next to the blossom.
+ * Never a full-viewport backdrop, never patched into the host tree.
  */
 
 import { emitBloomEvent } from "../../../api/Events";
@@ -26,6 +26,8 @@ import css from "./styles.css";
 const ROOT_ID = "bloom-root";
 const Z_FAB = "10000";
 const Z_PANEL = "10001";
+const PANEL_W = 360;
+const PANEL_W_MAX = 420;
 
 const settings = definePluginSettings({
     appearance: {
@@ -117,19 +119,38 @@ function pathHitsBloom(e: Event): boolean {
     return false;
 }
 
+/** Keep #bloom-root out of chatgpt.com layout. Leftover inset:0 from older builds must die. */
+function resetHostBox(el: HTMLElement) {
+    el.style.position = "fixed";
+    el.style.width = "0px";
+    el.style.height = "0px";
+    el.style.inset = "auto";
+    el.style.margin = "0";
+    el.style.padding = "0";
+    el.style.border = "0";
+    el.style.overflow = "visible";
+    el.style.pointerEvents = "none";
+    el.style.zIndex = Z_FAB;
+}
+
+function purgeLeftoverOverlays(root: ParentNode) {
+    root.querySelectorAll(".bloom-settings-backdrop, .bloom-plugin-backdrop").forEach(n => n.remove());
+}
+
 export function ensureHost(): ShadowRoot {
-    if (shadow) return shadow;
     host = document.getElementById(ROOT_ID) as HTMLElement | null;
     if (!host) {
         host = document.createElement("div");
         host.id = ROOT_ID;
-        host.style.pointerEvents = "none";
     }
+    resetHostBox(host);
     const root = document.body;
     if (root && host.parentNode !== root) {
         root.appendChild(host);
     }
     shadow = host.shadowRoot ?? host.attachShadow({ mode: "open" });
+    purgeLeftoverOverlays(host);
+    purgeLeftoverOverlays(shadow);
     if (!shadow.querySelector("style[data-bloom]")) {
         const style = document.createElement("style");
         style.dataset.bloom = "1";
@@ -417,10 +438,13 @@ function placePanel() {
     const fab = fabEl.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const width = Math.min(640, Math.max(280, vw - 24));
-    const maxH = Math.min(vh - 24, 640);
+    const width = Math.min(PANEL_W_MAX, Math.max(280, Math.min(PANEL_W, vw - 24)));
+    const maxH = Math.min(Math.round(vh * 0.7), 560);
     panelEl.style.width = `${Math.round(width)}px`;
+    panelEl.style.maxWidth = `${PANEL_W_MAX}px`;
     panelEl.style.maxHeight = `${Math.round(maxH)}px`;
+    panelEl.style.right = "auto";
+    panelEl.style.inset = "";
 
     let left = fab.right - width;
     if (left < 12) left = 12;
@@ -437,7 +461,6 @@ function placePanel() {
         panelEl.style.bottom = `${Math.round(vh - fab.top + 8)}px`;
     }
     panelEl.style.left = `${Math.round(left)}px`;
-    panelEl.style.right = "auto";
 }
 
 function hidePanel() {
@@ -445,6 +468,7 @@ function hidePanel() {
     setDismissed(panelEl, true);
     fabEl?.setAttribute("aria-expanded", "false");
     showListView();
+    unbindWindowDismiss();
 }
 
 function showPanel() {
@@ -457,6 +481,7 @@ function showPanel() {
     fabEl?.setAttribute("aria-expanded", "true");
     placePanel();
     setDismissed(panelEl, false);
+    bindWindowDismiss();
     emitBloomEvent("settingsOpen", undefined);
 }
 
@@ -492,8 +517,14 @@ function onWinKey(e: KeyboardEvent) {
     hidePanel();
 }
 
-function bindWindowDismiss() {
+function unbindWindowDismiss() {
     winAbort?.abort();
+    winAbort = null;
+}
+
+function bindWindowDismiss() {
+    unbindWindowDismiss();
+    if (!open) return;
     const ac = new AbortController();
     winAbort = ac;
     window.addEventListener("pointerdown", onWinPointerDown, { capture: true, signal: ac.signal });
@@ -549,7 +580,6 @@ export default definePlugin({
 
     start() {
         mountFab();
-        bindWindowDismiss();
         paintScheme();
         unwatchHost?.();
         unwatchHost = watchHostScheme(paintScheme);
@@ -558,8 +588,7 @@ export default definePlugin({
     stop() {
         fabAbort?.abort();
         fabAbort = null;
-        winAbort?.abort();
-        winAbort = null;
+        unbindWindowDismiss();
         unwatchHost?.();
         unwatchHost = null;
         hidePanel();
