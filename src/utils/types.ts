@@ -9,6 +9,7 @@
 export const enum StartAt {
     Init = "Init",
     DOMContentLoaded = "DOMContentLoaded",
+    HostShell = "HostShell",
     HostReady = "HostReady",
 }
 

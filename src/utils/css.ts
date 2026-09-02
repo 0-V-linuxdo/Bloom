@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * CSS is stored as strings until flushStyles() (PageTouch). Injection
+ * CSS is stored as strings until flushStyles() (IdleReady, second idle). Injection
  * uses GM_addStyle so we never assign document.adoptedStyleSheets and
  * never createElement("style") at Init. No append to <html>.
  */

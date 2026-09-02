@@ -9,7 +9,7 @@
  * during that window drop the islands.
  */
 
-/** Conversation rows in the sidebar. SSR chrome does not include these. */
+/** Conversation rows in the sidebar. Present in SSR HTML — not a hydrate signal alone. */
 export function hasRecentsIsland(): boolean {
     try {
         return !!document.querySelector('a[href^="/c/"]');
@@ -35,30 +35,21 @@ export function hasAvatarIsland(): boolean {
     }
 }
 
-/** Personalized homepage greeting. The SSR fallback is the agenda line. */
-export function hasGreetingIsland(): boolean {
-    try {
-        const heading = document.querySelector("h1");
-        const text = (heading?.textContent ?? "").replace(/\s+/g, " ").trim();
-        if (!text) return false;
-        if (/what's on the agenda/i.test(text)) return false;
-        return /^(hey|hello|good\s)/i.test(text);
-    } catch {
-        return false;
-    }
-}
-
-/** True when at least one late client island has painted. */
-export function hasLateIslands(): boolean {
-    return hasRecentsIsland() || hasAvatarIsland() || hasGreetingIsland();
-}
-
 export function hasComposer(): boolean {
     try {
         return !!document.querySelector("#prompt-textarea");
     } catch {
         return false;
     }
+}
+
+/**
+ * Composer is client-hydrated. Recents `/c/` links exist in SSR, so they
+ * only count together with the composer (or a real avatar).
+ */
+export function hasLateIslands(): boolean {
+    if (!hasComposer()) return false;
+    return hasRecentsIsland() || hasAvatarIsland();
 }
 
 export function isDocumentInteractive(): boolean {

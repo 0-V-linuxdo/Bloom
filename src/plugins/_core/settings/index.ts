@@ -17,7 +17,7 @@ import {
     watchHostScheme,
     type SchemePref,
 } from "../../../host/theme";
-import { requestPageTouch, whenPageTouched } from "../../../host/pageTouch";
+import { requestIdleReady, whenIdleReady, whenShellReady } from "../../../host/idleReady";
 import { Devs } from "../../../utils/constants";
 import { registeredStyleText } from "../../../utils/css";
 import definePlugin, { OptionType, StartAt, type Plugin } from "../../../utils/types";
@@ -433,7 +433,7 @@ function mountFab() {
         placeFab(fab);
     };
     window.addEventListener("resize", relayout, { signal: ac.signal });
-    requestAnimationFrame(() => placeFab(fab));
+    whenIdleReady(() => placeFab(fab));
 }
 
 function onDocKey(e: KeyboardEvent) {
@@ -450,8 +450,8 @@ function onDocKey(e: KeyboardEvent) {
 }
 
 export function openSettings() {
-    requestPageTouch();
-    whenPageTouched(() => renderModal(ensureHost()));
+    requestIdleReady();
+    whenShellReady(() => renderModal(ensureHost()));
 }
 
 export default definePlugin({
@@ -462,7 +462,7 @@ export default definePlugin({
     hidden: true,
     enabledByDefault: true,
     settings,
-    startAt: StartAt.HostReady,
+    startAt: StartAt.HostShell,
     cleanupSelectors: [`#${ROOT_ID}`],
 
     start() {

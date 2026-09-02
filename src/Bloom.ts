@@ -6,7 +6,7 @@
 
 import { initPluginManager, registerPlugin, startAllPlugins } from "./api/PluginManager";
 import { initSettings as loadSettings } from "./api/Settings";
-import { armPageTouch, markScriptReady, requestPageTouch, whenPageTouched } from "./host/pageTouch";
+import { requestIdleReady, runIdleSequence, whenIdleReady, whenShellReady } from "./host/idleReady";
 import { Logger } from "./utils/Logger";
 import { VERSION } from "./utils/constants";
 import { flushStyles } from "./utils/css";
@@ -84,11 +84,15 @@ function offerMenu() {
     catch { /* optional */ }
 }
 
-function startOnPageTouch() {
-    whenPageTouched(() => {
+function bindIdleHost() {
+    whenShellReady(() => {
+        startAllPlugins(StartAt.HostShell);
+        logger.info("host shell", VERSION);
+    });
+    whenIdleReady(() => {
         flushStyles();
         startAllPlugins(StartAt.HostReady);
-        logger.info("page touch", VERSION);
+        logger.info("idle ready", VERSION);
     });
 }
 
@@ -107,6 +111,7 @@ export async function init() {
     initPluginManager();
     startAllPlugins(StartAt.Init);
     offerMenu();
+    bindIdleHost();
 
     const fireDom = () => startAllPlugins(StartAt.DOMContentLoaded);
     if (document.readyState === "loading") {
@@ -117,17 +122,14 @@ export async function init() {
 
     await waitForBody();
     const islands = await waitForHydrated();
-    markScriptReady();
-    startOnPageTouch();
     if (!islands) {
         logger.warn("late islands not detected; waiting for menu", VERSION);
         return;
     }
-    armPageTouch();
-    logger.info("script ready", VERSION);
+    await runIdleSequence();
 }
 
-export { requestPageTouch, whenPageTouched } from "./host/pageTouch";
+export { requestIdleReady, whenIdleReady, whenShellReady } from "./host/idleReady";
 export { plugins } from "./api/PluginManager";
 export { Settings } from "./api/Settings";
 export { VERSION, REPO_URL } from "./utils/constants";

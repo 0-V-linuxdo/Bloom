@@ -52,6 +52,8 @@ v1.2.1：齿轮改为切视图（藏网格、显示配置页），不再绝对�
 
 v1.2.2：水合等待改为先睡满 8 秒再稀疏查岛，不再 100ms 轮询。花瓣只在挂上和 resize 时定位，去掉 400ms 定时器、捕获 scroll 和 `elementsFromPoint`。齿轮另开一层配置窗，四张卡留在主窗。
 
+v1.2.3：去掉 PageTouch。不再用第一次点击启动 Host，改为 8 秒岛门（`#prompt-textarea` + Recents 或真头像）之后 `requestIdleCallback`。花瓣和插件分两拍 idle。`@run-at document-idle`。不再捕获 `pointerdown`。
+
 ## 构建
 
 ```bash
