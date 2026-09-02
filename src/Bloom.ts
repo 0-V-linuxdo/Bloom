@@ -25,24 +25,30 @@ const pluginList: Plugin[] = [
     noDictation,
 ];
 
-function waitForHostReady(): Promise<void> {
+function waitForBody(): Promise<void> {
     return new Promise(resolve => {
-        const ready = () => {
-            if (document.body) {
-                resolve();
-                return true;
-            }
-            return false;
-        };
-        if (ready()) return;
-        const obs = new MutationObserver(() => {
-            if (ready()) obs.disconnect();
-        });
-        obs.observe(document.documentElement, { childList: true, subtree: true });
-        setTimeout(() => {
+        if (document.body) {
+            resolve();
+            return;
+        }
+        const finish = () => {
             obs.disconnect();
             resolve();
-        }, 15_000);
+        };
+        const obs = new MutationObserver(() => {
+            if (document.body) finish();
+        });
+        const root = document.documentElement;
+        if (root) obs.observe(root, { childList: true });
+        document.addEventListener("DOMContentLoaded", finish, { once: true });
+        setTimeout(finish, 15_000);
+    });
+}
+
+function waitForParsed(): Promise<void> {
+    if (document.readyState !== "loading") return Promise.resolve();
+    return new Promise(resolve => {
+        document.addEventListener("DOMContentLoaded", () => resolve(), { once: true });
     });
 }
 
@@ -68,7 +74,8 @@ export async function init() {
         fireDom();
     }
 
-    await waitForHostReady();
+    await waitForBody();
+    await waitForParsed();
     startAllPlugins(StartAt.HostReady);
     logger.info("ready");
 }

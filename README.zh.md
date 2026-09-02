@@ -30,6 +30,8 @@ v1.1：
 
 两个插件只在 `document-start` 注入 CSS，**不**用 `MutationObserver` 扫整棵树，也**不** `querySelectorAll("button")`。刷新后不应再卡几十秒。
 
+v1.1.2：样式只挂到 `document.head`，没有 head 就等，禁止挂到 `<html>`。HostReady 等 body 出现且 `DOMContentLoaded` 后再跑（解析期不对 `documentElement` 开 `subtree`），避免 ChatGPT React 水合白屏。
+
 ## 构建
 
 ```bash

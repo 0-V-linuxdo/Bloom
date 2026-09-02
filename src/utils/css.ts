@@ -5,6 +5,40 @@
  */
 
 const styles = new Map<string, HTMLStyleElement>();
+let headObs: MutationObserver | null = null;
+
+function attachToHead(el: HTMLStyleElement): boolean {
+    const head = document.head;
+    if (!head) return false;
+    if (el.parentNode !== head) head.appendChild(el);
+    return true;
+}
+
+function flushPendingStyles(): boolean {
+    if (!document.head) return false;
+    if (headObs) {
+        headObs.disconnect();
+        headObs = null;
+    }
+    for (const el of styles.values()) attachToHead(el);
+    return true;
+}
+
+function ensureHeadWaiter() {
+    if (headObs || document.head) return;
+    const root = document.documentElement;
+    if (root) {
+        headObs = new MutationObserver(() => {
+            flushPendingStyles();
+        });
+        // head/body are direct children of <html>. subtree:true during
+        // document-start would scan ChatGPT's hydrating tree.
+        headObs.observe(root, { childList: true });
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+        flushPendingStyles();
+    }, { once: true });
+}
 
 export function classNameFactory(prefix: string) {
     return (...parts: Array<string | false | null | undefined>) =>
@@ -16,10 +50,12 @@ export function registerStyle(name: string, css: string) {
     if (!el) {
         el = document.createElement("style");
         el.dataset.bloomStyle = name;
-        (document.head ?? document.documentElement).appendChild(el);
         styles.set(name, el);
     }
     el.textContent = css;
+    // Never append to document.documentElement: extra <html> children
+    // break ChatGPT's React hydration (minified error #418, blank page).
+    if (!attachToHead(el)) ensureHeadWaiter();
 }
 
 export function enableStyle(name: string) {
