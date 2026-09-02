@@ -4,7 +4,9 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, a floating settings button.
 
-v1.1 ships:
+Current release: **[v1.3.0](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.0)** (`userscript/Bloom.user.js`, `@version [20260902] v1.3.0`).
+
+v1.3.0 ships:
 
 | Plugin | Default | What it does |
 | --- | --- | --- |

@@ -4,7 +4,9 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、右下角浮层按钮。
 
-v1.1：
+当前版本：**[v1.3.0](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.0)**（`userscript/Bloom.user.js`，`@version [20260902] v1.3.0`）。
+
+v1.3.0：
 
 | 插件 | 默认 | 说明 |
 | --- | --- | --- |
