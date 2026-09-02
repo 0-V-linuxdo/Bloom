@@ -1,11 +1,15 @@
 /* Void++ BaseCard / PluginCard chrome. Tokens from chatgpt.com via :host.
-   Zero-size host. Narrow non-modal flyout. Never a full-viewport backdrop. */
+   Fixed 36×36 cluster above the composer. Panel is an absolute child.
+   Never a full-viewport backdrop. Never JS pixel layout. */
 
 :host {
   position: fixed;
-  width: 0;
-  height: 0;
-  inset: auto;
+  top: auto;
+  left: auto;
+  right: 12px;
+  bottom: 96px;
+  width: 36px;
+  height: 36px;
   overflow: visible;
   pointer-events: none;
   --bloom-bg: var(--main-surface-primary, #ffffff);
@@ -57,14 +61,12 @@
 :host select {
   font: inherit;
   color: inherit;
-  pointer-events: auto;
 }
 
 .bloom-settings-fab {
-  position: fixed;
-  z-index: 10000;
-  right: 16px;
-  top: 12px;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   width: 36px;
   height: 36px;
   margin: 0;
@@ -105,14 +107,17 @@
 }
 
 .bloom-settings-panel {
-  position: fixed;
-  z-index: 10001;
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: calc(100% + 8px);
+  top: auto;
+  left: auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  width: 520px;
-  max-width: min(560px, calc(100vw - 24px));
-  max-height: min(70vh, 560px);
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(60vh, 480px);
   padding: 20px;
   border: 0;
   border-radius: 16px;
@@ -208,7 +213,7 @@
 
 .bloom-plugin-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 10px;
   overflow: auto;
   min-height: 0;
@@ -273,9 +278,6 @@
   font-weight: 500;
   letter-spacing: -0.01em;
   line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .bloom-card-controls {
@@ -465,6 +467,11 @@
   content: "▾ ";
 }
 
+.bloom-field select,
+.bloom-field input[type="range"] {
+  pointer-events: auto;
+}
+
 .bloom-field select {
   height: 32px;
   min-width: 148px;
@@ -505,12 +512,6 @@
   font-size: 0.75rem;
   color: var(--bloom-muted);
   font-variant-numeric: tabular-nums;
-}
-
-@media (max-width: 560px) {
-  .bloom-plugin-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,21 +3,21 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Zero-size fixed host. Narrow flyout next to the blossom.
- * Never a full-viewport backdrop, never patched into the host tree.
+ * Fixed cluster above the composer. Panel is an absolute child of the host.
+ * No header hunting, no getBoundingClientRect layout, no window resize,
+ * no capture pointerdown, never a full-viewport backdrop.
  */
 
 import { emitBloomEvent } from "../../../api/Events";
 import { definePluginSettings, Settings } from "../../../api/Settings";
 import { isPluginEnabled, plugins, togglePlugin } from "../../../api/PluginManager";
-import { fabPlacement, invalidateFabAnchor } from "../../../host/headerAnchor";
 import {
     applySchemeTokens,
     resolveScheme,
     watchHostScheme,
     type SchemePref,
 } from "../../../host/theme";
-import { requestIdleReady, whenIdleReady, whenShellReady } from "../../../host/idleReady";
+import { requestIdleReady, whenShellReady } from "../../../host/idleReady";
 import { Devs } from "../../../utils/constants";
 import { syncShadowPluginStyles } from "../../../utils/css";
 import definePlugin, { OptionType, StartAt, type Plugin } from "../../../utils/types";
@@ -25,9 +25,6 @@ import css from "./styles.css";
 
 const ROOT_ID = "bloom-root";
 const Z_FAB = "10000";
-const Z_PANEL = "10001";
-const PANEL_W = 520;
-const PANEL_W_MAX = 560;
 
 const settings = definePluginSettings({
     appearance: {
@@ -47,8 +44,7 @@ let open = false;
 let pluginView = false;
 let fieldUnmounts: Array<() => void> = [];
 let unwatchHost: (() => void) | null = null;
-let fabAbort: AbortController | null = null;
-let winAbort: AbortController | null = null;
+let escAbort: AbortController | null = null;
 let fabEl: HTMLButtonElement | null = null;
 let panelEl: HTMLDivElement | null = null;
 let listEl: HTMLDivElement | null = null;
@@ -112,19 +108,15 @@ function setDismissed(el: HTMLElement | null, dismissed: boolean) {
     el.style.pointerEvents = dismissed ? "none" : "auto";
 }
 
-function pathHitsBloom(e: Event): boolean {
-    const path = e.composedPath();
-    if (panelEl && path.includes(panelEl)) return true;
-    if (fabEl && path.includes(fabEl)) return true;
-    return false;
-}
-
-/** Keep #bloom-root out of chatgpt.com layout. Leftover inset:0 from older builds must die. */
+/** 36×36 cluster above the composer. Never 0×0-with-JS-pixels (resize loop). */
 function resetHostBox(el: HTMLElement) {
     el.style.position = "fixed";
-    el.style.width = "0px";
-    el.style.height = "0px";
-    el.style.inset = "auto";
+    el.style.top = "auto";
+    el.style.left = "auto";
+    el.style.right = "12px";
+    el.style.bottom = "96px";
+    el.style.width = "36px";
+    el.style.height = "36px";
     el.style.margin = "0";
     el.style.padding = "0";
     el.style.border = "0";
@@ -351,10 +343,8 @@ function ensurePanel(root: ShadowRoot) {
 
     const panel = document.createElement("div");
     panel.className = "bloom-settings-panel";
-    panel.setAttribute("role", "dialog");
-    panel.setAttribute("aria-modal", "false");
+    panel.setAttribute("role", "menu");
     panel.setAttribute("aria-labelledby", "bloom-settings-title");
-    panel.style.zIndex = Z_PANEL;
     setDismissed(panel, true);
 
     const list = document.createElement("div");
@@ -433,62 +423,21 @@ function ensurePanel(root: ShadowRoot) {
     fillGrid();
 }
 
-function placePanel() {
-    if (!panelEl || !fabEl) return;
-    const fab = fabEl.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const width = Math.min(PANEL_W_MAX, Math.max(320, Math.min(PANEL_W, vw - 24)));
-    const maxH = Math.min(Math.round(vh * 0.7), 560);
-    panelEl.style.width = `${Math.round(width)}px`;
-    panelEl.style.maxWidth = `${PANEL_W_MAX}px`;
-    panelEl.style.maxHeight = `${Math.round(maxH)}px`;
-    panelEl.style.right = "auto";
-    panelEl.style.inset = "";
-
-    const margin = 12;
-    const gap = 8;
-    let left: number;
-    if (fab.left < vw / 2) {
-        left = fab.right + gap;
-        if (left + width > vw - margin) left = Math.max(margin, vw - margin - width);
-    } else {
-        left = fab.right - width;
-        if (left < margin) left = margin;
-    }
-
-    const spaceBelow = vh - fab.bottom - gap;
-    const spaceAbove = fab.top - gap;
-    const openBelow = spaceBelow >= 240 || spaceBelow >= spaceAbove;
-    if (openBelow) {
-        panelEl.style.top = `${Math.round(fab.bottom + gap)}px`;
-        panelEl.style.bottom = "auto";
-    } else {
-        panelEl.style.top = "auto";
-        panelEl.style.bottom = `${Math.round(vh - fab.top + gap)}px`;
-    }
-    panelEl.style.left = `${Math.round(left)}px`;
-}
-
 function hidePanel() {
     open = false;
     setDismissed(panelEl, true);
     fabEl?.setAttribute("aria-expanded", "false");
     showListView();
-    unbindWindowDismiss();
+    unbindEsc();
 }
 
 function showPanel() {
-    const root = ensureHost();
-    ensurePanel(root);
-    paintScheme();
-    fillGrid();
+    if (!fabEl?.isConnected || !panelEl?.isConnected) mountFab();
     showListView();
     open = true;
     fabEl?.setAttribute("aria-expanded", "true");
-    placePanel();
     setDismissed(panelEl, false);
-    bindWindowDismiss();
+    bindEsc();
     emitBloomEvent("settingsOpen", undefined);
 }
 
@@ -497,26 +446,10 @@ function togglePanel() {
     else showPanel();
 }
 
-function placeFab(fab: HTMLElement) {
-    const box = fabPlacement(36);
-    fab.style.width = `${box.size}px`;
-    fab.style.height = `${box.size}px`;
-    fab.style.left = `${Math.round(box.x)}px`;
-    fab.style.top = `${Math.round(box.y)}px`;
-    fab.style.right = "auto";
-    fab.style.bottom = "auto";
-    fab.style.zIndex = Z_FAB;
-}
-
-function onWinPointerDown(e: PointerEvent) {
-    if (!open) return;
-    if (pathHitsBloom(e)) return;
-    hidePanel();
-}
-
-function onWinKey(e: KeyboardEvent) {
+function onEsc(e: KeyboardEvent) {
     if (e.key !== "Escape") return;
     if (!open) return;
+    e.preventDefault();
     if (pluginView) {
         showListView();
         return;
@@ -524,49 +457,34 @@ function onWinKey(e: KeyboardEvent) {
     hidePanel();
 }
 
-function unbindWindowDismiss() {
-    winAbort?.abort();
-    winAbort = null;
+function unbindEsc() {
+    escAbort?.abort();
+    escAbort = null;
 }
 
-function bindWindowDismiss() {
-    unbindWindowDismiss();
+function bindEsc() {
+    unbindEsc();
     if (!open) return;
     const ac = new AbortController();
-    winAbort = ac;
-    window.addEventListener("pointerdown", onWinPointerDown, { capture: true, signal: ac.signal });
-    window.addEventListener("keydown", onWinKey, { capture: true, signal: ac.signal });
+    escAbort = ac;
+    window.addEventListener("keydown", onEsc, { signal: ac.signal });
 }
 
 function mountFab() {
     const root = ensureHost();
     root.querySelector(".bloom-settings-fab")?.remove();
-    fabAbort?.abort();
 
     const fab = document.createElement("button");
     fab.type = "button";
     fab.className = "bloom-settings-fab";
     fab.setAttribute("aria-label", "Bloom++ settings");
     fab.setAttribute("aria-expanded", "false");
-    fab.setAttribute("aria-haspopup", "dialog");
+    fab.setAttribute("aria-haspopup", "menu");
     fab.innerHTML = blossomSvg();
     fab.addEventListener("click", togglePanel);
     root.appendChild(fab);
     fabEl = fab;
     ensurePanel(root);
-
-    const ac = new AbortController();
-    fabAbort = ac;
-    const relayout = () => {
-        invalidateFabAnchor();
-        placeFab(fab);
-        if (open) placePanel();
-    };
-    window.addEventListener("resize", relayout, { signal: ac.signal });
-    whenIdleReady(() => {
-        placeFab(fab);
-        if (open) placePanel();
-    });
 }
 
 export function openSettings() {
@@ -576,7 +494,7 @@ export function openSettings() {
 
 export default definePlugin({
     name: "Settings",
-    description: "Bloom++ settings, docked next to Download the ChatGPT app.",
+    description: "Bloom++ settings, a bottom-right cluster above the composer.",
     authors: [Devs.p],
     required: true,
     hidden: true,
@@ -593,9 +511,7 @@ export default definePlugin({
     },
 
     stop() {
-        fabAbort?.abort();
-        fabAbort = null;
-        unbindWindowDismiss();
+        unbindEsc();
         unwatchHost?.();
         unwatchHost = null;
         hidePanel();
