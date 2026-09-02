@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, a floating settings button.
 
-Current release: **[v1.3.1](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.1)** (`userscript/Bloom.user.js`, `@version [20260902] v1.3.1`).
+Current release: **[v1.3.2](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.2)** (`userscript/Bloom.user.js`, `@version [20260902] v1.3.2`).
 
 v1.3.0 ships:
 
@@ -26,7 +26,7 @@ The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in th
 
 Auto-update uses the same jsDelivr URL (`@updateURL` / `@downloadURL`). GitHub's `raw/refs/heads` URL returns HTML and Tampermonkey / Violentmonkey cannot pull updates from it.
 
-The settings shell **follows chatgpt.com's own theme** (`html.dark` and `--main-surface-primary`), not the operating-system color scheme. ChatStateFavicons draws a **white blossom on a dark plate** in every state (including idle) so the tab icon stays readable against ChatGPT chat backgrounds.
+The settings shell **follows chatgpt.com's own theme** (`html.dark` and `--main-surface-primary`), not the operating-system color scheme. ChatStateFavicons draws a **white blossom** (PNG, dark halo, no official black mark) from the first paint.
 
 ## ChatStateFavicons styles
 
@@ -77,6 +77,8 @@ v1.2.4: `#bloom-root` mounts on `document.documentElement`, never `body`. Page C
 v1.3.0: HostReady plugins start after the island gate + idle (blossom is settings only). Page CSS and the state favicon live in `document.head`. `#bloom-root` mounts on `document.body`. CSF uses a head-only FaviconGuard (`removeCompetitors`, insert first) and watches the composer root. InputHistory uses capture-phase `keydown`. NoDictation hides Dictation (`Start dictation` / `Dictate button` / 听写) and leaves Voice (`composer-speech-button`) alone. Composer Stop/Send/editor selectors are a union table in `src/host`.
 
 v1.3.1: Favicon is a white blossom on a dark plate in every state (the official black ChatGPT icon disappears against chat backgrounds). Plugin card icons have no chip background.
+
+v1.3.2: FAB click only toggles a prebuilt modal (does not start HostReady plugins). Favicon is a white blossom rasterized to PNG, last `rel=icon` in `head`, head-subtree guard, no SMIL. CSF starts at DOMContentLoaded.
 
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.

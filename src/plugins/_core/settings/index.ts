@@ -17,7 +17,7 @@ import {
     watchHostScheme,
     type SchemePref,
 } from "../../../host/theme";
-import { requestChromeReady, requestIdleReady, whenIdleReady, whenShellReady } from "../../../host/idleReady";
+import { requestIdleReady, whenIdleReady, whenShellReady } from "../../../host/idleReady";
 import { Devs } from "../../../utils/constants";
 import { syncShadowPluginStyles } from "../../../utils/css";
 import definePlugin, { OptionType, StartAt, type Plugin } from "../../../utils/types";
@@ -45,6 +45,9 @@ let fieldUnmounts: Array<() => void> = [];
 let unwatchHost: (() => void) | null = null;
 let shadowKeysBound = false;
 let fabAbort: AbortController | null = null;
+let backdropEl: HTMLButtonElement | null = null;
+let modalEl: HTMLDivElement | null = null;
+let gridEl: HTMLDivElement | null = null;
 
 function blossomSvg(): string {
     return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M21.55 10.004a5.416 5.416 0 00-.478-4.501c-1.217-2.09-3.662-3.166-6.05-2.66A5.59 5.59 0 0010.831 1C8.39.995 6.224 2.546 5.473 4.838A5.553 5.553 0 001.76 7.496a5.487 5.487 0 00.691 6.5 5.416 5.416 0 00.477 4.502c1.217 2.09 3.662 3.165 6.05 2.66A5.586 5.586 0 0013.168 23c2.443.006 4.61-1.546 5.361-3.84a5.553 5.553 0 003.715-2.66 5.488 5.488 0 00-.693-6.497v.001z"/></svg>`;
@@ -87,11 +90,7 @@ function syncShadowStyles() {
 }
 
 export function ensureHost(): ShadowRoot {
-    if (shadow) {
-        paintScheme();
-        syncShadowStyles();
-        return shadow;
-    }
+    if (shadow) return shadow;
     host = document.getElementById(ROOT_ID) as HTMLElement | null;
     if (!host) {
         host = document.createElement("div");
@@ -131,10 +130,7 @@ function closePluginDialog() {
 }
 
 function closeModal() {
-    open = false;
-    closePluginDialog();
-    shadow?.querySelector(".bloom-settings-backdrop")?.remove();
-    shadow?.querySelector(".bloom-settings-modal")?.remove();
+    hideModal();
 }
 
 function pluginToggle(name: string, checked: boolean, required: boolean): HTMLElement {
@@ -340,21 +336,35 @@ function pluginCard(plugin: Plugin): HTMLElement {
     return card;
 }
 
-function renderModal(root: ShadowRoot) {
-    closeModal();
-    syncShadowStyles();
-    open = true;
+function fillGrid() {
+    if (!gridEl) return;
+    gridEl.replaceChildren();
+    for (const plugin of Object.values(plugins)) {
+        if (plugin.hidden || plugin.name === "Settings") continue;
+        gridEl.appendChild(pluginCard(plugin));
+    }
+}
+
+function ensureModal(root: ShadowRoot) {
+    if (backdropEl && modalEl && gridEl && backdropEl.isConnected && modalEl.isConnected) return;
+
+    backdropEl?.remove();
+    modalEl?.remove();
+
     const backdrop = document.createElement("button");
     backdrop.type = "button";
     backdrop.className = "bloom-settings-backdrop";
     backdrop.setAttribute("aria-label", "Close settings");
-    backdrop.addEventListener("click", closeModal);
+    backdrop.hidden = true;
+    backdrop.addEventListener("click", hideModal);
+
     const modal = document.createElement("div");
     modal.className = "bloom-settings-modal";
     modal.setAttribute("role", "dialog");
     modal.setAttribute("aria-modal", "true");
     modal.setAttribute("aria-labelledby", "bloom-settings-title");
     modal.tabIndex = -1;
+    modal.hidden = true;
     modal.addEventListener("click", e => e.stopPropagation());
 
     const head = document.createElement("div");
@@ -373,7 +383,7 @@ function renderModal(root: ShadowRoot) {
     close.className = "bloom-icon-btn";
     close.setAttribute("aria-label", "Close");
     close.innerHTML = closeSvg();
-    close.addEventListener("click", closeModal);
+    close.addEventListener("click", hideModal);
     head.append(brand, close);
     modal.appendChild(head);
 
@@ -384,15 +394,38 @@ function renderModal(root: ShadowRoot) {
 
     const grid = document.createElement("div");
     grid.className = "bloom-plugin-grid";
-    for (const plugin of Object.values(plugins)) {
-        if (plugin.hidden || plugin.name === "Settings") continue;
-        grid.appendChild(pluginCard(plugin));
-    }
     modal.appendChild(grid);
 
     root.append(backdrop, modal);
-    modal.focus();
+    backdropEl = backdrop;
+    modalEl = modal;
+    gridEl = grid;
+    fillGrid();
+}
+
+function hideModal() {
+    open = false;
+    closePluginDialog();
+    if (backdropEl) backdropEl.hidden = true;
+    if (modalEl) modalEl.hidden = true;
+}
+
+function showModal() {
+    const root = ensureHost();
+    ensureModal(root);
+    fillGrid();
+    open = true;
+    if (backdropEl) backdropEl.hidden = false;
+    if (modalEl) {
+        modalEl.hidden = false;
+        modalEl.focus();
+    }
     emitBloomEvent("settingsOpen", undefined);
+}
+
+function toggleModal() {
+    if (open) hideModal();
+    else showModal();
 }
 
 function placeFab(fab: HTMLElement) {
@@ -415,12 +448,9 @@ function mountFab() {
     fab.className = "bloom-settings-fab";
     fab.setAttribute("aria-label", "Bloom++ settings");
     fab.innerHTML = blossomSvg();
-    fab.addEventListener("click", () => {
-        requestChromeReady();
-        if (open) closeModal();
-        else renderModal(root);
-    });
+    fab.addEventListener("click", toggleModal);
     root.appendChild(fab);
+    ensureModal(root);
 
     const ac = new AbortController();
     fabAbort = ac;
@@ -447,8 +477,7 @@ function onDocKey(e: KeyboardEvent) {
 
 export function openSettings() {
     requestIdleReady();
-    requestChromeReady();
-    whenShellReady(() => renderModal(ensureHost()));
+    whenShellReady(() => showModal());
 }
 
 export default definePlugin({
@@ -479,6 +508,9 @@ export default definePlugin({
         host = null;
         shadow = null;
         shadowKeysBound = false;
+        backdropEl = null;
+        modalEl = null;
+        gridEl = null;
     },
 
     onSettingsChange: paintScheme,

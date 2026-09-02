@@ -123,7 +123,8 @@ export async function init() {
     await waitForBody();
     const islands = await waitForHydrated();
     if (!islands) {
-        logger.warn("late islands not detected; waiting for menu", VERSION);
+        logger.warn("late islands not detected; shell only", VERSION);
+        requestIdleReady();
         return;
     }
     await runIdleSequence();

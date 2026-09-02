@@ -3,27 +3,35 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Own #bloom-chat-state-favicon as the first <link rel=icon> in
- * document.head. Competitors in head are stripped while an overlay is
- * showing. Wait-state removes our link so the official icon returns.
- * Observer is head-only — never html / body subtree.
+ * Own #bloom-chat-state-favicon as the LAST <link rel=icon> in
+ * document.head (Chrome prefers the last icon). Competitors in head
+ * are stripped while Bloom owns the tab. Observer is head-only with
+ * subtree so href/rel edits on child links are visible.
+ * Never observe html or body.
  */
 
+let mute = 0;
+
+function withMute(fn: () => void) {
+    mute += 1;
+    try {
+        fn();
+    } finally {
+        mute -= 1;
+    }
+}
+
 export function isIconLink(node: Node): node is HTMLLinkElement {
-    return node instanceof HTMLLinkElement && (node.relList.contains("icon") || /\bicon\b/i.test(node.rel));
+    if (!(node instanceof HTMLLinkElement)) return false;
+    if (node.relList.contains("icon")) return true;
+    const rel = node.rel;
+    if (!rel) return false;
+    // Token match only — do not treat apple-touch-icon as a tab favicon.
+    return /(?:^|\s)shortcut\s+icon(?:\s|$)/i.test(rel);
 }
 
 export function isUsableOfficialHref(href: string | undefined | null): href is string {
-    return !!href && !href.startsWith("data:") && href !== "undefined";
-}
-
-export function existingIconLink(keepId: string): HTMLLinkElement | null {
-    const { head } = document;
-    if (!head) return null;
-    for (const node of head.querySelectorAll("link")) {
-        if (isIconLink(node) && node.id !== keepId) return node;
-    }
-    return null;
+    return !!href && !href.startsWith("data:") && !href.startsWith("blob:") && href !== "undefined";
 }
 
 function ourLink(id: string): HTMLLinkElement | null {
@@ -39,40 +47,56 @@ export function stripCompetitorIcons(keepId: string) {
     }
 }
 
-export function applyFavicon(id: string, href: string, type = "image/svg+xml") {
-    const { head } = document;
-    if (!head) return;
-    stripCompetitorIcons(id);
-    let link = ourLink(id);
-    if (!link) {
-        link = document.createElement("link");
-        link.id = id;
-        link.rel = "icon";
-        link.type = href.startsWith("data:image/svg") || href.endsWith(".svg") ? type : "";
-        link.setAttribute("sizes", "any");
-        head.prepend(link);
-    } else if (head.firstChild !== link) {
-        head.prepend(link);
+function mimeFor(href: string): { type: string; sizes: string } {
+    if (href.startsWith("data:image/png") || href.endsWith(".png")) {
+        return { type: "image/png", sizes: "32x32" };
     }
-    if (link.getAttribute("href") !== href) link.setAttribute("href", href);
+    if (href.startsWith("data:image/svg") || href.endsWith(".svg")) {
+        return { type: "image/svg+xml", sizes: "any" };
+    }
+    return { type: "", sizes: "any" };
+}
+
+export function applyFavicon(id: string, href: string) {
+    const { head } = document;
+    if (!head || !href) return;
+    withMute(() => {
+        stripCompetitorIcons(id);
+        let link = ourLink(id);
+        const { type, sizes } = mimeFor(href);
+        if (!link) {
+            link = document.createElement("link");
+            link.id = id;
+            link.rel = "icon";
+            head.appendChild(link);
+        } else if (head.lastElementChild !== link) {
+            head.appendChild(link);
+        }
+        if (link.rel !== "icon") link.rel = "icon";
+        if (link.type !== type) link.type = type;
+        if (link.getAttribute("sizes") !== sizes) link.setAttribute("sizes", sizes);
+        if (link.getAttribute("href") !== href) link.setAttribute("href", href);
+    });
 }
 
 export function restoreOfficialFavicon(id: string, officialHref: string) {
     const { head } = document;
     if (!head) return;
-    ourLink(id)?.remove();
-    const remaining = Array.from(head.querySelectorAll("link")).filter(isIconLink);
-    if (remaining.length) {
-        if (isUsableOfficialHref(officialHref) && remaining[0].href !== officialHref) {
-            remaining[0].href = officialHref;
+    withMute(() => {
+        ourLink(id)?.remove();
+        const remaining = Array.from(head.querySelectorAll("link")).filter(isIconLink);
+        if (remaining.length) {
+            if (isUsableOfficialHref(officialHref) && remaining[0].href !== officialHref) {
+                remaining[0].href = officialHref;
+            }
+            return;
         }
-        return;
-    }
-    if (!isUsableOfficialHref(officialHref)) return;
-    const link = document.createElement("link");
-    link.rel = "icon";
-    link.href = officialHref;
-    head.prepend(link);
+        if (!isUsableOfficialHref(officialHref)) return;
+        const link = document.createElement("link");
+        link.rel = "icon";
+        link.href = officialHref;
+        head.appendChild(link);
+    });
 }
 
 export function startFaviconGuard(
@@ -82,9 +106,11 @@ export function startFaviconGuard(
     const { head } = document;
     if (!head) return null;
     const obs = new MutationObserver(list => {
+        if (mute) return;
         for (const m of list) {
-            if (m.type === "attributes" && isIconLink(m.target) && m.target.id !== id) {
-                onCompete(m.target.href);
+            if (m.type === "attributes" && isIconLink(m.target)) {
+                // Re-apply if ChatGPT mutates our href; never treat data: as official.
+                onCompete(m.target.id === id ? undefined : m.target.href);
                 return;
             }
             for (const node of m.addedNodes) {
@@ -97,9 +123,9 @@ export function startFaviconGuard(
     });
     obs.observe(head, {
         childList: true,
-        subtree: false,
+        subtree: true,
         attributes: true,
-        attributeFilter: ["href", "rel"],
+        attributeFilter: ["href", "rel", "sizes"],
     });
     return obs;
 }

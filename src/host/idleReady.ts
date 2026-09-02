@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * IdleReady mounts the FAB. HostReady plugins start after the island
- * gate + idle sequence (or immediately on a FAB / Violentmonkey menu
- * gesture). The blossom is a settings entry, not a feature kill-switch.
+ * gate + idle sequence. The blossom only opens settings — it does not
+ * start HostReady plugins.
  */
 
 let shellReady = false;
@@ -68,13 +68,13 @@ export function whenChromeReady(fn: () => void) {
     else chromeWaiters.push(fn);
 }
 
-/** Menu / explicit user action. Safe before the idle sequence. */
+/** FAB exists; does not start HostReady plugins. */
 export function requestIdleReady() {
     fireShell();
     fireIdle();
 }
 
-/** FAB, Violentmonkey menu, or idle sequence after islands. Starts HostReady plugins. */
+/** Island + idle sequence. Starts HostReady plugins. */
 export function requestChromeReady() {
     fireChrome();
 }

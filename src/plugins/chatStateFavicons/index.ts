@@ -5,14 +5,13 @@
  *
  * State machine adapted from Void++ ChatStateFavicons; ChatGPT streaming
  * detectors from Chat-State-Favicons (MIT). Streaming is NOT gated on empty input.
- * Wait, streaming, done, ready, and error all use a composed white blossom.
- * Favicon link lives in document.head with a head-only competitor guard.
+ * Wait, streaming, done, ready, and error all use a composed white blossom
+ * rasterized to PNG. Favicon link is last in document.head with a head-only
+ * competitor guard (subtree on head, never html/body).
  */
 
-import { onBloomEvent } from "../../api/Events";
 import { definePluginSettings } from "../../api/Settings";
 import { getComposerRoot } from "../../host/composer";
-import { resolveScheme, type ColorScheme, type SchemePref } from "../../host/theme";
 import { Devs } from "../../utils/constants";
 import {
     applyFavicon,
@@ -51,8 +50,13 @@ const settings = definePluginSettings({
 });
 
 let officialHref = "";
-let scheme: ColorScheme = "light";
-let icons = buildIcons("badge", "", scheme);
+let icons: Record<FaviconKind, string> = {
+    wait: "",
+    rotate: "",
+    done: "",
+    ready: "",
+    error: "",
+};
 let kind: FaviconKind = "wait";
 let wasStreaming = false;
 let justFinished = false;
@@ -61,7 +65,6 @@ let lockedToken = "";
 let lastConvId = "";
 let primedReady = true;
 let inputCtrl: AbortController | null = null;
-let unsubScheme: (() => void) | null = null;
 let raf = 0;
 let pollTimer: ReturnType<typeof setInterval> | undefined;
 let faviconObs: MutationObserver | null = null;
@@ -74,14 +77,6 @@ const POLL_MS = 400;
 function currentStyle(): IconStyle {
     const value = settings.store.style;
     return isIconStyle(value) ? value : "badge";
-}
-
-function appearancePref(): SchemePref {
-    return "auto";
-}
-
-function currentScheme(): ColorScheme {
-    return resolveScheme(appearancePref());
 }
 
 function captureOfficial(): string {
@@ -98,8 +93,7 @@ function setKind(next: FaviconKind) {
 }
 
 function rebuildIcons() {
-    scheme = currentScheme();
-    icons = buildIcons(currentStyle(), officialHref, scheme);
+    icons = buildIcons(currentStyle());
     setKind(kind);
 }
 
@@ -247,23 +241,17 @@ export default definePlugin({
     tags: ["chat", "ui"],
     enabledByDefault: true,
     settings,
-    startAt: StartAt.HostReady,
+    startAt: StartAt.DOMContentLoaded,
     cleanupSelectors: [`#${ICON_ID}`],
 
     start() {
         started = true;
-        scheme = currentScheme();
         officialHref = captureOfficial() || officialHref;
         rebuildIcons();
         faviconObs?.disconnect();
         faviconObs = startFaviconGuard(ICON_ID, href => {
             if (isUsableOfficialHref(href)) officialHref = href;
-            rebuildIcons();
-        });
-        unsubScheme = onBloomEvent("schemeChange", () => {
-            const recaptured = captureOfficial();
-            if (recaptured) officialHref = recaptured;
-            rebuildIcons();
+            applyFavicon(ICON_ID, icons[kind]);
         });
         inputCtrl?.abort();
         inputCtrl = new AbortController();
@@ -286,8 +274,6 @@ export default definePlugin({
         }
         inputCtrl?.abort();
         inputCtrl = null;
-        unsubScheme?.();
-        unsubScheme = null;
         composerObs?.disconnect();
         composerObs = null;
         composerRoot = null;

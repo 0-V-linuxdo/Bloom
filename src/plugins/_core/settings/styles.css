@@ -130,6 +130,11 @@
   pointer-events: auto;
 }
 
+.bloom-settings-backdrop[hidden],
+.bloom-settings-modal[hidden] {
+  display: none !important;
+}
+
 .bloom-settings-head {
   display: flex;
   align-items: center;
