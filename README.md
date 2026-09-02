@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, a floating settings button.
 
-Current release: **[v1.3.7](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.7)** (`userscript/Bloom.user.js`, `@version [20260902] v1.3.7`).
+Current release: **[v1.3.8](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.3.8)** (`userscript/Bloom.user.js`, `@version [20260902] v1.3.8`).
 
 v1.3.0 ships:
 
@@ -22,7 +22,7 @@ The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in th
 1. Install [Violentmonkey](https://violentmonkey.github.io/) or Tampermonkey.
 2. Open [`userscript/Bloom.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/main/userscript/Bloom.user.js).
 3. Confirm install. Reload `chatgpt.com`.
-4. Use the blossom button (bottom-right, draggable) to open plugins.
+4. Use the blossom button (top-right) to open plugins.
 
 Auto-update uses the same GitHub raw URL (`@updateURL` / `@downloadURL`). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
 
@@ -89,6 +89,8 @@ v1.3.5: `#bloom-root` is a zero-size fixed host (cannot cover the page). Setting
 v1.3.6: FAB docks to the header Download / profile control, never the left-rail avatar. Flyout is ~520px so plugin names are not clipped.
 
 v1.3.7: Settings is a CSS-anchored cluster above the composer (no header hunting, no `resize` layout, no capture `pointerdown`). Opening the panel no longer freezes the page or spikes memory. Single-column cards so names are not clipped.
+
+v1.3.8: Settings is a **top-layer popover** (`popover=manual`) anchored to a header FAB. Compact menu rows (no PluginCard / no author footer). Host is a pass-through overlay so the panel cannot expand document overflow.
 
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.

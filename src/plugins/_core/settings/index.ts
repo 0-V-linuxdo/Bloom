@@ -3,9 +3,9 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Fixed cluster above the composer. Panel is an absolute child of the host.
- * No header hunting, no getBoundingClientRect layout, no window resize,
- * no capture pointerdown, never a full-viewport backdrop.
+ * Pass-through viewport overlay. FAB at the header. Panel is popover=manual
+ * (top layer). Never an absolute child overflowing a 36×36 box.
+ * No getBoundingClientRect, no window resize, no capture pointerdown.
  */
 
 import { emitBloomEvent } from "../../../api/Events";
@@ -108,21 +108,50 @@ function setDismissed(el: HTMLElement | null, dismissed: boolean) {
     el.style.pointerEvents = dismissed ? "none" : "auto";
 }
 
-/** 36×36 cluster above the composer. Never 0×0-with-JS-pixels (resize loop). */
+/** Host is a pass-through overlay so shadow `position:fixed` (HUD) maps to the viewport. */
 function resetHostBox(el: HTMLElement) {
     el.style.position = "fixed";
-    el.style.top = "auto";
-    el.style.left = "auto";
-    el.style.right = "12px";
-    el.style.bottom = "96px";
-    el.style.width = "36px";
-    el.style.height = "36px";
+    el.style.inset = "0";
+    el.style.width = "auto";
+    el.style.height = "auto";
     el.style.margin = "0";
     el.style.padding = "0";
     el.style.border = "0";
-    el.style.overflow = "visible";
+    el.style.overflow = "hidden";
     el.style.pointerEvents = "none";
     el.style.zIndex = Z_FAB;
+}
+
+type PopoverNode = HTMLElement & { showPopover: () => void; hidePopover: () => void };
+
+function asPopover(el: HTMLElement | null): PopoverNode | null {
+    if (!el) return null;
+    const node = el as PopoverNode;
+    return typeof node.showPopover === "function" ? node : null;
+}
+
+function revealPanel(el: HTMLElement) {
+    const pop = asPopover(el);
+    if (pop) {
+        el.removeAttribute("hidden");
+        el.removeAttribute("inert");
+        el.removeAttribute("aria-hidden");
+        el.style.pointerEvents = "auto";
+        try { pop.showPopover(); } catch { /* already open */ }
+        return;
+    }
+    setDismissed(el, false);
+}
+
+function concealPanel(el: HTMLElement | null) {
+    if (!el) return;
+    const pop = asPopover(el);
+    if (pop) {
+        try {
+            if (el.matches(":popover-open")) pop.hidePopover();
+        } catch { /* already closed */ }
+    }
+    setDismissed(el, true);
 }
 
 function purgeLeftoverOverlays(root: ParentNode) {
@@ -277,54 +306,36 @@ function showPluginView(plugin: Plugin) {
     setDismissed(pluginEl, false);
 }
 
-function pluginCard(plugin: Plugin): HTMLElement {
-    const card = document.createElement("section");
-    card.className = "bloom-plugin-card";
+function pluginRow(plugin: Plugin): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "bloom-plugin-row";
+    row.setAttribute("role", "menuitem");
 
-    const body = document.createElement("div");
-    body.className = "bloom-card-body";
-    const top = document.createElement("div");
-    top.className = "bloom-card-top";
-
-    const name = document.createElement("div");
-    name.className = "bloom-card-name";
     const icon = document.createElement("span");
-    icon.className = "bloom-card-icon";
+    icon.className = "bloom-plugin-icon";
     icon.innerHTML = pluginIcon(plugin.name);
-    const h3 = document.createElement("h3");
-    h3.textContent = plugin.name;
-    name.append(icon, h3);
 
-    const controls = document.createElement("div");
-    controls.className = "bloom-card-controls";
+    const label = document.createElement("span");
+    label.className = "bloom-plugin-label";
+    label.textContent = plugin.name;
+
+    row.append(icon, label);
+
     if (hasSettings(plugin)) {
         const gear = document.createElement("button");
         gear.type = "button";
-        gear.className = "bloom-icon-btn bloom-card-gear";
+        gear.className = "bloom-icon-btn";
         gear.setAttribute("aria-label", `${plugin.name} settings`);
         gear.innerHTML = gearSvg();
         gear.addEventListener("click", () => showPluginView(plugin));
-        controls.appendChild(gear);
+        row.appendChild(gear);
     }
+
     const toggle = pluginToggle(plugin.name, isPluginEnabled(plugin.name), !!plugin.required);
     const box = toggle.querySelector("input");
     box?.addEventListener("change", () => { togglePlugin(plugin.name); });
-    controls.appendChild(toggle);
-    top.append(name, controls);
-
-    const desc = document.createElement("p");
-    desc.className = "bloom-card-desc";
-    desc.textContent = plugin.description;
-    body.append(top, desc);
-
-    const sep = document.createElement("div");
-    sep.className = "bloom-card-sep";
-    const footer = document.createElement("div");
-    footer.className = "bloom-card-footer";
-    footer.textContent = plugin.authors?.join(", ") || "\u00A0";
-
-    card.append(body, sep, footer);
-    return card;
+    row.appendChild(toggle);
+    return row;
 }
 
 function fillGrid() {
@@ -332,7 +343,7 @@ function fillGrid() {
     gridEl.replaceChildren();
     for (const plugin of Object.values(plugins)) {
         if (plugin.hidden || plugin.name === "Settings") continue;
-        gridEl.appendChild(pluginCard(plugin));
+        gridEl.appendChild(pluginRow(plugin));
     }
 }
 
@@ -345,7 +356,17 @@ function ensurePanel(root: ShadowRoot) {
     panel.className = "bloom-settings-panel";
     panel.setAttribute("role", "menu");
     panel.setAttribute("aria-labelledby", "bloom-settings-title");
-    setDismissed(panel, true);
+    panel.setAttribute("popover", "manual");
+    if (!asPopover(panel)) setDismissed(panel, true);
+    panel.addEventListener("toggle", () => {
+        const shown = panel.matches(":popover-open");
+        open = shown;
+        fabEl?.setAttribute("aria-expanded", shown ? "true" : "false");
+        if (!shown) {
+            showListView();
+            unbindEsc();
+        }
+    });
 
     const list = document.createElement("div");
     list.className = "bloom-settings-list";
@@ -376,7 +397,7 @@ function ensurePanel(root: ShadowRoot) {
     list.appendChild(sub);
 
     const grid = document.createElement("div");
-    grid.className = "bloom-plugin-grid";
+    grid.className = "bloom-plugin-list";
     list.appendChild(grid);
 
     const pluginPane = document.createElement("div");
@@ -425,7 +446,7 @@ function ensurePanel(root: ShadowRoot) {
 
 function hidePanel() {
     open = false;
-    setDismissed(panelEl, true);
+    concealPanel(panelEl);
     fabEl?.setAttribute("aria-expanded", "false");
     showListView();
     unbindEsc();
@@ -433,10 +454,11 @@ function hidePanel() {
 
 function showPanel() {
     if (!fabEl?.isConnected || !panelEl?.isConnected) mountFab();
+    if (!panelEl) return;
     showListView();
     open = true;
     fabEl?.setAttribute("aria-expanded", "true");
-    setDismissed(panelEl, false);
+    revealPanel(panelEl);
     bindEsc();
     emitBloomEvent("settingsOpen", undefined);
 }
@@ -494,7 +516,7 @@ export function openSettings() {
 
 export default definePlugin({
     name: "Settings",
-    description: "Bloom++ settings, a bottom-right cluster above the composer.",
+    description: "Bloom++ settings, a header menu in the top layer.",
     authors: [Devs.p],
     required: true,
     hidden: true,
