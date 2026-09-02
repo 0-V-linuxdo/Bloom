@@ -58,12 +58,19 @@ function wait(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// ChatGPT hydrates html/body after DCL. DOMContentLoaded is not "hydrated".
-// Extra siblings under <html> or body appends in that window can drop
-// client islands (sidebar Recents, profile avatar) even with a silent console.
+const HYDRATION_MIN_MS = 8_000;
+const HYDRATION_SETTLE_MS = 1_000;
+
+// ChatGPT hydrates html/body and late client islands (Recents, avatar,
+// click handlers) well after DCL and often after window load.
+// MCP SuperAssistant #190: delay ALL chatgpt.com DOM mounts ~8s from start.
+// load+1s (v1.1.3) was still inside that window: Recents/avatar dropped,
+// buttons stayed dead, and React detached #bloom-root so the FAB never appeared.
 async function waitForHydrated(): Promise<void> {
+    const started = Date.now();
     await waitForWindowLoad();
-    await wait(1_000);
+    const elapsed = Date.now() - started;
+    await wait(Math.max(HYDRATION_MIN_MS - elapsed, HYDRATION_SETTLE_MS));
 }
 
 export async function initSettings() {

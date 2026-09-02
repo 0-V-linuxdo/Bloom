@@ -13,7 +13,7 @@ import { Devs } from "../../utils/constants";
 import { registerStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
 import { clamp, copyToClipboard } from "../../utils/misc";
-import definePlugin, { OptionType } from "../../utils/types";
+import definePlugin, { OptionType, StartAt } from "../../utils/types";
 import css from "./styles.css";
 
 const logger = new Logger("InputHistory");
@@ -417,6 +417,7 @@ export default definePlugin({
     tags: ["chat"],
     enabledByDefault: true,
     settings,
+    startAt: StartAt.HostReady,
     managedStyle: "inputHistory",
     cleanupSelectors: [".bloom-ih-hud"],
 

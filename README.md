@@ -48,7 +48,9 @@ Both plugins inject CSS at `document-start` and then stop. They do **not** walk 
 
 v1.1.2: `registerStyle` waits for `document.head` and never appends to `<html>`.
 
-v1.1.3: HostReady waits for `window` load plus a short settle delay (not `DOMContentLoaded`). `#bloom-root` and the InputHistory HUD mount on `document.body` only — extra siblings under `<html>` during hydration dropped Recents and the profile avatar.
+v1.1.3: HostReady waits for `window` load plus a short settle delay (not `DOMContentLoaded`). `#bloom-root` and the InputHistory HUD mount on `document.body` only.
+
+v1.1.4: HostReady waits `max(window load, ~8s from init)` before any body mount. InputHistory starts at HostReady, not `DOMContentLoaded`. If React detaches `#bloom-root`, remount once. `load+1s` was still inside ChatGPT hydration — Recents, avatar, click handlers, and the blossom button all dropped.
 
 - NoShareLink: `button[data-testid="share-chat-button"]` plus header-scoped `aria-label` (Share / 分享). Project: `share-project-button` / Share project / 分享项目. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: `button[data-testid="composer-speech-button"]` and composer-scoped Dictate / 听写 labels. Leaves `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.

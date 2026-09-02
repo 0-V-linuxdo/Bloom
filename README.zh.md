@@ -32,7 +32,9 @@ v1.1：
 
 v1.1.2：样式只挂到 `document.head`，没有 head 就等，禁止挂到 `<html>`。
 
-v1.1.3：HostReady 等到 `window` load 再短暂停一下（不再把 `DOMContentLoaded` 当成水合完成）。`#bloom-root` 和 InputHistory HUD 只挂到 `document.body`，避免刷新后 Recents / 头像丢失。
+v1.1.3：HostReady 等到 `window` load 再短暂停一下（不再把 `DOMContentLoaded` 当成水合完成）。`#bloom-root` 和 InputHistory HUD 只挂到 `document.body`。
+
+v1.1.4：HostReady 从脚本启动起至少约 8 秒，且等 `window` load，之后才往 body 挂节点。InputHistory 改到 HostReady，不再默认 DCL。若 React 拆掉 `#bloom-root`，只重挂一次。`load+1s` 仍落在水合窗口里，会出现 Recents / 头像丢失、按钮点不动、花瓣按钮不出现。
 
 ## 构建
 
