@@ -4,9 +4,9 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.13](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.13)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.13`）。
+当前版本：**[v1.4.14](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.14)**（`userscript/Bloom.user.js`，`@version [20260902] v1.4.14`）。
 
-v1.4.13：
+v1.4.14：
 
 | 插件 | 默认 | 说明 |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ v1.4.13：
 | InputHistory | 开 | 在输入框用 ↑ / ↓ 翻看历史提示词，类似终端。 |
 | NoShareLink | 关 | 隐藏对话顶栏 Share 和项目里的 Share project。纯 CSS。 |
 | NoDictation | 关 | 隐藏输入栏听写（语音转文字）按钮，不隐藏 Voice。纯 CSS。 |
-| NoSidebarIdentity | 开 | 隐藏侧栏头像旁的显示名。可选：放大 Plus/Pro/Free，与头像高度对齐。纯 CSS。 |
+| NoSidebarIdentity | 开 | 隐藏侧栏头像旁的显示名，头像仍可点。纯 CSS。 |
 | RecentTopics | 开 | Ctrl+` 切换最近打开的会话（标题 + 上轮预览）。 |
 | Cleaner | 开 | 隐藏 Download apps 按钮和输入栏下方「也会犯错」提示。纯 CSS。 |
 
@@ -106,6 +106,8 @@ v1.4.11：新增 **Cleaner**（纯 CSS，默认开）。隐藏 Download apps 和
 v1.4.12：Cleaner 的提示选择器对齐 chatgpt.com：`thread-disclaimer` 与 `--vt-disclaimer`（不再用假的 `composer-disclaimer` / `form +` 兄弟）。不藏整个 `#thread-bottom-container`。
 
 v1.4.13：NoSidebarIdentity 新增 `enlargePlan`（默认开，仅在隐藏显示名时生效）。去掉名字节点，让 Plus/Pro/Free 顶到名字那一行，14px/500，与 32px 头像垂直对齐，和 Bloom++ 同一套尺寸。
+
+v1.4.14：**撤回** 1.4.13 的 `enlargePlan`。`display:none` 名字再改 `.min-w-0` 会把 Pro 挤到头像下面。显示名仍用 `visibility:hidden` 保占位。
 
 ## 构建
 
