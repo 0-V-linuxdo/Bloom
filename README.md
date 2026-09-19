@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.33](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.33)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.33`).
+Current release: **[v1.4.34](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.34)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.34`).
 
 v1.4.23 ships:
 
@@ -154,7 +154,9 @@ v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses 
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
 
-v1.4.33: NoSidebarIdentity `alignPlanWithAvatar` (default off, only while the name is hidden). Collapses the empty name line height so Plus/Pro/Free sits on the avatar midline. Still `visibility:hidden` — no `display:none`, no chip `align-items`, no `.min-w-0` flex restyle.
+v1.4.34: NoSidebarIdentity `alignPlanWithAvatar` actually moves Plus/Pro/Free. 1.4.33's `height:0` on the hidden `.truncate` left the parent line box, so the plan stayed on the lower half of the avatar. Align now `display:none`s the name *line* only (name node / block or `flex-col` first child — never the `.min-w-0` column, never `.min-w-0.flex > :first-child`, which is the avatar). Plan in a tall column gets `margin-block: auto`. Still no chip `align-items`, no `.min-w-0` flex restyle (1.4.13).
+
+v1.4.33: NoSidebarIdentity `alignPlanWithAvatar` (default off, only while the name is hidden). Collapsed the empty name `.truncate` height. Superseded by 1.4.34 — that height collapse had no visible effect on Helium.
 
 v1.4.32: **Rail row matches the account chip again.** Rest state is transparent like the native Pro row (no `#353535` card fill). Hover still uses `--interactive-bg-secondary-hover`. Settings panel and plugin popup keep `--bg-primary` + `shadow-long`.
 
@@ -182,7 +184,7 @@ v1.4.21: **Restore the centered settings dock** (1.4.20 left-rail move was unwan
 
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.
-- NoSidebarIdentity: `[data-testid="accounts-profile-button"] .flex.min-w-0 > .truncate`. Toggles `hideUsername` and `hideEmail` (mailto only; Plus/Pro labels are left alone). `enlargePlan` (default on, while the name is hidden) sets the plan label to 14px/1.25/500 via `.text-xs` / `.text-token-text-secondary:not(.truncate)`. Never restyles `.truncate`. `alignPlanWithAvatar` (default off, while the name is hidden) collapses that name `.truncate` height so the plan sits on the avatar midline. Never `display:none`, never chip `align-items`, never `.min-w-0` flex.
+- NoSidebarIdentity: `[data-testid="accounts-profile-button"] .flex.min-w-0 > .truncate`. Toggles `hideUsername` and `hideEmail` (mailto only; Plus/Pro labels are left alone). `enlargePlan` (default on, while the name is hidden) sets the plan label to 14px/1.25/500 via `.text-xs` / `.text-token-text-secondary:not(.truncate)`. Never restyles `.truncate`. `alignPlanWithAvatar` (default off, while the name is hidden) `display:none`s the name line (not the `.min-w-0` column) so the plan sits on the avatar midline. Never chip `align-items`, never `.min-w-0` flex.
 - RecentTopics: Ctrl+` / Ctrl+Shift+` / Esc / Enter. `maxRecent` 3–12 (default 5). `includeHome` (default on).
 - Cleaner: Download apps via `a[href*="/download"]` / `download-app-button` / aria-label. Disclaimer via `[data-testid="thread-disclaimer"]` and `[class*="--vt-disclaimer"]` inside `#thread-bottom-container`. Upgrade CTAs via `upgrade-button` / `get-plus-button` / `/upgrade` / `/checkout`. Locked models via `aria-disabled` / `data-state="locked"` picker rows. Home promo and ads via `home-promo` / `sponsored` / `ad-slot` testids. `display:none` (those controls should leave the layout).
 - ResponseNotification: `isStreaming()` falling-edge, 3 quiet 400ms ticks, `contextKey` lock. Settings `sound`, `soundUrl`, `browserNotification`, `onlyWhenHidden`.

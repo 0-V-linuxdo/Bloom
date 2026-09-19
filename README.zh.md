@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.33](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.33)**（`userscript/Bloom.user.js`，`@version [20260919] v1.4.33`）。
+当前版本：**[v1.4.34](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.34)**（`userscript/Bloom.user.js`，`@version [20260919] v1.4.34`）。
 
 v1.4.23：
 
@@ -141,7 +141,9 @@ v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**fav
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
 
-v1.4.33：NoSidebarIdentity 新增 `alignPlanWithAvatar`（默认关，仅在隐藏显示名时生效）。收掉空名字行的高度，让 Plus/Pro/Free 落到头像中线。仍用 `visibility:hidden` 保槽——不 `display:none`、不改芯片 `align-items`、不重排 `.min-w-0`。
+v1.4.34：NoSidebarIdentity `alignPlanWithAvatar` 终于会动 Plus/Pro/Free。1.4.33 只把隐藏的 `.truncate` `height:0`，父级行盒还在，订阅等级仍贴在头像下半截。现在只对**名字行** `display:none`（名字节点 / 块级或 `flex-col` 的第一子节点——不是整列 `.min-w-0`，也不是 `.min-w-0.flex > :first-child`，那是头像）。列被拉高时 plan 用 `margin-block: auto`。仍不改芯片 `align-items`、不重排 `.min-w-0`（1.4.13）。
+
+v1.4.33：NoSidebarIdentity 新增 `alignPlanWithAvatar`（默认关，仅在隐藏显示名时生效）。收掉空名字 `.truncate` 的高度。已被 1.4.34 取代——在 Helium 上没有可见效果。
 
 v1.4.32：**侧栏 Bloom++ 行重新对齐账号条。** 休息态透明，和原生 Pro 行一样，不再铺 `#353535` 卡片底。悬停仍用 `--interactive-bg-secondary-hover`。设置面板和插件弹窗继续用 `--bg-primary` + `shadow-long`。
 
