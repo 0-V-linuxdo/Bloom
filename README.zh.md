@@ -4,9 +4,9 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.20](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.20)**（`userscript/Bloom.user.js`，`@version [20260919] v1.4.20`）。
+当前版本：**[v1.4.21](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.21)**（`userscript/Bloom.user.js`，`@version [20260919] v1.4.21`）。
 
-v1.4.20：
+v1.4.21：
 
 | 插件 | 默认 | 说明 |
 | --- | --- | --- |
@@ -120,6 +120,8 @@ v1.4.18：**修页面卡死。** ChatStateFavicons 不再每次 evaluate 都删�
 v1.4.19：**设置弹窗配色对齐 ChatGPT 原生 Settings。** 面板用 `--bg-primary` + `shadow-long`（白底浮层，不用页面灰的 `--main-surface-primary`）。开关 / 滑块用 `--bg-primary-inverted`（黑 / 白），不再用 `--text-accent` 蓝。标签用和 General 一样的灰底 pill。宿主 token 回退值跟当前 chatgpt.com 浅色 / 深色。
 
 v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`20rem`，`left: 0.75rem`），不再居中 `56rem` 盖住右下角的加号 / 听写 / Voice。插件卡保持单列 BaseCard。
+
+v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 ## 构建
 

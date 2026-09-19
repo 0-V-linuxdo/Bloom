@@ -7,9 +7,10 @@
  * detectors from Chat-State-Favicons (MIT). Streaming is NOT gated on empty input.
  * Wait, streaming, done, ready, and error all use a composed white blossom
  * rasterized to PNG. Favicon link is last in document.head. Never strip
- * ChatGPT's official icon nodes (React hydrateRoot owns them). Head-only
- * guard (subtree on head, never html/body). Composer watch is childList
- * plus Stop/Send attrs — not `class` (token paint would schedule every frame).
+ * ChatGPT's official icon nodes (React hydrateRoot owns them); park them
+ * so Chrome does not prefer the official SVG. Head-only guard (subtree
+ * on head, never html/body). Composer watch is childList plus Stop/Send
+ * attrs — not `class` (token paint would schedule every frame).
  */
 
 import { definePluginSettings } from "../../api/Settings";

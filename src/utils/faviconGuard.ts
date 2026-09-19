@@ -4,12 +4,17 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Own #bloom-chat-state-favicon as the LAST <link rel=icon> in
- * document.head (Chrome prefers the last icon). Never remove ChatGPT's
- * official icon links — hydrateRoot(document) owns those SSR nodes, and
- * stripping them fights React (page freeze / dead clicks). Observer is
- * head-only with subtree so href/rel edits on our link are visible.
- * Never observe html or body.
+ * document.head. Never remove ChatGPT's official icon links —
+ * hydrateRoot(document) owns those SSR nodes, and stripping them fights
+ * React (page freeze / dead clicks). Official icons stay in the tree
+ * but are parked (`media="not all"` + rel bloom-host-icon) so Chrome
+ * cannot prefer their SVG over our PNG. Observer is head-only with
+ * subtree. Never observe html or body.
  */
+
+const HOST_REL = "bloom-host-icon";
+const HOST_REL_ATTR = "data-bloom-host-rel";
+const OFF_MEDIA = "not all";
 
 let mute = 0;
 let lastMoveAt = 0;
@@ -60,10 +65,32 @@ function placeLast(head: HTMLElement, link: HTMLLinkElement) {
     head.appendChild(link);
 }
 
+/** Disable host icon links without removing them (React owns the nodes). */
+function parkOfficialIcons(head: HTMLElement, ourId: string) {
+    for (const node of head.querySelectorAll("link")) {
+        if (!(node instanceof HTMLLinkElement) || node.id === ourId) continue;
+        if (!isIconLink(node)) continue;
+        if (!node.getAttribute(HOST_REL_ATTR)) node.setAttribute(HOST_REL_ATTR, node.rel);
+        if (node.media !== OFF_MEDIA) node.media = OFF_MEDIA;
+        if (node.rel !== HOST_REL) node.rel = HOST_REL;
+    }
+}
+
+function unparkOfficialIcons(head: HTMLElement) {
+    for (const node of head.querySelectorAll(`link[${HOST_REL_ATTR}]`)) {
+        if (!(node instanceof HTMLLinkElement)) continue;
+        const rel = node.getAttribute(HOST_REL_ATTR);
+        if (rel) node.rel = rel;
+        node.removeAttribute(HOST_REL_ATTR);
+        if (node.media === OFF_MEDIA) node.removeAttribute("media");
+    }
+}
+
 export function applyFavicon(id: string, href: string) {
     const { head } = document;
     if (!head || !href) return;
     withMute(() => {
+        parkOfficialIcons(head, id);
         let link = ourLink(id);
         const { type, sizes } = mimeFor(href);
         if (!link) {
@@ -86,6 +113,7 @@ export function restoreOfficialFavicon(id: string, _officialHref: string) {
     if (!head) return;
     withMute(() => {
         ourLink(id)?.remove();
+        unparkOfficialIcons(head);
     });
 }
 
@@ -101,16 +129,20 @@ export function startFaviconGuard(
         let restore = false;
         let official: string | undefined;
         for (const m of list) {
-            if (m.type === "attributes" && isIconLink(m.target)) {
+            if (m.type === "attributes" && m.target instanceof HTMLLinkElement) {
                 if (m.target.id === id) restore = true;
-                else if (isUsableOfficialHref(m.target.href)) official = m.target.href;
+                else if (isIconLink(m.target)) {
+                    restore = true;
+                    if (isUsableOfficialHref(m.target.href)) official = m.target.href;
+                }
             }
             for (const node of m.removedNodes) {
                 if (isIconLink(node) && node.id === id) restore = true;
             }
             for (const node of m.addedNodes) {
-                if (isIconLink(node) && node.id !== id && isUsableOfficialHref(node.href)) {
-                    official = node.href;
+                if (isIconLink(node) && node.id !== id) {
+                    restore = true;
+                    if (isUsableOfficialHref(node.href)) official = node.href;
                 }
             }
         }
