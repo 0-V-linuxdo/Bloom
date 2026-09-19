@@ -40,7 +40,7 @@ import {
 import { requestIdleReady } from "../../../host/idleReady";
 import { Devs, VERSION } from "../../../utils/constants";
 import { registerStyle, syncShadowPluginStyles } from "../../../utils/css";
-import definePlugin, { OptionType, StartAt, type Plugin } from "../../../utils/types";
+import definePlugin, { OptionType, StartAt, type Plugin, type SettingDef } from "../../../utils/types";
 import css from "./styles.css";
 
 const ROOT_ID = "bloom-root";
@@ -82,6 +82,7 @@ let pluginEl: HTMLDivElement | null = null;
 let gridEl: HTMLDivElement | null = null;
 let pluginTitleEl: HTMLElement | null = null;
 let pluginSubEl: HTMLElement | null = null;
+let pluginBodyEl: HTMLDivElement | null = null;
 let pluginFieldsEl: HTMLDivElement | null = null;
 let emptyEl: HTMLParagraphElement | null = null;
 let searchInput: HTMLInputElement | null = null;
@@ -263,30 +264,73 @@ function pluginToggle(name: string, checked: boolean, required: boolean): HTMLEl
     return toggle;
 }
 
-function hasSettings(plugin: Plugin): boolean {
-    return !!plugin.settings && Object.keys(plugin.settings.def).length > 0;
+function humanizeKey(key: string): string {
+    return key
+        .replace(/[_-]+/g, " ")
+        .replace(/([a-z\d])([A-Z])/g, "$1 $2")
+        .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/\b\w/g, ch => ch.toUpperCase());
 }
 
-function fieldControl(pluginName: string, key: string, spec: { type: OptionType; description?: string; min?: number; max?: number; hidden?: boolean; options?: readonly { label: string; value: string }[]; render?: (el: HTMLElement) => () => void }): HTMLElement | null {
+function visibleEntries(plugin: Plugin): Array<[string, SettingDef]> {
+    if (!plugin.settings) return [];
+    return Object.entries(plugin.settings.def).filter(([, spec]) => !spec.hidden);
+}
+
+function hasSettings(plugin: Plugin): boolean {
+    return visibleEntries(plugin).length > 0;
+}
+
+function defaultForSetting(spec: SettingDef): unknown {
+    if (spec.default !== undefined) return spec.default;
+    if (spec.type === OptionType.SELECT) {
+        const opt = spec.options?.find(o => o.default) ?? spec.options?.[0];
+        return opt?.value;
+    }
+    if (spec.type === OptionType.BOOLEAN) return false;
+    if (spec.type === OptionType.SLIDER) return spec.min ?? 0;
+    if (spec.type === OptionType.STRING) return "";
+    if (spec.type === OptionType.NUMBER) return 0;
+    return undefined;
+}
+
+function settingLabel(key: string, spec: SettingDef): HTMLElement {
+    const box = document.createElement("div");
+    box.className = "bloom-plugin-dialog-label";
+    const title = document.createElement("span");
+    title.className = "bloom-plugin-dialog-label-title";
+    title.textContent = humanizeKey(key);
+    box.appendChild(title);
+    if (spec.description) {
+        const desc = document.createElement("span");
+        desc.className = "bloom-plugin-dialog-label-desc";
+        desc.textContent = spec.description;
+        box.appendChild(desc);
+    }
+    return box;
+}
+
+function fieldControl(pluginName: string, key: string, spec: SettingDef): HTMLElement | null {
     if (spec.hidden) return null;
-    if (spec.type === OptionType.COMPONENT && spec.render) {
-        const wrap = document.createElement("details");
-        wrap.className = "bloom-field bloom-field-block";
-        const sum = document.createElement("summary");
-        sum.textContent = spec.description || key;
+    const stacked = spec.type === OptionType.SLIDER
+        || spec.type === OptionType.STRING
+        || spec.type === OptionType.NUMBER
+        || spec.type === OptionType.COMPONENT;
+    const wrap = document.createElement("div");
+    wrap.className = stacked ? "bloom-field bloom-field-stack" : "bloom-field";
+    wrap.appendChild(settingLabel(key, spec));
+    const store = Settings.store.plugins[pluginName] ?? (Settings.store.plugins[pluginName] = {});
+
+    if (spec.type === OptionType.COMPONENT) {
+        if (!spec.render) return null;
         const inner = document.createElement("div");
+        inner.className = "bloom-plugin-dialog-component";
         fieldUnmounts.push(spec.render(inner));
-        wrap.append(sum, inner);
+        wrap.appendChild(inner);
         return wrap;
     }
-
-    const wrap = document.createElement("div");
-    wrap.className = spec.type === OptionType.SLIDER || spec.type === OptionType.STRING ? "bloom-field bloom-field-stack" : "bloom-field";
-    const cap = document.createElement("span");
-    cap.className = "bloom-field-label";
-    cap.textContent = spec.description || key;
-    wrap.appendChild(cap);
-    const store = Settings.store.plugins[pluginName] ?? (Settings.store.plugins[pluginName] = {});
 
     if (spec.type === OptionType.SELECT && spec.options) {
         const sel = document.createElement("select");
@@ -296,7 +340,7 @@ function fieldControl(pluginName: string, key: string, spec: { type: OptionType;
             o.textContent = opt.label;
             sel.appendChild(o);
         }
-        sel.value = String(store[key] ?? spec.options.find(o => (o as { default?: boolean }).default)?.value ?? spec.options[0].value);
+        sel.value = String(store[key] ?? defaultForSetting(spec) ?? spec.options[0].value);
         sel.addEventListener("change", () => { store[key] = sel.value; });
         wrap.appendChild(sel);
         return wrap;
@@ -309,7 +353,7 @@ function fieldControl(pluginName: string, key: string, spec: { type: OptionType;
         input.type = "range";
         input.min = String(spec.min ?? 0);
         input.max = String(spec.max ?? 100);
-        input.value = String(store[key] ?? spec.min ?? 0);
+        input.value = String(store[key] ?? defaultForSetting(spec) ?? spec.min ?? 0);
         const val = document.createElement("span");
         val.textContent = input.value;
         input.addEventListener("input", () => {
@@ -331,12 +375,14 @@ function fieldControl(pluginName: string, key: string, spec: { type: OptionType;
         return wrap;
     }
 
-    if (spec.type === OptionType.STRING) {
+    if (spec.type === OptionType.STRING || spec.type === OptionType.NUMBER) {
         const input = document.createElement("input");
-        input.type = "text";
-        input.value = String(store[key] ?? "");
+        input.type = spec.type === OptionType.NUMBER ? "number" : "text";
+        input.value = String(store[key] ?? defaultForSetting(spec) ?? "");
         input.spellcheck = false;
-        input.addEventListener("change", () => { store[key] = input.value; });
+        input.addEventListener("change", () => {
+            store[key] = spec.type === OptionType.NUMBER ? Number(input.value) : input.value;
+        });
         wrap.appendChild(input);
         return wrap;
     }
@@ -344,10 +390,33 @@ function fieldControl(pluginName: string, key: string, spec: { type: OptionType;
     return wrap;
 }
 
+function dialogField(label: string, className?: string): HTMLDivElement {
+    const field = document.createElement("div");
+    field.className = className ? `bloom-plugin-dialog-field ${className}` : "bloom-plugin-dialog-field";
+    const cap = document.createElement("div");
+    cap.className = "bloom-plugin-dialog-field-label";
+    cap.textContent = label;
+    field.appendChild(cap);
+    return field;
+}
+
+function resetPluginSettings(plugin: Plugin) {
+    if (!window.confirm("Reset this plugin's settings to defaults? This cannot be undone.")) return;
+    const store = Settings.store.plugins[plugin.name] ?? (Settings.store.plugins[plugin.name] = {});
+    for (const [key, spec] of visibleEntries(plugin)) {
+        if (key === "enabled" || spec.type === OptionType.COMPONENT) continue;
+        const next = defaultForSetting(spec);
+        if (next === undefined) continue;
+        store[key] = next;
+    }
+    showPluginView(plugin);
+}
+
 function showListView() {
     pluginView = false;
     clearFields();
-    if (pluginFieldsEl) pluginFieldsEl.replaceChildren();
+    pluginBodyEl?.replaceChildren();
+    pluginFieldsEl = null;
     setDismissed(pluginEl, true);
     setDismissed(listEl, false);
 }
@@ -356,28 +425,62 @@ function showPluginView(plugin: Plugin) {
     clearFields();
     pluginView = true;
     if (pluginTitleEl) pluginTitleEl.textContent = plugin.name;
-    if (pluginSubEl) pluginSubEl.textContent = plugin.description;
-    if (pluginFieldsEl) {
-        pluginFieldsEl.replaceChildren();
-        if (plugin.authors?.length) {
-            const authors = document.createElement("p");
-            authors.className = "bloom-plugin-authors";
-            authors.textContent = plugin.authors.join(", ");
-            pluginFieldsEl.appendChild(authors);
-        }
-        if (plugin.settings) {
-            for (const [key, spec] of Object.entries(plugin.settings.def)) {
-                const field = fieldControl(plugin.name, key, spec);
-                if (field) pluginFieldsEl.appendChild(field);
-            }
-        }
-        if (!pluginFieldsEl.querySelector(".bloom-field, .bloom-dialog-empty")) {
-            const empty = document.createElement("p");
-            empty.className = "bloom-dialog-empty";
-            empty.textContent = "No configurable settings.";
-            pluginFieldsEl.appendChild(empty);
+    if (pluginSubEl) {
+        pluginSubEl.textContent = plugin.description;
+        pluginSubEl.hidden = !plugin.description;
+    }
+    if (!pluginBodyEl) {
+        setDismissed(listEl, true);
+        setDismissed(pluginEl, false);
+        return;
+    }
+    pluginBodyEl.replaceChildren();
+
+    const rule = document.createElement("hr");
+    rule.className = "bloom-plugin-dialog-rule";
+    pluginBodyEl.appendChild(rule);
+
+    if (plugin.authors?.length) {
+        const authorsField = dialogField("Authors");
+        const authors = document.createElement("p");
+        authors.className = "bloom-plugin-dialog-authors";
+        authors.textContent = plugin.authors.join(", ");
+        authorsField.appendChild(authors);
+        pluginBodyEl.appendChild(authorsField);
+    }
+
+    const settingsField = dialogField("Settings", "bloom-plugin-dialog-settings");
+    const list = document.createElement("div");
+    list.className = "bloom-plugin-dialog-settings-list";
+    const entries = visibleEntries(plugin);
+    if (entries.length) {
+        for (const [key, spec] of entries) {
+            const field = fieldControl(plugin.name, key, spec);
+            if (field) list.appendChild(field);
         }
     }
+    if (!list.childElementCount) {
+        const empty = document.createElement("p");
+        empty.className = "bloom-dialog-empty";
+        empty.textContent = "No configurable settings.";
+        list.appendChild(empty);
+    }
+    settingsField.appendChild(list);
+    pluginBodyEl.appendChild(settingsField);
+    pluginFieldsEl = list;
+
+    if (entries.length) {
+        const footer = document.createElement("div");
+        footer.className = "bloom-plugin-dialog-footer";
+        const reset = document.createElement("button");
+        reset.type = "button";
+        reset.className = "bloom-plugin-dialog-reset";
+        reset.textContent = "Reset";
+        reset.addEventListener("click", () => resetPluginSettings(plugin));
+        footer.appendChild(reset);
+        pluginBodyEl.appendChild(footer);
+    }
+
     setDismissed(listEl, true);
     setDismissed(pluginEl, false);
 }
@@ -684,7 +787,7 @@ function buildPanel(id: string): HTMLElement {
     setDismissed(pluginPane, true);
 
     const pHead = document.createElement("div");
-    pHead.className = "bloom-settings-head";
+    pHead.className = "bloom-plugin-dialog-head";
     const back = document.createElement("button");
     back.type = "button";
     back.className = "bloom-icon-btn";
@@ -692,10 +795,10 @@ function buildPanel(id: string): HTMLElement {
     back.innerHTML = backSvg();
     back.addEventListener("click", showListView);
     const pTitles = document.createElement("div");
-    pTitles.className = "bloom-dialog-titles";
+    pTitles.className = "bloom-plugin-dialog-titles";
     const pTitle = document.createElement("h2");
     const pSub = document.createElement("p");
-    pSub.className = "bloom-settings-sub";
+    pSub.className = "bloom-plugin-dialog-sub";
     pTitles.append(pTitle, pSub);
     const pClose = document.createElement("button");
     pClose.type = "button";
@@ -705,9 +808,9 @@ function buildPanel(id: string): HTMLElement {
     pClose.addEventListener("click", hidePanel);
     pHead.append(back, pTitles, pClose);
 
-    const fields = document.createElement("div");
-    fields.className = "bloom-plugin-settings";
-    pluginPane.append(pHead, fields);
+    const body = document.createElement("div");
+    body.className = "bloom-plugin-dialog-body";
+    pluginPane.append(pHead, body);
 
     panel.append(list, pluginPane);
 
@@ -716,7 +819,8 @@ function buildPanel(id: string): HTMLElement {
     gridEl = grid;
     pluginTitleEl = pTitle;
     pluginSubEl = pSub;
-    pluginFieldsEl = fields;
+    pluginBodyEl = body;
+    pluginFieldsEl = null;
     emptyEl = empty;
     searchInput = input;
     filterSelect = filter;
@@ -1104,6 +1208,7 @@ export default definePlugin({
         gridEl = null;
         pluginTitleEl = null;
         pluginSubEl = null;
+        pluginBodyEl = null;
         pluginFieldsEl = null;
         emptyEl = null;
         searchInput = null;

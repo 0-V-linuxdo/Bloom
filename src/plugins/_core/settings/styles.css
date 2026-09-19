@@ -444,21 +444,131 @@
   white-space: nowrap;
 }
 
-.bloom-dialog-titles {
+.bloom-plugin-dialog-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.bloom-plugin-dialog-titles {
   min-width: 0;
   flex: 1;
 }
 
-.bloom-dialog-titles h2 {
+.bloom-plugin-dialog-titles h2 {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
-.bloom-dialog-titles p {
+.bloom-plugin-dialog-sub {
   margin: 2px 0 0;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
   color: var(--text-secondary, #5d5d5d);
+}
+
+.bloom-plugin-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 32rem;
+  margin: 0 auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.bloom-plugin-dialog-rule {
+  height: 1px;
+  width: 100%;
+  margin: 0;
+  border: 0;
+  background: var(--border-light, rgba(0, 0, 0, 0.1));
+}
+
+.bloom-plugin-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 0;
+}
+
+.bloom-plugin-dialog-field-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary, inherit);
+}
+
+.bloom-plugin-dialog-authors {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  color: var(--text-secondary, #5d5d5d);
+}
+
+.bloom-plugin-dialog-settings {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.bloom-plugin-dialog-settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  overflow: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+.bloom-plugin-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+.bloom-plugin-dialog-reset {
+  height: 28px;
+  margin: 0;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default, var(--border-medium, rgba(0, 0, 0, 0.1)));
+  background: var(--bg-primary, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.bloom-plugin-dialog-reset:hover {
+  background: var(--interactive-bg-secondary-hover, rgba(0, 0, 0, 0.05));
+}
+
+.bloom-plugin-dialog-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.bloom-plugin-dialog-label-title {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary, inherit);
+}
+
+.bloom-plugin-dialog-label-desc {
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  font-weight: 400;
+  color: var(--text-secondary, #5d5d5d);
+}
+
+.bloom-plugin-dialog-component {
+  min-width: 0;
 }
 
 .bloom-dialog-empty {
@@ -520,21 +630,6 @@
   opacity: 0.45;
 }
 
-.bloom-plugin-settings {
-  display: flex;
-  flex-direction: column;
-  overflow: auto;
-  min-height: 0;
-  gap: 0.75rem;
-}
-
-.bloom-plugin-authors {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1rem;
-  color: var(--text-secondary, #5d5d5d);
-}
-
 .bloom-field {
   display: flex;
   align-items: center;
@@ -584,7 +679,8 @@
 }
 
 .bloom-field select,
-.bloom-field input[type="text"] {
+.bloom-field input[type="text"],
+.bloom-field input[type="number"] {
   height: 28px;
   min-width: 7.5rem;
   max-width: 52%;
@@ -597,7 +693,8 @@
   font-size: 0.75rem;
 }
 
-.bloom-field.bloom-field-stack input[type="text"] {
+.bloom-field.bloom-field-stack input[type="text"],
+.bloom-field.bloom-field-stack input[type="number"] {
   max-width: none;
   width: 100%;
 }
