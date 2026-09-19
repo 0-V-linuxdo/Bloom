@@ -37,7 +37,7 @@ export const HOST_TOKEN_KEYS = [
     "--interactive-bg-secondary-hover",
     "--interactive-label-primary-default",
     "--message-surface",
-    "--bg-primary",
+    "--bg-primary", // Settings / composer card — not the sidebar row
     "--bg-secondary",
     "--bg-tertiary",
     "--bg-elevated-primary",

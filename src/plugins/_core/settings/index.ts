@@ -152,52 +152,30 @@ function appearancePref(): SchemePref {
     return "auto";
 }
 
-function opaqueFill(el: HTMLElement): string | null {
-    let node: HTMLElement | null = el;
-    for (let i = 0; i < 6 && node; i++) {
-        if (isNavOrStage(node)) break;
-        const bg = getComputedStyle(node).backgroundColor.trim();
-        const m = bg.match(/rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)/i);
-        if (m) {
-            const r = Number(m[1]);
-            const g = Number(m[2]);
-            const b = Number(m[3]);
-            let a = 1;
-            if (m[4] != null) a = String(m[4]).endsWith("%") ? Number(m[4]) / 100 : Number(m[4]);
-            if (a >= 0.5 && r + g + b >= 12) return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
-        }
-        node = node.parentElement;
-    }
-    return null;
-}
-
-function accountSurface(): string | null {
-    const profile = findProfileButton();
-    return profile ? opaqueFill(profile) : null;
-}
-
-function paintTarget(el: HTMLElement | null, scheme: ReturnType<typeof resolveScheme>, fromHost: boolean, surface: string | null) {
+function paintTarget(el: HTMLElement | null, scheme: ReturnType<typeof resolveScheme>, fromHost: boolean) {
     if (!el) return;
     el.setAttribute("data-bloom-scheme", scheme);
     applySchemeTokens(el, scheme, fromHost);
-    if (surface) {
-        el.style.setProperty("--bg-primary", surface);
-        el.style.setProperty("--bloom-rail-surface", surface);
-    }
+    el.style.removeProperty("--bloom-rail-surface");
+}
+
+function clearRailSurface(el: HTMLElement | null) {
+    if (!el) return;
+    el.style.removeProperty("--bloom-rail-surface");
+    el.style.removeProperty("--bg-primary");
 }
 
 function paintScheme() {
     const pref = appearancePref();
     const scheme = resolveScheme(pref);
     const fromHost = pref === "auto";
-    const surface = accountSurface();
-    paintTarget(host, scheme, fromHost, surface);
+    paintTarget(host, scheme, fromHost);
     const panel = document.getElementById(SIDEBAR_ID);
-    if (panel instanceof HTMLElement) paintTarget(panel, scheme, fromHost, surface);
+    if (panel instanceof HTMLElement) paintTarget(panel, scheme, fromHost);
     const dialog = document.getElementById(DIALOG_ID);
-    if (dialog instanceof HTMLElement) paintTarget(dialog, scheme, fromHost, surface);
+    if (dialog instanceof HTMLElement) paintTarget(dialog, scheme, fromHost);
     const rail = document.getElementById(RAIL_ID);
-    if (rail instanceof HTMLElement && surface) rail.style.setProperty("--bloom-rail-surface", surface);
+    if (rail instanceof HTMLElement) clearRailSurface(rail);
     emitBloomEvent("schemeChange", { scheme, pref });
 }
 
@@ -987,8 +965,7 @@ function syncRailAlign(row: HTMLElement, profile: HTMLElement) {
         if (Number.isFinite(gap) && gap > 0) setPx(row, "gap", Math.round(gap));
     }
 
-    const surface = opaqueFill(profile);
-    if (surface) row.style.setProperty("--bloom-rail-surface", surface);
+    clearRailSurface(row);
 }
 
 function isNavOrStage(el: HTMLElement): boolean {
