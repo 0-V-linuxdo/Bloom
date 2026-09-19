@@ -117,13 +117,11 @@
 }
 
 .bloom-settings-list[hidden],
-.bloom-settings-plugin[hidden],
 #bloom-sidebar-panel[hidden] {
   display: none !important;
 }
 
-.bloom-settings-list,
-.bloom-settings-plugin {
+.bloom-settings-list {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -444,19 +442,50 @@
   white-space: nowrap;
 }
 
-.bloom-plugin-dialog-head {
+#bloom-plugin-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  pointer-events: auto;
+  background: transparent;
+}
+
+#bloom-plugin-dialog {
+  box-sizing: border-box;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: min(80vh, calc(100vh - 2rem));
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 12px;
-}
-
-.bloom-plugin-dialog-titles {
+  flex-direction: column;
+  gap: 1rem;
   min-width: 0;
-  flex: 1;
+  padding: 1.5rem;
+  overflow: hidden;
+  color: var(--text-primary, inherit);
+  font: 14px/1.4 ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border-xlight, rgba(0, 0, 0, 0.05));
+  border-radius: 16px;
+  box-shadow: var(--shadow-long, 0 8px 12px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.62));
+  pointer-events: auto;
 }
 
-.bloom-plugin-dialog-titles h2 {
+.bloom-plugin-dialog-close {
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+  z-index: 1;
+}
+
+.bloom-plugin-dialog-header {
+  text-align: left;
+  padding-right: 2.5rem;
+}
+
+.bloom-plugin-dialog-header h2 {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
@@ -467,17 +496,6 @@
   font-size: 0.8125rem;
   line-height: 1.25rem;
   color: var(--text-secondary, #5d5d5d);
-}
-
-.bloom-plugin-dialog-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: 100%;
-  max-width: 32rem;
-  margin: 0 auto;
-  min-height: 0;
-  flex: 1;
 }
 
 .bloom-plugin-dialog-rule {
@@ -511,6 +529,7 @@
 .bloom-plugin-dialog-settings {
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
 }
 
 .bloom-plugin-dialog-settings-list {

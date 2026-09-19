@@ -47,6 +47,8 @@ const ROOT_ID = "bloom-root";
 const RAIL_ID = "bloom-rail-item";
 const ITEM_ID = "bloom-account-item";
 const SIDEBAR_ID = "bloom-sidebar-panel";
+const DIALOG_ID = "bloom-plugin-dialog";
+const LAYER_ID = "bloom-plugin-layer";
 const STYLE_ID = "bloom-settings-css";
 const RAIL_POLL_MS = 2_000;
 
@@ -64,7 +66,6 @@ const settings = definePluginSettings({
 
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
-let pluginView = false;
 let bloomOpen = false;
 let fieldUnmounts: Array<() => void> = [];
 let unwatchHost: (() => void) | null = null;
@@ -77,18 +78,13 @@ let railTimer: ReturnType<typeof setInterval> | undefined;
 let pinRaf = 0;
 let pinBackoffUntil = 0;
 let pinRejects = 0;
-let listEl: HTMLDivElement | null = null;
-let pluginEl: HTMLDivElement | null = null;
 let gridEl: HTMLDivElement | null = null;
-let pluginTitleEl: HTMLElement | null = null;
-let pluginSubEl: HTMLElement | null = null;
-let pluginBodyEl: HTMLDivElement | null = null;
-let pluginFieldsEl: HTMLDivElement | null = null;
 let emptyEl: HTMLParagraphElement | null = null;
 let searchInput: HTMLInputElement | null = null;
 let filterSelect: HTMLSelectElement | null = null;
 let tabsEl: HTMLDivElement | null = null;
 let unsubList: Array<() => void> = [];
+let pluginKeyBound = false;
 
 type ListFilter = "all" | "enabled" | "disabled";
 type PluginCategory = "favorites" | "all" | "chat" | "ui" | "privacy";
@@ -117,10 +113,6 @@ function blossomSvg(): string {
 
 function closeSvg(): string {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
-}
-
-function backSvg(): string {
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>`;
 }
 
 function settings2Svg(): string {
@@ -170,17 +162,9 @@ function paintScheme() {
     emitBloomEvent("schemeChange", { scheme, pref });
 }
 
-function setDismissed(el: HTMLElement | null, dismissed: boolean) {
-    if (!el) return;
-    el.hidden = dismissed;
-    el.toggleAttribute("inert", dismissed);
-    if (dismissed) el.setAttribute("aria-hidden", "true");
-    else el.removeAttribute("aria-hidden");
-}
-
 function stripLegacyChrome() {
     document.querySelectorAll(
-        ".bloom-settings-fab, .bloom-settings-panel, .bloom-settings-backdrop, [popover].bloom-settings-panel, #bloom-menu-panel",
+        ".bloom-settings-fab, .bloom-settings-panel, .bloom-settings-backdrop, [popover].bloom-settings-panel, #bloom-menu-panel, #bloom-plugin-layer, #bloom-plugin-dialog",
     ).forEach(n => n.remove());
 }
 
@@ -409,36 +393,83 @@ function resetPluginSettings(plugin: Plugin) {
         if (next === undefined) continue;
         store[key] = next;
     }
-    showPluginView(plugin);
+    openPluginDialog(plugin);
 }
 
-function showListView() {
-    pluginView = false;
-    clearFields();
-    pluginBodyEl?.replaceChildren();
-    pluginFieldsEl = null;
-    setDismissed(pluginEl, true);
-    setDismissed(listEl, false);
+function onPluginKey(ev: KeyboardEvent) {
+    if (ev.key !== "Escape") return;
+    if (!document.getElementById(LAYER_ID) && !document.getElementById(DIALOG_ID)) return;
+    ev.stopPropagation();
+    closePluginDialog();
 }
 
-function showPluginView(plugin: Plugin) {
+function bindPluginKeys() {
+    if (pluginKeyBound) return;
+    document.addEventListener("keydown", onPluginKey);
+    pluginKeyBound = true;
+}
+
+function unbindPluginKeys() {
+    if (!pluginKeyBound) return;
+    document.removeEventListener("keydown", onPluginKey);
+    pluginKeyBound = false;
+}
+
+function closePluginDialog() {
     clearFields();
-    pluginView = true;
-    if (pluginTitleEl) pluginTitleEl.textContent = plugin.name;
-    if (pluginSubEl) {
-        pluginSubEl.textContent = plugin.description;
-        pluginSubEl.hidden = !plugin.description;
+    unbindPluginKeys();
+    document.getElementById(LAYER_ID)?.remove();
+    document.getElementById(DIALOG_ID)?.remove();
+}
+
+function openPluginDialog(plugin: Plugin) {
+    closePluginDialog();
+    if (!document.body) return;
+
+    const layer = document.createElement("div");
+    layer.id = LAYER_ID;
+    layer.className = "bloom-plugin-layer";
+    layer.addEventListener("pointerdown", holdMenu);
+    layer.addEventListener("pointerup", holdMenu);
+    layer.addEventListener("click", ev => {
+        ev.stopPropagation();
+        if (ev.target === layer) closePluginDialog();
+    });
+
+    const dialog = document.createElement("div");
+    dialog.id = DIALOG_ID;
+    dialog.className = "bloom-plugin-dialog";
+    dialog.addEventListener("pointerdown", holdMenu);
+    dialog.addEventListener("pointerup", holdMenu);
+    dialog.addEventListener("click", holdMenu);
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "bloom-icon-btn bloom-plugin-dialog-close";
+    close.setAttribute("aria-label", "Close");
+    close.innerHTML = closeSvg();
+    close.addEventListener("click", ev => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        closePluginDialog();
+    });
+
+    const header = document.createElement("div");
+    header.className = "bloom-plugin-dialog-header";
+    const title = document.createElement("h2");
+    title.textContent = plugin.name;
+    header.appendChild(title);
+    if (plugin.description) {
+        const sub = document.createElement("p");
+        sub.className = "bloom-plugin-dialog-sub";
+        sub.textContent = plugin.description;
+        header.appendChild(sub);
     }
-    if (!pluginBodyEl) {
-        setDismissed(listEl, true);
-        setDismissed(pluginEl, false);
-        return;
-    }
-    pluginBodyEl.replaceChildren();
 
     const rule = document.createElement("hr");
     rule.className = "bloom-plugin-dialog-rule";
-    pluginBodyEl.appendChild(rule);
+
+    dialog.append(close, header, rule);
 
     if (plugin.authors?.length) {
         const authorsField = dialogField("Authors");
@@ -446,7 +477,7 @@ function showPluginView(plugin: Plugin) {
         authors.className = "bloom-plugin-dialog-authors";
         authors.textContent = plugin.authors.join(", ");
         authorsField.appendChild(authors);
-        pluginBodyEl.appendChild(authorsField);
+        dialog.appendChild(authorsField);
     }
 
     const settingsField = dialogField("Settings", "bloom-plugin-dialog-settings");
@@ -466,8 +497,7 @@ function showPluginView(plugin: Plugin) {
         list.appendChild(empty);
     }
     settingsField.appendChild(list);
-    pluginBodyEl.appendChild(settingsField);
-    pluginFieldsEl = list;
+    dialog.appendChild(settingsField);
 
     if (entries.length) {
         const footer = document.createElement("div");
@@ -478,11 +508,12 @@ function showPluginView(plugin: Plugin) {
         reset.textContent = "Reset";
         reset.addEventListener("click", () => resetPluginSettings(plugin));
         footer.appendChild(reset);
-        pluginBodyEl.appendChild(footer);
+        dialog.appendChild(footer);
     }
 
-    setDismissed(listEl, true);
-    setDismissed(pluginEl, false);
+    layer.appendChild(dialog);
+    document.body.appendChild(layer);
+    bindPluginKeys();
 }
 
 function pluginCard(plugin: Plugin): HTMLElement {
@@ -548,7 +579,7 @@ function pluginCard(plugin: Plugin): HTMLElement {
         gear.addEventListener("click", ev => {
             ev.preventDefault();
             ev.stopPropagation();
-            showPluginView(plugin);
+            openPluginDialog(plugin);
         });
         controls.appendChild(gear);
     }
@@ -694,7 +725,7 @@ function panelVisible(el: HTMLElement): boolean {
 }
 
 function hidePanel() {
-    showListView();
+    closePluginDialog();
     searchQuery = "";
     listFilter = "all";
     category = "all";
@@ -782,45 +813,9 @@ function buildPanel(id: string): HTMLElement {
     empty.hidden = true;
     list.appendChild(empty);
 
-    const pluginPane = document.createElement("div");
-    pluginPane.className = "bloom-settings-plugin";
-    setDismissed(pluginPane, true);
+    panel.appendChild(list);
 
-    const pHead = document.createElement("div");
-    pHead.className = "bloom-plugin-dialog-head";
-    const back = document.createElement("button");
-    back.type = "button";
-    back.className = "bloom-icon-btn";
-    back.setAttribute("aria-label", "Back");
-    back.innerHTML = backSvg();
-    back.addEventListener("click", showListView);
-    const pTitles = document.createElement("div");
-    pTitles.className = "bloom-plugin-dialog-titles";
-    const pTitle = document.createElement("h2");
-    const pSub = document.createElement("p");
-    pSub.className = "bloom-plugin-dialog-sub";
-    pTitles.append(pTitle, pSub);
-    const pClose = document.createElement("button");
-    pClose.type = "button";
-    pClose.className = "bloom-icon-btn";
-    pClose.setAttribute("aria-label", "Close");
-    pClose.innerHTML = closeSvg();
-    pClose.addEventListener("click", hidePanel);
-    pHead.append(back, pTitles, pClose);
-
-    const body = document.createElement("div");
-    body.className = "bloom-plugin-dialog-body";
-    pluginPane.append(pHead, body);
-
-    panel.append(list, pluginPane);
-
-    listEl = list;
-    pluginEl = pluginPane;
     gridEl = grid;
-    pluginTitleEl = pTitle;
-    pluginSubEl = pSub;
-    pluginBodyEl = body;
-    pluginFieldsEl = null;
     emptyEl = empty;
     searchInput = input;
     filterSelect = filter;
@@ -847,7 +842,7 @@ function mountPanel() {
     dockToBody(panel);
     document.body.appendChild(panel);
     bloomOpen = true;
-    showListView();
+    closePluginDialog();
     syncRailExpanded();
     emitBloomEvent("settingsOpen", undefined);
     console.info("[Bloom++] settings open", { version: VERSION, dock: "center", rail: !!liveRail() });
@@ -1173,7 +1168,7 @@ export default definePlugin({
     enabledByDefault: true,
     settings,
     startAt: StartAt.HostReady,
-    cleanupSelectors: [`#${ROOT_ID}`, `#${RAIL_ID}`, `#${ITEM_ID}`, `#${SIDEBAR_ID}`, `#${STYLE_ID}`, "#bloom-menu-panel"],
+    cleanupSelectors: [`#${ROOT_ID}`, `#${RAIL_ID}`, `#${ITEM_ID}`, `#${SIDEBAR_ID}`, `#${LAYER_ID}`, `#${DIALOG_ID}`, `#${STYLE_ID}`, "#bloom-menu-panel"],
 
     start() {
         injectCss();
@@ -1184,9 +1179,9 @@ export default definePlugin({
         unwatchHost = watchHostScheme(paintScheme);
         paintScheme();
         unsubList = [
-            onBloomEvent("pluginToggle", () => { if (bloomOpen && !pluginView) fillGrid(); }),
-            onBloomEvent("pluginPin", () => { if (bloomOpen && !pluginView) fillGrid(); }),
-            onBloomEvent("pluginStar", () => { if (bloomOpen && !pluginView) fillGrid(); }),
+            onBloomEvent("pluginToggle", () => { if (bloomOpen) fillGrid(); }),
+            onBloomEvent("pluginPin", () => { if (bloomOpen) fillGrid(); }),
+            onBloomEvent("pluginStar", () => { if (bloomOpen) fillGrid(); }),
         ];
     },
 
@@ -1203,19 +1198,12 @@ export default definePlugin({
         document.getElementById(STYLE_ID)?.remove();
         host = null;
         shadow = null;
-        listEl = null;
-        pluginEl = null;
         gridEl = null;
-        pluginTitleEl = null;
-        pluginSubEl = null;
-        pluginBodyEl = null;
-        pluginFieldsEl = null;
         emptyEl = null;
         searchInput = null;
         filterSelect = null;
         tabsEl = null;
         bloomOpen = false;
-        pluginView = false;
     },
 
     onSettingsChange: paintScheme,

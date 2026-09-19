@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.26](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.26)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.26`).
+Current release: **[v1.4.27](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.27)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.27`).
 
 v1.4.23 ships:
 
@@ -142,7 +142,9 @@ v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses 
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
 
-v1.4.26: **Plugin settings pane** matches Void++ `PluginDialog` layout (in-panel, no dialog): title + description + Back/Close, separator, Authors / Settings sections, `humanizeKey` field titles, Reset (visible keys only). Fields stay in a 32rem column inside the existing 56rem shell. Plugin list chrome is unchanged.
+v1.4.27: **Plugin settings is an independent popup** (Void++ nested `PluginDialog`), not a reuse of the Bloom++ settings panel. Gear leaves the plugin list open and stacks a 32rem card over it. Close / Escape / click the transparent layer dismiss the popup only. Authors / Settings / `humanizeKey` / Reset stay. No `<dialog>`, popover, `role="dialog"`, or `aria-modal`.
+
+v1.4.26: **Plugin settings pane** matched Void++ `PluginDialog` layout but still swapped the settings panel (Back/Close chrome). Superseded by 1.4.27.
 
 v1.4.25: **Userscript `@icon`** is the same solid mark as the **Bloom++** title (settings `blossomSvg()` outer path): white glyph, transparent, no ChatGPT knot plate. Canonical files under `assets/logos/app-icon/` (`bloom-icon.svg`, `bloom-icon-64.png`, `bloom-icon-256.png`). GitHub raw `@icon` / `@icon64`. Rail mark and ChatStateFavicons compositor unchanged.
 

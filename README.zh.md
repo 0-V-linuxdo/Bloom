@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.26](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.26)**（`userscript/Bloom.user.js`，`@version [20260919] v1.4.26`）。
+当前版本：**[v1.4.27](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.27)**（`userscript/Bloom.user.js`，`@version [20260919] v1.4.27`）。
 
 v1.4.23：
 
@@ -130,7 +130,9 @@ v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**fav
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
 
-v1.4.26：**插件设置页**对齐 Void++ `PluginDialog` 布局（仍在面板内切换，不是 dialog）：标题 + 描述 + 返回/关闭、分隔线、Authors / Settings 分区、`humanizeKey` 字段名、Reset（只重置可见项）。字段落在现有 56rem 壳里的 32rem 栏。插件列表外观未改。
+v1.4.27：**插件设置改为独立弹窗**（对齐 Void++ 的 nested `PluginDialog`），不再复用 Bloom++ 设置面板切页。点齿轮时插件列表仍在，32rem 卡片叠在上面。关闭 / Esc / 点透明层只关弹窗。Authors / Settings / `humanizeKey` / Reset 保留。不用 `<dialog>`、popover、`role="dialog"`、`aria-modal`。
+
+v1.4.26：**插件设置页**对齐了 Void++ `PluginDialog` 布局，但仍在设置面板里切页（返回/关闭）。已被 1.4.27 取代。
 
 v1.4.25：**油猴 `@icon`** 与标题行 **Bloom++** 左边同一枚实心花（`blossomSvg()` 外轮廓）：白标、透明底，不再用官方 knot 圆角砖。文件在 `assets/logos/app-icon/`（`bloom-icon.svg`、`bloom-icon-64.png`、`bloom-icon-256.png`），`@icon` / `@icon64` 走 GitHub raw。侧栏花标和 ChatStateFavicons 合成器未改。
 
