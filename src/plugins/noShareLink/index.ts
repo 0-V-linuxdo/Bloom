@@ -17,11 +17,23 @@ const STYLE_NAME = "noShareLink";
 
 const CHAT_SELECTORS = [
     'button[data-testid="share-chat-button"]',
+    'button[data-testid="share-button"]',
+    'button[data-testid="conversation-share-button"]',
+    'button[data-testid="share-conversation-button"]',
+    '#page-header button[aria-label="Share"]',
+    '#page-header button[aria-label="Share chat"]',
+    '#page-header button[aria-label="Share conversation"]',
+    '#page-header button[aria-label="分享"]',
+    '#page-header button[aria-label="分享对话"]',
+    'button[aria-label="Share conversation"]',
+    'button[aria-label="分享对话"]',
 ];
 
 const PROJECT_SELECTORS = [
     'button[data-testid="share-project-button"]',
     'button[data-testid="project-share-button"]',
+    'button[aria-label="Share project"]',
+    'button[aria-label="分享项目"]',
 ];
 
 const settings = definePluginSettings({

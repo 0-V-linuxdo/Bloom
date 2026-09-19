@@ -11,6 +11,7 @@
 
 import { definePluginSettings } from "../../api/Settings";
 import { conversationToken } from "../../host/conversation";
+import { conversationTitle, subscribeHarvest, type HarvestEvent } from "../../host/harvest";
 import { Devs } from "../../utils/constants";
 import { registerStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -89,6 +90,7 @@ let lastId = "";
 let origPush: History["pushState"] | null = null;
 let origReplace: History["replaceState"] | null = null;
 let routeTimer: ReturnType<typeof setTimeout> | undefined;
+let unsubHarvest: (() => void) | null = null;
 
 function maxCount(): number {
     const n = Number(settings.store.maxRecent ?? 5);
@@ -172,7 +174,10 @@ function liveTitle(id: string): string {
 function titleOf(id: string): string {
     if (isHomeId(id)) return "New chat";
     const cached = getTitles()[id];
-    return cached || liveTitle(id) || "Chat";
+    if (cached) return cached;
+    const fromNet = conversationTitle(id);
+    if (fromNet) return fromNet;
+    return liveTitle(id) || "Chat";
 }
 
 function projectOf(id: string): string {
@@ -185,10 +190,17 @@ function previewOf(id: string): Preview {
 
 function rememberTitle(id: string, title: string) {
     if (!id || isHomeId(id) || !title) return;
+    if (/^new chat$/i.test(title.trim())) return;
     const titles = getTitles();
     if (titles[id] === title) return;
     titles[id] = title;
     settings.store.titles = titles;
+}
+
+function onHarvest(ev: HarvestEvent) {
+    if (ev.type !== "conversation-meta") return;
+    rememberTitle(ev.conversationId, ev.title);
+    if (open) paint();
 }
 
 function rememberProject(id: string, name: string) {
@@ -609,6 +621,7 @@ export default definePlugin({
         bump(lastId);
         harvestSidebar();
         captureId(lastId);
+        unsubHarvest = subscribeHarvest(onHarvest);
         hookHistory();
         keys = new AbortController();
         const { signal } = keys;
@@ -628,6 +641,8 @@ export default definePlugin({
             routeTimer = undefined;
         }
         unhookHistory();
+        unsubHarvest?.();
+        unsubHarvest = null;
         open = false;
         held = false;
         ctrlHeld = false;

@@ -11,7 +11,8 @@
 
 import { definePluginSettings } from "../../api/Settings";
 import { isStopControl } from "../../host/composer";
-import { contextKeyFromUrl, conversationToken } from "../../host/conversation";
+import { contextKeyFromUrl, conversationToken, currentConversationId } from "../../host/conversation";
+import { conversationTitle } from "../../host/harvest";
 import { hasErrorToast, isStreaming } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { Logger } from "../../utils/Logger";
@@ -73,6 +74,8 @@ function shouldNotify(): boolean {
 }
 
 function chatTitle(): string {
+    const fromNet = conversationTitle(currentConversationId());
+    if (fromNet) return fromNet;
     const raw = (document.title || "").replace(/\s*[|–-]\s*ChatGPT\s*$/i, "").trim();
     if (raw && !/^ChatGPT$/i.test(raw)) return raw;
     return "Chat";

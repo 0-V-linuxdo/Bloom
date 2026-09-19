@@ -6,8 +6,10 @@
  * ChatGPT-side rewrite of Void++ StreamerMode (GPL-3.0-or-later). CSS-only:
  * no html class toggles (hydrateRoot owns <html>), no MutationObserver,
  * no wrapper :has(). Blurs Recents titles, project names, and the account
- * chip. Does not hide or blur Voice, Share, `#bloom-rail-item`, or the
- * composer. Hover unblurs so you can still aim a click.
+ * chip. Also blurs the open-chat header title and RecentTopics HUD
+ * titles so a screen share of the thread does not leak names. Does not
+ * hide or blur Voice, Share, `#bloom-rail-item`, or the composer.
+ * Hover unblurs Recents / HUD cards so you can still aim a click.
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -62,6 +64,11 @@ const settings = definePluginSettings({
         description: "Blur a mailto address on the account chip or menu.",
         default: true,
     },
+    headerTitle: {
+        type: OptionType.BOOLEAN,
+        description: "Blur the open conversation title in the page header.",
+        default: true,
+    },
 });
 
 function rule(selectors: string[], hover = true): string {
@@ -77,6 +84,10 @@ function apply() {
             ...under(SIDEBAR, 'a[href^="/c/"]'),
             ...under(SIDEBAR, 'a[href*="/c/"]'),
         ]));
+        rules.push(
+            "#bloom-rt-host .bloom-rt-name,#bloom-rt-host .bloom-rt-preview{filter:blur(6px)!important;transition:filter .2s ease}"
+            + "#bloom-rt-host .bloom-rt-card:hover .bloom-rt-name,#bloom-rt-host .bloom-rt-card:hover .bloom-rt-preview{filter:none!important}",
+        );
     }
     if (settings.store.projects !== false) {
         rules.push(rule([
@@ -85,6 +96,19 @@ function apply() {
             ...under(SIDEBAR, '[data-testid="project-name"]'),
             ...under(SIDEBAR, '[data-testid="project-link"]'),
         ]));
+        rules.push(
+            "#bloom-rt-host .bloom-rt-project{filter:blur(6px)!important;transition:filter .2s ease}"
+            + "#bloom-rt-host .bloom-rt-card:hover .bloom-rt-project{filter:none!important}",
+        );
+    }
+    if (settings.store.headerTitle !== false) {
+        rules.push(rule([
+            "#page-header h1",
+            "#page-header h2",
+            '#page-header [data-testid="conversation-title"]',
+            '#page-header [data-testid="thread-title"]',
+            '[data-testid="temporary-chat-label"]',
+        ], false));
     }
     if (settings.store.accountAvatar !== false) {
         rules.push(rule([
@@ -106,6 +130,14 @@ function apply() {
         ], false));
     }
     rules.push("#bloom-rail-item,#bloom-rail-item *,#bloom-sidebar-panel,#bloom-sidebar-panel *{filter:none!important}");
+    rules.push(
+        '#page-header [data-testid="share-chat-button"],#page-header [data-testid="share-chat-button"] *,'
+        + '#page-header [data-testid="share-button"],#page-header [data-testid="share-button"] *,'
+        + '#page-header [data-testid="composer-speech-button"],#page-header [data-testid="composer-speech-button"] *,'
+        + '#page-header [data-testid="model-switcher-dropdown-button"],#page-header [data-testid="model-switcher-dropdown-button"] *,'
+        + 'form[data-type="unified-composer"],form[data-type="unified-composer"] *'
+        + "{filter:none!important}",
+    );
     if (!rules.length) {
         removeStyle(STYLE_NAME);
         return;
@@ -115,7 +147,7 @@ function apply() {
 
 export default definePlugin({
     name: "StreamerMode",
-    description: "Blur Recents titles, project names, and the account chip while you stream.",
+    description: "Blur Recents titles, the header chat name, project names, and the account chip while you stream.",
     authors: [Devs.p],
     tags: ["privacy", "ui"],
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 20l16-16"/></svg>`,

@@ -35,6 +35,10 @@ const BUTTON_SELECTORS = [
     'form[data-type="unified-composer"] button[aria-label^="听写"]',
     'form[data-type="unified-composer"] button[data-testid="composer-dictate-button"]',
     'button[data-testid="composer-dictate-button"]',
+    'button[data-testid="composer-dictation-button"]',
+    'button[data-testid="composer-speech-to-text-button"]',
+    'form[data-type="unified-composer"] button[data-testid="dictation-button"]',
+    'form[data-type="unified-composer"] button[aria-label="Dictate message"]',
 ];
 
 const SETTINGS_SELECTORS = [

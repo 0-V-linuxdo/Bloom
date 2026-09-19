@@ -36,19 +36,27 @@ const CHROME_SEL = [
     "#bloom-sidebar-panel",
     "#bloom-plugin-layer",
     "#bloom-plugin-dialog",
+    "#thread-bottom-container",
+    'form[data-type="unified-composer"]',
 ].join(", ");
 
 const H1_SEL = [
     "h1.text-page-header",
     'h1[class*="text-page-header"]',
+    ".text-page-header",
+    '[class*="text-page-header"]',
     "[data-splash-headline-option] h1",
+    "[data-splash-headline-option]",
     'main h1:not(.sr-only):not([data-testid="temporary-chat-label"])',
 ].join(", ");
 
 const TEXT_SEL = [
     "h1.text-page-header .text-pretty",
     'h1[class*="text-page-header"] .text-pretty',
+    ".text-page-header .text-pretty",
+    '[class*="text-page-header"] .text-pretty',
     "[data-splash-headline-option] h1 .text-pretty",
+    "[data-splash-headline-option] .text-pretty",
     'main h1:not(.sr-only):not([data-testid="temporary-chat-label"]) .text-pretty',
 ].join(", ");
 
@@ -72,6 +80,13 @@ function firstMatch(sel: string): Element | null {
         }
     } catch { /* invalid sel */ }
     return null;
+}
+
+function firstLiveSelector(selList: string): string {
+    for (const sel of selList.split(",").map(s => s.trim()).filter(Boolean)) {
+        if (firstMatch(sel)) return sel;
+    }
+    return selList;
 }
 
 const DEFAULT_GREETINGS = [
@@ -197,7 +212,7 @@ function headingPresent(): boolean {
 function buildCss(escaped: string, clickable: boolean): string {
     const hide = [
         "font-size:0!important",
-        "line-height:0!important",
+        "color:transparent!important",
         "visibility:hidden!important",
         "display:block!important",
     ].join(";");
@@ -215,7 +230,9 @@ function buildCss(escaped: string, clickable: boolean): string {
         "margin:0 auto!important",
         "padding:0!important",
     ].join(";");
-    const target = paintOnText() || !firstMatch(H1_SEL) ? TEXT_SEL : H1_SEL;
+    const target = paintOnText()
+        ? firstLiveSelector(TEXT_SEL)
+        : (firstMatch(H1_SEL) ? firstLiveSelector(H1_SEL) : firstLiveSelector(TEXT_SEL));
     const cursor = clickable
         ? `${H1_SEL}{cursor:pointer!important;user-select:none!important}`
         : "";

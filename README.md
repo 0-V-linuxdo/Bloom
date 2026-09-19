@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.41](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.41)** (`userscript/Bloom.latest.user.js`, `@version [20260919] v1.4.41`).
+Current release: **[v1.4.42](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.42)** (`userscript/Bloom.latest.user.js`, `@version [20260919] v1.4.42`).
 
 Plugins:
 
@@ -21,7 +21,7 @@ Plugins:
 | ChatListStatus | On | Spinner on the **open** Recents row while this chat is answering. Other rows keep ChatGPT’s own status. |
 | WiderChat | On | Widen the thread and composer (slider 40–96 rem, default 64). CSS-only. |
 | MessageTimestamps | On | Show when each turn was sent, from the conversation JSON ChatGPT already loads. |
-| StreamerMode | Off | Blur Recents titles, project names, and the account chip. CSS-only. Hover a Recents row to peek. |
+| StreamerMode | Off | Blur Recents titles, the header chat name, project names, and the account chip. CSS-only. Hover a Recents / switcher row to peek. |
 | GreetingCustomizer | Off | Replace the home greeting with your own texts. Rotate on each visit, a timer, or a click. |
 
 The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in the brand string is `ChatGPT`.
@@ -154,6 +154,8 @@ v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses 
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
 
+v1.4.42: **Existing-plugin polish (no new ports).** RecentTopics and ResponseNotification read host `conversationTitle` / `conversation-meta` (still no `/conversations` poll). StreamerMode also blurs the open-chat header title and RecentTopics HUD names (`headerTitle` toggle; never Voice / Share / composer / model switcher). NoShareLink / NoDictation / Cleaner / WiderChat get current chatgpt.com selectors and width vars.
+
 v1.4.41: **Harvest polish.** GET `/backend-api/conversation/{id}` now takes the id from the API path (not `/c/` href parsing). Last subscriber unhook invalidates in-flight SSE taps. Conversation titles skip message-like objects. MessageTimestamps can read the host `messageCreateTime` cache.
 
 v1.4.40: **Host harvest.** One shared `fetch` wrap in `src/host/harvest.ts` reads conversation GET JSON and POST SSE (`create_time`, title, streaming start/end). ChatListStatus and MessageTimestamps subscribe instead of each wrapping `window.fetch`. Never intercepts `/conversations` list. No `streamEnd` event. `conversationTitle` / `messageCreateTime` are session helpers for later PromptQueue / AutoContinue.
@@ -196,16 +198,16 @@ v1.4.22: **P0 plugins.** **Cleaner** also hides upgrade CTAs, locked models, hom
 
 v1.4.21: **Restore the centered settings dock** (1.4.20 left-rail move was unwanted). **Favicon actually wins:** official `<link rel=icon>` nodes stay in the tree (no React strip-fight) but are parked (`media="not all"` / `bloom-host-icon`) so Chrome stops preferring ChatGPT's SVG over the blossom PNG.
 
-- NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
-- NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.
+- NoShareLink: `button[data-testid="share-chat-button"]` / `share-button` / `conversation-share-button`, plus `#page-header` Share aria-labels. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
+- NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button` / `composer-speech-to-text-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.
 - NoSidebarIdentity: `[data-testid="accounts-profile-button"] .flex.min-w-0 > .truncate`. Toggles `hideUsername` and `hideEmail` (mailto only; Plus/Pro labels are left alone). `enlargePlan` (default on, while the name is hidden) sets the plan label to 14px/1.25/500 via `.text-xs` / `.text-token-text-secondary:not(.truncate)`. Never restyles `.truncate`. `alignPlanWithAvatar` (default off, while the name is hidden) `display:none`s the name line (not the `.min-w-0` column) so the plan sits on the avatar midline. Never chip `align-items`, never `.min-w-0` flex.
-- RecentTopics: Ctrl+` / Ctrl+Shift+` / Esc / Enter. `maxRecent` 3–12 (default 5). `includeHome` (default on).
+- RecentTopics: Ctrl+` / Ctrl+Shift+` / Esc / Enter. `maxRecent` 3–12 (default 5). `includeHome` (default on). Titles from Recents DOM + host harvest `conversation-meta`.
 - Cleaner: Download apps via `a[href*="/download"]` / `download-app-button` / aria-label. Disclaimer via `[data-testid="thread-disclaimer"]` and `[class*="--vt-disclaimer"]` inside `#thread-bottom-container`. Upgrade CTAs via `upgrade-button` / `get-plus-button` / `/upgrade` / `/checkout`. Locked models via `aria-disabled` / `data-state="locked"` picker rows. Home promo and ads via `home-promo` / `sponsored` / `ad-slot` testids. `display:none` (those controls should leave the layout).
 - ResponseNotification: `isStreaming()` falling-edge, 3 quiet 400ms ticks, `contextKey` lock. Settings `sound`, `soundUrl`, `browserNotification`, `onlyWhenHidden`.
 - ChatListStatus: paints only the Recents `a[href^="/c/"]` whose id is the open chat. Subscribes to host harvest of POST `/backend-api/conversation` (not `/conversations`, not a plugin fetch wrap). Channel `bloom-cls`.
 - WiderChat: `--thread-content-max-width` + `[class*="thread-content-max-width"]` on `#thread` / `#thread-bottom-container`. Slider `width` 40–96 rem.
 - MessageTimestamps: `[data-message-id]` in `#thread`. Times from host harvest of GET `/backend-api/conversation/{id}` mapping `create_time` / POST SSE. Settings `showDate`, `hideOwnMessages`.
-- StreamerMode: `filter:blur(6px)` on Recents `a[href^="/c/"]`, project `/g/g-p-` / `/project`, profile avatar / `.truncate` / mailto. Hover unblurs Recents and projects. Never `#bloom-rail-item`.
+- StreamerMode: `filter:blur(6px)` on Recents `a[href^="/c/"]`, project `/g/g-p-` / `/project`, profile avatar / `.truncate` / mailto, `#page-header` title (`headerTitle`), RecentTopics HUD names. Hover unblurs Recents / projects / HUD cards. Never `#bloom-rail-item` / Voice / Share / composer / model switcher.
 - GreetingCustomizer: home `/` only. Paints `h1.text-page-header .text-pretty::before`, else `main h1 .text-pretty`, else the home `main h1`. Skips chrome / Temporary Chat / `sr-only`. `mode` refresh|interval|manual, `order` sequential|random, `intervalSec` 1–3600. Empty list leaves the official greeting.
 
 ## Build
