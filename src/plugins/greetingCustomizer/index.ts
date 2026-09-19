@@ -27,8 +27,52 @@ const POLL_MS = 1000;
 const SEEK_MS = 50;
 const SEEK_TICKS = 40;
 
-const H1_SEL = 'h1.text-page-header, h1[class*="text-page-header"]';
-const TEXT_SEL = `${H1_SEL} .text-pretty`;
+const CHROME_SEL = [
+    "#page-header",
+    "nav",
+    "#stage-slideover-sidebar",
+    "#stage-sidebar-tiny-bar",
+    "#bloom-root",
+    "#bloom-sidebar-panel",
+    "#bloom-plugin-layer",
+    "#bloom-plugin-dialog",
+].join(", ");
+
+const H1_SEL = [
+    "h1.text-page-header",
+    'h1[class*="text-page-header"]',
+    "[data-splash-headline-option] h1",
+    'main h1:not(.sr-only):not([data-testid="temporary-chat-label"])',
+].join(", ");
+
+const TEXT_SEL = [
+    "h1.text-page-header .text-pretty",
+    'h1[class*="text-page-header"] .text-pretty',
+    "[data-splash-headline-option] h1 .text-pretty",
+    'main h1:not(.sr-only):not([data-testid="temporary-chat-label"]) .text-pretty',
+].join(", ");
+
+function inChrome(el: Element | null): boolean {
+    return !!el?.closest(CHROME_SEL);
+}
+
+function skipHeading(el: Element): boolean {
+    if (inChrome(el)) return true;
+    if (el.closest('[data-testid="temporary-chat-label"]')) return true;
+    if (el.closest("[hidden]")) return true;
+    if (el.getAttribute("aria-hidden") === "true") return true;
+    if (el.classList.contains("sr-only")) return true;
+    return false;
+}
+
+function firstMatch(sel: string): Element | null {
+    try {
+        for (const node of document.querySelectorAll(sel)) {
+            if (!skipHeading(node)) return node;
+        }
+    } catch { /* invalid sel */ }
+    return null;
+}
 
 const DEFAULT_GREETINGS = [
     "Ask not what your country can do for you\n— ask what you can do for your country.",
@@ -143,13 +187,11 @@ function escapeForCssContent(text: string): string {
 }
 
 function paintOnText(): boolean {
-    try { return !!document.querySelector(TEXT_SEL); }
-    catch { return false; }
+    return !!firstMatch(TEXT_SEL);
 }
 
 function headingPresent(): boolean {
-    try { return !!(document.querySelector(TEXT_SEL) || document.querySelector(H1_SEL)); }
-    catch { return false; }
+    return !!(firstMatch(TEXT_SEL) || firstMatch(H1_SEL));
 }
 
 function buildCss(escaped: string, clickable: boolean): string {
@@ -173,7 +215,7 @@ function buildCss(escaped: string, clickable: boolean): string {
         "margin:0 auto!important",
         "padding:0!important",
     ].join(";");
-    const target = paintOnText() || !document.querySelector(H1_SEL) ? TEXT_SEL : H1_SEL;
+    const target = paintOnText() || !firstMatch(H1_SEL) ? TEXT_SEL : H1_SEL;
     const cursor = clickable
         ? `${H1_SEL}{cursor:pointer!important;user-select:none!important}`
         : "";
@@ -352,8 +394,9 @@ function onManualClick(e: Event) {
     if (mode() !== "manual") return;
     if (getGreetings().filter(Boolean).length <= 1) return;
     const el = e.target instanceof Element ? e.target : null;
-    if (!el?.closest(H1_SEL)) return;
-    if (el.closest("#bloom-root, #bloom-sidebar-panel, #bloom-plugin-layer, #bloom-plugin-dialog")) return;
+    if (!el) return;
+    const heading = el.closest(H1_SEL);
+    if (!heading || skipHeading(heading)) return;
     const sel = window.getSelection?.();
     if (sel && String(sel).trim()) return;
     apply(true);

@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.36](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.36)** (`userscript/Bloom.latest.user.js`, `@version [20260919] v1.4.36`).
+Current release: **[v1.4.37](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.37)** (`userscript/Bloom.latest.user.js`, `@version [20260919] v1.4.37`).
 
 v1.4.23 ships:
 
@@ -49,7 +49,7 @@ The blossom mark is the 24-unit evenodd path from the existing Chat-State-Favico
 
 Off until you turn it on. Replaces the chatgpt.com **home** heading (`/` only) with your own texts.
 
-- CSS overlay only (`h1.text-page-header .text-pretty::before`) — does not rewrite React text
+- CSS overlay only (`h1.text-page-header .text-pretty::before`, else `main h1 .text-pretty`, else the home `main h1`) — does not rewrite React text
 - Rotate: each visit to home · timer while on home · click the title
 - Order: sequential or random
 - Gear pane: add / edit / delete (max 30, 100 characters each)
@@ -154,6 +154,8 @@ v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses 
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
 
+v1.4.37: **GreetingCustomizer hits the current home heading.** The Mar 2026 `h1.text-page-header .text-pretty` pair is kept but no longer required. Overlay falls back to `main h1 .text-pretty`, then `main h1`. Skips `#page-header`, sidebar, Bloom chrome, Temporary Chat, and `sr-only` / `aria-hidden` headings. `TEXT_SEL` is an explicit list (the old `${H1_SEL} .text-pretty` comma grouping painted the h1 itself).
+
 v1.4.36: Install / `@updateURL` / `@downloadURL` use `userscript/Bloom.latest.user.js` on the `refs/heads/main` raw path. Fastly still served 1.4.33 from `.../Bloom/main/userscript/Bloom.user.js` and 1.4.34 from `.../refs/heads/main/userscript/Bloom.user.js` after newer commits reached git.
 
 v1.4.35: Install / `@updateURL` / `@downloadURL` move to `raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.user.js`. The old `.../Bloom/main/userscript/Bloom.user.js` Fastly cache kept serving 1.4.33 after 1.4.34 landed on `main`, so Tampermonkey / Violentmonkey could not update from the link.
@@ -196,7 +198,7 @@ v1.4.21: **Restore the centered settings dock** (1.4.20 left-rail move was unwan
 - WiderChat: `--thread-content-max-width` + `[class*="thread-content-max-width"]` on `#thread` / `#thread-bottom-container`. Slider `width` 40–96 rem.
 - MessageTimestamps: `[data-message-id]` in `#thread`. GET `/backend-api/conversation/{id}` mapping `create_time`. Settings `showDate`, `hideOwnMessages`.
 - StreamerMode: `filter:blur(6px)` on Recents `a[href^="/c/"]`, project `/g/g-p-` / `/project`, profile avatar / `.truncate` / mailto. Hover unblurs Recents and projects. Never `#bloom-rail-item`.
-- GreetingCustomizer: home `/` only. Paints `h1.text-page-header .text-pretty::before` (fallback the h1). `mode` refresh|interval|manual, `order` sequential|random, `intervalSec` 1–3600. Empty list leaves the official greeting.
+- GreetingCustomizer: home `/` only. Paints `h1.text-page-header .text-pretty::before`, else `main h1 .text-pretty`, else the home `main h1`. Skips chrome / Temporary Chat / `sr-only`. `mode` refresh|interval|manual, `order` sequential|random, `intervalSec` 1–3600. Empty list leaves the official greeting.
 
 ## Build
 
