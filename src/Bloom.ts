@@ -20,6 +20,8 @@ import noDictation from "./plugins/noDictation";
 import noSidebarIdentity from "./plugins/noSidebarIdentity";
 import recentTopics from "./plugins/recentTopics";
 import cleaner from "./plugins/cleaner";
+import responseNotification from "./plugins/responseNotification";
+import chatListStatus from "./plugins/chatListStatus";
 
 const logger = new Logger("Bloom");
 let initialized = false;
@@ -34,6 +36,8 @@ const pluginList: Plugin[] = [
     noSidebarIdentity,
     recentTopics,
     cleaner,
+    responseNotification,
+    chatListStatus,
 ];
 
 function wait(ms: number): Promise<void> {

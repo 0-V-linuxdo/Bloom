@@ -6,6 +6,8 @@
  * Conversation token / context lock from Chat-State-Favicons (MIT).
  */
 
+const CONV_RE = /\/c\/([a-zA-Z0-9_-]{8,})/i;
+
 export function conversationToken(): string {
     const params = new URLSearchParams(location.search || "");
     const paramId =
@@ -43,4 +45,26 @@ export function conversationToken(): string {
 export function contextKeyFromUrl(token: string): string {
     const base = `${location.origin}${location.pathname}`;
     return token ? `${base}|${token}` : `${base}|draft`;
+}
+
+export function conversationIdFromHref(href: string): string {
+    if (!href) return "";
+    try {
+        const path = /^https?:/i.test(href) ? new URL(href, location.origin).pathname : href;
+        return path.match(CONV_RE)?.[1] ?? "";
+    } catch {
+        return href.match(CONV_RE)?.[1] ?? "";
+    }
+}
+
+export function currentConversationId(): string {
+    const fromPath = conversationIdFromHref(location.pathname);
+    if (fromPath) return fromPath;
+    const token = conversationToken();
+    const parts = token.split("|").filter(Boolean);
+    for (let i = parts.length - 1; i >= 0; i--) {
+        const part = parts[i];
+        if (/^[a-z0-9_-]{8,}$/i.test(part)) return part;
+    }
+    return "";
 }

@@ -281,7 +281,7 @@ function fieldControl(pluginName: string, key: string, spec: { type: OptionType;
     }
 
     const wrap = document.createElement("div");
-    wrap.className = spec.type === OptionType.SLIDER ? "bloom-field bloom-field-stack" : "bloom-field";
+    wrap.className = spec.type === OptionType.SLIDER || spec.type === OptionType.STRING ? "bloom-field bloom-field-stack" : "bloom-field";
     const cap = document.createElement("span");
     cap.className = "bloom-field-label";
     cap.textContent = spec.description || key;
@@ -328,6 +328,16 @@ function fieldControl(pluginName: string, key: string, spec: { type: OptionType;
             if (input) store[key] = input.checked;
         });
         wrap.appendChild(toggle);
+        return wrap;
+    }
+
+    if (spec.type === OptionType.STRING) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = String(store[key] ?? "");
+        input.spellcheck = false;
+        input.addEventListener("change", () => { store[key] = input.value; });
+        wrap.appendChild(input);
         return wrap;
     }
 

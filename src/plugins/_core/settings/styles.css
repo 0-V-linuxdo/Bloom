@@ -583,7 +583,8 @@
   content: "▾ ";
 }
 
-.bloom-field select {
+.bloom-field select,
+.bloom-field input[type="text"] {
   height: 28px;
   min-width: 7.5rem;
   max-width: 52%;
@@ -594,6 +595,23 @@
   padding: 0 8px;
   font: inherit;
   font-size: 0.75rem;
+}
+
+.bloom-field.bloom-field-stack input[type="text"] {
+  max-width: none;
+  width: 100%;
+}
+
+.bloom-field-block button {
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default, var(--border-medium, rgba(0, 0, 0, 0.1)));
+  background: var(--bg-primary, #fff);
+  color: inherit;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
 }
 
 .bloom-field input[type="range"] {

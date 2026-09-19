@@ -4,9 +4,9 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.21](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.21)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.21`).
+Current release: **[v1.4.22](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.22)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.22`).
 
-v1.4.21 ships:
+v1.4.22 ships:
 
 | Plugin | Default | What it does |
 | --- | --- | --- |
@@ -16,7 +16,9 @@ v1.4.21 ships:
 | NoDictation | Off | Hide the composer Dictation (speech-to-text) button. Does not hide Voice mode. CSS-only. |
 | NoSidebarIdentity | On | Hide the display name next to the sidebar avatar. Optional: enlarge Plus/Pro/Free type to match Bloom++. CSS-only. |
 | RecentTopics | On | Switch recently opened chats with Ctrl+` (title + last-turn preview). |
-| Cleaner | On | Hide the Download apps button and the composer “can make mistakes” notice. CSS-only. |
+| Cleaner | On | Hide Download apps, the composer “can make mistakes” notice, upgrade CTAs, locked models, home GPT promo, and Free ads. CSS-only. |
+| ResponseNotification | On | Sound + browser notification when a reply finishes. Default: only when the tab is hidden. |
+| ChatListStatus | On | Recents row shows a spinner while a chat is answering, a blue dot when it finished in another chat, and an error mark on failure. |
 
 The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in the brand string is `ChatGPT`.
 
@@ -137,13 +139,17 @@ v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses 
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
 
+v1.4.22: **P0 plugins.** **Cleaner** also hides upgrade CTAs, locked models, home GPT promo, and Free ads (still CSS-only; never Voice / Share / avatar / `#bloom-rail-item` / `#thread-bottom-container`). **ResponseNotification** (default on): falling-edge of `isStreaming()` + 2–3 quiet ticks; sound + browser notification; `onlyWhenHidden` default; skip Stop / error toast / conversation switch. **ChatListStatus** (default on): Recents spinner / blue done-dot / error from current-tab streaming, conversation POST/SSE intercept, and `BroadcastChannel` — no `/conversations` poll.
+
 v1.4.21: **Restore the centered settings dock** (1.4.20 left-rail move was unwanted). **Favicon actually wins:** official `<link rel=icon>` nodes stay in the tree (no React strip-fight) but are parked (`media="not all"` / `bloom-host-icon`) so Chrome stops preferring ChatGPT's SVG over the blossom PNG.
 
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.
 - NoSidebarIdentity: `[data-testid="accounts-profile-button"] .flex.min-w-0 > .truncate`. Toggles `hideUsername` and `hideEmail` (mailto only; Plus/Pro labels are left alone). `enlargePlan` (default on, while the name is hidden) sets the plan label to 14px/1.25/500 via `.text-xs` / `.text-token-text-secondary:not(.truncate)`. Never restyles `.truncate`. Layout unchanged.
 - RecentTopics: Ctrl+` / Ctrl+Shift+` / Esc / Enter. `maxRecent` 3–12 (default 5). `includeHome` (default on).
-- Cleaner: Download apps via `a[href*="/download"]` / `download-app-button` / aria-label. Disclaimer via `[data-testid="thread-disclaimer"]` and `[class*="--vt-disclaimer"]` inside `#thread-bottom-container`. `display:none` (those controls should leave the layout).
+- Cleaner: Download apps via `a[href*="/download"]` / `download-app-button` / aria-label. Disclaimer via `[data-testid="thread-disclaimer"]` and `[class*="--vt-disclaimer"]` inside `#thread-bottom-container`. Upgrade CTAs via `upgrade-button` / `get-plus-button` / `/upgrade` / `/checkout`. Locked models via `aria-disabled` / `data-state="locked"` picker rows. Home promo and ads via `home-promo` / `sponsored` / `ad-slot` testids. `display:none` (those controls should leave the layout).
+- ResponseNotification: `isStreaming()` falling-edge, 3 quiet 400ms ticks, `contextKey` lock. Settings `sound`, `soundUrl`, `browserNotification`, `onlyWhenHidden`.
+- ChatListStatus: paints `a[href^="/c/"]` inside the sidebar. Intercepts POST `/backend-api/conversation` (not `/conversations`). Channel `bloom-cls`.
 
 ## Build
 

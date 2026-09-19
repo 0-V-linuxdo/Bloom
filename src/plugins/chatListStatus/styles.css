@@ -1,0 +1,33 @@
+.bloom-cls {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    margin-inline-start: auto;
+    pointer-events: none;
+    color: var(--text-accent, #10a37f);
+}
+
+.bloom-cls[data-kind="done"] {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #0ea5e9;
+    color: transparent;
+}
+
+.bloom-cls[data-kind="error"] {
+    color: var(--text-danger, #ef4444);
+}
+
+.bloom-cls-spin {
+    width: 14px;
+    height: 14px;
+    animation: bloom-cls-spin 0.8s linear infinite;
+}
+
+@keyframes bloom-cls-spin {
+    to { transform: rotate(360deg); }
+}
