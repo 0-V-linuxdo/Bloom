@@ -1,5 +1,6 @@
 /* Sidebar rail chip + body-docked panel. No overlay, no FAB, no popover.
- * Colors follow chatgpt.com Settings (`bg-token-bg-primary`, shadow-long, inverted switch). */
+ * Rail rest is transparent like the native account row. Panel / plugin dialog
+ * follow chatgpt.com Settings (`bg-token-bg-primary`, shadow-long, inverted switch). */
 
 .bloom-rail-item,
 .bloom-account-item {
@@ -26,7 +27,7 @@
 .bloom-rail-item {
   flex: 0 0 auto;
   z-index: 2;
-  background: var(--bloom-rail-surface, var(--bg-primary, var(--sidebar-surface-primary, transparent)));
+  background: transparent;
 }
 
 .bloom-rail-item:hover,
