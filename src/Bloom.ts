@@ -25,6 +25,7 @@ import chatListStatus from "./plugins/chatListStatus";
 import widerChat from "./plugins/widerChat";
 import messageTimestamps from "./plugins/messageTimestamps";
 import streamerMode from "./plugins/streamerMode";
+import greetingCustomizer from "./plugins/greetingCustomizer";
 
 const logger = new Logger("Bloom");
 let initialized = false;
@@ -44,6 +45,7 @@ const pluginList: Plugin[] = [
     widerChat,
     messageTimestamps,
     streamerMode,
+    greetingCustomizer,
 ];
 
 function wait(ms: number): Promise<void> {

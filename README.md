@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.30](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.30)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.30`).
+Current release: **[v1.4.31](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.31)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.31`).
 
 v1.4.23 ships:
 
@@ -22,6 +22,7 @@ v1.4.23 ships:
 | WiderChat | On | Widen the thread and composer (slider 40–96 rem, default 64). CSS-only. |
 | MessageTimestamps | On | Show when each turn was sent, from the conversation JSON ChatGPT already loads. |
 | StreamerMode | Off | Blur Recents titles, project names, and the account chip. CSS-only. Hover a Recents row to peek. |
+| GreetingCustomizer | Off | Replace the home greeting with your own texts. Rotate on each visit, a timer, or a click. |
 
 The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in the brand string is `ChatGPT`.
 
@@ -43,6 +44,17 @@ The settings shell **follows chatgpt.com's own theme** (`html.dark` and `--main-
 States: wait · rotate (🔄) · done (✔️) · ready (👍) · error (🚫).
 
 The blossom mark is the 24-unit evenodd path from the existing Chat-State-Favicons adapter, **without** the progress bar. Detection stays ChatGPT-specific (composer Stop, Pro trailing Stop, Deep Research, image spinner, `/c/{id}` context lock).
+
+## GreetingCustomizer
+
+Off until you turn it on. Replaces the chatgpt.com **home** heading (`/` only) with your own texts.
+
+- CSS overlay only (`h1.text-page-header .text-pretty::before`) — does not rewrite React text
+- Rotate: each visit to home · timer while on home · click the title
+- Order: sequential or random
+- Gear pane: add / edit / delete (max 30, 100 characters each)
+- Empty list or plugin off → official greeting
+- Uninstall the standalone `[ChatGPT] Greeting Customizer` userscript so two overlays do not fight
 
 ## InputHistory
 
@@ -142,6 +154,8 @@ v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses 
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
 
+v1.4.31: **GreetingCustomizer** (default off). Replaces the chatgpt.com home heading with a user-managed list. CSS `::before` only (never writes the React `h1`). Rotate on visit / timer / click. Settings live in the plugin gear pane. Uninstall the standalone `[ChatGPT] Greeting Customizer` userscript if you still have it.
+
 v1.4.30: **Settings header matches Void++ dialog chrome.** One title (Bloom++) plus description; no extra Plugins heading. Close sits on the title row. 1rem stack gap.
 
 v1.4.29: **ChatStateFavicons default overlay is Fill** (`bg`), not Badge.
@@ -172,6 +186,7 @@ v1.4.21: **Restore the centered settings dock** (1.4.20 left-rail move was unwan
 - WiderChat: `--thread-content-max-width` + `[class*="thread-content-max-width"]` on `#thread` / `#thread-bottom-container`. Slider `width` 40–96 rem.
 - MessageTimestamps: `[data-message-id]` in `#thread`. GET `/backend-api/conversation/{id}` mapping `create_time`. Settings `showDate`, `hideOwnMessages`.
 - StreamerMode: `filter:blur(6px)` on Recents `a[href^="/c/"]`, project `/g/g-p-` / `/project`, profile avatar / `.truncate` / mailto. Hover unblurs Recents and projects. Never `#bloom-rail-item`.
+- GreetingCustomizer: home `/` only. Paints `h1.text-page-header .text-pretty::before` (fallback the h1). `mode` refresh|interval|manual, `order` sequential|random, `intervalSec` 1–3600. Empty list leaves the official greeting.
 
 ## Build
 
