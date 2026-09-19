@@ -8,5 +8,5 @@ export const Devs = {
     p: "0-V-linuxdo",
 } as const;
 
-export const VERSION = "[20260919] v1.4.19";
+export const VERSION = "[20260919] v1.4.20";
 export const REPO_URL = "https://github.com/0-V-linuxdo/Bloom";

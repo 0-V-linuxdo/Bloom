@@ -736,7 +736,7 @@ function mountPanel() {
     showListView();
     syncRailExpanded();
     emitBloomEvent("settingsOpen", undefined);
-    console.info("[Bloom++] settings open", { version: VERSION, dock: "center", rail: !!liveRail() });
+    console.info("[Bloom++] settings open", { version: VERSION, dock: "left", rail: !!liveRail() });
 }
 
 function togglePanel() {
