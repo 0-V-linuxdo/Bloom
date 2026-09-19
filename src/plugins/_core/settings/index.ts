@@ -152,13 +152,52 @@ function appearancePref(): SchemePref {
     return "auto";
 }
 
+function opaqueFill(el: HTMLElement): string | null {
+    let node: HTMLElement | null = el;
+    for (let i = 0; i < 6 && node; i++) {
+        if (isNavOrStage(node)) break;
+        const bg = getComputedStyle(node).backgroundColor.trim();
+        const m = bg.match(/rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)/i);
+        if (m) {
+            const r = Number(m[1]);
+            const g = Number(m[2]);
+            const b = Number(m[3]);
+            let a = 1;
+            if (m[4] != null) a = String(m[4]).endsWith("%") ? Number(m[4]) / 100 : Number(m[4]);
+            if (a >= 0.5 && r + g + b >= 12) return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+        }
+        node = node.parentElement;
+    }
+    return null;
+}
+
+function accountSurface(): string | null {
+    const profile = findProfileButton();
+    return profile ? opaqueFill(profile) : null;
+}
+
+function paintTarget(el: HTMLElement | null, scheme: ReturnType<typeof resolveScheme>, fromHost: boolean, surface: string | null) {
+    if (!el) return;
+    el.setAttribute("data-bloom-scheme", scheme);
+    applySchemeTokens(el, scheme, fromHost);
+    if (surface) {
+        el.style.setProperty("--bg-primary", surface);
+        el.style.setProperty("--bloom-rail-surface", surface);
+    }
+}
+
 function paintScheme() {
     const pref = appearancePref();
     const scheme = resolveScheme(pref);
-    if (host) {
-        host.setAttribute("data-bloom-scheme", scheme);
-        applySchemeTokens(host, scheme, pref === "auto");
-    }
+    const fromHost = pref === "auto";
+    const surface = accountSurface();
+    paintTarget(host, scheme, fromHost, surface);
+    const panel = document.getElementById(SIDEBAR_ID);
+    if (panel instanceof HTMLElement) paintTarget(panel, scheme, fromHost, surface);
+    const dialog = document.getElementById(DIALOG_ID);
+    if (dialog instanceof HTMLElement) paintTarget(dialog, scheme, fromHost, surface);
+    const rail = document.getElementById(RAIL_ID);
+    if (rail instanceof HTMLElement && surface) rail.style.setProperty("--bloom-rail-surface", surface);
     emitBloomEvent("schemeChange", { scheme, pref });
 }
 
@@ -514,6 +553,7 @@ function openPluginDialog(plugin: Plugin) {
     layer.appendChild(dialog);
     document.body.appendChild(layer);
     bindPluginKeys();
+    paintScheme();
 }
 
 function pluginCard(plugin: Plugin): HTMLElement {
@@ -843,6 +883,7 @@ function mountPanel() {
     document.body.appendChild(panel);
     bloomOpen = true;
     closePluginDialog();
+    paintScheme();
     syncRailExpanded();
     emitBloomEvent("settingsOpen", undefined);
     console.info("[Bloom++] settings open", { version: VERSION, dock: "center", rail: !!liveRail() });
@@ -948,6 +989,9 @@ function syncRailAlign(row: HTMLElement, profile: HTMLElement) {
         if (Number.isFinite(padL)) setPx(row, "padding-left", Math.round(padL));
         if (Number.isFinite(gap) && gap > 0) setPx(row, "gap", Math.round(gap));
     }
+
+    const surface = opaqueFill(profile);
+    if (surface) row.style.setProperty("--bloom-rail-surface", surface);
 }
 
 function isNavOrStage(el: HTMLElement): boolean {

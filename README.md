@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.27](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.27)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.27`).
+Current release: **[v1.4.28](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.28)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.28`).
 
 v1.4.23 ships:
 
@@ -141,6 +141,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.28: **Bloom++ chrome matches the account chip.** Dark surface is the chip fill (`#353535` / live computed background), not `--sidebar-surface-primary`. Rail, settings panel, and plugin popup share it.
 
 v1.4.27: **Plugin settings is an independent popup** (Void++ nested `PluginDialog`), not a reuse of the Bloom++ settings panel. Gear leaves the plugin list open and stacks a 32rem card over it. Close / Escape / click the transparent layer dismiss the popup only. Authors / Settings / `humanizeKey` / Reset stay. No `<dialog>`, popover, `role="dialog"`, or `aria-modal`.
 

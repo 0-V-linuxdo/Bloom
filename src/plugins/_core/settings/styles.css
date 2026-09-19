@@ -26,7 +26,7 @@
 .bloom-rail-item {
   flex: 0 0 auto;
   z-index: 2;
-  background: var(--sidebar-surface-primary, var(--main-surface-primary, transparent));
+  background: var(--bloom-rail-surface, var(--bg-primary, var(--sidebar-surface-primary, transparent)));
 }
 
 .bloom-rail-item:hover,

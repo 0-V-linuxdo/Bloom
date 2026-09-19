@@ -98,7 +98,7 @@ export const SCHEME_FALLBACKS: Record<ColorScheme, Record<(typeof HOST_TOKEN_KEY
         "--interactive-bg-secondary-hover": "rgba(255, 255, 255, 0.1)",
         "--interactive-label-primary-default": "#0d0d0d",
         "--message-surface": "#303030",
-        "--bg-primary": "#212121",
+        "--bg-primary": "#353535",
         "--bg-secondary": "#303030",
         "--bg-tertiary": "#414141",
         "--bg-elevated-primary": "#1b1b1b",
