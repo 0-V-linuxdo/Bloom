@@ -786,6 +786,8 @@ function buildPanel(id: string): HTMLElement {
 
     const head = document.createElement("div");
     head.className = "bloom-settings-head";
+    const titles = document.createElement("div");
+    titles.className = "bloom-settings-titles";
     const brand = document.createElement("div");
     brand.className = "bloom-settings-brand";
     const mark = document.createElement("span");
@@ -794,23 +796,18 @@ function buildPanel(id: string): HTMLElement {
     const title = document.createElement("h2");
     title.textContent = "Bloom++";
     brand.append(mark, title);
+    const sub = document.createElement("p");
+    sub.className = "bloom-settings-sub";
+    sub.textContent = "Toggle features. Some need a reload. Click the sliders icon to configure.";
+    titles.append(brand, sub);
     const close = document.createElement("button");
     close.type = "button";
     close.className = "bloom-icon-btn";
     close.setAttribute("aria-label", "Close");
     close.innerHTML = closeSvg();
     close.addEventListener("click", hidePanel);
-    head.append(brand, close);
+    head.append(titles, close);
     list.appendChild(head);
-
-    const section = document.createElement("div");
-    section.className = "bloom-section-head";
-    const sectionTitle = document.createElement("h3");
-    sectionTitle.textContent = "Plugins";
-    const sectionHint = document.createElement("p");
-    sectionHint.textContent = "Turn Bloom++ features on or off. Sliders icon opens options.";
-    section.append(sectionTitle, sectionHint);
-    list.appendChild(section);
 
     const tabs = document.createElement("div");
     tabs.className = "bloom-plugin-tabs";

@@ -124,67 +124,81 @@
 .bloom-settings-list {
   display: flex;
   flex-direction: column;
+  gap: 1rem;
   min-height: 0;
 }
 
 .bloom-settings-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
-  margin: 0 0 6px;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.bloom-settings-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .bloom-settings-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   min-width: 0;
 }
 
 .bloom-settings-mark {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   display: grid;
   place-items: center;
   color: var(--icon-primary, inherit);
+  flex: 0 0 auto;
 }
 
 .bloom-settings-mark svg {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 }
 
 .bloom-settings-head h2 {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 1.125rem;
   font-weight: 600;
+  line-height: 1.5rem;
+  color: var(--text-primary, inherit);
 }
 
 .bloom-settings-sub {
-  margin: 0 0 6px;
+  margin: 0;
   font-size: 0.75rem;
+  line-height: 1rem;
   color: var(--text-secondary, #5d5d5d);
 }
 
 .bloom-section-head {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
-  margin: 0 0 8px;
+  gap: 0.25rem;
+  margin: 0;
 }
 
 .bloom-section-head h3 {
   margin: 0;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 500;
+  line-height: 1.25rem;
   color: var(--text-primary, inherit);
 }
 
 .bloom-section-head p {
   margin: 0;
   font-size: 0.75rem;
-  line-height: 1.25rem;
+  line-height: 1rem;
   color: var(--text-secondary, #5d5d5d);
 }
 
@@ -216,7 +230,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
-  margin: 0 0 10px;
+  margin: 0;
   border-bottom: 0;
 }
 
@@ -246,7 +260,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin: 0 0 10px;
+  margin: 0;
 }
 
 .bloom-search-input {
