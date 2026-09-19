@@ -4,9 +4,9 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.22](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.22)**（`userscript/Bloom.user.js`，`@version [20260919] v1.4.22`）。
+当前版本：**[v1.4.23](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.23)**（`userscript/Bloom.user.js`，`@version [20260919] v1.4.23`）。
 
-v1.4.22：
+v1.4.23：
 
 | 插件 | 默认 | 说明 |
 | --- | --- | --- |
@@ -19,6 +19,9 @@ v1.4.22：
 | Cleaner | 开 | 隐藏 Download apps、「也会犯错」提示、升级入口、锁定模型、首页促销、Free 广告。纯 CSS。 |
 | ResponseNotification | 开 | 回复结束时响铃 / 浏览器通知。默认只在标签隐藏时通知。 |
 | ChatListStatus | 开 | Recents 行：生成中转圈、其它会话完成后蓝点、出错打叉。 |
+| WiderChat | 开 | 加宽对话和输入栏（滑块 40–96 rem，默认 64）。纯 CSS。 |
+| MessageTimestamps | 开 | 每条消息显示发送时间，读 ChatGPT 已有的会话 JSON。 |
+| StreamerMode | 关 | 模糊 Recents 标题、项目名和账号芯片。纯 CSS。悬停 Recents 可看一眼。 |
 
 品牌名是 **Bloom++**，仓库名是 `Bloom`，都不含 `ChatGPT`。
 
@@ -126,6 +129,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.23：**P1 重写，不抄 Grok。** **WiderChat**（默认开）：滑块 40–96 rem（默认 64）覆盖 `--thread-content-max-width`。**MessageTimestamps**（默认开）：在 `[data-message-id]` 上画 `<time class="bloom-ts">`，时间来自会话 JSON / SSE `create_time`（不轮询 `/conversations`，不用 MessageStore）。**StreamerMode**（默认关）：CSS 模糊 Recents / 项目 / 账号芯片；悬停 Recents 可看；不往 `<html>` 加 class。
 
 ## 构建
 

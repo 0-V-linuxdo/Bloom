@@ -1,0 +1,20 @@
+.bloom-ts {
+    display: block;
+    margin: 0 0 0.25rem;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 400;
+    color: var(--text-tertiary, #8f8f8f);
+    user-select: none;
+    pointer-events: none;
+}
+
+[data-message-author-role="user"] > .bloom-ts,
+[data-message-author-role="user"] .bloom-ts:first-child {
+    text-align: right;
+}
+
+@media print {
+    .bloom-ts { display: none; }
+}

@@ -22,6 +22,9 @@ import recentTopics from "./plugins/recentTopics";
 import cleaner from "./plugins/cleaner";
 import responseNotification from "./plugins/responseNotification";
 import chatListStatus from "./plugins/chatListStatus";
+import widerChat from "./plugins/widerChat";
+import messageTimestamps from "./plugins/messageTimestamps";
+import streamerMode from "./plugins/streamerMode";
 
 const logger = new Logger("Bloom");
 let initialized = false;
@@ -38,6 +41,9 @@ const pluginList: Plugin[] = [
     cleaner,
     responseNotification,
     chatListStatus,
+    widerChat,
+    messageTimestamps,
+    streamerMode,
 ];
 
 function wait(ms: number): Promise<void> {
