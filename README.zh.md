@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.28](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.28)**（`userscript/Bloom.user.js`，`@version [20260919] v1.4.28`）。
+当前版本：**[v1.4.29](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.29)**（`userscript/Bloom.user.js`，`@version [20260919] v1.4.29`）。
 
 v1.4.23：
 
@@ -129,6 +129,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.29：**ChatStateFavicons 默认样式改为 Fill**（`bg`），不再默认 Badge。
 
 v1.4.28：**Bloom++ 背景对齐账号条。** 深色用芯片实测填充（`#353535` / 现场计算色），不再用更深的 `--sidebar-surface-primary`。侧栏行、设置面板、插件弹窗同一色。
 

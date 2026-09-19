@@ -15,10 +15,10 @@ export type FaviconKind = "wait" | "rotate" | "done" | "ready" | "error";
 
 export const STYLE_OPTIONS = [
     { label: "Emoji", value: "original" },
-    { label: "Badge", value: "badge", default: true },
+    { label: "Badge", value: "badge" },
     { label: "Dot", value: "dot" },
     { label: "Tint", value: "hole" },
-    { label: "Fill", value: "bg" },
+    { label: "Fill", value: "bg", default: true },
 ] as const;
 
 const KIND_COLOR: Record<Exclude<FaviconKind, "wait">, string> = {

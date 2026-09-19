@@ -79,7 +79,7 @@ const POLL_MS = 400;
 
 function currentStyle(): IconStyle {
     const value = settings.store.style;
-    return isIconStyle(value) ? value : "badge";
+    return isIconStyle(value) ? value : "bg";
 }
 
 function captureOfficial(): string {
