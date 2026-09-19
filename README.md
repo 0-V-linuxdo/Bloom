@@ -4,9 +4,9 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.18](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.18)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.18`).
+Current release: **[v1.4.19](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.19)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.19`).
 
-v1.4.18 ships:
+v1.4.19 ships:
 
 | Plugin | Default | What it does |
 | --- | --- | --- |
@@ -132,6 +132,8 @@ v1.4.16: `enlargePlan` selectors expanded. ChatGPT’s plan label is often a sec
 v1.4.17: **Fix** 1.4.16. A lone `.truncate` is the display name — `:first-child:not(:last-child)` left it visible and `:last-child` enlarged it. Hide every `.min-w-0 > .truncate` again. Enlarge only `.text-xs` / `.text-token-text-*:not(.truncate)` / non-truncate siblings — never `.truncate`.
 
 v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's official `<link rel=icon>` on every evaluate — that fought `hydrateRoot(document)` and locked the tab (Helium / Chromium). Own icon stays last; the head guard only restores **our** link. `pinRail` is no longer synchronous from the footer observer and backs off if React rejects the chip. Composer watch ignores `class`. RecentTopics debounces `history` writes.
+
+v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.

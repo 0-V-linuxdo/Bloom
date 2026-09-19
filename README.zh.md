@@ -4,9 +4,9 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.18](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.18)**（`userscript/Bloom.user.js`，`@version [20260919] v1.4.18`）。
+当前版本：**[v1.4.19](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.19)**（`userscript/Bloom.user.js`，`@version [20260919] v1.4.19`）。
 
-v1.4.18：
+v1.4.19：
 
 | 插件 | 默认 | 说明 |
 | --- | --- | --- |
@@ -116,6 +116,8 @@ v1.4.16：扩大 `enlargePlan` 选择器。Plan 经常是第二条 `.truncate`�
 v1.4.17：**修正** 1.4.16。唯一的 `.truncate` 是显示名——`:first-child:not(:last-child)` 没藏住，`:last-child` 还把它放大了。恢复隐藏所有 `.min-w-0 > .truncate`。只放大 `.text-xs` / `.text-token-text-*:not(.truncate)` / 非 truncate 兄弟，不动 `.truncate`。
 
 v1.4.18：**修页面卡死。** ChatStateFavicons 不再每次 evaluate 都删掉站点自己的 `<link rel=icon>`——那会和 `hydrateRoot(document)` 对打，整页锁死（Helium / Chromium）。只保证自己的图标在 `head` 最后；守卫只修我们的 link。`pinRail` 不再从 footer observer 同步插入，React 甩掉芯片就退避。Composer 观察不再盯 `class`。RecentTopics 对 `history` 写入做了防抖。
+
+v1.4.19：**设置弹窗配色对齐 ChatGPT 原生 Settings。** 面板用 `--bg-primary` + `shadow-long`（白底浮层，不用页面灰的 `--main-surface-primary`）。开关 / 滑块用 `--bg-primary-inverted`（黑 / 白），不再用 `--text-accent` 蓝。标签用和 General 一样的灰底 pill。宿主 token 回退值跟当前 chatgpt.com 浅色 / 深色。
 
 ## 构建
 
