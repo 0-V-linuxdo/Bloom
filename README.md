@@ -4,9 +4,9 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.17](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.17)** (`userscript/Bloom.user.js`, `@version [20260902] v1.4.17`).
+Current release: **[v1.4.18](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.18)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.18`).
 
-v1.4.17 ships:
+v1.4.18 ships:
 
 | Plugin | Default | What it does |
 | --- | --- | --- |
@@ -130,6 +130,8 @@ v1.4.15: NoSidebarIdentity `enlargePlan` again — **font size / line-height onl
 v1.4.16: `enlargePlan` selectors expanded. ChatGPT’s plan label is often a second `.truncate` (1.4.15’s `:not(.truncate)` missed it) or a direct `.text-xs` / `.text-token-text-secondary` next to the avatar. Name hide while enlarging is `.truncate:first-child:not(:last-child)` so a lone / last truncate (Plus/Pro/Free) stays visible.
 
 v1.4.17: **Fix** 1.4.16. A lone `.truncate` is the display name — `:first-child:not(:last-child)` left it visible and `:last-child` enlarged it. Hide every `.min-w-0 > .truncate` again. Enlarge only `.text-xs` / `.text-token-text-*:not(.truncate)` / non-truncate siblings — never `.truncate`.
+
+v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's official `<link rel=icon>` on every evaluate — that fought `hydrateRoot(document)` and locked the tab (Helium / Chromium). Own icon stays last; the head guard only restores **our** link. `pinRail` is no longer synchronous from the footer observer and backs off if React rejects the chip. Composer watch ignores `class`. RecentTopics debounces `history` writes.
 
 - NoShareLink: `button[data-testid="share-chat-button"]`. Project: `share-project-button` / `project-share-button`. Toggles `hideShareChat` and `hideShareProject`.
 - NoDictation: composer `aria-label` Dictate / Start dictation / 听写 / `composer-dictate-button`. Leaves `composer-speech-button` and `voice-mode-button` alone. Optional `hideDictationSettings` matches settings-dialog testids and aria-labels only.

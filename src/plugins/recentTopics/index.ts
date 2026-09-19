@@ -88,6 +88,7 @@ let selected = 0;
 let lastId = "";
 let origPush: History["pushState"] | null = null;
 let origReplace: History["replaceState"] | null = null;
+let routeTimer: ReturnType<typeof setTimeout> | undefined;
 
 function maxCount(): number {
     const n = Number(settings.store.maxRecent ?? 5);
@@ -343,7 +344,7 @@ function navigateTo(id: string) {
     location.assign(`/c/${id}`);
 }
 
-function onRoute() {
+function flushRoute() {
     const id = currentVisit();
     if (lastId && lastId !== id) captureId(lastId);
     lastId = id;
@@ -352,6 +353,14 @@ function onRoute() {
     const title = liveTitle(id);
     if (title) rememberTitle(id, title);
     captureId(id);
+}
+
+function onRoute() {
+    if (routeTimer !== undefined) return;
+    routeTimer = window.setTimeout(() => {
+        routeTimer = undefined;
+        flushRoute();
+    }, 120);
 }
 
 function hookHistory() {
@@ -614,6 +623,10 @@ export default definePlugin({
     stop() {
         keys?.abort();
         keys = null;
+        if (routeTimer !== undefined) {
+            clearTimeout(routeTimer);
+            routeTimer = undefined;
+        }
         unhookHistory();
         open = false;
         held = false;

@@ -4,13 +4,16 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Own #bloom-chat-state-favicon as the LAST <link rel=icon> in
- * document.head (Chrome prefers the last icon). Competitors in head
- * are stripped while Bloom owns the tab. Observer is head-only with
- * subtree so href/rel edits on child links are visible.
+ * document.head (Chrome prefers the last icon). Never remove ChatGPT's
+ * official icon links — hydrateRoot(document) owns those SSR nodes, and
+ * stripping them fights React (page freeze / dead clicks). Observer is
+ * head-only with subtree so href/rel edits on our link are visible.
  * Never observe html or body.
  */
 
 let mute = 0;
+let lastMoveAt = 0;
+const MOVE_COOLDOWN_MS = 400;
 
 function withMute(fn: () => void) {
     mute += 1;
@@ -39,14 +42,6 @@ function ourLink(id: string): HTMLLinkElement | null {
     return el instanceof HTMLLinkElement ? el : null;
 }
 
-export function stripCompetitorIcons(keepId: string) {
-    const { head } = document;
-    if (!head) return;
-    for (const node of Array.from(head.querySelectorAll("link"))) {
-        if (node.id !== keepId && isIconLink(node)) node.remove();
-    }
-}
-
 function mimeFor(href: string): { type: string; sizes: string } {
     if (href.startsWith("data:image/png") || href.endsWith(".png")) {
         return { type: "image/png", sizes: "32x32" };
@@ -57,11 +52,18 @@ function mimeFor(href: string): { type: string; sizes: string } {
     return { type: "", sizes: "any" };
 }
 
+function placeLast(head: HTMLElement, link: HTMLLinkElement) {
+    if (head.lastElementChild === link) return;
+    const now = Date.now();
+    if (now - lastMoveAt < MOVE_COOLDOWN_MS) return;
+    lastMoveAt = now;
+    head.appendChild(link);
+}
+
 export function applyFavicon(id: string, href: string) {
     const { head } = document;
     if (!head || !href) return;
     withMute(() => {
-        stripCompetitorIcons(id);
         let link = ourLink(id);
         const { type, sizes } = mimeFor(href);
         if (!link) {
@@ -69,8 +71,8 @@ export function applyFavicon(id: string, href: string) {
             link.id = id;
             link.rel = "icon";
             head.appendChild(link);
-        } else if (head.lastElementChild !== link) {
-            head.appendChild(link);
+        } else {
+            placeLast(head, link);
         }
         if (link.rel !== "icon") link.rel = "icon";
         if (link.type !== type) link.type = type;
@@ -79,23 +81,11 @@ export function applyFavicon(id: string, href: string) {
     });
 }
 
-export function restoreOfficialFavicon(id: string, officialHref: string) {
+export function restoreOfficialFavicon(id: string, _officialHref: string) {
     const { head } = document;
     if (!head) return;
     withMute(() => {
         ourLink(id)?.remove();
-        const remaining = Array.from(head.querySelectorAll("link")).filter(isIconLink);
-        if (remaining.length) {
-            if (isUsableOfficialHref(officialHref) && remaining[0].href !== officialHref) {
-                remaining[0].href = officialHref;
-            }
-            return;
-        }
-        if (!isUsableOfficialHref(officialHref)) return;
-        const link = document.createElement("link");
-        link.rel = "icon";
-        link.href = officialHref;
-        head.appendChild(link);
     });
 }
 
@@ -105,21 +95,31 @@ export function startFaviconGuard(
 ): MutationObserver | null {
     const { head } = document;
     if (!head) return null;
+    let raf = 0;
     const obs = new MutationObserver(list => {
         if (mute) return;
+        let restore = false;
+        let official: string | undefined;
         for (const m of list) {
             if (m.type === "attributes" && isIconLink(m.target)) {
-                // Re-apply if ChatGPT mutates our href; never treat data: as official.
-                onCompete(m.target.id === id ? undefined : m.target.href);
-                return;
+                if (m.target.id === id) restore = true;
+                else if (isUsableOfficialHref(m.target.href)) official = m.target.href;
+            }
+            for (const node of m.removedNodes) {
+                if (isIconLink(node) && node.id === id) restore = true;
             }
             for (const node of m.addedNodes) {
-                if (isIconLink(node) && node.id !== id) {
-                    onCompete(node.href);
-                    return;
+                if (isIconLink(node) && node.id !== id && isUsableOfficialHref(node.href)) {
+                    official = node.href;
                 }
             }
         }
+        if (!restore) return;
+        if (raf) return;
+        raf = requestAnimationFrame(() => {
+            raf = 0;
+            onCompete(official);
+        });
     });
     obs.observe(head, {
         childList: true,

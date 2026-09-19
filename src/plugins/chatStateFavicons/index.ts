@@ -6,8 +6,10 @@
  * State machine adapted from Void++ ChatStateFavicons; ChatGPT streaming
  * detectors from Chat-State-Favicons (MIT). Streaming is NOT gated on empty input.
  * Wait, streaming, done, ready, and error all use a composed white blossom
- * rasterized to PNG. Favicon link is last in document.head with a head-only
- * competitor guard (subtree on head, never html/body).
+ * rasterized to PNG. Favicon link is last in document.head. Never strip
+ * ChatGPT's official icon nodes (React hydrateRoot owns them). Head-only
+ * guard (subtree on head, never html/body). Composer watch is childList
+ * plus Stop/Send attrs — not `class` (token paint would schedule every frame).
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -88,6 +90,10 @@ function captureOfficial(): string {
 }
 
 function setKind(next: FaviconKind) {
+    if (kind === next) {
+        const link = document.getElementById(ICON_ID);
+        if (link instanceof HTMLLinkElement && link.getAttribute("href") === icons[next]) return;
+    }
     kind = next;
     applyFavicon(ICON_ID, icons[next]);
 }
@@ -206,7 +212,7 @@ function observeComposer() {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ["aria-label", "aria-disabled", "disabled", "data-testid", "class"],
+        attributeFilter: ["aria-label", "aria-disabled", "disabled", "data-testid"],
     });
 }
 

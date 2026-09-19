@@ -74,6 +74,9 @@ let watchedMenu: HTMLElement | null = null;
 let sidebarWatch: MutationObserver | null = null;
 let watchedSidebar: HTMLElement | null = null;
 let railTimer: ReturnType<typeof setInterval> | undefined;
+let pinRaf = 0;
+let pinBackoffUntil = 0;
+let pinRejects = 0;
 let listEl: HTMLDivElement | null = null;
 let pluginEl: HTMLDivElement | null = null;
 let gridEl: HTMLDivElement | null = null;
@@ -852,13 +855,49 @@ function resumeSidebarWatch() {
     watchSidebar();
 }
 
+function pocketSafe(el: HTMLElement): boolean {
+    if (isNavOrStage(el)) return false;
+    try {
+        const r = el.getBoundingClientRect();
+        if (r.height > 240) return false;
+    } catch {
+        return false;
+    }
+    return true;
+}
+
+function notePinResult(row: HTMLElement | null, inserted: boolean) {
+    if (!inserted || !row) return;
+    requestAnimationFrame(() => {
+        if (row.isConnected) {
+            pinRejects = 0;
+            return;
+        }
+        pinRejects += 1;
+        pinBackoffUntil = Date.now() + Math.min(8_000, 250 * 2 ** Math.min(pinRejects, 5));
+    });
+}
+
+function schedulePinRail() {
+    if (pinRaf) return;
+    if (Date.now() < pinBackoffUntil) return;
+    pinRaf = requestAnimationFrame(() => {
+        pinRaf = 0;
+        if (Date.now() < pinBackoffUntil) return;
+        if (document.getElementById(RAIL_ID)?.isConnected) return;
+        pinRail();
+    });
+}
+
 /** Chip only. Never mount or move the settings panel. */
 function pinRail() {
     if (!document.body) return;
     sidebarWatch?.disconnect();
+    let row: HTMLButtonElement | null = null;
+    let inserted = false;
     try {
         const existing = document.getElementById(RAIL_ID);
-        const row = existing instanceof HTMLButtonElement ? existing : buildRailItem();
+        row = existing instanceof HTMLButtonElement ? existing : buildRailItem();
         const profile = findProfileButton();
         const tiny = findTinyBar();
 
@@ -871,16 +910,22 @@ function pinRail() {
             }
             if (!(row.isConnected && row.nextElementSibling === anchor)) {
                 anchor.before(row);
+                inserted = true;
             }
             syncCollapsed(row);
             syncRailAlign(row, profile);
         } else if (tiny) {
-            if (row.parentElement !== tiny) tiny.appendChild(row);
+            if (row.parentElement !== tiny) {
+                tiny.appendChild(row);
+                inserted = true;
+            }
             syncCollapsed(row, true);
         } else if (row.isConnected && !isOnscreenRail(row)) {
             row.remove();
+            row = null;
         }
     } finally {
+        notePinResult(row, inserted);
         resumeSidebarWatch();
         syncRailExpanded();
     }
@@ -888,13 +933,13 @@ function pinRail() {
 
 function watchSidebar() {
     const root = findSidebarHost();
-    if (!root) return;
+    if (!root || !pocketSafe(root)) return;
     if (watchedSidebar === root && sidebarWatch) return;
     sidebarWatch?.disconnect();
     watchedSidebar = root;
     sidebarWatch = new MutationObserver(() => {
         if (document.getElementById(RAIL_ID)?.isConnected) return;
-        pinRail();
+        schedulePinRail();
     });
     sidebarWatch.observe(root, { childList: true });
 }
@@ -906,8 +951,9 @@ function bindRail() {
         railTimer = window.setInterval(() => {
             const rail = document.getElementById(RAIL_ID);
             if (!(rail instanceof HTMLElement) || !rail.isConnected) {
-                pinRail();
+                if (Date.now() >= pinBackoffUntil) pinRail();
             } else {
+                pinRejects = 0;
                 const profile = findProfileButton();
                 if (profile) syncRailAlign(rail, profile);
             }
@@ -921,6 +967,10 @@ function unbindRail() {
         clearInterval(railTimer);
         railTimer = undefined;
     }
+    if (pinRaf) cancelAnimationFrame(pinRaf);
+    pinRaf = 0;
+    pinBackoffUntil = 0;
+    pinRejects = 0;
     sidebarWatch?.disconnect();
     sidebarWatch = null;
     watchedSidebar = null;
