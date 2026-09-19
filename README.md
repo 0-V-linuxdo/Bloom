@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.37](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.37)** (`userscript/Bloom.latest.user.js`, `@version [20260919] v1.4.37`).
+Current release: **[v1.4.38](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.38)** (`userscript/Bloom.latest.user.js`, `@version [20260919] v1.4.38`).
 
 v1.4.23 ships:
 
@@ -153,6 +153,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.38: **GreetingCustomizer gear pane.** Edit / Delete are pencil and trash icons (`aria-label`), not a lone `E`. Add / Update uses `--interactive-label-primary-default` on `--bg-primary-inverted` (dark mode was white-on-white). Nested fields use `--bg-secondary`, not page `--main-surface-primary`.
 
 v1.4.37: **GreetingCustomizer hits the current home heading.** The Mar 2026 `h1.text-page-header .text-pretty` pair is kept but no longer required. Overlay falls back to `main h1 .text-pretty`, then `main h1`. Skips `#page-header`, sidebar, Bloom chrome, Temporary Chat, and `sr-only` / `aria-hidden` headings. `TEXT_SEL` is an explicit list (the old `${H1_SEL} .text-pretty` comma grouping painted the h1 itself).
 

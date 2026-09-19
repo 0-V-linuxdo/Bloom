@@ -423,6 +423,32 @@ function stopPoll() {
     }
 }
 
+function iconButton(label: string, svg: string): HTMLButtonElement {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "bloom-gc-icon-btn";
+    btn.title = label;
+    btn.setAttribute("aria-label", label);
+    const mark = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    mark.setAttribute("viewBox", "0 0 24 24");
+    mark.setAttribute("fill", "none");
+    mark.setAttribute("stroke", "currentColor");
+    mark.setAttribute("stroke-width", "1.75");
+    mark.setAttribute("stroke-linecap", "round");
+    mark.setAttribute("stroke-linejoin", "round");
+    mark.setAttribute("aria-hidden", "true");
+    for (const d of svg.split("|")) {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", d);
+        mark.appendChild(path);
+    }
+    btn.appendChild(mark);
+    return btn;
+}
+
+const ICON_EDIT = "M12 20h9|M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z";
+const ICON_DELETE = "M3 6h18|M8 6V4h8v2|M19 6l-1 14H6L5 6|M10 11v6|M14 11v6";
+
 function validateGreeting(text: string, extraSlot: boolean): string | null {
     const value = normalizeGreeting(text);
     if (!value) return "Enter a greeting.";
@@ -536,20 +562,14 @@ function mountGreetingsPanel(root: HTMLElement): () => void {
             });
             const row = document.createElement("div");
             row.className = "bloom-gc-item-actions";
-            const edit = document.createElement("button");
-            edit.type = "button";
-            edit.title = "Edit";
-            edit.textContent = "E";
+            const edit = iconButton("Edit", ICON_EDIT);
             edit.addEventListener("click", () => {
                 editing = i;
                 draft = text;
                 error = "";
                 render();
             });
-            const del = document.createElement("button");
-            del.type = "button";
-            del.title = "Delete";
-            del.textContent = "×";
+            const del = iconButton("Delete", ICON_DELETE);
             del.addEventListener("click", () => {
                 const next = getGreetings().filter((_, j) => j !== i);
                 setGreetings(next);
