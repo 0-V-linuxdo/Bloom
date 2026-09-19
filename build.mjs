@@ -17,7 +17,7 @@ const date = new Date();
 const stamp = `${date.getUTCFullYear()}${String(date.getUTCMonth() + 1).padStart(2, "0")}${String(date.getUTCDate()).padStart(2, "0")}`;
 const displayVersion = `[${stamp}] v${pkg.version}`;
 const repo = "https://github.com/0-V-linuxdo/Bloom";
-const raw = "https://raw.githubusercontent.com/0-V-linuxdo/Bloom/main";
+const raw = "https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main";
 
 const header = `// ==UserScript==
 // @name         Bloom++
