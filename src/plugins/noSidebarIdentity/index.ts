@@ -12,6 +12,11 @@
  * text column — that collapses the row to the avatar.
  * enlargePlan (when the name is hidden) only bumps Plus/Pro/Free
  * `font-size` / `line-height` to 14px / 1.25 — same as Bloom++.
+ * alignPlanWithAvatar (default off, only while the name is hidden)
+ * collapses the empty name line height so Plus/Pro/Free sits on the
+ * avatar midline. Never `display:none` the name, never restyle
+ * `.min-w-0` flex/min-height, never `align-items` on the chip
+ * (1.4.13 stacked Pro under the avatar).
  * Never enlarge `.truncate` (1.4.16: a lone truncate is the display
  * name, so `:last-child` restyled "hanlin gao" and
  * `:first-child:not(:last-child)` left it visible). Plan is `.text-xs`
@@ -83,11 +88,21 @@ const settings = definePluginSettings({
         description: "When the name is hidden, enlarge the plan label (font size only).",
         default: true,
     },
+    alignPlanWithAvatar: {
+        type: OptionType.BOOLEAN,
+        description: "When the name is hidden, collapse the empty name line so Plus/Pro/Free sits on the avatar midline.",
+        default: false,
+    },
 });
 
 /** Hide ink, keep the box. `display:none` drops the slot and shrinks the chip. */
 function hideKeepSlot(selectors: string[]): string {
     return `${selectors.join(",")}{visibility:hidden!important;color:transparent!important;user-select:none!important;pointer-events:none!important}`;
+}
+
+/** Collapse used height only. Never `display:none`, never chip `align-items`. */
+function collapseNameHeight(selectors: string[]): string {
+    return `${selectors.join(",")}{height:0!important;max-height:0!important;min-height:0!important;line-height:0!important;font-size:0!important;margin:0!important;padding:0!important;overflow:hidden!important}`;
 }
 
 /** Same type metrics as `.bloom-rail-item`. No flex / display / min-height. */
@@ -99,11 +114,13 @@ function apply() {
     const hideName = settings.store.hideUsername !== false;
     const hideMail = settings.store.hideEmail !== false;
     const enlarge = hideName && settings.store.enlargePlan !== false;
+    const align = hideName && settings.store.alignPlanWithAvatar === true;
     const rules: string[] = [];
     if (hideName) {
         // Always hide every name truncate. A lone `.truncate` is the display
         // name, not Plus/Pro — 1.4.16's :first-child:not(:last-child) skipped it.
         rules.push(hideKeepSlot(enlarge ? NAME_TRUNCATE : NAME_SELECTORS));
+        if (align) rules.push(collapseNameHeight(NAME_TRUNCATE));
     }
     if (hideMail) rules.push(hideKeepSlot(EMAIL_SELECTORS));
     if (enlarge) rules.push(enlargePlanCss());
