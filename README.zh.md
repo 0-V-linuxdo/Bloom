@@ -4,9 +4,9 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.38](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.38)**（`userscript/Bloom.latest.user.js`，`@version [20260919] v1.4.38`）。
+当前版本：**[v1.4.39](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.39)**（`userscript/Bloom.latest.user.js`，`@version [20260919] v1.4.39`）。
 
-v1.4.23：
+插件：
 
 | 插件 | 默认 | 说明 |
 | --- | --- | --- |
@@ -35,7 +35,7 @@ v1.4.23：
 
 若还装着旧版 Bloom++，先卸掉再从 GitHub raw 装。自动更新走 `Bloom.latest.user.js`（`raw.githubusercontent.com/.../refs/heads/main/...`）。不要用 `.../Bloom/main/userscript/Bloom.user.js` 或 `.../refs/heads/main/userscript/Bloom.user.js`（Fastly 会卡住旧脚本）。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
 
-设置面板**跟随 `chatgpt.com` 自己的主题**（`html.dark` 与 `--main-surface-primary`），不跟操作系统的深色模式。ChatStateFavicons 从首屏起画**白色 blossom**（PNG，深色描边，不用官方黑标）。
+设置面板默认**跟随 `chatgpt.com` 自己的主题**（`Appearance: Follow host`）。可在 Bloom++ 面板强制浅色 / 深色。ChatStateFavicons 从首屏起画**白色 blossom**（PNG，深色描边，不用官方黑标）。
 
 ## GreetingCustomizer
 
@@ -140,6 +140,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.39：**宿主 P0。** 作曲器 `hasDraftText` / `isUserDraftEmpty` / `setEditorText` 收到 `src/host`（Send 后钉回 `#prompt-textarea` 的 App/@ 芯片不再算草稿；InputHistory 走同一条写出路径）。ChatStateFavicons 的 ready 只在真草稿 + `primedReady` + Send 非灰时成立；流式上升沿清掉 `primedReady`。流式检测优先 Stop + `aria-busy`，Deep Research / 生图 class token 只作兜底。设置 **Appearance**（`auto` / 浅色 / 深色）接上，不再写死 `auto`。
 
 v1.4.38：**GreetingCustomizer 齿轮页。** 编辑 / 删除改成铅笔和垃圾桶图标（带 `aria-label`），不再用看不懂的 `E`。Add / Update 用 `--interactive-label-primary-default` 配 `--bg-primary-inverted`（暗色下原先白底白字）。列表和输入框用设置卡片的 `--bg-secondary`，不再用页面的 `--main-surface-primary`。
 

@@ -13,7 +13,9 @@ export {
     getComposerRoot,
     getStopButton,
     getSubmitButton,
+    hasDraftText,
     isInputEmpty,
+    isUserDraftEmpty,
     isVisible,
     submitIsGray,
 } from "../../host/composer";

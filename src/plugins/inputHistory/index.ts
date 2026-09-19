@@ -5,12 +5,12 @@
  *
  * Adapted from Void++ InputHistory (GPL-3.0-or-later).
  * Editor: ChatGPT #prompt-textarea (and related composer editors).
- * Write path: execCommand insertText first, then InputEvent.
+ * Write path: host setEditorText (execCommand insertText + InputEvent).
  * Keydown is capture-phase so ProseMirror does not swallow ArrowUp/Down.
  */
 
 import { definePluginSettings } from "../../api/Settings";
-import { EDITOR_SEL, editorText, getActiveEditor, getComposerRoot, SEND_SEL, isStopControl } from "../../host/composer";
+import { EDITOR_SEL, editorText, getActiveEditor, getComposerRoot, placeCaret, SEND_SEL, isStopControl, setEditorText as writeEditor } from "../../host/composer";
 import { Devs } from "../../utils/constants";
 import { registerStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -108,30 +108,6 @@ function caretOnEdge(el: HTMLElement): { first: boolean; last: boolean } {
     }
 }
 
-function placeCaret(el: HTMLElement, atStart: boolean) {
-    const view = (el as unknown as { pmViewDesc?: { view?: {
-        state: { doc: unknown; selection: { constructor: { atStart(doc: unknown): unknown; atEnd(doc: unknown): unknown } }; tr: { setSelection(sel: unknown): { scrollIntoView(): unknown } } };
-        dispatch(tr: unknown): void;
-    } } }).pmViewDesc?.view;
-    if (view) {
-        try {
-            const Sel = view.state.selection.constructor;
-            const pmSel = atStart ? Sel.atStart(view.state.doc) : Sel.atEnd(view.state.doc);
-            view.dispatch(view.state.tr.setSelection(pmSel).scrollIntoView());
-            return;
-        } catch (e) {
-            logger.debug("pm caret failed:", e);
-        }
-    }
-    const sel = window.getSelection();
-    if (!sel) return;
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    range.collapse(atStart);
-    sel.removeAllRanges();
-    sel.addRange(range);
-}
-
 function scheduleApplyEnd(gen: number) {
     clearTimeout(applyTimer);
     applyTimer = setTimeout(() => {
@@ -143,26 +119,11 @@ function scheduleApplyEnd(gen: number) {
 }
 
 function setEditorText(el: HTMLElement, text: string, atStart: boolean) {
-    el.focus();
-    const sel = window.getSelection();
-    if (!sel) return;
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    sel.removeAllRanges();
-    sel.addRange(range);
     applying = true;
     applyEl = el;
     applyAtStart = atStart;
     const gen = ++applyGen;
-    try {
-        if (!text) document.execCommand("delete");
-        else document.execCommand("insertText", false, text);
-    } catch (err) {
-        logger.debug("insertText failed:", err);
-        el.textContent = text;
-    }
-    el.dispatchEvent(new InputEvent("input", { bubbles: true, data: text, inputType: text ? "insertText" : "deleteContent" }));
-    placeCaret(el, atStart);
+    writeEditor(el, text, atStart);
     scheduleApplyEnd(gen);
 }
 

@@ -6,6 +6,11 @@
  * ChatGPT composer helpers. Detector ideas from Chat-State-Favicons (MIT).
  * Selectors are a union: ChatGPT remounts the trailing Send/Stop control
  * and has used several testids / aria-labels in 2026.
+ *
+ * Draft emptiness ignores contenteditable=false atoms / mention buttons /
+ * leftover App chips re-pinned inside #prompt-textarea after Send.
+ * setEditorText is the shared write path (execCommand insertText + InputEvent).
+ * Plugins must not import InputHistory to fill the editor.
  */
 
 export const COMPOSER_SEL = 'form[data-type="unified-composer"], form.w-full[data-type]';
@@ -39,6 +44,7 @@ export const TRAILING_SEL = [
 ].join(", ");
 
 const STOP_LABEL = /stop streaming|stop generating|停止生成|停止输出|停止响应/;
+const ATOM_SEL = '[contenteditable="false"], button, [role="button"]';
 
 export function isVisible(el: Element | null | undefined): el is HTMLElement {
     if (!(el instanceof HTMLElement) || !el.isConnected) return false;
@@ -85,11 +91,47 @@ export function getActiveEditor(): HTMLElement | null {
     return list.find(isVisible) ?? list[0] ?? null;
 }
 
+function isDraftAtom(el: Element | null, editor: HTMLElement): boolean {
+    if (!el || el === editor || !editor.contains(el)) return false;
+    const hit = el.closest(ATOM_SEL);
+    return !!hit && hit !== editor && editor.contains(hit);
+}
+
+function draftTextOf(root: HTMLElement, editor: HTMLElement): string {
+    const parts: string[] = [];
+    try {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let node: Node | null = walker.nextNode();
+        while (node) {
+            const parent = node.parentElement;
+            if (!(parent && isDraftAtom(parent, editor))) parts.push(node.textContent ?? "");
+            node = walker.nextNode();
+        }
+    } catch {
+        return (root.innerText ?? root.textContent ?? "");
+    }
+    return parts.join("");
+}
+
+/**
+ * Walk the editor and collect text that is not inside a non-editable
+ * atom (App/@plugin chip, mention button, contenteditable=false pill).
+ * Chip-only leftover after Send counts as empty.
+ */
+export function hasDraftText(el?: HTMLElement | null): boolean {
+    const editor = el ?? getActiveEditor();
+    if (!editor) return false;
+    return draftTextOf(editor, editor).replaceAll("\u200B", "").trim().length > 0;
+}
+
+/** True when the composer has no user-typed draft (chip-only = empty). */
+export function isUserDraftEmpty(el?: HTMLElement | null): boolean {
+    return !hasDraftText(el);
+}
+
+/** Alias of isUserDraftEmpty. Leftover chip labels do not count as draft. */
 export function isInputEmpty(): boolean {
-    const editor = getActiveEditor();
-    if (!editor) return true;
-    const text = (editor.innerText ?? editor.textContent ?? "").replaceAll("\u200B", "").trim();
-    return text.length === 0;
+    return isUserDraftEmpty();
 }
 
 export function isDisabledControl(el: HTMLElement): boolean {
@@ -144,7 +186,61 @@ export function getStopButton(): HTMLElement | null {
 export function editorText(el: HTMLElement): string {
     const blocks = el.querySelectorAll("p");
     if (blocks.length) {
-        return Array.from(blocks, b => b.textContent ?? "").join("\n");
+        return Array.from(blocks, b => draftTextOf(b, el)).join("\n");
     }
-    return el.innerText ?? el.textContent ?? "";
+    return draftTextOf(el, el);
+}
+
+type PmView = {
+    state: {
+        doc: unknown;
+        selection: { constructor: { atStart(doc: unknown): unknown; atEnd(doc: unknown): unknown } };
+        tr: { setSelection(sel: unknown): { scrollIntoView(): unknown } };
+    };
+    dispatch(tr: unknown): void;
+};
+
+export function placeCaret(el: HTMLElement, atStart = false) {
+    const view = (el as unknown as { pmViewDesc?: { view?: PmView } }).pmViewDesc?.view;
+    if (view) {
+        try {
+            const Sel = view.state.selection.constructor;
+            const pmSel = atStart ? Sel.atStart(view.state.doc) : Sel.atEnd(view.state.doc);
+            view.dispatch(view.state.tr.setSelection(pmSel).scrollIntoView());
+            return;
+        } catch { /* fall through to DOM caret */ }
+    }
+    const sel = window.getSelection();
+    if (!sel) return;
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(atStart);
+    sel.removeAllRanges();
+    sel.addRange(range);
+}
+
+/**
+ * Fill the composer via execCommand insertText + InputEvent.
+ * Never innerHTML. textContent is last-resort only when insertText throws.
+ */
+export function setEditorText(el: HTMLElement, text: string, atStart = false) {
+    el.focus();
+    const sel = window.getSelection();
+    if (!sel) return;
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    try {
+        if (!text) document.execCommand("delete");
+        else document.execCommand("insertText", false, text);
+    } catch {
+        el.textContent = text;
+    }
+    el.dispatchEvent(new InputEvent("input", {
+        bubbles: true,
+        data: text,
+        inputType: text ? "insertText" : "deleteContent",
+    }));
+    placeCaret(el, atStart);
 }

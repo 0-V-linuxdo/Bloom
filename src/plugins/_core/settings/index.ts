@@ -33,6 +33,7 @@ import {
 } from "../../../host/accountMenu";
 import {
     applySchemeTokens,
+    isSchemePref,
     resolveScheme,
     watchHostScheme,
     type SchemePref,
@@ -149,7 +150,32 @@ function pluginIcon(plugin: Plugin): string {
 }
 
 function appearancePref(): SchemePref {
-    return "auto";
+    return isSchemePref(settings.store.appearance) ? settings.store.appearance : "auto";
+}
+
+function appearanceRow(): HTMLElement {
+    const wrap = document.createElement("div");
+    wrap.className = "bloom-field bloom-appearance-row";
+    const label = document.createElement("span");
+    label.className = "bloom-field-label";
+    label.textContent = "Appearance";
+    const sel = document.createElement("select");
+    sel.setAttribute("aria-label", "Appearance");
+    const spec = settings.def.appearance;
+    const opts = spec.type === OptionType.SELECT ? spec.options ?? [] : [];
+    for (const opt of opts) {
+        const o = document.createElement("option");
+        o.value = opt.value;
+        o.textContent = opt.label;
+        sel.appendChild(o);
+    }
+    sel.value = appearancePref();
+    sel.addEventListener("change", () => {
+        if (!isSchemePref(sel.value)) return;
+        settings.store.appearance = sel.value;
+    });
+    wrap.append(label, sel);
+    return wrap;
 }
 
 function paintTarget(el: HTMLElement | null, scheme: ReturnType<typeof resolveScheme>, fromHost: boolean) {
@@ -786,6 +812,7 @@ function buildPanel(id: string): HTMLElement {
     close.addEventListener("click", hidePanel);
     head.append(titles, close);
     list.appendChild(head);
+    list.appendChild(appearanceRow());
 
     const tabs = document.createElement("div");
     tabs.className = "bloom-plugin-tabs";

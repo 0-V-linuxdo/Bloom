@@ -11,6 +11,11 @@
  * so Chrome does not prefer the official SVG. Head-only guard (subtree
  * on head, never html/body). Composer watch is childList plus Stop/Send
  * attrs — not `class` (token paint would schedule every frame).
+ *
+ * Draft emptiness uses host isUserDraftEmpty (leftover App/@plugin chips
+ * inside #prompt-textarea do not count). primedReady resets on streaming
+ * rising edge; chip-only input must not set it. ready only if draft &&
+ * primedReady && Send is not gray.
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -28,9 +33,10 @@ import {
     conversationToken,
     contextKeyFromUrl,
     getActiveEditor,
+    hasDraftText,
     hasErrorToast,
-    isInputEmpty,
     isStreaming,
+    isUserDraftEmpty,
     submitIsGray,
 } from "./detect";
 import {
@@ -129,6 +135,10 @@ function onConversationSwitch(id: string) {
     setKind("wait");
 }
 
+function canReady(empty: boolean, gray: boolean): boolean {
+    return !empty && primedReady && !gray;
+}
+
 function evaluateState() {
     if (!started) return;
     const conv = conversationToken() || location.pathname;
@@ -140,7 +150,7 @@ function evaluateState() {
 
     const contextKey = getContextKey();
     const streaming = isStreaming();
-    const empty = isInputEmpty();
+    const empty = isUserDraftEmpty();
     const gray = submitIsGray();
 
     if (hasErrorToast() && !streaming) {
@@ -153,6 +163,7 @@ function evaluateState() {
 
     // ChatGPT: show rotate whenever streaming, even if leftover text remains.
     if (streaming) {
+        if (!wasStreaming) primedReady = false;
         wasStreaming = true;
         justFinished = false;
         streamContext = contextKey;
@@ -181,7 +192,7 @@ function evaluateState() {
         } else if (empty) {
             setKind("done");
             return;
-        } else if (primedReady) {
+        } else if (canReady(empty, gray)) {
             justFinished = false;
             setKind("ready");
             return;
@@ -192,10 +203,9 @@ function evaluateState() {
         }
     }
 
-    void gray;
     streamContext = null;
     if (empty) setKind("wait");
-    else if (primedReady) setKind("ready");
+    else if (canReady(empty, gray)) setKind("ready");
     else setKind("wait");
 }
 
@@ -229,7 +239,7 @@ function scheduleEvaluate() {
 }
 
 function onEditorInput() {
-    primedReady = true;
+    if (hasDraftText()) primedReady = true;
     scheduleEvaluate();
 }
 

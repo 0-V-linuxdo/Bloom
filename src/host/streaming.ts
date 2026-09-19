@@ -6,6 +6,10 @@
  * Extra streaming detectors from Chat-State-Favicons ChatGPT adapter (MIT).
  * Visible Send is not proof the turn ended: ChatGPT reuses the trailing
  * control and may keep data-testid="send-button" while the label is Stop.
+ *
+ * Core = Stop union. Assistant aria-busy is next. Token-class Deep Research
+ * / image-spinner selectors are last-resort only — they rot when ChatGPT
+ * restyles. Do not invent testids here.
  */
 
 import { getStopButton, getSubmitButton, isStopControl, isVisible } from "./composer";
@@ -21,11 +25,13 @@ export function getProStopButton(): HTMLElement | null {
     return null;
 }
 
+/** Last-resort token-class detector. Prefer hasStreamingTurn / Stop. */
 export function hasDeepResearchProgress(): boolean {
     const el = document.querySelector("div.bg-token-main-surface-tertiary div.bg-token-text-primary");
     return !!(el && isVisible(el));
 }
 
+/** Last-resort sibling + animate-spin detector. Prefer hasStreamingTurn / Stop. */
 export function hasImageGenerationSpinner(): boolean {
     const el = document.querySelector('button[data-testid="conversation-options-button"] + div svg.animate-spin');
     return !!(el && isVisible(el));
@@ -48,16 +54,17 @@ export function hasErrorToast(): boolean {
 
 /**
  * ChatGPT streaming: Stop in composer, Pro trailing Stop, reused Send
- * that is currently a Stop, or (no visible Send AND deep-research /
- * image spinner / busy assistant turn).
+ * that is currently a Stop, or an aria-busy assistant turn. Token-class
+ * Deep Research / image spinner fire only when Send is not a visible
+ * non-Stop control.
  */
 export function isStreaming(): boolean {
     if (getStopButton()) return true;
     if (getProStopButton()) return true;
+    if (hasStreamingTurn()) return true;
     const send = getSubmitButton();
     if (send && isVisible(send) && !isStopControl(send)) return false;
     if (hasDeepResearchProgress()) return true;
     if (hasImageGenerationSpinner()) return true;
-    if (hasStreamingTurn()) return true;
     return false;
 }
