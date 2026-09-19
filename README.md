@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.39](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.39)** (`userscript/Bloom.latest.user.js`, `@version [20260919] v1.4.39`).
+Current release: **[v1.4.40](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.40)** (`userscript/Bloom.latest.user.js`, `@version [20260919] v1.4.40`).
 
 Plugins:
 
@@ -153,6 +153,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.40: **Host harvest.** One shared `fetch` wrap in `src/host/harvest.ts` reads conversation GET JSON and POST SSE (`create_time`, title, streaming start/end). ChatListStatus and MessageTimestamps subscribe instead of each wrapping `window.fetch`. Never intercepts `/conversations` list. No `streamEnd` event. `conversationTitle` / `messageCreateTime` are session helpers for later PromptQueue / AutoContinue.
 
 v1.4.39: **Host P0.** Composer `hasDraftText` / `isUserDraftEmpty` / `setEditorText` live in `src/host` (leftover App/@plugin chips inside `#prompt-textarea` no longer count as draft; InputHistory uses the shared write path). ChatStateFavicons `ready` only if there is a real draft, `primedReady`, and Send is not gray; `primedReady` resets when streaming starts. Streaming detectors prefer Stop + `aria-busy`; Deep Research / image-spinner class tokens are last-resort. Settings **Appearance** (`auto` / light / dark) is wired instead of hardcoding `auto`.
 

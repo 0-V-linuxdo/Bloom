@@ -5,13 +5,14 @@
  *
  * ChatGPT-side rewrite of Void++ MessageTimestamps (GPL-3.0-or-later).
  * No Grok MessageStore / ResponseStore / turbopack patches. Times come
- * from the conversation JSON ChatGPT already fetches, SSE create_time,
+ * from host harvest of conversation GET JSON + POST SSE create_time,
  * and live DOM for the in-flight turn. Painter stays in this plugin.
- * Observe `#thread` / `main` (not html / body[subtree]). Do not poll
- * `/backend-api/conversations`.
+ * Observe `#thread` / `main` (not html / body[subtree]). Do not wrap
+ * fetch. Do not poll `/backend-api/conversations`.
  */
 
 import { definePluginSettings } from "../../api/Settings";
+import { subscribeHarvest, type HarvestEvent } from "../../host/harvest";
 import { isStreaming } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
@@ -19,7 +20,7 @@ import { debounce } from "../../utils/misc";
 import { Logger } from "../../utils/Logger";
 import definePlugin, { OptionType, StartAt } from "../../utils/types";
 import css from "./styles.css";
-import { formatStamp, isoOf, toMs } from "./time";
+import { formatStamp, isoOf } from "./time";
 
 const logger = new Logger("MessageTimestamps");
 const STYLE_NAME = "messageTimestamps";
@@ -52,14 +53,8 @@ let raf = 0;
 let pollTimer: ReturnType<typeof setInterval> | undefined;
 let threadObs: MutationObserver | null = null;
 let watchedThread: HTMLElement | null = null;
-let origFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
-let wrappedFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
-let fetchTarget: (Window & { fetch: typeof fetch }) | null = null;
+let unsubHarvest: (() => void) | null = null;
 let wasStreaming = false;
-
-function pageWindow(): Window & { fetch: typeof fetch } {
-    return (typeof unsafeWindow !== "undefined" ? unsafeWindow : window) as Window & { fetch: typeof fetch };
-}
 
 function threadRoot(): HTMLElement | null {
     return (document.getElementById("thread")
@@ -102,122 +97,9 @@ function lookup(id: string): number | null {
     return live.get(id) ?? getStamps()[id] ?? null;
 }
 
-function urlOf(input: RequestInfo | URL): string {
-    try {
-        if (typeof input === "string") return input;
-        if (input instanceof URL) return input.href;
-        if (typeof Request !== "undefined" && input instanceof Request) return input.url;
-    } catch { /* ignore */ }
-    return String(input);
-}
-
-function isConversationGet(url: string, method: string): boolean {
-    if (method !== "GET") return false;
-    if (/\/backend-api\/conversations(?:\/|\?|$)/i.test(url)) return false;
-    return /\/backend-api\/(?:f\/)?conversation\/[a-zA-Z0-9_-]+/i.test(url);
-}
-
-function isConversationPost(url: string, method: string): boolean {
-    if (method !== "POST") return false;
-    if (/\/backend-api\/conversations(?:\/|\?|$)/i.test(url)) return false;
-    return /\/backend-api\/(?:f\/)?conversation(?:\/|\?|$)/i.test(url);
-}
-
-function harvestObject(value: unknown, depth = 0) {
-    if (!started || depth > 6 || !value || typeof value !== "object") return;
-    if (Array.isArray(value)) {
-        for (const item of value) harvestObject(item, depth + 1);
-        return;
-    }
-    const rec = value as Record<string, unknown>;
-    const message = rec.message;
-    if (message && typeof message === "object" && !Array.isArray(message)) {
-        const msg = message as Record<string, unknown>;
-        const id = typeof msg.id === "string" ? msg.id : "";
-        const ms = toMs(msg.create_time ?? msg.createTime ?? msg.created_at);
-        if (id && ms) remember(id, ms);
-    }
-    const ownId = typeof rec.id === "string" ? rec.id : "";
-    const ownMs = toMs(rec.create_time ?? rec.createTime ?? rec.created_at);
-    if (ownId && ownMs && (rec.author || rec.content || rec.role || rec.create_time || rec.createTime)) {
-        remember(ownId, ownMs);
-    }
-    if (rec.mapping && typeof rec.mapping === "object") harvestObject(rec.mapping, depth + 1);
-    else if (depth < 3) {
-        for (const v of Object.values(rec)) {
-            if (v && typeof v === "object") harvestObject(v, depth + 1);
-        }
-    }
-}
-
-function harvestText(text: string) {
-    if (!text) return;
-    try { harvestObject(JSON.parse(text)); }
-    catch { /* partial SSE */ }
-}
-
-async function tapJson(res: Response) {
-    try {
-        const data = await res.clone().json();
-        harvestObject(data);
-    } catch { /* ignore */ }
-}
-
-async function tapSse(res: Response) {
-    const body = res.body;
-    if (!body) return;
-    const reader = body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    try {
-        while (started) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buf += dec.decode(value, { stream: true });
-            const parts = buf.split("\n");
-            buf = parts.pop() ?? "";
-            for (const line of parts) {
-                const payload = line.replace(/^data:\s*/, "").trim();
-                if (!payload || payload === "[DONE]") continue;
-                harvestText(payload);
-            }
-            if (buf.length > 16_384) buf = buf.slice(-4_096);
-        }
-        if (buf) harvestText(buf.replace(/^data:\s*/, ""));
-    } catch { /* ignore */ }
-}
-
-function intercept(orig: typeof fetch, input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    const url = urlOf(input);
-    const method = (init?.method || (typeof Request !== "undefined" && input instanceof Request ? input.method : "GET") || "GET").toUpperCase();
-    const get = isConversationGet(url, method);
-    const post = isConversationPost(url, method);
-    return orig(input, init).then(res => {
-        if (get) void tapJson(res);
-        else if (post) {
-            try { void tapSse(res.clone()); }
-            catch { /* ignore */ }
-        }
-        return res;
-    });
-}
-
-function hookFetch() {
-    if (origFetch) return;
-    const win = pageWindow();
-    fetchTarget = win;
-    origFetch = win.fetch.bind(win);
-    const wrapped = (input: RequestInfo | URL, init?: RequestInit) => intercept(origFetch!, input, init);
-    wrappedFetch = wrapped;
-    win.fetch = wrapped as typeof fetch;
-}
-
-function unhookFetch() {
-    if (!origFetch || !fetchTarget) return;
-    if (wrappedFetch && fetchTarget.fetch === wrappedFetch) fetchTarget.fetch = origFetch;
-    origFetch = null;
-    wrappedFetch = null;
-    fetchTarget = null;
+function onHarvest(ev: HarvestEvent) {
+    if (!started) return;
+    if (ev.type === "message-time") remember(ev.messageId, ev.createTime);
 }
 
 function roleOf(el: HTMLElement): string {
@@ -337,7 +219,7 @@ export default definePlugin({
         for (const [id, ms] of Object.entries(cached)) {
             if (typeof ms === "number" && ms > 0) live.set(id, ms);
         }
-        hookFetch();
+        unsubHarvest = subscribeHarvest(onHarvest);
         observeThread();
         if (pollTimer !== undefined) clearInterval(pollTimer);
         pollTimer = setInterval(schedulePaint, 800);
@@ -355,7 +237,8 @@ export default definePlugin({
         threadObs?.disconnect();
         threadObs = null;
         watchedThread = null;
-        unhookFetch();
+        unsubHarvest?.();
+        unsubHarvest = null;
         persistNow();
         live.clear();
         document.querySelectorAll(`.${MARK}`).forEach(n => n.remove());

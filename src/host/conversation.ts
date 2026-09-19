@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Conversation token / context lock from Chat-State-Favicons (MIT).
+ * Title / create_time live in host/harvest.ts (shared GET+POST/SSE).
  */
 
 const CONV_RE = /\/c\/([a-zA-Z0-9_-]{8,})/i;

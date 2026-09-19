@@ -175,3 +175,6 @@ export { plugins } from "./api/PluginManager";
 export { Settings } from "./api/Settings";
 export { VERSION, REPO_URL } from "./utils/constants";
 export { isDocumentInteractive, hasLateIslands } from "./utils/hydration";
+export { subscribeHarvest, conversationTitle, messageCreateTime } from "./host/harvest";
+export { conversationToken, currentConversationId, contextKeyFromUrl } from "./host/conversation";
+export { hasDraftText, isUserDraftEmpty, setEditorText } from "./host/composer";

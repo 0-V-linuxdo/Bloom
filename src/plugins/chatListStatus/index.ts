@@ -6,14 +6,15 @@
  * ChatGPT-side rewrite of Void++ ChatListStatus (GPL-3.0-or-later).
  * Painter stays in this plugin (not core). ChatGPT already paints Recents
  * status on other rows; this only fills the open chat (native skips it).
- * Sources: current-tab `isStreaming` + conversation id, fetch/SSE intercept
- * of conversation POSTs, BroadcastChannel across tabs. Paints only the
- * Recents `a[href^="/c/"]` whose id is `currentConversationId()`.
- * No /backend-api/conversations poll, no html/body subtree observer,
- * no Grok Zustand stores.
+ * Sources: current-tab `isStreaming` + conversation id, host harvest of
+ * conversation POSTs (shared fetch/SSE, not a second wrap), BroadcastChannel
+ * across tabs. Paints only the Recents `a[href^="/c/"]` whose id is
+ * `currentConversationId()`. No /backend-api/conversations poll, no
+ * html/body subtree observer, no Grok Zustand stores.
  */
 
 import { conversationIdFromHref, currentConversationId } from "../../host/conversation";
+import { subscribeHarvest, type HarvestEvent } from "../../host/harvest";
 import { hasErrorToast, isStreaming } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
@@ -50,49 +51,16 @@ let raf = 0;
 let sidebarObs: MutationObserver | null = null;
 let watchedSidebar: HTMLElement | null = null;
 let channel: BroadcastChannel | null = null;
-let origFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
-let wrappedFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
-let fetchTarget: (Window & { fetch: typeof fetch }) | null = null;
+let unsubHarvest: (() => void) | null = null;
 let pendingNew = false;
 
 function now(): number {
     return Date.now();
 }
 
-function pageWindow(): Window & { fetch: typeof fetch } {
-    return (typeof unsafeWindow !== "undefined" ? unsafeWindow : window) as Window & { fetch: typeof fetch };
-}
-
 function sidebarRoot(): HTMLElement | null {
     return (document.getElementById("stage-slideover-sidebar")
         || document.querySelector<HTMLElement>("nav")) ?? null;
-}
-
-function isConversationPost(url: string, method: string): boolean {
-    if (method !== "POST") return false;
-    if (!/\/backend-api\/(?:f\/)?conversation(?:\/|\?|$)/i.test(url)) return false;
-    if (/\/backend-api\/conversations(?:\/|\?|$)/i.test(url)) return false;
-    return true;
-}
-
-function urlOf(input: RequestInfo | URL): string {
-    try {
-        if (typeof input === "string") return input;
-        if (input instanceof URL) return input.href;
-        if (typeof Request !== "undefined" && input instanceof Request) return input.url;
-    } catch { /* ignore */ }
-    return String(input);
-}
-
-function idFromJsonish(text: string): string {
-    if (!text) return "";
-    const m = text.match(/"conversation_id"\s*:\s*"([a-zA-Z0-9_-]{8,})"/);
-    return m?.[1] ?? "";
-}
-
-function idFromBody(body: BodyInit | null | undefined): string {
-    if (typeof body === "string") return idFromJsonish(body);
-    return "";
 }
 
 function setStatus(id: string, kind: Kind, source: Row["source"], broadcast = true) {
@@ -240,84 +208,21 @@ function observeSidebar() {
     sidebarObs.observe(root, { childList: true, subtree: true });
 }
 
-async function tapSse(res: Response, seedId: string) {
-    let id = seedId;
-    let error = !res.ok;
-    const body = res.body;
-    if (!body) {
-        if (id) setStatus(id, error ? "error" : "done", "net");
+function onHarvest(ev: HarvestEvent) {
+    if (!started) return;
+    if (ev.type === "post-start") {
+        if (ev.conversationId) {
+            pendingNew = false;
+            setStatus(ev.conversationId, "streaming", "net");
+        } else {
+            pendingNew = true;
+        }
         return;
     }
-    const reader = body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    try {
-        while (started) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buf += dec.decode(value, { stream: true });
-            if (!id) {
-                const found = idFromJsonish(buf);
-                if (found) {
-                    id = found;
-                    pendingNew = false;
-                    setStatus(id, "streaming", "net");
-                }
-            }
-            if (/\[DONE\]/.test(buf) || /"error"\s*:\s*\{/.test(buf)) {
-                if (/"error"\s*:\s*\{/.test(buf)) error = true;
-                buf = buf.slice(-64);
-            } else if (buf.length > 8192) {
-                buf = buf.slice(-2048);
-            }
-        }
-    } catch {
-        error = true;
+    if (ev.type === "post-end") {
+        pendingNew = false;
+        if (ev.conversationId) setStatus(ev.conversationId, ev.error ? "error" : "done", "net");
     }
-    if (id) setStatus(id, error ? "error" : "done", "net");
-}
-
-function intercept(orig: typeof fetch, input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    const url = urlOf(input);
-    const method = (init?.method || (typeof Request !== "undefined" && input instanceof Request ? input.method : "GET") || "GET").toUpperCase();
-    const conv = isConversationPost(url, method);
-    let id = "";
-    if (conv) {
-        id = idFromBody(init?.body) || conversationIdFromHref(url) || currentConversationId();
-        if (id) setStatus(id, "streaming", "net");
-        else pendingNew = true;
-    }
-    return orig(input, init).then(res => {
-        if (!conv) return res;
-        try {
-            const copy = res.clone();
-            void tapSse(copy, id);
-        } catch {
-            if (id) setStatus(id, res.ok ? "done" : "error", "net");
-        }
-        return res;
-    }, err => {
-        if (conv && id) setStatus(id, "error", "net");
-        throw err;
-    });
-}
-
-function hookFetch() {
-    if (origFetch) return;
-    const win = pageWindow();
-    fetchTarget = win;
-    origFetch = win.fetch.bind(win);
-    const wrapped = (input: RequestInfo | URL, init?: RequestInit) => intercept(origFetch!, input, init);
-    wrappedFetch = wrapped;
-    win.fetch = wrapped as typeof fetch;
-}
-
-function unhookFetch() {
-    if (!origFetch || !fetchTarget) return;
-    if (wrappedFetch && fetchTarget.fetch === wrappedFetch) fetchTarget.fetch = origFetch;
-    origFetch = null;
-    wrappedFetch = null;
-    fetchTarget = null;
 }
 
 function localTick() {
@@ -363,7 +268,7 @@ export default definePlugin({
         try { channel = new BroadcastChannel(CHANNEL); }
         catch { channel = null; }
         channel?.addEventListener("message", onChannel);
-        hookFetch();
+        unsubHarvest = subscribeHarvest(onHarvest);
         observeSidebar();
         if (pollTimer !== undefined) clearInterval(pollTimer);
         pollTimer = setInterval(localTick, POLL_MS);
@@ -381,7 +286,8 @@ export default definePlugin({
         sidebarObs?.disconnect();
         sidebarObs = null;
         watchedSidebar = null;
-        unhookFetch();
+        unsubHarvest?.();
+        unsubHarvest = null;
         try { channel?.close(); } catch { /* ignore */ }
         channel = null;
         rows.clear();
