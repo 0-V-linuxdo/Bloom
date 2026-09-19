@@ -27,7 +27,8 @@ const header = `// ==UserScript==
 // @author       ${pkg.author}
 // @homepageURL  ${repo}
 // @supportURL   ${repo}/issues
-// @icon         ${raw}/assets/logos/bloom-icon.svg
+// @icon         ${raw}/assets/logos/app-icon/bloom-icon.svg
+// @icon64       ${raw}/assets/logos/app-icon/bloom-icon-64.png
 // @match        https://chatgpt.com/*
 // @match        https://*.chatgpt.com/*
 // @match        https://chat.openai.com/*

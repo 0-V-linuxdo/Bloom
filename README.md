@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.24](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.24)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.24`).
+Current release: **[v1.4.25](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.25)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.25`).
 
 v1.4.23 ships:
 
@@ -141,6 +141,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.25: **Userscript `@icon`** is the same solid mark as the **Bloom++** title (settings `blossomSvg()` outer path): white glyph, transparent, no ChatGPT knot plate. Canonical files under `assets/logos/app-icon/` (`bloom-icon.svg`, `bloom-icon-64.png`, `bloom-icon-256.png`). GitHub raw `@icon` / `@icon64`. Rail mark and ChatStateFavicons compositor unchanged.
 
 v1.4.24: **ChatListStatus** only paints the open Recents row. ChatGPT already shows status on other chats; Bloom was stacking a second spinner. No done-dot.
 
