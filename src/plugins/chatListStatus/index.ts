@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * ChatGPT-side rewrite of Void++ ChatListStatus (GPL-3.0-or-later).
- * Painter stays in this plugin (not core). Sources: current-tab DOM
- * (isStreaming + conversation id), fetch/SSE intercept of conversation
- * POSTs, BroadcastChannel across tabs. Paints Recents a[href^="/c/"].
+ * Painter stays in this plugin (not core). ChatGPT already paints Recents
+ * status on other rows; this only fills the open chat (native skips it).
+ * Sources: current-tab `isStreaming` + conversation id, fetch/SSE intercept
+ * of conversation POSTs, BroadcastChannel across tabs. Paints only the
+ * Recents `a[href^="/c/"]` whose id is `currentConversationId()`.
  * No /backend-api/conversations poll, no html/body subtree observer,
  * no Grok Zustand stores.
  */
@@ -39,7 +41,6 @@ type Wire = {
 type Row = { kind: Kind; at: number; source: "local" | "net" | "bc" };
 
 const rows = new Map<string, Row>();
-const seen = new Set<string>();
 
 let started = false;
 let lastPathId = "";
@@ -106,7 +107,6 @@ function setStatus(id: string, kind: Kind, source: Row["source"], broadcast = tr
             rows.set(id, { kind, at: now(), source });
         }
     }
-    if (kind === "streaming" || kind === "error") seen.delete(id);
     if (broadcast) post({ v: 1, id, kind, at: now() });
     schedulePaint();
 }
@@ -183,16 +183,19 @@ function paint() {
     if (!started) return;
     prune();
     const current = currentConversationId();
-    if (current) seen.add(current);
     const anchors = recentsAnchors();
     sidebarObs?.disconnect();
     try {
         for (const a of anchors) {
             const id = conversationIdFromHref(a.getAttribute("href") || "");
-            const row = id ? rows.get(id) : undefined;
+            if (!id || !current || id !== current) {
+                markFor(a)?.remove();
+                continue;
+            }
+            const row = rows.get(id);
             let kind = row?.kind ?? "idle";
-            if (kind === "done" && (seen.has(id) || id === current)) kind = "idle";
-            if (kind === "idle" || kind === undefined) {
+            if (kind === "done") kind = "idle";
+            if (kind === "idle") {
                 markFor(a)?.remove();
                 continue;
             }
@@ -320,7 +323,6 @@ function unhookFetch() {
 function localTick() {
     if (!started) return;
     const id = currentConversationId();
-    if (id) seen.add(id);
     if (lastPathId && id && lastPathId !== id) {
         const prev = rows.get(lastPathId);
         if (prev?.kind === "streaming" && prev.source === "local") {
@@ -348,7 +350,7 @@ function localTick() {
 
 export default definePlugin({
     name: "ChatListStatus",
-    description: "Show reply status on Recents: spinner while streaming, blue dot when done in another chat, error mark on failure.",
+    description: "Show a spinner on the open Recents row while this chat is answering. Other rows keep ChatGPT’s own status.",
     authors: [Devs.p],
     tags: ["chat", "ui"],
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,
@@ -383,7 +385,6 @@ export default definePlugin({
         try { channel?.close(); } catch { /* ignore */ }
         channel = null;
         rows.clear();
-        seen.clear();
         pendingNew = false;
         wasStreaming = false;
         lastPathId = "";

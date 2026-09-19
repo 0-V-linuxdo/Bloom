@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.23](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.23)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.23`).
+Current release: **[v1.4.24](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.24)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.24`).
 
 v1.4.23 ships:
 
@@ -18,7 +18,7 @@ v1.4.23 ships:
 | RecentTopics | On | Switch recently opened chats with Ctrl+` (title + last-turn preview). |
 | Cleaner | On | Hide Download apps, the composer “can make mistakes” notice, upgrade CTAs, locked models, home GPT promo, and Free ads. CSS-only. |
 | ResponseNotification | On | Sound + browser notification when a reply finishes. Default: only when the tab is hidden. |
-| ChatListStatus | On | Recents row shows a spinner while a chat is answering, a blue dot when it finished in another chat, and an error mark on failure. |
+| ChatListStatus | On | Spinner on the **open** Recents row while this chat is answering. Other rows keep ChatGPT’s own status. |
 | WiderChat | On | Widen the thread and composer (slider 40–96 rem, default 64). CSS-only. |
 | MessageTimestamps | On | Show when each turn was sent, from the conversation JSON ChatGPT already loads. |
 | StreamerMode | Off | Blur Recents titles, project names, and the account chip. CSS-only. Hover a Recents row to peek. |
@@ -142,6 +142,8 @@ v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses 
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
 
+v1.4.24: **ChatListStatus** only paints the open Recents row. ChatGPT already shows status on other chats; Bloom was stacking a second spinner. No done-dot.
+
 v1.4.23: **P1 rewrite, not a Grok copy.** **WiderChat** (default on): slider 40–96 rem (default 64) overrides `--thread-content-max-width`. **MessageTimestamps** (default on): `<time class="bloom-ts">` on `[data-message-id]` from conversation JSON / SSE `create_time` (no `/conversations` poll, no MessageStore). **StreamerMode** (default off): CSS blur Recents / projects / account chip; hover Recents to peek; never classes on `<html>`.
 
 v1.4.22: **P0 plugins.** **Cleaner** also hides upgrade CTAs, locked models, home GPT promo, and Free ads (still CSS-only; never Voice / Share / avatar / `#bloom-rail-item` / `#thread-bottom-container`). **ResponseNotification** (default on): falling-edge of `isStreaming()` + 2–3 quiet ticks; sound + browser notification; `onlyWhenHidden` default; skip Stop / error toast / conversation switch. **ChatListStatus** (default on): Recents spinner / blue done-dot / error from current-tab streaming, conversation POST/SSE intercept, and `BroadcastChannel` — no `/conversations` poll.
@@ -154,7 +156,7 @@ v1.4.21: **Restore the centered settings dock** (1.4.20 left-rail move was unwan
 - RecentTopics: Ctrl+` / Ctrl+Shift+` / Esc / Enter. `maxRecent` 3–12 (default 5). `includeHome` (default on).
 - Cleaner: Download apps via `a[href*="/download"]` / `download-app-button` / aria-label. Disclaimer via `[data-testid="thread-disclaimer"]` and `[class*="--vt-disclaimer"]` inside `#thread-bottom-container`. Upgrade CTAs via `upgrade-button` / `get-plus-button` / `/upgrade` / `/checkout`. Locked models via `aria-disabled` / `data-state="locked"` picker rows. Home promo and ads via `home-promo` / `sponsored` / `ad-slot` testids. `display:none` (those controls should leave the layout).
 - ResponseNotification: `isStreaming()` falling-edge, 3 quiet 400ms ticks, `contextKey` lock. Settings `sound`, `soundUrl`, `browserNotification`, `onlyWhenHidden`.
-- ChatListStatus: paints `a[href^="/c/"]` inside the sidebar. Intercepts POST `/backend-api/conversation` (not `/conversations`). Channel `bloom-cls`.
+- ChatListStatus: paints only the Recents `a[href^="/c/"]` whose id is the open chat. Intercepts POST `/backend-api/conversation` (not `/conversations`). Channel `bloom-cls`.
 - WiderChat: `--thread-content-max-width` + `[class*="thread-content-max-width"]` on `#thread` / `#thread-bottom-container`. Slider `width` 40–96 rem.
 - MessageTimestamps: `[data-message-id]` in `#thread`. GET `/backend-api/conversation/{id}` mapping `create_time`. Settings `showDate`, `hideOwnMessages`.
 - StreamerMode: `filter:blur(6px)` on Recents `a[href^="/c/"]`, project `/g/g-p-` / `/project`, profile avatar / `.truncate` / mailto. Hover unblurs Recents and projects. Never `#bloom-rail-item`.
