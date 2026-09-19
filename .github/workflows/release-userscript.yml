@@ -1,0 +1,23 @@
+name: release-userscript
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Attach userscript to the tag
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            userscript/Bloom.user.js
+            userscript/Bloom.latest.user.js
+          fail_on_unmatched_files: true
+          generate_release_notes: true

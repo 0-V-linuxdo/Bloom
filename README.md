@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.35](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.35)** (`userscript/Bloom.user.js`, `@version [20260919] v1.4.35`).
+Current release: **[v1.4.36](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.36)** (`userscript/Bloom.latest.user.js`, `@version [20260919] v1.4.36`).
 
 v1.4.23 ships:
 
@@ -29,11 +29,11 @@ The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in th
 ## Install
 
 1. Install [Violentmonkey](https://violentmonkey.github.io/) or Tampermonkey.
-2. Open [`userscript/Bloom.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.user.js).
+2. Open [`userscript/Bloom.latest.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.latest.user.js).
 3. Confirm install. Reload `chatgpt.com`.
 4. Look for **Bloom++** above your profile in the left sidebar. Tampermonkey / Violentmonkey → **Bloom++ settings** also opens the panel (second click closes it). The panel always docks to the left of the page on `document.body` — it is never inserted into the sidebar tree. Plugins render as a **Void++ BaseCard** stack (icon tile, two-line description, author footer, gear + switch).
 
-If an older Bloom++ is still installed, remove it first, then install from GitHub raw. Auto-update uses the same GitHub raw URL (`@updateURL` / `@downloadURL` on `raw.githubusercontent.com/.../refs/heads/main/...`). Do not use the shorter `.../Bloom/main/userscript/Bloom.user.js` path (Fastly can keep an old script). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
+If an older Bloom++ is still installed, remove it first, then install from GitHub raw. Auto-update uses `Bloom.latest.user.js` on `raw.githubusercontent.com/.../refs/heads/main/...`. Do not use `.../Bloom/main/userscript/Bloom.user.js` or `.../refs/heads/main/userscript/Bloom.user.js` (Fastly can keep an old script). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
 
 The settings shell **follows chatgpt.com's own theme** (`html.dark` and `--main-surface-primary`), not the operating-system color scheme. ChatStateFavicons draws a **white blossom** (PNG, dark halo, no official black mark) from the first paint.
 
@@ -153,6 +153,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.36: Install / `@updateURL` / `@downloadURL` use `userscript/Bloom.latest.user.js` on the `refs/heads/main` raw path. Fastly still served 1.4.33 from `.../Bloom/main/userscript/Bloom.user.js` and 1.4.34 from `.../refs/heads/main/userscript/Bloom.user.js` after newer commits reached git.
 
 v1.4.35: Install / `@updateURL` / `@downloadURL` move to `raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.user.js`. The old `.../Bloom/main/userscript/Bloom.user.js` Fastly cache kept serving 1.4.33 after 1.4.34 landed on `main`, so Tampermonkey / Violentmonkey could not update from the link.
 
