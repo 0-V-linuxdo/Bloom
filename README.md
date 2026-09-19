@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.40](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.40)** (`userscript/Bloom.latest.user.js`, `@version [20260919] v1.4.40`).
+Current release: **[v1.4.41](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.41)** (`userscript/Bloom.latest.user.js`, `@version [20260919] v1.4.41`).
 
 Plugins:
 
@@ -154,6 +154,8 @@ v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses 
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
 
+v1.4.41: **Harvest polish.** GET `/backend-api/conversation/{id}` now takes the id from the API path (not `/c/` href parsing). Last subscriber unhook invalidates in-flight SSE taps. Conversation titles skip message-like objects. MessageTimestamps can read the host `messageCreateTime` cache.
+
 v1.4.40: **Host harvest.** One shared `fetch` wrap in `src/host/harvest.ts` reads conversation GET JSON and POST SSE (`create_time`, title, streaming start/end). ChatListStatus and MessageTimestamps subscribe instead of each wrapping `window.fetch`. Never intercepts `/conversations` list. No `streamEnd` event. `conversationTitle` / `messageCreateTime` are session helpers for later PromptQueue / AutoContinue.
 
 v1.4.39: **Host P0.** Composer `hasDraftText` / `isUserDraftEmpty` / `setEditorText` live in `src/host` (leftover App/@plugin chips inside `#prompt-textarea` no longer count as draft; InputHistory uses the shared write path). ChatStateFavicons `ready` only if there is a real draft, `primedReady`, and Send is not gray; `primedReady` resets when streaming starts. Streaming detectors prefer Stop + `aria-busy`; Deep Research / image-spinner class tokens are last-resort. Settings **Appearance** (`auto` / light / dark) is wired instead of hardcoding `auto`.
@@ -200,9 +202,9 @@ v1.4.21: **Restore the centered settings dock** (1.4.20 left-rail move was unwan
 - RecentTopics: Ctrl+` / Ctrl+Shift+` / Esc / Enter. `maxRecent` 3–12 (default 5). `includeHome` (default on).
 - Cleaner: Download apps via `a[href*="/download"]` / `download-app-button` / aria-label. Disclaimer via `[data-testid="thread-disclaimer"]` and `[class*="--vt-disclaimer"]` inside `#thread-bottom-container`. Upgrade CTAs via `upgrade-button` / `get-plus-button` / `/upgrade` / `/checkout`. Locked models via `aria-disabled` / `data-state="locked"` picker rows. Home promo and ads via `home-promo` / `sponsored` / `ad-slot` testids. `display:none` (those controls should leave the layout).
 - ResponseNotification: `isStreaming()` falling-edge, 3 quiet 400ms ticks, `contextKey` lock. Settings `sound`, `soundUrl`, `browserNotification`, `onlyWhenHidden`.
-- ChatListStatus: paints only the Recents `a[href^="/c/"]` whose id is the open chat. Intercepts POST `/backend-api/conversation` (not `/conversations`). Channel `bloom-cls`.
+- ChatListStatus: paints only the Recents `a[href^="/c/"]` whose id is the open chat. Subscribes to host harvest of POST `/backend-api/conversation` (not `/conversations`, not a plugin fetch wrap). Channel `bloom-cls`.
 - WiderChat: `--thread-content-max-width` + `[class*="thread-content-max-width"]` on `#thread` / `#thread-bottom-container`. Slider `width` 40–96 rem.
-- MessageTimestamps: `[data-message-id]` in `#thread`. GET `/backend-api/conversation/{id}` mapping `create_time`. Settings `showDate`, `hideOwnMessages`.
+- MessageTimestamps: `[data-message-id]` in `#thread`. Times from host harvest of GET `/backend-api/conversation/{id}` mapping `create_time` / POST SSE. Settings `showDate`, `hideOwnMessages`.
 - StreamerMode: `filter:blur(6px)` on Recents `a[href^="/c/"]`, project `/g/g-p-` / `/project`, profile avatar / `.truncate` / mailto. Hover unblurs Recents and projects. Never `#bloom-rail-item`.
 - GreetingCustomizer: home `/` only. Paints `h1.text-page-header .text-pretty::before`, else `main h1 .text-pretty`, else the home `main h1`. Skips chrome / Temporary Chat / `sr-only`. `mode` refresh|interval|manual, `order` sequential|random, `intervalSec` 1–3600. Empty list leaves the official greeting.
 

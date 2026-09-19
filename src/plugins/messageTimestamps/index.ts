@@ -12,7 +12,7 @@
  */
 
 import { definePluginSettings } from "../../api/Settings";
-import { subscribeHarvest, type HarvestEvent } from "../../host/harvest";
+import { messageCreateTime, subscribeHarvest, type HarvestEvent } from "../../host/harvest";
 import { isStreaming } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
@@ -94,7 +94,7 @@ function remember(id: string, ms: number) {
 
 function lookup(id: string): number | null {
     if (!id) return null;
-    return live.get(id) ?? getStamps()[id] ?? null;
+    return live.get(id) ?? getStamps()[id] ?? messageCreateTime(id) ?? null;
 }
 
 function onHarvest(ev: HarvestEvent) {

@@ -31,6 +31,7 @@ const times = new Map<string, number>();
 let origFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
 let wrappedFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
 let fetchTarget: (Window & { fetch: typeof fetch }) | null = null;
+let epoch = 0;
 
 function pageWindow(): Window & { fetch: typeof fetch } {
     return (typeof unsafeWindow !== "undefined" ? unsafeWindow : window) as Window & { fetch: typeof fetch };
@@ -65,6 +66,10 @@ function isConversationGet(url: string, method: string): boolean {
     if (method !== "GET") return false;
     if (isConversationList(url)) return false;
     return /\/backend-api\/(?:f\/)?conversation\/[a-zA-Z0-9_-]+/i.test(url);
+}
+
+function idFromApiUrl(url: string): string {
+    return url.match(/\/backend-api\/(?:f\/)?conversation\/([a-zA-Z0-9_-]{8,})/i)?.[1] ?? "";
 }
 
 function idFromJsonish(text: string): string {
@@ -130,7 +135,9 @@ function harvestObject(value: unknown, conversationId: string, depth = 0) {
         (typeof rec.conversation_id === "string" && rec.conversation_id)
         || (typeof rec.conversationId === "string" && rec.conversationId)
         || conversationId;
-    if (typeof rec.title === "string" && ownConv) rememberTitle(ownConv, rec.title);
+    if (typeof rec.title === "string" && ownConv && !rec.author && !rec.content && !rec.role) {
+        rememberTitle(ownConv, rec.title);
+    }
 
     const message = rec.message;
     if (message && typeof message === "object" && !Array.isArray(message)) {
@@ -165,26 +172,28 @@ function emit(event: HarvestEvent) {
     }
 }
 
-async function tapJson(res: Response, conversationId: string) {
+async function tapJson(res: Response, conversationId: string, myEpoch: number) {
+    if (myEpoch !== epoch) return;
     try {
         const data = await res.json();
+        if (myEpoch !== epoch) return;
         harvestObject(data, conversationId);
     } catch { /* ignore */ }
 }
 
-async function tapSse(res: Response, seedId: string, seedError: boolean) {
+async function tapSse(res: Response, seedId: string, seedError: boolean, myEpoch: number) {
     let id = seedId;
     let error = seedError;
     const body = res.body;
     if (!body) {
-        emit({ type: "post-end", conversationId: id, error });
+        if (myEpoch === epoch) emit({ type: "post-end", conversationId: id, error });
         return;
     }
     const reader = body.getReader();
     const dec = new TextDecoder();
     let buf = "";
     try {
-        while (true) {
+        while (myEpoch === epoch) {
             const { done, value } = await reader.read();
             if (done) break;
             buf += dec.decode(value, { stream: true });
@@ -199,8 +208,7 @@ async function tapSse(res: Response, seedId: string, seedError: boolean) {
             buf = parts.pop() ?? "";
             for (const line of parts) {
                 const payload = line.replace(/^data:\s*/, "").trim();
-                if (!payload) continue;
-                if (payload === "[DONE]") continue;
+                if (!payload || payload === "[DONE]") continue;
                 harvestText(payload, id);
             }
             if (/\[DONE\]/.test(buf) || /"error"\s*:\s*\{/.test(buf)) {
@@ -210,10 +218,13 @@ async function tapSse(res: Response, seedId: string, seedError: boolean) {
                 buf = buf.slice(-4_096);
             }
         }
-        if (buf) harvestText(buf.replace(/^data:\s*/, ""), id);
+        if (buf && myEpoch === epoch) harvestText(buf.replace(/^data:\s*/, ""), id);
     } catch {
         error = true;
+    } finally {
+        try { void reader.cancel(); } catch { /* ignore */ }
     }
+    if (myEpoch !== epoch) return;
     emit({ type: "post-end", conversationId: id, error });
 }
 
@@ -222,23 +233,25 @@ function intercept(orig: typeof fetch, input: RequestInfo | URL, init?: RequestI
     const method = methodOf(input, init);
     const get = isConversationGet(url, method);
     const post = isConversationPost(url, method);
+    const myEpoch = epoch;
     let seedId = "";
     if (post) {
-        seedId = idFromBody(init?.body) || conversationIdFromHref(url) || currentConversationId();
+        seedId = idFromBody(init?.body) || idFromApiUrl(url) || conversationIdFromHref(url) || currentConversationId();
         emit({ type: "post-start", conversationId: seedId, url });
     }
     return orig(input, init).then(res => {
+        if (myEpoch !== epoch) return res;
         if (!get && !post) return res;
         try {
             const copy = res.clone();
-            if (get) void tapJson(copy, conversationIdFromHref(url) || currentConversationId());
-            else void tapSse(copy, seedId, !res.ok);
+            if (get) void tapJson(copy, idFromApiUrl(url) || currentConversationId(), myEpoch);
+            else void tapSse(copy, seedId, !res.ok, myEpoch);
         } catch {
             if (post) emit({ type: "post-end", conversationId: seedId, error: !res.ok });
         }
         return res;
     }, err => {
-        if (post) emit({ type: "post-end", conversationId: seedId, error: true });
+        if (post && myEpoch === epoch) emit({ type: "post-end", conversationId: seedId, error: true });
         throw err;
     });
 }
@@ -255,6 +268,7 @@ function hookFetch() {
 }
 
 function unhookFetch() {
+    epoch += 1;
     if (!origFetch || !fetchTarget) return;
     if (wrappedFetch && fetchTarget.fetch === wrappedFetch) fetchTarget.fetch = origFetch;
     origFetch = null;
