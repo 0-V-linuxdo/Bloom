@@ -8,11 +8,17 @@
  * Self rail only: chatgpt.com has no Grok "Go to response N" ticks.
  * Body-fixed host, #thread childList+subtree observer, no html/body
  * subtree MO, no :has(), no Grok hsl, no position:relative on #thread.
+ * Live dash: the in-progress assistant tick only (aria-busy /
+ * .result-streaming / empty markdown+thinking) AND harvest generate-arm
+ * or a visible Stop. Never raw isStreaming(), never the previous finished
+ * reply, no streamEnd, no Grok stores.
  */
 
 import { definePluginSettings } from "../../api/Settings";
+import { getStopButton } from "../../host/composer";
 import { currentConversationId } from "../../host/conversation";
-import { watchStreamingEdge } from "../../host/streaming";
+import { subscribeHarvest, type HarvestEvent } from "../../host/harvest";
+import { getProStopButton, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -27,6 +33,7 @@ const DENSE_AT = 16;
 const LOCK_MS = 1000;
 const FAR_SCREENS = 2.5;
 const THRESHOLD = 0.4;
+const LIVE_LABEL = "正在输出…";
 
 const SKIP = [
     "#thread-bottom-container",
@@ -72,7 +79,7 @@ const TYPING = [
 ].join(", ");
 
 type Role = "user" | "assistant";
-type NavItem = { id: string; el: HTMLElement; role: Role; text: string };
+type NavItem = { id: string; el: HTMLElement; role: Role; text: string; live?: boolean };
 
 const settings = definePluginSettings({
     showAssistant: {
@@ -91,8 +98,10 @@ const settings = definePluginSettings({
 });
 
 const labels = new Map<string, string>();
+const armedIds = new Set<string>();
 
 let started = false;
+let pendingNew = false;
 let host: HTMLElement | null = null;
 let ticksEl: HTMLElement | null = null;
 let listEl: HTMLElement | null = null;
@@ -109,6 +118,7 @@ let flashTimer: ReturnType<typeof setTimeout> | undefined;
 let flashEl: HTMLElement | null = null;
 let keys: AbortController | null = null;
 let unsubStream: (() => void) | null = null;
+let unsubHarvest: (() => void) | null = null;
 let threadObs: MutationObserver | null = null;
 let watchedThread: HTMLElement | null = null;
 let threadRo: ResizeObserver | null = null;
@@ -173,19 +183,51 @@ function fallbackLabel(el: HTMLElement, index: number): string {
     return `Message ${index + 1}`;
 }
 
-function summarize(el: HTMLElement, role: Role, index: number): string {
+function bodyText(el: HTMLElement, role: Role): string {
     const root = role === "user"
         ? el.querySelector<HTMLElement>(".whitespace-pre-wrap") ?? el
         : el.querySelector<HTMLElement>(".markdown") ?? el;
-    const raw = extractText(root);
-    if (!raw) return fallbackLabel(el, index);
+    return extractText(root);
+}
+
+function clipText(raw: string): string {
     return raw.length > CLIP ? `${raw.slice(0, CLIP).trimEnd()}…` : raw;
+}
+
+function itemText(el: HTMLElement, role: Role, index: number, live: boolean): string {
+    const raw = bodyText(el, role);
+    if (raw) return clipText(raw);
+    if (live) return LIVE_LABEL;
+    return fallbackLabel(el, index);
+}
+
+/** True generate — harvest SSE arm or a real Stop. Not hydrate aria-busy. */
+function generationArmed(): boolean {
+    if (pendingNew) return true;
+    const id = currentConversationId();
+    if (id && armedIds.has(id)) return true;
+    if (getStopButton() || getProStopButton()) return true;
+    return false;
+}
+
+/** This assistant node itself looks in-progress. Never pick a victim by "last". */
+function nodeInProgress(el: HTMLElement): boolean {
+    try {
+        if (el.getAttribute("aria-busy") === "true") return true;
+        if (el.classList.contains("result-streaming")) return true;
+        if (el.querySelector("[aria-busy='true'], .result-streaming")) return true;
+        const md = el.querySelector(".markdown");
+        const empty = !md || (md instanceof HTMLElement && !extractText(md));
+        if (empty && el.querySelector("[class*='thinking'], [class*='reasoning'], details")) return true;
+    } catch { /* ignore */ }
+    return false;
 }
 
 function collect(): NavItem[] {
     const root = threadRoot();
     if (!root || root === document.body) return [];
     const showAsst = settings.store.showAssistant !== false;
+    const armed = showAsst && generationArmed();
     const out: NavItem[] = [];
     try {
         for (const node of root.querySelectorAll<HTMLElement>("[data-message-id]")) {
@@ -195,9 +237,11 @@ function collect(): NavItem[] {
             const role = roleOf(node);
             if (role !== "user" && role !== "assistant") continue;
             if (role === "assistant" && !showAsst) continue;
-            const text = summarize(node, role, out.length);
-            if (text && text !== labels.get(id)) labels.set(id, text);
-            out.push({ id, el: node, role, text: labels.get(id) || text });
+            const live = role === "assistant" && armed && nodeInProgress(node);
+            const fresh = itemText(node, role, out.length, live);
+            if (fresh && fresh !== LIVE_LABEL && fresh !== labels.get(id)) labels.set(id, fresh);
+            const text = live && fresh === LIVE_LABEL ? LIVE_LABEL : (labels.get(id) || fresh);
+            out.push({ id, el: node, role, text, live });
         }
     } catch { /* ignore */ }
     return out;
@@ -400,6 +444,13 @@ function placeSoon() {
     });
 }
 
+function tickClass(item: NavItem): string {
+    const bits = ["bloom-bn-tick"];
+    if (item.role === "assistant") bits.push("bloom-bn-tick-asst");
+    if (item.live) bits.push("bloom-bn-tick-live");
+    return bits.join(" ");
+}
+
 function renderNav(items: NavItem[]) {
     const ticks = ticksEl;
     const list = listEl;
@@ -410,7 +461,7 @@ function renderNav(items: NavItem[]) {
     items.forEach((item, i) => {
         const tick = document.createElement("button");
         tick.type = "button";
-        tick.className = `bloom-bn-tick${item.role === "assistant" ? " bloom-bn-tick-asst" : ""}`;
+        tick.className = tickClass(item);
         tick.setAttribute("aria-label", `Go to message ${i + 1} of ${items.length}`);
         tick.addEventListener("click", ev => {
             ev.preventDefault();
@@ -437,20 +488,18 @@ function renderNav(items: NavItem[]) {
     });
 }
 
-function updateLastLabel() {
-    if (!lastNav.length) return;
-    const last = lastNav[lastNav.length - 1];
-    if (!last.el.isConnected) return;
-    const text = summarize(last.el, last.role, lastNav.length - 1);
-    if (text === last.text) return;
-    last.text = text;
-    labels.set(last.id, text);
-    const row = listEl?.children[lastNav.length - 1];
-    const label = row?.querySelector(".bloom-bn-label");
-    if (label) {
-        label.textContent = text;
-        if (label instanceof HTMLElement) label.title = text;
-    }
+function patchLive(items: NavItem[]) {
+    ticksEl?.querySelectorAll(".bloom-bn-tick").forEach((node, i) => {
+        node.classList.toggle("bloom-bn-tick-live", !!items[i]?.live);
+    });
+    items.forEach((item, i) => {
+        const row = listEl?.children[i];
+        const label = row?.querySelector(".bloom-bn-label");
+        if (label && label.textContent !== item.text) {
+            label.textContent = item.text;
+            if (label instanceof HTMLElement) label.title = item.text;
+        }
+    });
 }
 
 function checkCid() {
@@ -463,6 +512,10 @@ function checkCid() {
     activeIdx = 0;
     lockIdx = -1;
     lockUntil = 0;
+    if (pendingNew && id) {
+        armedIds.add(id);
+        pendingNew = false;
+    }
     return true;
 }
 
@@ -494,14 +547,7 @@ function paint() {
         bindIo(items);
     } else {
         lastNav = items;
-        lastNav.forEach((item, i) => {
-            const row = listEl?.children[i];
-            const label = row?.querySelector(".bloom-bn-label");
-            if (label && label.textContent !== item.text) {
-                label.textContent = item.text;
-                if (label instanceof HTMLElement) label.title = item.text;
-            }
-        });
+        patchLive(items);
     }
     placeHost();
     requestActive();
@@ -530,6 +576,29 @@ function observeThread() {
     threadObs.observe(root, { childList: true, subtree: true });
     threadRo = new ResizeObserver(() => placeSoon());
     threadRo.observe(root);
+}
+
+function onHarvest(ev: HarvestEvent) {
+    if (!started) return;
+    if (ev.type === "post-start") {
+        if (ev.conversationId) {
+            pendingNew = false;
+            armedIds.add(ev.conversationId);
+        } else {
+            pendingNew = true;
+        }
+        schedulePaint();
+        return;
+    }
+    if (ev.type === "post-end") {
+        pendingNew = false;
+        if (ev.conversationId) armedIds.delete(ev.conversationId);
+        else {
+            const id = currentConversationId();
+            if (id) armedIds.delete(id);
+        }
+        schedulePaint();
+    }
 }
 
 function onKeyDown(ev: KeyboardEvent) {
@@ -570,7 +639,7 @@ function unmount() {
 
 export default definePlugin({
     name: "BetterNavigator",
-    description: "Notion-style outline for the open chat. Hover the ticks, click or use ↑/↓ to jump.",
+    description: "Notion-style outline for the open chat. Hover the ticks, click or use ↑/↓ to jump. A dashed tick marks the reply still streaming.",
     authors: [Devs.p],
     tags: ["chat", "ui"],
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5v14"/><path d="M14 7h5M12 12h7M14 17h5"/></svg>`,
@@ -588,17 +657,16 @@ export default definePlugin({
         window.addEventListener("keydown", onKeyDown, { signal });
         window.addEventListener("popstate", schedulePaint, { signal });
         window.visualViewport?.addEventListener("resize", placeSoon, { signal });
+        unsubHarvest = subscribeHarvest(onHarvest);
         unsubStream = watchStreamingEdge({
-            onTick(tick) {
-                if (tick.streaming) updateLastLabel();
+            onTick() {
+                schedulePaint();
             },
             onFall() {
-                updateLastLabel();
                 schedulePaint();
             },
             onContext() {
                 labels.clear();
-                lastCid = currentConversationId();
                 paintedKey = "";
                 schedulePaint();
             },
@@ -617,6 +685,10 @@ export default definePlugin({
         keys = null;
         unsubStream?.();
         unsubStream = null;
+        unsubHarvest?.();
+        unsubHarvest = null;
+        armedIds.clear();
+        pendingNew = false;
         unmount();
         labels.clear();
         lastNav = [];

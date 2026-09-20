@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.49](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.49)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.49`).
+Current release: **[v1.4.50](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.50)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.50`).
 
 Plugins:
 
@@ -22,7 +22,7 @@ Plugins:
 | ChatListStatus | On | Spinner on the **open** Recents row while this chat is answering. Other rows keep ChatGPT’s own status. |
 | WiderChat | On | Widen the thread and composer (slider 40–96 rem, default 64). CSS-only. |
 | ComposerOpacity | On | Composer background opacity and blur, so the thread can show through the input bar. CSS-only. |
-| BetterNavigator | On | Notion-style outline on the open chat. Hover the ticks, click or ↑/↓ to jump. |
+| BetterNavigator | On | Notion-style outline on the open chat. Hover the ticks, click or ↑/↓ to jump. A dashed tick marks the reply still streaming. |
 | MessageTimestamps | On | Show when each turn was sent, from the conversation JSON ChatGPT already loads. |
 | StreamerMode | Off | Blur Recents titles, the header chat name, project names, and the account chip. CSS-only. Hover a Recents / switcher row to peek. |
 | GreetingCustomizer | Off | Replace the home greeting with your own texts. Rotate on each visit, a timer, or a click. |
@@ -167,6 +167,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.50: **BetterNavigator** dashes the in-progress assistant tick (Void++ `void-bn-tick-live`). Live only if that node itself is streaming (`aria-busy` / `.result-streaming` / empty markdown + thinking) **and** harvest generate-arm or a visible Stop — not raw `isStreaming()`, not the previous finished reply. Empty summaries show 正在输出…. Drop the dash as soon as the node is idle and Stop is gone.
 
 v1.4.49: **ChatListStatus** no longer spins on a finished Recents row while that chat is loading. Harvest `post-start` is generate POST `/backend-api/conversation` or `/f/conversation` only (`action: next|continue|variant`) — not `/conversation/init`. Local ticks require that harvest arm or a real Stop; hydrate `aria-busy` / header load spinner / Deep Research token skeleton are ignored. `onContext` clears a local mark unless a generate is in flight. Current-row-only, no done-dot.
 

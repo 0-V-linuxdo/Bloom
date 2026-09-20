@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.49](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.49)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.49`）。
+当前版本：**[v1.4.50](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.50)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.50`）。
 
 插件：
 
@@ -22,7 +22,7 @@
 | ChatListStatus | 开 | 只在**当前打开**的 Recents 行转圈。其它行沿用 ChatGPT 自带状态。 |
 | WiderChat | 开 | 加宽对话和输入栏（滑块 40–96 rem，默认 64）。纯 CSS。 |
 | ComposerOpacity | 开 | 输入栏背景透明度和模糊，让对话内容能透过输入条。纯 CSS。 |
-| BetterNavigator | 开 | 当前对话的 Notion 式目录。悬停 tick，点击或 ↑/↓ 跳转。 |
+| BetterNavigator | 开 | 当前对话的 Notion 式目录。悬停 tick，点击或 ↑/↓ 跳转。正在输出的回复用虚线 tick 标出。 |
 | MessageTimestamps | 开 | 每条消息显示发送时间，读 ChatGPT 已有的会话 JSON。 |
 | StreamerMode | 关 | 模糊 Recents 标题、顶栏会话名、项目名和账号芯片。纯 CSS。悬停 Recents / 切换器可看一眼。 |
 | GreetingCustomizer | 关 | 用自己的文案替换首页问候语。可按访问、定时或点击轮播。 |
@@ -154,6 +154,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.50：**BetterNavigator** 正在输出的 assistant tick 改成虚线（对齐 Void++ `void-bn-tick-live`）。只标节点自己在生成（`aria-busy` / `.result-streaming` / 空 markdown + thinking）且本轮 harvest generate 武装或可见 Stop 的行；不用裸 `isStreaming()`，不把上一轮已完成回复画成虚线。摘要为空时显示「正在输出…」。节点空闲且 Stop 消失后立刻收回虚线。
 
 v1.4.49：**ChatListStatus** 打开已结束的历史会话时不再在 Recents 行空转。harvest `post-start` 只认 generate POST `/backend-api/conversation` 或 `/f/conversation`（`action: next|continue|variant`），不认 `/conversation/init`。本地 tick 必须有这次 generate 武装或真实 Stop；hydrate 的 `aria-busy` / 标题栏加载转圈 / Deep Research token 骨架忽略。`onContext` 在没有进行中的 generate 时清掉本地标记。仍然只画当前行、不画完成蓝点。
 
