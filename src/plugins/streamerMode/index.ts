@@ -7,8 +7,10 @@
  * no html class toggles (hydrateRoot owns <html>), no MutationObserver,
  * no wrapper :has(). Blurs Recents titles, project names, and the account
  * chip. Also blurs the open-chat header title and RecentTopics HUD
- * titles so a screen share of the thread does not leak names. Does not
- * hide or blur Voice, Share, `#bloom-rail-item`, or the composer.
+ * titles so a screen share of the thread does not leak names. CustomSidebarIdentity
+ * overlays (`.bloom-csi-face` / `.bloom-csi-name`) follow the same account
+ * avatar / name toggles. Does not hide or blur Voice, Share, `#bloom-rail-item`,
+ * or the composer.
  * Hover unblurs Recents / HUD cards so you can still aim a click.
  */
 
@@ -114,12 +116,15 @@ function apply() {
         rules.push(rule([
             ...under(PROFILE, "img"),
             ...under(PROFILE, '[class*="avatar"]'),
+            ".bloom-csi-face",
         ], false));
     }
     if (settings.store.accountName !== false) {
         rules.push(rule([
             ...under(PROFILE, ".min-w-0 > .truncate"),
             ...under(PROFILE, ".min-w-0.flex-1 .truncate"),
+            ...under(PROFILE, ".bloom-csi-name"),
+            ".bloom-csi-name",
         ], false));
     }
     if (settings.store.accountEmail !== false) {

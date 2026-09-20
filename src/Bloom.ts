@@ -29,6 +29,7 @@ import betterNavigator from "./plugins/betterNavigator";
 import messageTimestamps from "./plugins/messageTimestamps";
 import streamerMode from "./plugins/streamerMode";
 import greetingCustomizer from "./plugins/greetingCustomizer";
+import customSidebarIdentity from "./plugins/customSidebarIdentity";
 
 const logger = new Logger("Bloom");
 let initialized = false;
@@ -52,6 +53,7 @@ const pluginList: Plugin[] = [
     messageTimestamps,
     streamerMode,
     greetingCustomizer,
+    customSidebarIdentity,
 ];
 
 function wait(ms: number): Promise<void> {

@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.59](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.59)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.59`).
+Current release: **[v1.4.60](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.60)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.60`).
 
 Plugins:
 
@@ -15,6 +15,7 @@ Plugins:
 | NoShareLink | Off | Hide the conversation header Share button and the project Share button. CSS-only. |
 | NoDictation | Off | Hide the composer Dictation (speech-to-text) button. Does not hide Voice mode. CSS-only. |
 | NoSidebarIdentity | On | Hide the display name next to the sidebar avatar. Optional: enlarge Plus/Pro/Free type, or collapse the empty name line so the plan sits on the avatar midline. CSS-only. |
+| CustomSidebarIdentity | Off | Replace the sidebar avatar and display name. Empty fields keep the official values. Paste or crop an image; optional account-menu header. |
 | RecentTopics | On | Switch recently opened chats with Ctrl+` (title + last-turn preview). |
 | Cleaner | On | Hide Download apps, the composer “can make mistakes” notice, upgrade CTAs, locked models, home GPT promo, and Free ads. CSS-only. |
 | ResponseNotification | On | Sound + browser notification when a reply finishes. Default: only when the tab is hidden. |
@@ -168,6 +169,8 @@ v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses 
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
 
+v1.4.60: **CustomSidebarIdentity** (default off). Replace the sidebar avatar and display name. Empty fields keep official values. Paste / drop / URL + circular crop in the gear pane. Overlay `img.bloom-csi-face` inside the profile chip (official face stays, `visibility:hidden`). Custom name is `div.bloom-csi-name` — never writes the React `.truncate`. Size slider 24–64 (default 40) on the expanded chip; collapsed tiny-bar stays 32. Optional `applyToMenu` covers the account dropdown header only. StreamerMode also blurs the custom face / name. No `html` / `body[subtree]` observer.
+
 v1.4.59: **Settings survive a userscript update.** Empty / Promise / no-`plugins` GM values no longer count as loaded (IndexedDB and `localStorage` stay in the waterfall). Saves always mirror `localStorage`, even when GM works. Boot no longer writes factory `enabled` rows that could overwrite a good IDB copy after a reinstall. Prefer in-place **Check for updates**; uninstall-and-reinstall is last resort.
 
 v1.4.58: **BetterNavigator ticks match Notion-style-AI-Navigator.** Idle marks are `1.25rem × 2px`, the current mark is `1.75rem × 2px` with a 3px glow (same height, not a fatter pill). Gap is `1rem` (dense `0.375rem`), radius `0.125rem`. User/assistant no longer get different widths. Colors mix ChatGPT `--text-primary` at 40%/83% — no Notion `--nav-*` dump. Column-anchor, `2.5rem` hit-target, and midline compact rail from 1.4.57 stay.
@@ -257,6 +260,7 @@ v1.4.21: **Restore the centered settings dock** (1.4.20 left-rail move was unwan
 - MessageTimestamps: `[data-message-id]` in `#thread`. Times from host harvest of GET `/backend-api/conversation/{id}` mapping `create_time` / POST SSE. Settings `showDate`, `hideOwnMessages`.
 - StreamerMode: `filter:blur(6px)` on Recents `a[href^="/c/"]`, project `/g/g-p-` / `/project`, profile avatar / `.truncate` / mailto, `#page-header` title (`headerTitle`), RecentTopics HUD names. Hover unblurs Recents / projects / HUD cards. Never `#bloom-rail-item` / Voice / Share / composer / model switcher.
 - GreetingCustomizer: home `/` only. Paints the first live `h1.text-page-header .text-pretty` / `.text-page-header` / `[data-splash-headline-option]` / `main h1`. Skips chrome / composer / Temporary Chat / `sr-only`. `mode` refresh|interval|manual, `order` sequential|random, `intervalSec` 1–3600. Empty list leaves the official greeting.
+- CustomSidebarIdentity: overlay face + injected name on `[data-testid=accounts-profile-button]`. Settings `displayName`, crop COMPONENT, `avatarSize` 24–64, `applyToMenu`. Hidden bake keys. Never `display:none` `.min-w-0`, never hide `#bloom-rail-item`. Observes the chip / tiny-bar / opened account menu only.
 
 ## Build
 

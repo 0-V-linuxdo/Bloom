@@ -10,7 +10,7 @@
  * direct child of nav / #stage-slideover-sidebar (that blows React hydration).
  */
 
-const PROFILE_SEL = [
+export const PROFILE_SEL = [
     '[data-testid="accounts-profile-button"]',
     '[data-testid="profile-button"]',
     '[data-testid="user-menu-button"]',

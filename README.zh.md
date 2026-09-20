@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.59](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.59)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.59`）。
+当前版本：**[v1.4.60](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.60)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.60`）。
 
 插件：
 
@@ -15,6 +15,7 @@
 | NoShareLink | 关 | 隐藏对话顶栏 Share 和项目里的 Share project。纯 CSS。 |
 | NoDictation | 关 | 隐藏输入栏听写（语音转文字）按钮，不隐藏 Voice。纯 CSS。 |
 | NoSidebarIdentity | 开 | 隐藏侧栏头像旁的显示名。可选：只放大 Plus/Pro/Free 字号；可选：收掉空名字行，让订阅等级与头像中线对齐。纯 CSS。 |
+| CustomSidebarIdentity | 关 | 替换侧栏头像和显示名。留空则保持官方。可粘贴/裁切图片；可选同步账号下拉顶栏。 |
 | RecentTopics | 开 | Ctrl+` 切换最近打开的会话（标题 + 上轮预览）。 |
 | Cleaner | 开 | 隐藏 Download apps、「也会犯错」提示、升级入口、锁定模型、首页促销、Free 广告。纯 CSS。 |
 | ResponseNotification | 开 | 回复结束时响铃 / 浏览器通知。默认只在标签隐藏时通知。 |
@@ -49,6 +50,16 @@
 - 顺序或随机；齿轮页增删改（最多 30 条、每条 100 字）
 - 列表为空或插件关闭 → 官方问候
 - 请卸掉独立的 `[ChatGPT] Greeting Customizer`，避免两套 overlay 对打
+
+## CustomSidebarIdentity
+
+默认关闭。替换侧栏头像和显示名，**留空则保持官方**。
+
+- 叠层画在账号芯片内部，不改官方 `img.src` / `.truncate` 文本
+- 粘贴、拖入或填 URL；圆形台拖拽平移、滚轮缩放
+- `avatarSize` 只放大展开侧栏（24–64px，默认 40）；折叠轨仍 32
+- 可选同步账号下拉**顶栏**（不改 Settings / 退出）
+- 和 NoSidebarIdentity 同时开：官方名仍隐，自定义名仍可见
 
 ## PromptQueue
 
@@ -154,6 +165,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.60：**CustomSidebarIdentity**（默认关）。替换侧栏头像和显示名，留空保持官方。齿轮页可粘贴 / 拖入 / 填 URL，圆形台拖拽裁切。叠层 `img.bloom-csi-face` 画在账号芯片内部（官方头像留在树上，`visibility:hidden`）。自定义名是 `div.bloom-csi-name`，不写 React `.truncate`。展开侧栏头像直径 24–64（默认 40），折叠轨仍 32。可选 `applyToMenu` 只改账号下拉顶栏。StreamerMode 也会模糊自定义头像/名。不观察 `html` / `body[subtree]`。
 
 v1.4.59：**脚本更新后配置不再被重置。** GM 读到空对象 / Promise / 没有 `plugins` 时继续落到 IndexedDB 和 `localStorage`。有 GM 也会镜像写 `localStorage`。启动时不再把出厂 `enabled` 写回磁盘（卸装后会盖掉还能用的 IDB）。日常请用原地「检查更新」，不要把「卸掉再装」当常规步骤。
 
