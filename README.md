@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.53](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.53)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.53`).
+Current release: **[v1.4.54](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.54)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.54`).
 
 Plugins:
 
@@ -46,7 +46,7 @@ The settings shell **follows chatgpt.com's own theme** by default (`Appearance: 
 
 States: wait (official host icon) · rotate (🔄) · done (✔️) · ready (👍) · error (🚫).
 
-The blossom mark is the 24-unit evenodd path from the existing Chat-State-Favicons adapter, **without** the progress bar. Detection stays ChatGPT-specific (composer Stop, Pro trailing Stop, Deep Research, image spinner, `/c/{id}` context lock). Idle (`wait`) unparks ChatGPT's own `<link rel=icon>` instead of painting a plate.
+The blossom mark is the 24-unit evenodd path from the existing Chat-State-Favicons adapter, **without** the progress bar. Detection stays ChatGPT-specific (composer Stop, Pro trailing Stop, Deep Research, image spinner, `/c/{id}` context lock). Idle (`wait`) keeps `#bloom-chat-state-favicon` and points its href at ChatGPT's official icon (official nodes stay parked). Unpark only on plugin stop.
 
 ## GreetingCustomizer
 
@@ -167,6 +167,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.54: **ChatStateFavicons idle no longer tears down the overlay.** `wait` keeps `#bloom-chat-state-favicon` and sets href to the official ChatGPT icon URL (same-link swap). Official nodes stay parked. `ready`↔`wait` is an href mutation, not remove-overlay + unpark — Chrome FaviconService was a beat late on that teardown. Restore official only on plugin stop. Never strip official links.
 
 v1.4.53: **ChatStateFavicons draft changes evaluate next frame.** Composer observer adds `characterData` (still no `class`). Capture-delegate `input` / `beforeinput` / `cut` / `paste` / `compositionend` on the unified-composer form so a remounted ProseMirror node is not stuck on the 400ms poll. `ready` follows real draft + `primedReady`; Send still-gray for one React frame no longer holds `wait`. Chip-only leftover stays empty. Poll remains fallback only.
 

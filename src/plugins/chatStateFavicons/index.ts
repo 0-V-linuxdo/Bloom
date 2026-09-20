@@ -5,16 +5,18 @@
  *
  * State machine adapted from Void++ ChatStateFavicons; ChatGPT streaming
  * detectors from Chat-State-Favicons (MIT). Streaming is NOT gated on empty input.
- * Wait (idle) restores ChatGPT's official favicon (unpark host links, drop
- * our overlay). Streaming, done, ready, and error park the official nodes
- * and paint a composed white blossom PNG. Favicon link is last in
- * document.head. Never strip ChatGPT's official icon nodes (React
- * hydrateRoot owns them); park them so Chrome does not prefer the official
- * SVG over the overlay. Head-only guard (subtree on head, never html/body).
- * Composer watch is childList + characterData + Stop/Send attrs — not
- * `class` (token paint would schedule every frame). Draft events are
- * capture-delegated on the composer form so a remounted ProseMirror node
- * still reaches evaluate in the next frame (400ms poll is fallback only).
+ * Wait (idle) keeps #bloom-chat-state-favicon as the last rel=icon and
+ * points its href at ChatGPT's official icon URL (same-link swap). Official
+ * nodes stay parked. Streaming, done, ready, and error swap that same
+ * overlay to a composed white blossom PNG. Never strip ChatGPT's official
+ * icon nodes (React hydrateRoot owns them); park them so Chrome does not
+ * prefer the official SVG over the overlay. Restore (remove overlay +
+ * unpark) only on plugin stop. Head-only guard (subtree on head, never
+ * html/body). Composer watch is childList + characterData + Stop/Send
+ * attrs — not `class` (token paint would schedule every frame). Draft
+ * events are capture-delegated on the composer form so a remounted
+ * ProseMirror node still reaches evaluate in the next frame (400ms poll
+ * is fallback only).
  *
  * Draft emptiness uses host isUserDraftEmpty (leftover App/@plugin chips
  * inside #prompt-textarea do not count). primedReady resets on streaming
@@ -94,7 +96,9 @@ function currentStyle(): IconStyle {
 }
 
 function captureOfficial(): string {
-    const existing = document.querySelector<HTMLLinkElement>(`link[rel~="icon"]:not(#${ICON_ID})`);
+    const existing = document.querySelector<HTMLLinkElement>(
+        `link[rel~="icon"]:not(#${ICON_ID}), link[data-bloom-host-rel]:not(#${ICON_ID})`,
+    );
     const href = existing?.href;
     if (isUsableOfficialHref(href)) return href;
     if (isUsableOfficialHref(officialHref)) return officialHref;
@@ -106,22 +110,27 @@ function overlayLink(): HTMLLinkElement | null {
     return link instanceof HTMLLinkElement ? link : null;
 }
 
-function paintFavicon() {
-    if (kind === "wait") {
-        restoreOfficialFavicon(ICON_ID, officialHref);
-        return;
+function waitHref(): string {
+    if (!isUsableOfficialHref(officialHref)) {
+        const captured = captureOfficial();
+        if (captured) officialHref = captured;
     }
-    applyFavicon(ICON_ID, icons[kind]);
+    return isUsableOfficialHref(officialHref) ? officialHref : icons.wait;
+}
+
+function overlayHref(next: FaviconKind): string {
+    return next === "wait" ? waitHref() : icons[next];
+}
+
+function paintFavicon() {
+    applyFavicon(ICON_ID, overlayHref(kind));
 }
 
 function setKind(next: FaviconKind) {
+    const href = overlayHref(next);
     if (kind === next) {
-        if (next === "wait") {
-            if (!overlayLink()) return;
-        } else {
-            const link = overlayLink();
-            if (link && link.getAttribute("href") === icons[next]) return;
-        }
+        const link = overlayLink();
+        if (link && link.getAttribute("href") === href) return;
     }
     kind = next;
     paintFavicon();

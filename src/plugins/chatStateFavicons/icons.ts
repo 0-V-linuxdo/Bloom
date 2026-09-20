@@ -7,8 +7,9 @@
  * Blossom path from Chat-State-Favicons ChatGPT/icon/ChatGPT.svg (progress bar stripped).
  * Overlay states (rotate / done / ready / error) always paint a light (white)
  * blossom, rasterized to PNG so Chrome actually replaces the official SVG.
- * Wait (idle) is composed here but the plugin restores the official icon
- * instead of applying it. No SMIL. No official href as a base.
+ * Wait (idle) is composed as a last-resort fallback; the plugin prefers to
+ * point the overlay href at the official ChatGPT icon URL instead. No SMIL.
+ * No official href as a compose base.
  */
 
 export const ICON_STYLES = ["original", "badge", "dot", "hole", "bg"] as const;

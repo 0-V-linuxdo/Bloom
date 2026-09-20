@@ -3,14 +3,16 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Overlay states own #bloom-chat-state-favicon as the LAST <link rel=icon>
- * in document.head. Wait (idle) removes that link and unparks host icons
- * so Chrome uses ChatGPT's official SVG / ICO. Never remove ChatGPT's
- * official icon links — hydrateRoot(document) owns those SSR nodes, and
+ * Overlay owns #bloom-chat-state-favicon as the LAST <link rel=icon>
+ * in document.head for every plugin state, including wait. Wait points
+ * that same link at ChatGPT's official icon URL (href swap). Overlay
+ * states swap href to a blossom PNG. Never remove ChatGPT's official
+ * icon links — hydrateRoot(document) owns those SSR nodes, and
  * stripping them fights React (page freeze / dead clicks). Official icons
  * stay in the tree but are parked (`media="not all"` + rel bloom-host-icon)
- * while an overlay is showing, so Chrome cannot prefer their SVG over our
- * PNG. Observer is head-only with subtree. Never observe html or body.
+ * while the plugin is running, so Chrome cannot prefer their SVG over our
+ * last overlay. Unpark + drop the overlay only on plugin stop. Observer
+ * is head-only with subtree. Never observe html or body.
  */
 
 const HOST_REL = "bloom-host-icon";
@@ -109,7 +111,7 @@ export function applyFavicon(id: string, href: string) {
     });
 }
 
-/** Idle / plugin-off: drop our overlay and let ChatGPT's own icon links win. */
+/** Plugin-off: drop our overlay and let ChatGPT's own icon links win. */
 export function restoreOfficialFavicon(id: string, _officialHref: string) {
     const { head } = document;
     if (!head) return;
