@@ -18,20 +18,35 @@ const SAVE_DEBOUNCE_MS = 100;
 
 type Listener = (path: string) => void;
 
+function isThenable(value: unknown): boolean {
+    return value != null && typeof (value as { then?: unknown }).then === "function";
+}
+
 export function parseStoredSettings(raw: unknown): Record<string, unknown> | null {
+    if (raw == null || isThenable(raw)) return null;
     if (isObject(raw)) return raw;
     if (typeof raw !== "string" || !raw) return null;
     try {
         const parsed = JSON.parse(raw);
-        if (isObject(parsed)) return parsed;
+        if (isObject(parsed) && !isThenable(parsed)) return parsed;
         if (typeof parsed === "string") {
             const nested = JSON.parse(parsed);
-            return isObject(nested) ? nested : null;
+            return isObject(nested) && !isThenable(nested) ? nested : null;
         }
         return null;
     } catch {
         return null;
     }
+}
+
+/** A bag is usable only when it has a non-empty `plugins` object. `{}` / Promise must not hide IDB. */
+export function settingsBagFrom(raw: unknown): Record<string, unknown> | null {
+    const parsed = parseStoredSettings(raw);
+    if (!parsed) return null;
+    const plugins = parsed.plugins;
+    if (!isObject(plugins) || isThenable(plugins)) return null;
+    if (Object.keys(plugins).length === 0) return null;
+    return parsed;
 }
 
 export class SettingsStore<T extends object> {
@@ -144,9 +159,8 @@ export class SettingsStore<T extends object> {
                     try { GM_setValue(STORAGE_KEY, json); }
                     catch (e2) { logger.warn("Failed to save settings to GM:", e2); }
                 }
-            } else {
-                try { localStorage.setItem(STORAGE_KEY, json); } catch { /* ignore */ }
             }
+            try { localStorage.setItem(STORAGE_KEY, json); } catch { /* ignore */ }
             idbSet(STORAGE_KEY, json).catch(e => logger.warn("Failed to save settings to IndexedDB:", e));
         } catch (e) {
             logger.error("Failed to save settings:", e);

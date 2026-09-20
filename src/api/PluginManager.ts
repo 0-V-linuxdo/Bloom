@@ -95,21 +95,19 @@ const DEFAULTS_REV = 2;
 const DEFAULTS_REV_KEY = "defaultsRev";
 
 export function initPluginManager() {
-    for (const plugin of Object.values(plugins)) {
-        if (!Settings.plain.plugins[plugin.name]) {
-            Settings.store.plugins[plugin.name] = {
-                enabled: plugin.enabledByDefault !== false,
-            };
-        }
+    // Do not Proxy-set missing plugin rows on boot. That scheduleSave()'s
+    // factory {enabled} over IDB after a GM miss. isPluginEnabled already
+    // uses stored ?? enabledByDefault (Void++).
+    const meta = Settings.plain.plugins.Settings as Record<string, unknown> | undefined;
+    if (!meta || meta[DEFAULTS_REV_KEY] === DEFAULTS_REV) return;
+
+    // v1.1.6 one-shot: NoShareLink / NoDictation ship off. Skip any row
+    // that already has an explicit enabled boolean (user choice wins if
+    // the Settings.defaultsRev marker was lost). Plain-only — no save().
+    for (const name of ["NoShareLink", "NoDictation"]) {
+        const row = Settings.plain.plugins[name];
+        if (!row || typeof row.enabled === "boolean") continue;
+        row.enabled = false;
     }
-    // v1.1.6: NoShareLink / NoDictation ship off. One-shot so existing
-    // installs pick up the new default without wiping later user toggles.
-    const settingsStore = Settings.store.plugins.Settings ?? (Settings.store.plugins.Settings = {});
-    if (settingsStore[DEFAULTS_REV_KEY] !== DEFAULTS_REV) {
-        for (const name of ["NoShareLink", "NoDictation"]) {
-            const row = Settings.store.plugins[name] ?? (Settings.store.plugins[name] = {});
-            row.enabled = false;
-        }
-        settingsStore[DEFAULTS_REV_KEY] = DEFAULTS_REV;
-    }
+    meta[DEFAULTS_REV_KEY] = DEFAULTS_REV;
 }

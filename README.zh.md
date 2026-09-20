@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.58](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.58)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.58`）。
+当前版本：**[v1.4.59](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.59)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.59`）。
 
 插件：
 
@@ -36,7 +36,7 @@
 3. 确认安装后刷新 `chatgpt.com`。
 4. 左侧栏头像上方会出现 **Bloom++**。油猴菜单 **Bloom++ settings** 也会打开同一块面板（再点一次关闭）。面板永远停在页面左侧的 `document.body` 上，不会插入侧栏 DOM。插件列表是 **Void++ BaseCard** 栈（图标砖、两行描述、作者栏、齿轮 + 开关）。
 
-若还装着旧版 Bloom++，先卸掉再从 GitHub raw 装。自动更新走 `Bloom.latest.user.js`（`raw.githubusercontent.com/.../refs/heads/main/...`）。不要用 `.../Bloom/main/userscript/Bloom.user.js` 或 `.../refs/heads/main/userscript/Bloom.user.js`（Fastly 会卡住旧脚本）。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
+优先用油猴的**检查更新**（同一脚本 UUID，配置还在）。自动更新走 `Bloom.latest.user.js`（`raw.githubusercontent.com/.../refs/heads/main/...`）。只有在同时装着两条 Bloom++、或 `@updateURL` 仍指向 `Bloom.user.js` 时，才卸掉旧的再装。卸载会清掉油猴 GM 存储；Bloom++ 会尝试从当前站点的 IndexedDB / `localStorage` 救回。不要用 `.../Bloom/main/userscript/Bloom.user.js` 或 `.../refs/heads/main/userscript/Bloom.user.js`（Fastly 会卡住旧脚本）。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
 
 设置面板默认**跟随 `chatgpt.com` 自己的主题**（`Appearance: Follow host`）。可在 Bloom++ 面板强制浅色 / 深色。ChatStateFavicons **空闲时保持官方 ChatGPT 标签页图标**；只在 streaming / done / ready / error 时叠白色 blossom PNG（深色描边）。
 
@@ -154,6 +154,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.59：**脚本更新后配置不再被重置。** GM 读到空对象 / Promise / 没有 `plugins` 时继续落到 IndexedDB 和 `localStorage`。有 GM 也会镜像写 `localStorage`。启动时不再把出厂 `enabled` 写回磁盘（卸装后会盖掉还能用的 IDB）。日常请用原地「检查更新」，不要把「卸掉再装」当常规步骤。
 
 v1.4.58：**BetterNavigator tick 对齐 Notion-style-AI-Navigator。** 闲置 `1.25rem × 2px`，当前项 `1.75rem × 仍 2px` + 3px 辉光（不再加厚成胶囊）。行距 `1rem`（密时 `0.375rem`），圆角 `0.125rem`，取消 user/assistant 宽度差。颜色用 ChatGPT `--text-primary` 的 40%/83% `color-mix`，不灌 Notion `--nav-*`。1.4.57 的列锚、`2.5rem` 热区、中线短栈保持不变。
 

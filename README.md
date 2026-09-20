@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.58](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.58)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.58`).
+Current release: **[v1.4.59](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.59)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.59`).
 
 Plugins:
 
@@ -36,7 +36,7 @@ The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in th
 3. Confirm install. Reload `chatgpt.com`.
 4. Look for **Bloom++** above your profile in the left sidebar. Tampermonkey / Violentmonkey → **Bloom++ settings** also opens the panel (second click closes it). The panel always docks to the left of the page on `document.body` — it is never inserted into the sidebar tree. Plugins render as a **Void++ BaseCard** stack (icon tile, two-line description, author footer, gear + switch).
 
-If an older Bloom++ is still installed, remove it first, then install from GitHub raw. Auto-update uses `Bloom.latest.user.js` on `raw.githubusercontent.com/.../refs/heads/main/...`. Do not use `.../Bloom/main/userscript/Bloom.user.js` or `.../refs/heads/main/userscript/Bloom.user.js` (Fastly can keep an old script). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
+Prefer Tampermonkey / Violentmonkey **Check for updates** — that keeps the same script UUID and the settings store. Auto-update uses `Bloom.latest.user.js` on `raw.githubusercontent.com/.../refs/heads/main/...`. Only remove an old copy if you have two Bloom++ entries or `@updateURL` still points at `Bloom.user.js`. Uninstall wipes the userscript store; Bloom++ will try to restore from this site’s IndexedDB / `localStorage`. Do not use `.../Bloom/main/userscript/Bloom.user.js` or `.../refs/heads/main/userscript/Bloom.user.js` (Fastly can keep an old script). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
 
 The settings shell **follows chatgpt.com's own theme** by default (`Appearance: Follow host`). Light / Dark can be forced from the Bloom++ panel. ChatStateFavicons **keeps the official ChatGPT tab icon while idle**; overlays (white blossom PNG, dark halo) appear only for streaming / done / ready / error.
 
@@ -167,6 +167,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.59: **Settings survive a userscript update.** Empty / Promise / no-`plugins` GM values no longer count as loaded (IndexedDB and `localStorage` stay in the waterfall). Saves always mirror `localStorage`, even when GM works. Boot no longer writes factory `enabled` rows that could overwrite a good IDB copy after a reinstall. Prefer in-place **Check for updates**; uninstall-and-reinstall is last resort.
 
 v1.4.58: **BetterNavigator ticks match Notion-style-AI-Navigator.** Idle marks are `1.25rem × 2px`, the current mark is `1.75rem × 2px` with a 3px glow (same height, not a fatter pill). Gap is `1rem` (dense `0.375rem`), radius `0.125rem`. User/assistant no longer get different widths. Colors mix ChatGPT `--text-primary` at 40%/83% — no Notion `--nav-*` dump. Column-anchor, `2.5rem` hit-target, and midline compact rail from 1.4.57 stay.
 

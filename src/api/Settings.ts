@@ -9,7 +9,7 @@
 import { idbGet } from "../utils/idb";
 import { Logger } from "../utils/Logger";
 import {
-    parseStoredSettings,
+    settingsBagFrom,
     SettingsStore,
     STORAGE_KEY,
 } from "../utils/SettingsStore";
@@ -64,26 +64,31 @@ export function definePluginSettings(def: SettingsDefinition): DefinedSettings {
     return api;
 }
 
-function readGmValue(key: string): unknown {
+async function readGmValue(key: string): Promise<unknown> {
+    if (typeof GM_getValue !== "function") return undefined;
     try {
-        if (typeof GM_getValue === "function") return GM_getValue(key);
-    } catch { /* ignore */ }
-    return undefined;
+        const value = GM_getValue(key) as unknown;
+        if (value != null && typeof (value as { then?: unknown }).then === "function") {
+            return await (value as Promise<unknown>);
+        }
+        return value;
+    } catch {
+        return undefined;
+    }
 }
 
 export async function initSettings(): Promise<void> {
-    let stored: Record<string, unknown> | null = null;
-    stored = parseStoredSettings(readGmValue(STORAGE_KEY));
-    if (!stored) stored = parseStoredSettings(await idbGet(STORAGE_KEY));
+    let stored = settingsBagFrom(await readGmValue(STORAGE_KEY));
+    if (!stored) stored = settingsBagFrom(await idbGet(STORAGE_KEY));
     if (!stored) {
-        try { stored = parseStoredSettings(localStorage.getItem(STORAGE_KEY)); }
+        try { stored = settingsBagFrom(localStorage.getItem(STORAGE_KEY)); }
         catch { stored = null; }
     }
-    if (stored && typeof stored === "object") {
-        const plugins = (stored as { plugins?: BloomSettingsShape["plugins"] }).plugins;
-        if (plugins && typeof plugins === "object") Settings.plain.plugins = plugins;
-        logger.debug("Loaded settings");
-    }
+    if (!stored) return;
+    const plugins = (stored as { plugins?: BloomSettingsShape["plugins"] }).plugins;
+    if (!plugins) return;
+    Settings.plain.plugins = plugins;
+    logger.debug("Loaded settings");
 }
 
 export function bindPluginSettings(name: string, settings: DefinedSettings | undefined) {
