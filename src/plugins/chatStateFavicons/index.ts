@@ -15,8 +15,13 @@
  * html/body). Composer watch is childList + characterData + Stop/Send
  * attrs — not `class` (token paint would schedule every frame). Draft
  * events are capture-delegated on the composer form so a remounted
- * ProseMirror node still reaches evaluate in the next frame (400ms poll
- * is fallback only).
+ * ProseMirror node still reaches evaluate in the next frame.
+ *
+ * Stream edges come from host watchStreamingEdge (no private isStreaming
+ * poll). evaluateState on those edges is synchronous — Chrome skips rAF
+ * in hidden tabs, which is when ResponseNotification usually fires.
+ * rAF only coalesces composer/draft noise while the tab is visible.
+ * First-message `/` → `/c/{id}` is host isDraftMigrate, not a chat switch.
  *
  * Draft emptiness uses host isUserDraftEmpty (leftover App/@plugin chips
  * inside #prompt-textarea do not count). primedReady resets on streaming
@@ -26,6 +31,7 @@
 
 import { definePluginSettings } from "../../api/Settings";
 import { getComposerRoot } from "../../host/composer";
+import { isDraftMigrate, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import {
     applyFavicon,
@@ -77,18 +83,17 @@ let wasStreaming = false;
 let justFinished = false;
 let streamContext: string | null = null;
 let lockedToken = "";
-let lastConvId = "";
+let lastContext = "";
 let primedReady = true;
 let inputCtrl: AbortController | null = null;
 let raf = 0;
-let pollTimer: ReturnType<typeof setInterval> | undefined;
+let unsubEdge: (() => void) | null = null;
 let faviconObs: MutationObserver | null = null;
 let composerObs: MutationObserver | null = null;
 let composerRoot: HTMLElement | null = null;
 let draftRoot: HTMLElement | null = null;
 let started = false;
 const boundEditors = new WeakSet<HTMLElement>();
-const POLL_MS = 400;
 
 function currentStyle(): IconStyle {
     const value = settings.store.style;
@@ -141,15 +146,37 @@ function rebuildIcons() {
     setKind(kind);
 }
 
+function liveContextKey(): string {
+    return contextKeyFromUrl(conversationToken());
+}
+
+function adoptContext(from: string, to: string) {
+    if (!from || !to || from === to) return;
+    if (streamContext === from) streamContext = to;
+    if (lockedToken === from) lockedToken = to;
+    if (lastContext === from) lastContext = to;
+}
+
 function getContextKey(): string {
-    const token = conversationToken();
-    const key = token ? contextKeyFromUrl(token) : contextKeyFromUrl("");
-    if (isStreaming()) {
-        if (!lockedToken && key) lockedToken = key;
-        return lockedToken || key;
+    const key = liveContextKey();
+    const hold = isStreaming() || wasStreaming || justFinished;
+    if (!hold) {
+        lockedToken = "";
+        return key;
     }
-    lockedToken = "";
-    return key;
+    if (lockedToken && key && lockedToken !== key && isDraftMigrate(lockedToken, key)) {
+        adoptContext(lockedToken, key);
+        lockedToken = key;
+    } else if (!lockedToken && key) {
+        lockedToken = key;
+    }
+    return lockedToken || key;
+}
+
+function sameStreamContext(next: string): boolean {
+    if (!streamContext || !next) return true;
+    if (streamContext === next) return true;
+    return isDraftMigrate(streamContext, next);
 }
 
 function resetStreamFlags() {
@@ -160,7 +187,7 @@ function resetStreamFlags() {
 }
 
 function onConversationSwitch(id: string) {
-    lastConvId = id;
+    lastContext = id;
     resetStreamFlags();
     primedReady = false;
     setKind("wait");
@@ -172,12 +199,13 @@ function canReady(empty: boolean): boolean {
 
 function evaluateState() {
     if (!started) return;
-    const conv = conversationToken() || location.pathname;
-    if (lastConvId && conv && lastConvId !== conv) {
-        onConversationSwitch(conv);
+    const live = liveContextKey();
+    if (lastContext && live && lastContext !== live && !isDraftMigrate(lastContext, live)) {
+        onConversationSwitch(live);
         return;
     }
-    if (conv) lastConvId = conv;
+    if (lastContext && live && isDraftMigrate(lastContext, live)) adoptContext(lastContext, live);
+    if (live) lastContext = live;
 
     const contextKey = getContextKey();
     const streaming = isStreaming();
@@ -202,7 +230,7 @@ function evaluateState() {
     }
 
     if (wasStreaming) {
-        const sameContext = !!streamContext && !!contextKey && streamContext === contextKey;
+        const sameContext = sameStreamContext(contextKey);
         wasStreaming = false;
         if (sameContext) {
             justFinished = true;
@@ -215,11 +243,11 @@ function evaluateState() {
     }
 
     if (justFinished) {
-        const contextChanged = !!(streamContext && contextKey && streamContext !== contextKey);
-        if (contextChanged) {
+        if (streamContext && contextKey && !sameStreamContext(contextKey)) {
             justFinished = false;
             streamContext = null;
         } else if (empty) {
+            streamContext = contextKey || streamContext;
             setKind("done");
             return;
         } else if (canReady(empty)) {
@@ -237,6 +265,14 @@ function evaluateState() {
     if (empty) setKind("wait");
     else if (canReady(empty)) setKind("ready");
     else setKind("wait");
+}
+
+function flushEvaluate() {
+    if (!started) return;
+    bindEditorInput();
+    bindDraftRoot();
+    observeComposer();
+    evaluateState();
 }
 
 function unbindDraftRoot() {
@@ -279,15 +315,20 @@ function observeComposer() {
 }
 
 function scheduleEvaluate() {
-    if (!started || raf) return;
+    if (!started) return;
+    if (document.hidden) {
+        if (raf) {
+            cancelAnimationFrame(raf);
+            raf = 0;
+        }
+        flushEvaluate();
+        return;
+    }
+    if (raf) return;
     raf = requestAnimationFrame(() => {
         raf = 0;
         if (!started) return;
-        bindEditorInput();
-        bindDraftRoot();
-        observeComposer();
-        if (hasDraftText()) primedReady = true;
-        evaluateState();
+        flushEvaluate();
     });
 }
 
@@ -299,6 +340,42 @@ function onDraftEvent() {
 function onEditorInput() {
     if (hasDraftText()) primedReady = true;
     scheduleEvaluate();
+}
+
+function onVisibility() {
+    if (!started) return;
+    if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+    }
+    flushEvaluate();
+}
+
+function onHostRise() {
+    if (!started) return;
+    primedReady = false;
+    flushEvaluate();
+}
+
+function onHostFall() {
+    if (!started) return;
+    flushEvaluate();
+}
+
+function onHostTick() {
+    if (!started) return;
+    flushEvaluate();
+}
+
+function onHostContext(next: string, prev: string) {
+    if (!started) return;
+    if (isDraftMigrate(prev, next)) {
+        adoptContext(prev, next);
+        lastContext = next;
+        flushEvaluate();
+        return;
+    }
+    onConversationSwitch(next);
 }
 
 function bindEditorInput() {
@@ -332,12 +409,18 @@ export default definePlugin({
         inputCtrl?.abort();
         inputCtrl = new AbortController();
         window.addEventListener("popstate", scheduleEvaluate, { signal: inputCtrl.signal });
+        document.addEventListener("visibilitychange", onVisibility, { signal: inputCtrl.signal });
         bindEditorInput();
         bindDraftRoot();
         observeComposer();
-        if (pollTimer !== undefined) clearInterval(pollTimer);
-        pollTimer = setInterval(scheduleEvaluate, POLL_MS);
-        evaluateState();
+        unsubEdge?.();
+        unsubEdge = watchStreamingEdge({
+            onRise: onHostRise,
+            onFall: onHostFall,
+            onTick: onHostTick,
+            onContext: onHostContext,
+        });
+        flushEvaluate();
         logger.debug("favicon watch started");
     },
 
@@ -345,10 +428,8 @@ export default definePlugin({
         started = false;
         if (raf) cancelAnimationFrame(raf);
         raf = 0;
-        if (pollTimer !== undefined) {
-            clearInterval(pollTimer);
-            pollTimer = undefined;
-        }
+        unsubEdge?.();
+        unsubEdge = null;
         inputCtrl?.abort();
         inputCtrl = null;
         unbindDraftRoot();
@@ -358,7 +439,7 @@ export default definePlugin({
         faviconObs?.disconnect();
         faviconObs = null;
         resetStreamFlags();
-        lastConvId = "";
+        lastContext = "";
         primedReady = true;
         kind = "wait";
         restoreOfficialFavicon(ICON_ID, officialHref);

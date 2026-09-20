@@ -13,7 +13,8 @@
  *
  * watchStreamingEdge is the shared falling-edge helper. One 400ms timer
  * (refcounted). 3 quiet ticks + contextKey lock + capture Stop + harvest
- * post-end *arm* (never a BloomEventMap.streamEnd). Plugins must subscribe
+ * post-end *arm* (never a BloomEventMap.streamEnd). ChatStateFavicons,
+ * ResponseNotification, PromptQueue, and ChatListStatus must subscribe
  * instead of each polling isStreaming().
  */
 
@@ -125,7 +126,7 @@ function snapshot(streaming: boolean, key: string): StreamingTick {
 }
 
 /** First-message `/` or `|draft` → `/c/{id}` keeps the in-flight watch. */
-function isDraftMigrate(from: string, to: string): boolean {
+export function isDraftMigrate(from: string, to: string): boolean {
     if (!from || from === to) return false;
     if (from.endsWith("|draft") && !to.endsWith("|draft")) return true;
     try {
