@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.42](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.42)**（`userscript/Bloom.latest.user.js`，`@version [20260919] v1.4.42`）。
+当前版本：**[v1.4.43](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.43)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.43`）。
 
 插件：
 
@@ -18,6 +18,7 @@
 | RecentTopics | 开 | Ctrl+` 切换最近打开的会话（标题 + 上轮预览）。 |
 | Cleaner | 开 | 隐藏 Download apps、「也会犯错」提示、升级入口、锁定模型、首页促销、Free 广告。纯 CSS。 |
 | ResponseNotification | 开 | 回复结束时响铃 / 浏览器通知。默认只在标签隐藏时通知。 |
+| PromptQueue | 关 | 生成中排队下一条提示。Enter / Send 等本轮结束再发，而不是打断当前回复。 |
 | ChatListStatus | 开 | 只在**当前打开**的 Recents 行转圈。其它行沿用 ChatGPT 自带状态。 |
 | WiderChat | 开 | 加宽对话和输入栏（滑块 40–96 rem，默认 64）。纯 CSS。 |
 | MessageTimestamps | 开 | 每条消息显示发送时间，读 ChatGPT 已有的会话 JSON。 |
@@ -46,6 +47,17 @@
 - 顺序或随机；齿轮页增删改（最多 30 条、每条 100 字）
 - 列表为空或插件关闭 → 官方问候
 - 请卸掉独立的 `[ChatGPT] Greeting Customizer`，避免两套 overlay 对打
+
+## PromptQueue
+
+默认关闭。ChatGPT 正在生成时，**Enter / Send 会排队下一条提示**，而不是按原生行为打断当前回复并立刻发出。
+
+- 每个会话只存一条（再按 Enter 覆盖）
+- Stop 只停止生成，**不会**自动发出队列
+- Alt+Enter 或芯片上的 **立即发送** 仍立刻打断
+- `#bloom-pq-chip` 挂在 `document.body`、贴在输入栏上方（× 丢弃）
+- 只排队纯文本；刷新页面即丢（session-only）
+- 独立于 ResponseNotification / InputHistory / AutoContinue
 
 ## NoShareLink / NoDictation
 
@@ -140,6 +152,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.43：**PromptQueue**（默认关）。回复生成中按 Enter / Send 会把下一条提示暂存，而不是按 ChatGPT 原生那样打断当前回合立刻发出。每个会话一条；点 Stop 不出队；Alt+Enter 或芯片 **立即发送** 仍走原生打断。`#bloom-pq-chip` 挂在 `document.body`。写出走宿主 `setEditorText`，完成判定复制 ResponseNotification 的 `isStreaming()` 下降沿。不轮询 `/conversations`，没有 `streamEnd`。
 
 v1.4.42：**现有插件打磨（不加新端口）。** RecentTopics / ResponseNotification 读宿主 `conversationTitle` / `conversation-meta`（仍不轮询 `/conversations`）。StreamerMode 还糊顶栏会话名和 RecentTopics HUD（`headerTitle`；不糊 Voice / Share / 作曲器 / 模型切换）。NoShareLink / NoDictation / Cleaner / WiderChat 补当前 chatgpt.com 选择器和宽度变量。
 

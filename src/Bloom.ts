@@ -21,6 +21,7 @@ import noSidebarIdentity from "./plugins/noSidebarIdentity";
 import recentTopics from "./plugins/recentTopics";
 import cleaner from "./plugins/cleaner";
 import responseNotification from "./plugins/responseNotification";
+import promptQueue from "./plugins/promptQueue";
 import chatListStatus from "./plugins/chatListStatus";
 import widerChat from "./plugins/widerChat";
 import messageTimestamps from "./plugins/messageTimestamps";
@@ -41,6 +42,7 @@ const pluginList: Plugin[] = [
     recentTopics,
     cleaner,
     responseNotification,
+    promptQueue,
     chatListStatus,
     widerChat,
     messageTimestamps,

@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.42](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.42)** (`userscript/Bloom.latest.user.js`, `@version [20260919] v1.4.42`).
+Current release: **[v1.4.43](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.43)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.43`).
 
 Plugins:
 
@@ -18,6 +18,7 @@ Plugins:
 | RecentTopics | On | Switch recently opened chats with Ctrl+` (title + last-turn preview). |
 | Cleaner | On | Hide Download apps, the composer “can make mistakes” notice, upgrade CTAs, locked models, home GPT promo, and Free ads. CSS-only. |
 | ResponseNotification | On | Sound + browser notification when a reply finishes. Default: only when the tab is hidden. |
+| PromptQueue | Off | Queue the next prompt while a reply is streaming. Enter/Send waits for this turn instead of interrupting. |
 | ChatListStatus | On | Spinner on the **open** Recents row while this chat is answering. Other rows keep ChatGPT’s own status. |
 | WiderChat | On | Widen the thread and composer (slider 40–96 rem, default 64). CSS-only. |
 | MessageTimestamps | On | Show when each turn was sent, from the conversation JSON ChatGPT already loads. |
@@ -63,6 +64,17 @@ Off until you turn it on. Replaces the chatgpt.com **home** heading (`/` only) w
 - Enter (no Shift) and Send both store the prompt
 - Slider 10–500 entries (default 100)
 - History panel lives in Bloom++ (sidebar rail)
+
+## PromptQueue
+
+Off until you turn it on. While ChatGPT is generating, **Enter / Send queues the next prompt** instead of interrupting the current reply (the native chatgpt.com behavior).
+
+- Depth-1 per chat (a second Enter replaces the queued text)
+- Stop still stops generation and does **not** auto-send the queue
+- Alt+Enter, or the chip’s **Send now**, still interrupts immediately
+- Chip `#bloom-pq-chip` mounts on `document.body` above the composer (dismiss with ×)
+- Text only; session-only (gone on reload)
+- Independent of ResponseNotification / InputHistory / AutoContinue
 
 ## NoShareLink / NoDictation
 
@@ -153,6 +165,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.43: **PromptQueue** (default off). While a reply is streaming, Enter / Send stashes the next prompt instead of interrupting the current turn (ChatGPT’s native submit-while-generating). Depth-1 per chat; Stop does not drain; Alt+Enter or the chip’s **Send now** still interrupts. Body-fixed `#bloom-pq-chip`. Uses host `setEditorText` + the same `isStreaming()` falling-edge recipe as ResponseNotification. No `/conversations` poll, no `streamEnd`.
 
 v1.4.42: **Existing-plugin polish (no new ports).** RecentTopics and ResponseNotification read host `conversationTitle` / `conversation-meta` (still no `/conversations` poll). StreamerMode also blurs the open-chat header title and RecentTopics HUD names (`headerTitle` toggle; never Voice / Share / composer / model switcher). NoShareLink / NoDictation / Cleaner / WiderChat get current chatgpt.com selectors and width vars.
 
