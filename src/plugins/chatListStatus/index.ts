@@ -17,7 +17,7 @@
 import { getStopButton } from "../../host/composer";
 import { conversationIdFromHref, currentConversationId } from "../../host/conversation";
 import { subscribeHarvest, type HarvestEvent } from "../../host/harvest";
-import { getProStopButton, hasErrorToast, watchStreamingEdge, type StreamingTick } from "../../host/streaming";
+import { getProStopButton, hasErrorToast, isDraftMigrate, watchStreamingEdge, type StreamingTick } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -53,6 +53,7 @@ let watchedSidebar: HTMLElement | null = null;
 let channel: BroadcastChannel | null = null;
 let unsubHarvest: (() => void) | null = null;
 let unsubEdge: (() => void) | null = null;
+let vis: AbortController | null = null;
 let pendingNew = false;
 const armedIds = new Set<string>();
 
@@ -190,7 +191,16 @@ function paint() {
 }
 
 function schedulePaint() {
-    if (!started || raf) return;
+    if (!started) return;
+    if (document.hidden) {
+        if (raf) {
+            cancelAnimationFrame(raf);
+            raf = 0;
+        }
+        paint();
+        return;
+    }
+    if (raf) return;
     raf = requestAnimationFrame(() => {
         raf = 0;
         if (started) paint();
@@ -246,8 +256,12 @@ function onHarvest(ev: HarvestEvent) {
     }
 }
 
-function onContext() {
+function onContext(next: string, prev: string) {
     if (!started) return;
+    if (isDraftMigrate(prev, next)) {
+        schedulePaint();
+        return;
+    }
     const id = currentConversationId();
     if (pendingNew || (id && armedIds.has(id))) return;
     wasStreaming = false;
@@ -302,6 +316,16 @@ export default definePlugin({
         unsubHarvest = subscribeHarvest(onHarvest);
         unsubEdge?.();
         unsubEdge = watchStreamingEdge({ onTick: localTick, onContext });
+        vis?.abort();
+        vis = new AbortController();
+        document.addEventListener("visibilitychange", () => {
+            if (!started) return;
+            if (raf) {
+                cancelAnimationFrame(raf);
+                raf = 0;
+            }
+            paint();
+        }, { signal: vis.signal });
         observeSidebar();
         logger.debug("sidebar status watch started");
     },
@@ -309,6 +333,8 @@ export default definePlugin({
         started = false;
         if (raf) cancelAnimationFrame(raf);
         raf = 0;
+        vis?.abort();
+        vis = null;
         sidebarObs?.disconnect();
         sidebarObs = null;
         watchedSidebar = null;

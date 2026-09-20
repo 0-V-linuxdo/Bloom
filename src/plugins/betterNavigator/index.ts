@@ -18,7 +18,7 @@ import { definePluginSettings } from "../../api/Settings";
 import { getStopButton } from "../../host/composer";
 import { currentConversationId } from "../../host/conversation";
 import { subscribeHarvest, type HarvestEvent } from "../../host/harvest";
-import { getProStopButton, watchStreamingEdge } from "../../host/streaming";
+import { getProStopButton, isDraftMigrate, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -555,7 +555,16 @@ function paint() {
 }
 
 function schedulePaint() {
-    if (!started || raf) return;
+    if (!started) return;
+    if (document.hidden) {
+        if (raf) {
+            cancelAnimationFrame(raf);
+            raf = 0;
+        }
+        paint();
+        return;
+    }
+    if (raf) return;
     raf = requestAnimationFrame(() => {
         raf = 0;
         if (started) paint();
@@ -657,6 +666,18 @@ export default definePlugin({
         window.addEventListener("keydown", onKeyDown, { signal });
         window.addEventListener("popstate", schedulePaint, { signal });
         window.visualViewport?.addEventListener("resize", placeSoon, { signal });
+        document.addEventListener("visibilitychange", () => {
+            if (!started) return;
+            if (raf) {
+                cancelAnimationFrame(raf);
+                raf = 0;
+            }
+            if (placeRaf) {
+                cancelAnimationFrame(placeRaf);
+                placeRaf = 0;
+            }
+            paint();
+        }, { signal });
         unsubHarvest = subscribeHarvest(onHarvest);
         unsubStream = watchStreamingEdge({
             onTick() {
@@ -665,9 +686,11 @@ export default definePlugin({
             onFall() {
                 schedulePaint();
             },
-            onContext() {
-                labels.clear();
-                paintedKey = "";
+            onContext(next, prev) {
+                if (!isDraftMigrate(prev, next)) {
+                    labels.clear();
+                    paintedKey = "";
+                }
                 schedulePaint();
             },
         });

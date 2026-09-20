@@ -14,8 +14,8 @@
  * watchStreamingEdge is the shared falling-edge helper. One 400ms timer
  * (refcounted). 3 quiet ticks + contextKey lock + capture Stop + harvest
  * post-end *arm* (never a BloomEventMap.streamEnd). ChatStateFavicons,
- * ResponseNotification, PromptQueue, and ChatListStatus must subscribe
- * instead of each polling isStreaming().
+ * ResponseNotification, PromptQueue, ChatListStatus, BetterNavigator,
+ * and MessageTimestamps must subscribe instead of each polling isStreaming().
  */
 
 import { getStopButton, getSubmitButton, isStopControl, isVisible } from "./composer";

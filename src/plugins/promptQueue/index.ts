@@ -26,7 +26,7 @@ import {
     setEditorText,
 } from "../../host/composer";
 import { contextKeyFromUrl, conversationToken } from "../../host/conversation";
-import { hasErrorToast, isStreaming, watchStreamingEdge } from "../../host/streaming";
+import { hasErrorToast, isDraftMigrate, isStreaming, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -105,24 +105,11 @@ function lastUserText(): string {
     }
 }
 
-function shouldMigrate(from: string, to: string): boolean {
-    if (!from || from === to) return false;
-    if (from.endsWith("|draft") && !to.endsWith("|draft")) return true;
-    try {
-        const a = from.split("|")[0];
-        const b = to.split("|")[0];
-        const pa = new URL(a).pathname.replace(/\/$/, "") || "/";
-        const pb = new URL(b).pathname.replace(/\/$/, "") || "/";
-        if ((pa === "/" || pa === "") && pb.startsWith("/c/")) return true;
-    } catch { /* ignore */ }
-    return false;
-}
-
 function migrateIfNeeded(key: string) {
     if (!lastKey || lastKey === key) return;
     const slot = pending.get(lastKey);
     if (!slot || pending.has(key)) return;
-    if (!shouldMigrate(lastKey, key)) return;
+    if (!isDraftMigrate(lastKey, key)) return;
     pending.delete(lastKey);
     pending.set(key, slot);
     if (drainKey === lastKey) drainKey = key;

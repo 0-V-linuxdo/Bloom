@@ -8,12 +8,13 @@
  * from host harvest of conversation GET JSON + POST SSE create_time,
  * and live DOM for the in-flight turn. Painter stays in this plugin.
  * Observe `#thread` / `main` (not html / body[subtree]). Do not wrap
- * fetch. Do not poll `/backend-api/conversations`.
+ * fetch. Do not poll `/backend-api/conversations`. Live last-turn
+ * stamps follow host watchStreamingEdge (no private isStreaming interval).
  */
 
 import { definePluginSettings } from "../../api/Settings";
 import { messageCreateTime, subscribeHarvest, type HarvestEvent } from "../../host/harvest";
-import { isStreaming } from "../../host/streaming";
+import { isStreaming, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
 import { debounce } from "../../utils/misc";
@@ -50,10 +51,11 @@ const settings = definePluginSettings({
 const live = new Map<string, number>();
 let started = false;
 let raf = 0;
-let pollTimer: ReturnType<typeof setInterval> | undefined;
 let threadObs: MutationObserver | null = null;
 let watchedThread: HTMLElement | null = null;
 let unsubHarvest: (() => void) | null = null;
+let unsubEdge: (() => void) | null = null;
+let vis: AbortController | null = null;
 let wasStreaming = false;
 
 function threadRoot(): HTMLElement | null {
@@ -182,7 +184,16 @@ function paint() {
 }
 
 function schedulePaint() {
-    if (!started || raf) return;
+    if (!started) return;
+    if (document.hidden) {
+        if (raf) {
+            cancelAnimationFrame(raf);
+            raf = 0;
+        }
+        paint();
+        return;
+    }
+    if (raf) return;
     raf = requestAnimationFrame(() => {
         raf = 0;
         if (started) paint();
@@ -220,9 +231,23 @@ export default definePlugin({
             if (typeof ms === "number" && ms > 0) live.set(id, ms);
         }
         unsubHarvest = subscribeHarvest(onHarvest);
+        unsubEdge?.();
+        unsubEdge = watchStreamingEdge({
+            onTick: schedulePaint,
+            onFall: schedulePaint,
+            onContext: schedulePaint,
+        });
+        vis?.abort();
+        vis = new AbortController();
+        document.addEventListener("visibilitychange", () => {
+            if (!started) return;
+            if (raf) {
+                cancelAnimationFrame(raf);
+                raf = 0;
+            }
+            paint();
+        }, { signal: vis.signal });
         observeThread();
-        if (pollTimer !== undefined) clearInterval(pollTimer);
-        pollTimer = setInterval(schedulePaint, 800);
         schedulePaint();
         logger.debug("timestamp watch started");
     },
@@ -230,13 +255,13 @@ export default definePlugin({
         started = false;
         if (raf) cancelAnimationFrame(raf);
         raf = 0;
-        if (pollTimer !== undefined) {
-            clearInterval(pollTimer);
-            pollTimer = undefined;
-        }
+        vis?.abort();
+        vis = null;
         threadObs?.disconnect();
         threadObs = null;
         watchedThread = null;
+        unsubEdge?.();
+        unsubEdge = null;
         unsubHarvest?.();
         unsubHarvest = null;
         persistNow();

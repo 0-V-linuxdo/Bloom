@@ -12,7 +12,9 @@
  * stay in the tree but are parked (`media="not all"` + rel bloom-host-icon)
  * while the plugin is running, so Chrome cannot prefer their SVG over our
  * last overlay. Unpark + drop the overlay only on plugin stop. Observer
- * is head-only with subtree. Never observe html or body.
+ * is head-only with subtree. Never observe html or body. onCompete runs
+ * synchronously while document.hidden (Chrome skips rAF in background
+ * tabs; the tab strip is still visible then). Visible tabs keep rAF.
  */
 
 const HOST_REL = "bloom-host-icon";
@@ -151,11 +153,20 @@ export function startFaviconGuard(
             }
         }
         if (!restore) return;
-        if (raf) return;
-        raf = requestAnimationFrame(() => {
+        const run = () => {
             raf = 0;
             onCompete(official);
-        });
+        };
+        if (document.hidden) {
+            if (raf) {
+                cancelAnimationFrame(raf);
+                raf = 0;
+            }
+            run();
+            return;
+        }
+        if (raf) return;
+        raf = requestAnimationFrame(run);
     });
     obs.observe(head, {
         childList: true,
