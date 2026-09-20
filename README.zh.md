@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.63](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.63)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.63`）。
+当前版本：**[v1.4.64](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.64)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.64`）。
 
 插件：
 
@@ -55,7 +55,7 @@
 
 默认关闭。替换侧栏头像和显示名，**留空则保持官方**。
 
-- 官方头像 `img` 走 src 替换 + padding-box CSS（Blink 下 `content:url()` 看不见）；没有 `img` 的字母圆用槽 `::after`。不往芯片插节点、不改 `.truncate` 文本
+- 官方头像 `img` 走 src 替换 + Blink `object-position` 把官方像素甩出盒子，再用 `background-image` 画裁切结果（`content:url()` / padding-box 在活的 `<img>` 上看不见）。没有 `img` 的字母圆、或头像外包一层圆，用槽 `::after`。不往芯片插节点、不改 `.truncate` 文本
 - 粘贴、拖入或填 URL；圆形台拖拽平移、滚轮/滑条缩放
 - `avatarSize` 只放大展开侧栏（24–64px，默认 40）；折叠轨仍 32
 - 可选同步账号下拉**顶栏**（不改 Settings / 退出）
@@ -165,6 +165,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.64：**CustomSidebarIdentity 头像在 Blink 里可见。** 1.4.63 的 src 替换 + padding-box 仍被 replaced element 的 `src` 盖住。改为 `object-position` 把官方图甩出盒子，让 `background-image` 露出裁切结果，并继续 Void++ `paintImg` src 替换（清 `srcset`/`sizes`/`<source>`）。字母圆 / 外包圆用非 replaced 节点的 `::after`。观察 `findSidebarHost()` 的 childList（pinRail 口袋），启动时 rAF 寻找芯片。裁切缩放沿用 1.4.62。
 
 v1.4.63：**CustomSidebarIdentity 侧栏头像真正替换。** 给活的 `<img>` 写 `content:url()` / `background-image` 在 Blink 里看不见（replaced element 的 src 盖在上面）。改为：对官方头像 `img` 做 src 替换（Void++ `paintImg`，收窄观察），再用 padding-box CSS 保证 React 改回 src 时自定义图仍在。没有 `img` 的字母圆用 `data-bloom-csi-slot` + `::after`。裁切缩放沿用 1.4.62。
 

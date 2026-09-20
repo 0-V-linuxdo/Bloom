@@ -4,18 +4,21 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * ChatGPT-side rewrite of Void++ CustomSidebarIdentity (GPL-3.0-or-later).
- * Avatar: src-swap the official profile img (Void++ paintImg) plus padding-box
- * CSS so Blink still shows the bake when content:url() is a no-op on <img>.
- * Initials chips get data-bloom-csi-slot + ::after. Name is .truncate::before.
- * Never extra nodes on the React chip, never textContent on official .truncate,
- * never html/body[subtree], never documentElement CSS vars, never wrapper :has(),
- * never hide the avatar node or #bloom-rail-item.
+ * Avatar: Void++ paintImg src-swap on the official profile img, plus Blink
+ * object-position throw-off so background-image shows even when React restores
+ * src (content:url / padding-box on <img> leave replaced-element pixels on top).
+ * Initials chips get data-bloom-csi-slot + ::after on a non-replaced wrapper.
+ * Name is .truncate::before. Never extra nodes on the React chip, never
+ * textContent on official .truncate, never html/body[subtree], never
+ * documentElement CSS vars, never wrapper :has(), never hide the avatar node
+ * or #bloom-rail-item.
  */
 
 import { definePluginSettings } from "../../api/Settings";
 import {
     findAccountMenu,
     findProfileButton,
+    findSidebarHost,
     findTinyBar,
     pathHitsProfile,
 } from "../../host/accountMenu";
@@ -244,17 +247,19 @@ const failed = new Set<string>();
 let started = false;
 let painting = false;
 let raf = 0;
-let pinRejects = 0;
-let pinBackoffUntil = 0;
+let seekRaf = 0;
 let keys: AbortController | null = null;
 const observers = new Map<Element, MutationObserver>();
 let watchedMenu: HTMLElement | null = null;
 let menuWatch: MutationObserver | null = null;
+let watchedHost: HTMLElement | null = null;
+let hostWatch: MutationObserver | null = null;
 let panelRefresh: (() => void) | null = null;
 
 function avatarSrc(): string | null {
     const raw = String(settings.store.avatarUrl ?? "").trim();
     if (!raw) return null;
+    if (failed.has(raw)) return null;
     if (raw.startsWith("data:image/")) return raw;
     try {
         const { protocol } = new URL(raw);
@@ -285,12 +290,18 @@ function escapeForCssContent(text: string): string {
 }
 
 function sizeBox(sel: string, px: number): string {
-    return `${sel}{width:${px}px!important;height:${px}px!important;min-width:${px}px!important;min-height:${px}px!important;max-width:${px}px!important;max-height:${px}px!important;border-radius:999px!important;object-fit:cover!important;flex-shrink:0!important}`;
+    return `${sel}{width:${px}px!important;height:${px}px!important;min-width:${px}px!important;min-height:${px}px!important;max-width:${px}px!important;max-height:${px}px!important;border-radius:999px!important;flex-shrink:0!important}`;
 }
 
+/**
+ * Blink paints replaced-element `src` on top of `content`/`background`.
+ * Throw the official pixels out of the box (`object-position`) so the
+ * padding/background area shows the bake. Same trick as
+ * https://stackoverflow.com/questions/18481310
+ */
 function faceImgCss(sel: string, url: string, px: number): string {
     const u = cssUrl(url);
-    return `${sel}{box-sizing:border-box!important;width:${px}px!important;height:${px}px!important;min-width:${px}px!important;min-height:${px}px!important;max-width:${px}px!important;max-height:${px}px!important;padding:0 0 0 ${px}px!important;background-image:${u}!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important;background-origin:padding-box!important;background-clip:padding-box!important;border-radius:999px!important;object-fit:none!important;overflow:hidden!important;flex-shrink:0!important}`;
+    return `${sel}{box-sizing:border-box!important;width:${px}px!important;height:${px}px!important;min-width:${px}px!important;min-height:${px}px!important;max-width:${px}px!important;max-height:${px}px!important;padding:0!important;border-radius:999px!important;object-fit:none!important;object-position:-99999px -99999px!important;background-image:${u}!important;background-size:${px}px ${px}px!important;background-position:center!important;background-repeat:no-repeat!important;background-origin:border-box!important;background-clip:border-box!important;overflow:hidden!important;flex-shrink:0!important}`;
 }
 
 function slotCss(url: string): string {
@@ -299,7 +310,7 @@ function slotCss(url: string): string {
 }
 
 function nameCss(sel: string[], text: string): string {
-    const joined = sel.join(",");
+    const joined = sel.map(s => `html body ${s}`).join(",");
     const escaped = escapeForCssContent(text);
     return [
         `${joined}{font-size:0!important;line-height:0!important;color:transparent!important;visibility:visible!important;display:block!important;position:static!important;width:auto!important;height:auto!important;max-width:100%!important;overflow:hidden!important}`,
@@ -324,19 +335,28 @@ function pickFace(root: HTMLElement): HTMLImageElement | null {
     return ranked ?? imgs[0];
 }
 
-function pickSlot(root: HTMLElement): HTMLElement | null {
-    if (pickFace(root)) return null;
+function isSmallCircle(el: HTMLElement): boolean {
+    if (inChrome(el) || el.tagName === "IMG" || el.tagName === "BUTTON") return false;
+    if (el.querySelector(".min-w-0, .truncate")) return false;
+    const r = el.getBoundingClientRect();
+    if (r.width < 16 || r.width > 80 || r.height < 16 || r.height > 80) return false;
+    return Math.abs(r.width - r.height) < 12;
+}
+
+function pickSlot(root: HTMLElement, face: HTMLImageElement | null): HTMLElement | null {
+    if (face) {
+        let n: HTMLElement | null = face.parentElement;
+        while (n && n !== root) {
+            if (isSmallCircle(n)) return n;
+            n = n.parentElement;
+        }
+        return null;
+    }
     for (const node of root.querySelectorAll<HTMLElement>('[class*="rounded-full"]')) {
-        if (inChrome(node) || node.tagName === "IMG") continue;
-        if (node.querySelector(".min-w-0, .truncate")) continue;
-        const r = node.getBoundingClientRect();
-        if (r.width >= 16 && r.width <= 80 && r.height >= 16 && r.height <= 80) return node;
+        if (isSmallCircle(node)) return node;
     }
     for (const node of root.querySelectorAll<HTMLElement>(".relative")) {
-        if (inChrome(node) || node.tagName === "IMG") continue;
-        if (node.querySelector(".min-w-0, .truncate")) continue;
-        const r = node.getBoundingClientRect();
-        if (r.width >= 16 && r.width <= 80 && Math.abs(r.width - r.height) < 12) return node;
+        if (isSmallCircle(node)) return node;
     }
     return null;
 }
@@ -348,6 +368,21 @@ function onImgError(e: Event) {
     if (url) failed.add(url);
     restoreImg(img);
     schedule();
+}
+
+function dropSrcset(img: HTMLImageElement) {
+    if (img.hasAttribute("srcset")) img.removeAttribute("srcset");
+    if (img.hasAttribute("sizes")) img.removeAttribute("sizes");
+    img.srcset = "";
+    img.sizes = "";
+    img.removeAttribute("crossorigin");
+    const pic = img.parentElement;
+    if (pic?.tagName === "PICTURE") {
+        for (const source of pic.querySelectorAll("source")) {
+            source.removeAttribute("srcset");
+            source.removeAttribute("src");
+        }
+    }
 }
 
 function restoreImg(img: HTMLImageElement) {
@@ -363,8 +398,8 @@ function paintImg(img: HTMLImageElement, url: string | null) {
         restoreImg(img);
         return;
     }
+    dropSrcset(img);
     const current = img.getAttribute("src") ?? "";
-    if (img.hasAttribute("srcset")) img.removeAttribute("srcset");
     if (img.getAttribute(MARK) === "1") {
         if (current === url) return;
     } else if (current && current !== url && !img.hasAttribute(ORIG)) {
@@ -397,8 +432,7 @@ function paintRoot(root: HTMLElement, url: string | null) {
     else {
         for (const img of faceImgs(root)) restoreImg(img);
     }
-    const wantSlot = !face && !!url;
-    const slot = wantSlot ? pickSlot(root) : null;
+    const slot = url ? pickSlot(root, face) : null;
     for (const el of root.querySelectorAll(`[${SLOT}]`)) {
         if (el !== slot) el.removeAttribute(SLOT);
     }
@@ -461,13 +495,7 @@ function applyCss() {
 function paintDom() {
     const url = avatarSrc();
     const chips = chipTargets();
-    let ok = true;
-    for (const chip of chips) {
-        paintRoot(chip, url);
-        if (!url || failed.has(url)) continue;
-        const face = pickFace(chip);
-        if (face && face.getAttribute("src") !== url && !chip.querySelector(`[${SLOT}]`)) ok = false;
-    }
+    for (const chip of chips) paintRoot(chip, url);
     if (settings.store.applyToMenu !== false) {
         const menu = findAccountMenu();
         if (menu) paintMenu(menu, url);
@@ -477,33 +505,21 @@ function paintDom() {
         if (marked.closest("[role='menu'], [data-radix-menu-content], [data-radix-dropdown-menu-content]")) continue;
         restoreImg(marked);
     }
-    notePin(ok || !chips.length);
-}
-
-function notePin(ok: boolean) {
-    if (ok) {
-        pinRejects = 0;
-        pinBackoffUntil = 0;
-        return;
-    }
-    pinRejects += 1;
-    pinBackoffUntil = Date.now() + Math.min(8_000, 250 * 2 ** Math.min(pinRejects, 5));
 }
 
 function apply() {
     if (!started || painting) return;
     painting = true;
-    const watched = [...observers.keys()];
     for (const obs of observers.values()) obs.disconnect();
     menuWatch?.disconnect();
+    hostWatch?.disconnect();
     try {
         applyCss();
-        if (Date.now() >= pinBackoffUntil) paintDom();
+        paintDom();
     } finally {
         painting = false;
-        for (const node of watched) {
-            if (node.isConnected) bindNode(node);
-        }
+        rebindIslands();
+        bindHost();
         if (watchedMenu?.isConnected) watchMenu(watchedMenu);
     }
 }
@@ -528,7 +544,7 @@ function bindNode(root: Element) {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ["src", "srcset"],
+        attributeFilter: ["src", "srcset", "sizes"],
     });
     observers.set(root, obs);
 }
@@ -554,6 +570,28 @@ function rebindIslands() {
     }
 }
 
+function bindHost() {
+    const host = findSidebarHost();
+    if (!host) {
+        hostWatch?.disconnect();
+        hostWatch = null;
+        watchedHost = null;
+        return;
+    }
+    if (watchedHost === host && hostWatch) {
+        hostWatch.observe(host, { childList: true });
+        return;
+    }
+    hostWatch?.disconnect();
+    watchedHost = host;
+    hostWatch = new MutationObserver(() => {
+        if (painting || !started) return;
+        rebindIslands();
+        schedule();
+    });
+    hostWatch.observe(host, { childList: true });
+}
+
 function watchMenu(menu: HTMLElement) {
     if (watchedMenu === menu && menuWatch) return;
     menuWatch?.disconnect();
@@ -568,7 +606,7 @@ function watchMenu(menu: HTMLElement) {
         if (painting || !started) return;
         schedule();
     });
-    menuWatch.observe(menu, { childList: true, subtree: true, attributes: true, attributeFilter: ["src", "srcset"] });
+    menuWatch.observe(menu, { childList: true, subtree: true, attributes: true, attributeFilter: ["src", "srcset", "sizes"] });
 }
 
 function seekMenu(ticks: number) {
@@ -581,6 +619,13 @@ function seekMenu(ticks: number) {
     }
     if (ticks <= 0) return;
     requestAnimationFrame(() => seekMenu(ticks - 1));
+}
+
+function seekChip(ticks: number) {
+    if (!started) return;
+    apply();
+    if (chipTargets().length || ticks <= 0) return;
+    seekRaf = requestAnimationFrame(() => seekChip(ticks - 1));
 }
 
 function onDocClick(e: Event) {
@@ -888,13 +933,10 @@ export default definePlugin({
     start() {
         started = true;
         failed.clear();
-        pinRejects = 0;
-        pinBackoffUntil = 0;
         registerStyle(UI_STYLE, css);
         keys = new AbortController();
         document.addEventListener("click", onDocClick, { signal: keys.signal });
-        rebindIslands();
-        apply();
+        seekChip(40);
         logger.debug("started");
     },
 
@@ -913,11 +955,16 @@ export default definePlugin({
         keys = null;
         if (raf) cancelAnimationFrame(raf);
         raf = 0;
+        if (seekRaf) cancelAnimationFrame(seekRaf);
+        seekRaf = 0;
         for (const obs of observers.values()) obs.disconnect();
         observers.clear();
         menuWatch?.disconnect();
         menuWatch = null;
         watchedMenu = null;
+        hostWatch?.disconnect();
+        hostWatch = null;
+        watchedHost = null;
         restoreAll();
         removeStyle(PAGE_STYLE);
         failed.clear();
