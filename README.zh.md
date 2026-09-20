@@ -4,13 +4,13 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.50](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.50)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.50`）。
+当前版本：**[v1.4.51](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.51)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.51`）。
 
 插件：
 
 | 插件 | 默认 | 说明 |
 | --- | --- | --- |
-| ChatStateFavicons | 开 | 标签页图标反映会话状态（streaming / done / ready / error），五种叠层样式。 |
+| ChatStateFavicons | 开 | 标签页图标反映会话状态（streaming / done / ready / error），五种叠层样式。空闲时保持官方 ChatGPT 图标。 |
 | InputHistory | 开 | 在输入框用 ↑ / ↓ 翻看历史提示词，类似终端。 |
 | NoShareLink | 关 | 隐藏对话顶栏 Share 和项目里的 Share project。纯 CSS。 |
 | NoDictation | 关 | 隐藏输入栏听写（语音转文字）按钮，不隐藏 Voice。纯 CSS。 |
@@ -38,7 +38,7 @@
 
 若还装着旧版 Bloom++，先卸掉再从 GitHub raw 装。自动更新走 `Bloom.latest.user.js`（`raw.githubusercontent.com/.../refs/heads/main/...`）。不要用 `.../Bloom/main/userscript/Bloom.user.js` 或 `.../refs/heads/main/userscript/Bloom.user.js`（Fastly 会卡住旧脚本）。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
 
-设置面板默认**跟随 `chatgpt.com` 自己的主题**（`Appearance: Follow host`）。可在 Bloom++ 面板强制浅色 / 深色。ChatStateFavicons 从首屏起画**白色 blossom**（PNG，深色描边，不用官方黑标）。
+设置面板默认**跟随 `chatgpt.com` 自己的主题**（`Appearance: Follow host`）。可在 Bloom++ 面板强制浅色 / 深色。ChatStateFavicons **空闲时保持官方 ChatGPT 标签页图标**；只在 streaming / done / ready / error 时叠白色 blossom PNG（深色描边）。
 
 ## GreetingCustomizer
 
@@ -154,6 +154,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.51：**ChatStateFavicons 空闲恢复官方 favicon。** `wait` 去掉 `#bloom-chat-state-favicon` 并 unpark 站点图标（不再画 `#212121` 底板或 32×32 blossom PNG）。rotate / done / ready / error 仍 park 官方节点并叠白色 blossom PNG。切会话、关插件、以及 wait 时的 head 守卫都会恢复。永不删官方 link。
 
 v1.4.50：**BetterNavigator** 正在输出的 assistant tick 改成虚线（对齐 Void++ `void-bn-tick-live`）。只标节点自己在生成（`aria-busy` / `.result-streaming` / 空 markdown + thinking）且本轮 harvest generate 武装或可见 Stop 的行；不用裸 `isStreaming()`，不把上一轮已完成回复画成虚线。摘要为空时显示「正在输出…」。节点空闲且 Stop 消失后立刻收回虚线。
 

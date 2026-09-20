@@ -4,13 +4,13 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.50](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.50)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.50`).
+Current release: **[v1.4.51](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.51)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.51`).
 
 Plugins:
 
 | Plugin | Default | What it does |
 | --- | --- | --- |
-| ChatStateFavicons | On | Tab favicon reflects chat state (streaming / done / ready / error) with five overlay styles. |
+| ChatStateFavicons | On | Tab favicon reflects chat state (streaming / done / ready / error) with five overlay styles. Idle keeps the official ChatGPT icon. |
 | InputHistory | On | Recall previous prompts with Arrow Up / Arrow Down, like a shell. |
 | NoShareLink | Off | Hide the conversation header Share button and the project Share button. CSS-only. |
 | NoDictation | Off | Hide the composer Dictation (speech-to-text) button. Does not hide Voice mode. CSS-only. |
@@ -38,15 +38,15 @@ The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in th
 
 If an older Bloom++ is still installed, remove it first, then install from GitHub raw. Auto-update uses `Bloom.latest.user.js` on `raw.githubusercontent.com/.../refs/heads/main/...`. Do not use `.../Bloom/main/userscript/Bloom.user.js` or `.../refs/heads/main/userscript/Bloom.user.js` (Fastly can keep an old script). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
 
-The settings shell **follows chatgpt.com's own theme** by default (`Appearance: Follow host`). Light / Dark can be forced from the Bloom++ panel. ChatStateFavicons draws a **white blossom** (PNG, dark halo, no official black mark) from the first paint.
+The settings shell **follows chatgpt.com's own theme** by default (`Appearance: Follow host`). Light / Dark can be forced from the Bloom++ panel. ChatStateFavicons **keeps the official ChatGPT tab icon while idle**; overlays (white blossom PNG, dark halo) appear only for streaming / done / ready / error.
 
 ## ChatStateFavicons styles
 
 `original` · `badge` · `dot` · `hole` · `bg` (Fill, default)
 
-States: wait · rotate (🔄) · done (✔️) · ready (👍) · error (🚫).
+States: wait (official host icon) · rotate (🔄) · done (✔️) · ready (👍) · error (🚫).
 
-The blossom mark is the 24-unit evenodd path from the existing Chat-State-Favicons adapter, **without** the progress bar. Detection stays ChatGPT-specific (composer Stop, Pro trailing Stop, Deep Research, image spinner, `/c/{id}` context lock).
+The blossom mark is the 24-unit evenodd path from the existing Chat-State-Favicons adapter, **without** the progress bar. Detection stays ChatGPT-specific (composer Stop, Pro trailing Stop, Deep Research, image spinner, `/c/{id}` context lock). Idle (`wait`) unparks ChatGPT's own `<link rel=icon>` instead of painting a plate.
 
 ## GreetingCustomizer
 
@@ -167,6 +167,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.51: **ChatStateFavicons idle keeps the official ChatGPT favicon.** `wait` removes `#bloom-chat-state-favicon` and unparks host icon links (no `#212121` plate, no 32×32 blossom PNG). Overlays still park official nodes and paint the white blossom PNG for rotate / done / ready / error. Conversation switch, plugin stop, and the head guard on wait all restore. Never strip official links.
 
 v1.4.50: **BetterNavigator** dashes the in-progress assistant tick (Void++ `void-bn-tick-live`). Live only if that node itself is streaming (`aria-busy` / `.result-streaming` / empty markdown + thinking) **and** harvest generate-arm or a visible Stop — not raw `isStreaming()`, not the previous finished reply. Empty summaries show 正在输出…. Drop the dash as soon as the node is idle and Stop is gone.
 

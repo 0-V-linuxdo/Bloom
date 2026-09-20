@@ -5,8 +5,10 @@
  *
  * Style compositor adapted from Void++ ChatStateFavicons (GPL-3.0-or-later).
  * Blossom path from Chat-State-Favicons ChatGPT/icon/ChatGPT.svg (progress bar stripped).
- * Always a light (white) blossom. Rasterized to PNG so Chrome actually
- * replaces the official black SVG. No SMIL. No official href as a base.
+ * Overlay states (rotate / done / ready / error) always paint a light (white)
+ * blossom, rasterized to PNG so Chrome actually replaces the official SVG.
+ * Wait (idle) is composed here but the plugin restores the official icon
+ * instead of applying it. No SMIL. No official href as a base.
  */
 
 export const ICON_STYLES = ["original", "badge", "dot", "hole", "bg"] as const;

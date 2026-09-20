@@ -5,12 +5,14 @@
  *
  * State machine adapted from Void++ ChatStateFavicons; ChatGPT streaming
  * detectors from Chat-State-Favicons (MIT). Streaming is NOT gated on empty input.
- * Wait, streaming, done, ready, and error all use a composed white blossom
- * rasterized to PNG. Favicon link is last in document.head. Never strip
- * ChatGPT's official icon nodes (React hydrateRoot owns them); park them
- * so Chrome does not prefer the official SVG. Head-only guard (subtree
- * on head, never html/body). Composer watch is childList plus Stop/Send
- * attrs — not `class` (token paint would schedule every frame).
+ * Wait (idle) restores ChatGPT's official favicon (unpark host links, drop
+ * our overlay). Streaming, done, ready, and error park the official nodes
+ * and paint a composed white blossom PNG. Favicon link is last in
+ * document.head. Never strip ChatGPT's official icon nodes (React
+ * hydrateRoot owns them); park them so Chrome does not prefer the official
+ * SVG over the overlay. Head-only guard (subtree on head, never html/body).
+ * Composer watch is childList plus Stop/Send attrs — not `class` (token
+ * paint would schedule every frame).
  *
  * Draft emptiness uses host isUserDraftEmpty (leftover App/@plugin chips
  * inside #prompt-textarea do not count). primedReady resets on streaming
@@ -96,13 +98,30 @@ function captureOfficial(): string {
     return "";
 }
 
+function overlayLink(): HTMLLinkElement | null {
+    const link = document.getElementById(ICON_ID);
+    return link instanceof HTMLLinkElement ? link : null;
+}
+
+function paintFavicon() {
+    if (kind === "wait") {
+        restoreOfficialFavicon(ICON_ID, officialHref);
+        return;
+    }
+    applyFavicon(ICON_ID, icons[kind]);
+}
+
 function setKind(next: FaviconKind) {
     if (kind === next) {
-        const link = document.getElementById(ICON_ID);
-        if (link instanceof HTMLLinkElement && link.getAttribute("href") === icons[next]) return;
+        if (next === "wait") {
+            if (!overlayLink()) return;
+        } else {
+            const link = overlayLink();
+            if (link && link.getAttribute("href") === icons[next]) return;
+        }
     }
     kind = next;
-    applyFavicon(ICON_ID, icons[next]);
+    paintFavicon();
 }
 
 function rebuildIcons() {
@@ -253,7 +272,7 @@ function bindEditorInput() {
 
 export default definePlugin({
     name: "ChatStateFavicons",
-    description: "Streaming, done, ready, and error on the tab favicon.",
+    description: "Streaming, done, ready, and error on the tab favicon. Idle keeps the official ChatGPT icon.",
     authors: [Devs.p],
     tags: ["chat", "ui"],
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="8" cy="9" r="1.25" fill="currentColor" stroke="none"/><path d="M21 15l-5-5-4 4-2-2-5 5"/></svg>`,
@@ -269,7 +288,7 @@ export default definePlugin({
         faviconObs?.disconnect();
         faviconObs = startFaviconGuard(ICON_ID, href => {
             if (isUsableOfficialHref(href)) officialHref = href;
-            applyFavicon(ICON_ID, icons[kind]);
+            paintFavicon();
         });
         inputCtrl?.abort();
         inputCtrl = new AbortController();
@@ -300,6 +319,7 @@ export default definePlugin({
         resetStreamFlags();
         lastConvId = "";
         primedReady = true;
+        kind = "wait";
         restoreOfficialFavicon(ICON_ID, officialHref);
     },
 
