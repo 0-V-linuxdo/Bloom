@@ -7,7 +7,7 @@
  * MutationObserver, no querySelectorAll("button"), no wrapper :has().
  * Hides composer Dictation (speech-to-text). Does not hide Voice
  * (data-testid="composer-speech-button" / voice-mode-button).
- * Styles adopt after HostReady (island gate). Default off.
+ * Styles adopt at Init (flushStyles as soon as document.head exists). Default off.
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -76,7 +76,7 @@ export default definePlugin({
     tags: ["chat", "ui"],
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a3 3 0 00-3 3v5a3 3 0 006 0V6a3 3 0 00-3-3z"/><path d="M19 10a7 7 0 01-14 0M12 17v4M8 21h8"/></svg>`,
     enabledByDefault: false,
-    startAt: StartAt.HostReady,
+    startAt: StartAt.Init,
     settings,
     start: apply,
     onSettingsChange: apply,

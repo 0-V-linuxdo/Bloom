@@ -8,7 +8,7 @@
  * Hides Download-apps, the composer "can make mistakes" disclaimer,
  * upgrade CTAs, locked models, home GPT promo, and Free ads.
  * Does not hide Voice, Share, the avatar, `#bloom-rail-item`, or the
- * whole `#thread-bottom-container`. Styles adopt after HostReady.
+ * whole `#thread-bottom-container`. Styles adopt at Init (head flush).
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -229,7 +229,7 @@ export default definePlugin({
     tags: ["ui"],
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12H3l1.5-4.5A2 2 0 016.4 6h11.2"/><path d="M19.4 6l.7 2M6 12l1 8h8l1-8"/><path d="M9 16h4"/></svg>`,
     enabledByDefault: true,
-    startAt: StartAt.HostReady,
+    startAt: StartAt.Init,
     settings,
     start: apply,
     onSettingsChange: apply,

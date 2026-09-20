@@ -87,7 +87,7 @@ export default definePlugin({
     tags: ["ui", "chat"],
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="6"/><path d="M15 9a6 6 0 106 6"/><path d="M9 9h.01"/></svg>`,
     enabledByDefault: true,
-    startAt: StartAt.HostReady,
+    startAt: StartAt.Init,
     settings,
     start: apply,
     onSettingsChange: apply,

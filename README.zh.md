@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.51](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.51)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.51`）。
+当前版本：**[v1.4.52](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.52)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.52`）。
 
 插件：
 
@@ -63,7 +63,7 @@
 
 ## NoShareLink / NoDictation
 
-两个插件默认关闭。HostReady（晚到的岛 + 8 秒下限）之后才采用 CSS，**不**用 `MutationObserver` 扫整棵树，也**不** `querySelectorAll("button")`。
+两个插件默认关闭。Init 时排队 CSS，`document.head` 一出现就 `flushStyles`，**不**用 `MutationObserver` 扫整棵树，也**不** `querySelectorAll("button")`。
 
 v1.1.2：样式只挂到 `document.head`，没有 head 就等，禁止挂到 `<html>`。
 
@@ -154,6 +154,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.52：**NoSidebarIdentity 加载时不再先闪用户名。** CSS-only 插件（NSI、NoShareLink、NoDictation、Cleaner、WiderChat、ComposerOpacity、StreamerMode）在 Init 启动，`document.head` 一出现就 `flushStyles`，不再等 HostReady 岛门 + idle。设置条钉轨仍等 HostReady。隐藏也覆盖首帧还不是 `.truncate` 的名字 `span`/`p`。名字仍是 `visibility:hidden`（永不对 `.min-w-0` 列 `display:none`）。不改 `@run-at document-start`，不往 `<html>` 挂样式。
 
 v1.4.51：**ChatStateFavicons 空闲恢复官方 favicon。** `wait` 去掉 `#bloom-chat-state-favicon` 并 unpark 站点图标（不再画 `#212121` 底板或 32×32 blossom PNG）。rotate / done / ready / error 仍 park 官方节点并叠白色 blossom PNG。切会话、关插件、以及 wait 时的 head 守卫都会恢复。永不删官方 link。
 

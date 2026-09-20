@@ -22,7 +22,8 @@
  * name, so `:last-child` restyled "hanlin gao" and
  * `:first-child:not(:last-child)` left it visible). Plan is `.text-xs`
  * / `.text-token-text-*` / a non-truncate sibling of the name.
- * Styles adopt after HostReady. Default on.
+ * startAt Init so hide CSS is queued before flushStyles (StyleReady /
+ * document.head), not after the HostReady island+idle window. Default on.
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -153,13 +154,16 @@ function apply() {
     const align = hideName && settings.store.alignPlanWithAvatar === true;
     const rules: string[] = [];
     if (hideName) {
-        // Always hide every name truncate. A lone `.truncate` is the display
-        // name, not Plus/Pro — 1.4.16's :first-child:not(:last-child) skipped it.
+        // Always hide every name truncate *and* a first-paint span/p that is
+        // not yet `.truncate` (SSR). A lone `.truncate` is the display name,
+        // not Plus/Pro — 1.4.16's :first-child:not(:last-child) skipped it.
+        // NAME_LOOSE already excludes .text-xs / token-secondary so enlargePlan
+        // still reaches Plus/Pro.
         if (align) {
-            rules.push(dropNameLine(enlarge ? NAME_LINE : [...NAME_LINE, ...NAME_LOOSE]));
+            rules.push(dropNameLine([...NAME_LINE, ...NAME_LOOSE]));
             rules.push(centerPlanInColumn());
         } else {
-            rules.push(hideKeepSlot(enlarge ? NAME_TRUNCATE : NAME_SELECTORS));
+            rules.push(hideKeepSlot(NAME_SELECTORS));
         }
     }
     if (hideMail) rules.push(hideKeepSlot(EMAIL_SELECTORS));
@@ -178,7 +182,7 @@ export default definePlugin({
     tags: ["ui", "privacy"],
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.25"/><path d="M5.5 19.2c.7-3.1 3.3-5.2 6.5-5.2s5.8 2.1 6.5 5.2"/><path d="M4 4l16 16"/></svg>`,
     enabledByDefault: true,
-    startAt: StartAt.HostReady,
+    startAt: StartAt.Init,
     settings,
     start: apply,
     onSettingsChange: apply,

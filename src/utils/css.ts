@@ -3,9 +3,11 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * registerStyle queues in memory. flushStyles (chrome-ready) appends
- * <style data-bloom-style> to document.head — never documentElement.
- * A copy is mirrored into #bloom-root's shadow if that host exists.
+ * registerStyle queues in memory. flushStyles appends
+ * <style data-bloom-style> to document.head as soon as head exists
+ * (Init / StyleReady) — never documentElement. HostReady re-flushes
+ * in case React dropped the nodes. A copy is mirrored into
+ * #bloom-root's shadow if that host exists.
  */
 
 type StyleEntry = {
@@ -79,6 +81,8 @@ export function registerStyle(name: string, css: string) {
 }
 
 export function flushStyles(): boolean {
+    const host = styleHost();
+    if (!host) return false;
     flushed = true;
     for (const [name, entry] of styles) applyEntry(name, entry);
     syncShadow();

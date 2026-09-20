@@ -55,7 +55,7 @@ export default definePlugin({
     tags: ["ui"],
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12H3M21 12h-5M5 9l-3 3 3 3M19 9l3 3-3 3"/><rect x="8" y="5" width="8" height="14" rx="1.5"/></svg>`,
     enabledByDefault: true,
-    startAt: StartAt.HostReady,
+    startAt: StartAt.Init,
     settings,
     start: apply,
     onSettingsChange: apply,

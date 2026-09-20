@@ -5,7 +5,7 @@
  *
  * Adapted from Void++ NoShareLink (GPL-3.0-or-later). CSS-only: no
  * MutationObserver, no querySelectorAll("button"), no wrapper :has().
- * Styles adopt after HostReady (island gate). Default off.
+ * Styles adopt at Init (flushStyles as soon as document.head exists). Default off.
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -71,7 +71,7 @@ export default definePlugin({
     tags: ["ui", "privacy"],
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>`,
     enabledByDefault: false,
-    startAt: StartAt.HostReady,
+    startAt: StartAt.Init,
     settings,
     start: apply,
     onSettingsChange: apply,

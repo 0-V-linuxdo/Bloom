@@ -58,6 +58,28 @@ function wait(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function waitForHead(): Promise<void> {
+    if (document.head) return Promise.resolve();
+    return new Promise(resolve => {
+        let done = false;
+        const finish = () => {
+            if (done) return;
+            if (!document.head) return;
+            done = true;
+            clearInterval(poll);
+            resolve();
+        };
+        const poll = setInterval(finish, 20);
+        document.addEventListener("DOMContentLoaded", finish, { once: true });
+        setTimeout(() => {
+            if (done) return;
+            done = true;
+            clearInterval(poll);
+            resolve();
+        }, 15_000);
+    });
+}
+
 function waitForBody(): Promise<void> {
     if (document.body) return Promise.resolve();
     return new Promise(resolve => {
@@ -161,6 +183,10 @@ export async function init() {
     } else {
         fireDom();
     }
+
+    await waitForHead();
+    flushStyles();
+    logger.info("styles ready", VERSION);
 
     await waitForBody();
     void waitForSidebar().then(found => {
