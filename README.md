@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.56](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.56)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.56`).
+Current release: **[v1.4.57](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.57)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.57`).
 
 Plugins:
 
@@ -167,6 +167,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.57: **BetterNavigator outline sits on the message column, not the page scrollbar.** `placeHost` uses the inner `--thread-content-max-width` / turn wrapper for `right` (gutter when it fits, otherwise Void-style 0.75rem overlay on the column edge). Hover menu is `min(18rem, 70vw)` with a single card pad; tick hit-target `2.5rem`; `YOU`/`GPT` marks are `width: auto`. Still body-fixed — never `position:relative` on `#thread`.
 
 v1.4.56: **Hidden-tab stream paint.** Favicon guard `onCompete` runs synchronously while the tab is hidden (Chrome skips rAF; the tab strip is still visible). MessageTimestamps drops its 800ms `isStreaming` poll and subscribes to `watchStreamingEdge`. PromptQueue / BetterNavigator / ChatListStatus use host `isDraftMigrate`; navigator does not wipe outline labels on first-message `/` → `/c/{id}`. Recents / navigator / timestamps paint immediately when hidden.
 

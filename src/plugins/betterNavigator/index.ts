@@ -8,6 +8,9 @@
  * Self rail only: chatgpt.com has no Grok "Go to response N" ticks.
  * Body-fixed host, #thread childList+subtree observer, no html/body
  * subtree MO, no :has(), no Grok hsl, no position:relative on #thread.
+ * Rail `right` follows the inner message column
+ * (`--thread-content-max-width` / turn wrapper), not `#thread`'s
+ * viewport edge. Hover menu is Void-sized (min 18rem / 70vw).
  * Live dash: the in-progress assistant tick only (aria-busy /
  * .result-streaming / empty markdown+thinking) AND harvest generate-arm
  * or a visible Stop. Never raw isStreaming(), never the previous finished
@@ -34,6 +37,8 @@ const LOCK_MS = 1000;
 const FAR_SCREENS = 2.5;
 const THRESHOLD = 0.4;
 const LIVE_LABEL = "正在输出…";
+const HOST_W = 40;
+const COL_CLASS = /thread-content-max-width|thread-content-width|max-w-\(--thread-content|max-w-\[var\(--thread-content|max-w-\[40rem\]|max-w-\[48rem\]/;
 
 const SKIP = [
     "#thread-bottom-container",
@@ -130,6 +135,63 @@ function threadRoot(): HTMLElement | null {
     return document.getElementById("thread")
         || document.querySelector<HTMLElement>('[data-testid="conversation-panel"]')
         || document.querySelector<HTMLElement>("main");
+}
+
+function parseCssLen(raw: string): number {
+    const t = raw.trim();
+    if (!t) return 0;
+    const n = Number.parseFloat(t);
+    if (!Number.isFinite(n)) return 0;
+    if (t.endsWith("rem")) return n * 16;
+    return n;
+}
+
+function classNameOf(el: Element): string {
+    const v = (el as HTMLElement).className;
+    if (typeof v === "string") return v;
+    return el.getAttribute("class") || "";
+}
+
+/** Inner message column — never `#thread` itself (that box hugs the page scrollbar). */
+function contentColumnRect(thread: HTMLElement): DOMRect {
+    const thr = thread.getBoundingClientRect();
+    let wrap: HTMLElement | null = null;
+    try {
+        const turn = thread.querySelector<HTMLElement>("[data-message-id]");
+        let n: HTMLElement | null = turn;
+        while (n && n !== thread) {
+            if (COL_CLASS.test(classNameOf(n))) wrap = n;
+            n = n.parentElement;
+        }
+    } catch { /* ignore */ }
+    if (!wrap) {
+        try {
+            const bottom = document.getElementById("thread-bottom-container");
+            const inner = bottom?.querySelector<HTMLElement>(
+                '[class*="thread-content-max-width"], [class*="max-w-(--thread-content"], form[data-type="unified-composer"]',
+            );
+            if (inner) {
+                const r = inner.getBoundingClientRect();
+                if (r.width > 160) wrap = inner;
+            }
+        } catch { /* ignore */ }
+    }
+    if (wrap) {
+        const r = wrap.getBoundingClientRect();
+        if (r.width > 160 && r.width <= thr.width + 8) return r;
+    }
+    let cap = 0;
+    try {
+        cap = parseCssLen(getComputedStyle(thread).getPropertyValue("--thread-content-max-width"))
+            || parseCssLen(getComputedStyle(thread).getPropertyValue("--thread-content-width"))
+            || parseCssLen(getComputedStyle(document.documentElement).getPropertyValue("--thread-content-max-width"));
+    } catch { /* ignore */ }
+    if (cap > 160) {
+        const w = Math.min(cap, thr.width);
+        const left = thr.left + Math.max(0, (thr.width - w) / 2);
+        return new DOMRect(left, thr.top, w, thr.height);
+    }
+    return thr;
 }
 
 function skipNode(el: Element): boolean {
@@ -414,6 +476,7 @@ function placeHost() {
         return;
     }
     const rect = thread.getBoundingClientRect();
+    const col = contentColumnRect(thread);
     const bottomEl = document.getElementById("thread-bottom-container");
     const header = document.getElementById("page-header");
     const top = Math.max(rect.top + 8, header?.getBoundingClientRect().bottom ?? 0, 8);
@@ -426,13 +489,19 @@ function placeHost() {
         el.hidden = true;
         return;
     }
-    const gap = window.innerWidth - rect.right;
-    const right = gap >= 22 ? Math.max(8, gap - 16) : 8;
+    const hostW = el.offsetWidth || HOST_W;
+    const gutter = rect.right - col.right;
+    let desiredLeft = gutter >= hostW + 8
+        ? col.right + 4
+        : col.right - 12 - hostW;
+    desiredLeft = Math.min(desiredLeft, rect.right - hostW - 8);
+    desiredLeft = Math.max(8, desiredLeft);
+    const right = Math.max(8, Math.round(window.innerWidth - desiredLeft - hostW));
     el.hidden = false;
     el.style.top = `${Math.round((top + floor) / 2)}px`;
     el.style.height = "auto";
     el.style.maxHeight = `${Math.round(height)}px`;
-    el.style.right = `${Math.round(right)}px`;
+    el.style.right = `${right}px`;
     el.style.setProperty("--bloom-bn-cap", `${Math.round(height)}px`);
 }
 
