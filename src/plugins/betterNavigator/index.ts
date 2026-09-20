@@ -365,7 +365,7 @@ function ensureHost(): HTMLElement | null {
 function placeHost() {
     const el = host;
     const thread = threadRoot();
-    if (!el || !thread || !thread.isConnected || lastNav.length < 2) {
+    if (!el || !thread || !thread.isConnected || lastNav.length < 1) {
         if (el) el.hidden = true;
         return;
     }
@@ -474,7 +474,7 @@ function paint() {
     checkCid();
     const items = collect();
     const root = threadRoot();
-    if (!root || items.length < 2) {
+    if (!root || items.length < 1) {
         lastNav = items;
         paintedKey = "";
         if (host) host.hidden = true;
