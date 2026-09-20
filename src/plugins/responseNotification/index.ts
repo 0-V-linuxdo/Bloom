@@ -4,23 +4,20 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * ChatGPT-side rewrite of Void++ ResponseNotification (GPL-3.0-or-later).
- * Detects reply completion via falling-edge of host isStreaming() plus
- * 2–3 quiet ticks and a context lock. No Grok streamEnd / ResponseStore.
- * Independent of PromptQueue / AutoContinue.
+ * Detects reply completion via host watchStreamingEdge (falling-edge of
+ * isStreaming() plus 3 quiet ticks and a context lock). No Grok streamEnd
+ * / ResponseStore. Independent of PromptQueue / AutoContinue.
  */
 
 import { definePluginSettings } from "../../api/Settings";
-import { isStopControl } from "../../host/composer";
-import { contextKeyFromUrl, conversationToken, currentConversationId } from "../../host/conversation";
+import { currentConversationId } from "../../host/conversation";
 import { conversationTitle } from "../../host/harvest";
-import { hasErrorToast, isStreaming } from "../../host/streaming";
+import { watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { Logger } from "../../utils/Logger";
 import definePlugin, { OptionType, StartAt } from "../../utils/types";
 
 const logger = new Logger("ResponseNotification");
-const POLL_MS = 400;
-const QUIET_TICKS = 3;
 
 const settings = definePluginSettings({
     sound: {
@@ -51,18 +48,9 @@ const settings = definePluginSettings({
 });
 
 let started = false;
-let wasStreaming = false;
-let quietTicks = 0;
-let streamContext = "";
-let userStopped = false;
-let lastConv = "";
-let pollTimer: ReturnType<typeof setInterval> | undefined;
-let clicks: AbortController | null = null;
+let unsub: (() => void) | null = null;
 let audioCtx: AudioContext | null = null;
-
-function contextKey(): string {
-    return contextKeyFromUrl(conversationToken());
-}
+let perm: AbortController | null = null;
 
 function tabHidden(): boolean {
     return document.visibilityState === "hidden" || document.hidden;
@@ -166,52 +154,6 @@ function mountPreview(el: HTMLElement): () => void {
     return () => { btn.remove(); };
 }
 
-function onStopClick(ev: Event) {
-    const node = ev.target;
-    if (!(node instanceof Element)) return;
-    const btn = node.closest("button");
-    if (btn instanceof HTMLElement && isStopControl(btn)) userStopped = true;
-}
-
-function tick() {
-    if (!started) return;
-    const conv = conversationToken() || location.pathname;
-    if (lastConv && conv && lastConv !== conv) {
-        wasStreaming = false;
-        quietTicks = 0;
-        streamContext = "";
-        userStopped = false;
-        lastConv = conv;
-        return;
-    }
-    lastConv = conv;
-
-    const streaming = isStreaming();
-    const key = contextKey();
-
-    if (streaming) {
-        wasStreaming = true;
-        quietTicks = 0;
-        streamContext = key;
-        return;
-    }
-
-    if (!wasStreaming) return;
-
-    quietTicks += 1;
-    if (quietTicks < QUIET_TICKS) return;
-
-    const same = !!streamContext && streamContext === key;
-    const stopped = userStopped;
-    const error = hasErrorToast();
-    wasStreaming = false;
-    quietTicks = 0;
-    userStopped = false;
-    streamContext = "";
-    if (!same || stopped || error) return;
-    notify();
-}
-
 export default definePlugin({
     name: "ResponseNotification",
     description: "Notify when a reply finishes. Sound and browser notification; default only when the tab is hidden.",
@@ -223,35 +165,27 @@ export default definePlugin({
     settings,
     start() {
         started = true;
-        wasStreaming = isStreaming();
-        quietTicks = 0;
-        streamContext = wasStreaming ? contextKey() : "";
-        userStopped = false;
-        lastConv = conversationToken() || location.pathname;
-        clicks?.abort();
-        clicks = new AbortController();
-        document.addEventListener("click", onStopClick, { capture: true, signal: clicks.signal });
-        if (pollTimer !== undefined) clearInterval(pollTimer);
-        pollTimer = setInterval(tick, POLL_MS);
+        unsub?.();
+        unsub = watchStreamingEdge(edge => {
+            if (!started) return;
+            if (edge.userStopped || edge.error) return;
+            notify();
+        });
+        perm?.abort();
+        perm = new AbortController();
         if (settings.store.browserNotification !== false && typeof Notification !== "undefined" && Notification.permission === "default") {
             document.addEventListener("click", () => {
                 if (Notification.permission === "default") void Notification.requestPermission();
-            }, { once: true, signal: clicks.signal });
+            }, { once: true, signal: perm.signal });
         }
         logger.debug("watch started");
     },
     stop() {
         started = false;
-        if (pollTimer !== undefined) {
-            clearInterval(pollTimer);
-            pollTimer = undefined;
-        }
-        clicks?.abort();
-        clicks = null;
-        wasStreaming = false;
-        quietTicks = 0;
-        streamContext = "";
-        userStopped = false;
+        unsub?.();
+        unsub = null;
+        perm?.abort();
+        perm = null;
         try { void audioCtx?.close(); } catch { /* ignore */ }
         audioCtx = null;
     },

@@ -5,8 +5,8 @@
  *
  * Depth-1 next-turn stash. ChatGPT native Enter/Send during generate
  * interrupts the current reply and POSTs immediately — this plugin
- * intercepts that path, queues the draft, and sends after the falling
- * edge of host isStreaming(). Stop stays native and does not drain.
+ * intercepts that path, queues the draft, and sends after host
+ * watchStreamingEdge. Stop stays native and does not drain.
  * No streamEnd, no fetch wrap, no InputHistory / ResponseNotification import.
  */
 
@@ -26,7 +26,7 @@ import {
     setEditorText,
 } from "../../host/composer";
 import { contextKeyFromUrl, conversationToken } from "../../host/conversation";
-import { hasErrorToast, isStreaming } from "../../host/streaming";
+import { hasErrorToast, isStreaming, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -36,8 +36,6 @@ import css from "./styles.css";
 const logger = new Logger("PromptQueue");
 const CHIP_ID = "bloom-pq-chip";
 const STYLE_NAME = "promptQueue";
-const POLL_MS = 400;
-const QUIET_TICKS = 3;
 const CLIP = 80;
 const DRAIN_PAUSE_MS = 50;
 const BYPASS_MS = 2000;
@@ -56,17 +54,13 @@ type Leak = { key: string; text: string; turns: number; ticks: number };
 const pending = new Map<string, Slot>();
 
 let started = false;
-let wasStreaming = false;
-let quietTicks = 0;
-let streamContext = "";
-let userStopped = false;
 let lastKey = "";
 let drainKey = "";
 let draining = false;
 let bypassIntercept = false;
 let leak: Leak | null = null;
 let keys: AbortController | null = null;
-let pollTimer: ReturnType<typeof setInterval> | undefined;
+let unsub: (() => void) | null = null;
 let drainTimer: ReturnType<typeof setTimeout> | undefined;
 let bypassTimer: ReturnType<typeof setTimeout> | undefined;
 let chip: HTMLElement | null = null;
@@ -131,7 +125,6 @@ function migrateIfNeeded(key: string) {
     if (!shouldMigrate(lastKey, key)) return;
     pending.delete(lastKey);
     pending.set(key, slot);
-    if (streamContext === lastKey) streamContext = key;
     if (drainKey === lastKey) drainKey = key;
     if (leak?.key === lastKey) leak.key = key;
     logger.debug("migrated pending", lastKey, "→", key);
@@ -323,49 +316,6 @@ function watchLeak() {
     if (leak.ticks <= 0) leak = null;
 }
 
-function tick() {
-    if (!started) return;
-    const key = contextKey();
-    migrateIfNeeded(key);
-    lastKey = key;
-    watchLeak();
-
-    const streaming = isStreaming();
-    if (streaming) {
-        if (!wasStreaming) userStopped = false;
-        wasStreaming = true;
-        quietTicks = 0;
-        streamContext = key;
-        drainKey = "";
-        if (chip) placeChip(chip);
-        return;
-    }
-
-    if (!wasStreaming) {
-        if (drainKey && drainKey === key) tryDrain(drainKey);
-        if (chip) placeChip(chip);
-        return;
-    }
-
-    quietTicks += 1;
-    if (quietTicks < QUIET_TICKS) return;
-
-    const same = !!streamContext && streamContext === key;
-    const stopped = userStopped;
-    const error = hasErrorToast();
-    wasStreaming = false;
-    quietTicks = 0;
-    userStopped = false;
-    streamContext = "";
-    if (!same || stopped || error) {
-        drainKey = "";
-        paintChip();
-        return;
-    }
-    drainKey = key;
-    tryDrain(key);
-}
-
 function onKeyDown(e: KeyboardEvent) {
     if (!started) return;
     if (e.isComposing || e.keyCode === 229) return;
@@ -403,10 +353,7 @@ function onClick(e: Event) {
     if (!(node instanceof Element)) return;
     if (node.closest(`#${CHIP_ID}`)) return;
     const btn = node.closest("button");
-    if (btn instanceof HTMLElement && isStopControl(btn)) {
-        userStopped = true;
-        return;
-    }
+    if (btn instanceof HTMLElement && isStopControl(btn)) return;
     if (draining) return;
     if (!isStreaming()) return;
     if (!sendFromEvent(node)) return;
@@ -454,10 +401,6 @@ export default definePlugin({
     settings,
     start() {
         started = true;
-        wasStreaming = isStreaming();
-        quietTicks = 0;
-        streamContext = wasStreaming ? contextKey() : "";
-        userStopped = false;
         lastKey = contextKey();
         drainKey = "";
         draining = false;
@@ -470,19 +413,40 @@ export default definePlugin({
         window.addEventListener("keydown", onKeyDown, { capture: true, signal });
         document.addEventListener("click", onClick, { capture: true, signal });
         document.addEventListener("submit", onSubmit, { capture: true, signal });
-        if (pollTimer !== undefined) clearInterval(pollTimer);
-        pollTimer = setInterval(tick, POLL_MS);
+        unsub?.();
+        unsub = watchStreamingEdge({
+            onFall(edge) {
+                if (!started) return;
+                if (edge.userStopped || edge.error) {
+                    drainKey = "";
+                    paintChip();
+                    return;
+                }
+                drainKey = edge.contextKey;
+                tryDrain(edge.contextKey);
+            },
+            onContext(next) {
+                migrateIfNeeded(next);
+                lastKey = next;
+                paintChip();
+            },
+            onTick(state) {
+                migrateIfNeeded(state.contextKey);
+                lastKey = state.contextKey;
+                watchLeak();
+                if (drainKey && drainKey === state.contextKey) tryDrain(drainKey);
+                if (chip) placeChip(chip);
+            },
+        });
         paintChip();
         logger.debug("watch started");
     },
     stop() {
         started = false;
+        unsub?.();
+        unsub = null;
         keys?.abort();
         keys = null;
-        if (pollTimer !== undefined) {
-            clearInterval(pollTimer);
-            pollTimer = undefined;
-        }
         clearTimeout(drainTimer);
         drainTimer = undefined;
         clearTimeout(bypassTimer);
@@ -492,10 +456,6 @@ export default definePlugin({
         drainKey = "";
         draining = false;
         bypassIntercept = false;
-        wasStreaming = false;
-        quietTicks = 0;
-        streamContext = "";
-        userStopped = false;
         dropChip();
     },
 });

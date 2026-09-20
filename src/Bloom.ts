@@ -180,3 +180,4 @@ export { isDocumentInteractive, hasLateIslands } from "./utils/hydration";
 export { subscribeHarvest, conversationTitle, messageCreateTime } from "./host/harvest";
 export { conversationToken, currentConversationId, contextKeyFromUrl } from "./host/conversation";
 export { hasDraftText, isUserDraftEmpty, setEditorText } from "./host/composer";
+export { isStreaming, hasErrorToast, watchStreamingEdge } from "./host/streaming";

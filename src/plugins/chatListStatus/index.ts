@@ -6,7 +6,7 @@
  * ChatGPT-side rewrite of Void++ ChatListStatus (GPL-3.0-or-later).
  * Painter stays in this plugin (not core). ChatGPT already paints Recents
  * status on other rows; this only fills the open chat (native skips it).
- * Sources: current-tab `isStreaming` + conversation id, host harvest of
+ * Sources: host watchStreamingEdge + conversation id, host harvest of
  * conversation POSTs (shared fetch/SSE, not a second wrap), BroadcastChannel
  * across tabs. Paints only the Recents `a[href^="/c/"]` whose id is
  * `currentConversationId()`. No /backend-api/conversations poll, no
@@ -15,7 +15,7 @@
 
 import { conversationIdFromHref, currentConversationId } from "../../host/conversation";
 import { subscribeHarvest, type HarvestEvent } from "../../host/harvest";
-import { hasErrorToast, isStreaming } from "../../host/streaming";
+import { hasErrorToast, watchStreamingEdge, type StreamingTick } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -26,7 +26,6 @@ const logger = new Logger("ChatListStatus");
 const STYLE_NAME = "chatListStatus";
 const MARK = "bloom-cls";
 const CHANNEL = "bloom-cls";
-const POLL_MS = 500;
 const STREAM_TTL_MS = 20 * 60 * 1000;
 const SKIP_HOSTS = "#bloom-rt-host, #bloom-root, #bloom-sidebar-panel, #bloom-rail-item";
 
@@ -46,12 +45,12 @@ const rows = new Map<string, Row>();
 let started = false;
 let lastPathId = "";
 let wasStreaming = false;
-let pollTimer: ReturnType<typeof setInterval> | undefined;
 let raf = 0;
 let sidebarObs: MutationObserver | null = null;
 let watchedSidebar: HTMLElement | null = null;
 let channel: BroadcastChannel | null = null;
 let unsubHarvest: (() => void) | null = null;
+let unsubEdge: (() => void) | null = null;
 let pendingNew = false;
 
 function now(): number {
@@ -225,9 +224,9 @@ function onHarvest(ev: HarvestEvent) {
     }
 }
 
-function localTick() {
+function localTick(state: StreamingTick) {
     if (!started) return;
-    const id = currentConversationId();
+    const id = state.conversationId || currentConversationId();
     if (lastPathId && id && lastPathId !== id) {
         const prev = rows.get(lastPathId);
         if (prev?.kind === "streaming" && prev.source === "local") {
@@ -237,8 +236,7 @@ function localTick() {
     }
     lastPathId = id;
 
-    const streaming = isStreaming();
-    if (streaming) {
+    if (state.streaming) {
         wasStreaming = true;
         if (id) setStatus(id, "streaming", "local");
         else if (pendingNew) { /* wait for SSE id */ }
@@ -269,23 +267,20 @@ export default definePlugin({
         catch { channel = null; }
         channel?.addEventListener("message", onChannel);
         unsubHarvest = subscribeHarvest(onHarvest);
+        unsubEdge?.();
+        unsubEdge = watchStreamingEdge({ onTick: localTick });
         observeSidebar();
-        if (pollTimer !== undefined) clearInterval(pollTimer);
-        pollTimer = setInterval(localTick, POLL_MS);
-        localTick();
         logger.debug("sidebar status watch started");
     },
     stop() {
         started = false;
         if (raf) cancelAnimationFrame(raf);
         raf = 0;
-        if (pollTimer !== undefined) {
-            clearInterval(pollTimer);
-            pollTimer = undefined;
-        }
         sidebarObs?.disconnect();
         sidebarObs = null;
         watchedSidebar = null;
+        unsubEdge?.();
+        unsubEdge = null;
         unsubHarvest?.();
         unsubHarvest = null;
         try { channel?.close(); } catch { /* ignore */ }

@@ -1,6 +1,6 @@
 {
   "name": "bloompp",
-  "version": "1.4.43",
+  "version": "1.4.44",
   "description": "Bloom++ — a Void++-style plugin host for chatgpt.com",
   "homepage": "https://github.com/0-V-linuxdo/Bloom#readme",
   "bugs": {
