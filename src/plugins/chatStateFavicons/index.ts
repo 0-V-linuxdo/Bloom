@@ -11,13 +11,15 @@
  * document.head. Never strip ChatGPT's official icon nodes (React
  * hydrateRoot owns them); park them so Chrome does not prefer the official
  * SVG over the overlay. Head-only guard (subtree on head, never html/body).
- * Composer watch is childList plus Stop/Send attrs — not `class` (token
- * paint would schedule every frame).
+ * Composer watch is childList + characterData + Stop/Send attrs — not
+ * `class` (token paint would schedule every frame). Draft events are
+ * capture-delegated on the composer form so a remounted ProseMirror node
+ * still reaches evaluate in the next frame (400ms poll is fallback only).
  *
  * Draft emptiness uses host isUserDraftEmpty (leftover App/@plugin chips
  * inside #prompt-textarea do not count). primedReady resets on streaming
- * rising edge; chip-only input must not set it. ready only if draft &&
- * primedReady && Send is not gray.
+ * rising edge; chip-only input must not set it. ready if real draft &&
+ * primedReady — Send gray is a one-frame ChatGPT lag and must not hold wait.
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -39,7 +41,6 @@ import {
     hasErrorToast,
     isStreaming,
     isUserDraftEmpty,
-    submitIsGray,
 } from "./detect";
 import {
     buildIcons,
@@ -51,6 +52,7 @@ import {
 
 const logger = new Logger("ChatStateFavicons");
 const ICON_ID = "bloom-chat-state-favicon";
+const DRAFT_EVENTS = ["input", "beforeinput", "cut", "paste", "compositionend"] as const;
 
 const settings = definePluginSettings({
     style: {
@@ -81,6 +83,7 @@ let pollTimer: ReturnType<typeof setInterval> | undefined;
 let faviconObs: MutationObserver | null = null;
 let composerObs: MutationObserver | null = null;
 let composerRoot: HTMLElement | null = null;
+let draftRoot: HTMLElement | null = null;
 let started = false;
 const boundEditors = new WeakSet<HTMLElement>();
 const POLL_MS = 400;
@@ -154,8 +157,8 @@ function onConversationSwitch(id: string) {
     setKind("wait");
 }
 
-function canReady(empty: boolean, gray: boolean): boolean {
-    return !empty && primedReady && !gray;
+function canReady(empty: boolean): boolean {
+    return !empty && primedReady;
 }
 
 function evaluateState() {
@@ -170,7 +173,6 @@ function evaluateState() {
     const contextKey = getContextKey();
     const streaming = isStreaming();
     const empty = isUserDraftEmpty();
-    const gray = submitIsGray();
 
     if (hasErrorToast() && !streaming) {
         setKind("error");
@@ -211,7 +213,7 @@ function evaluateState() {
         } else if (empty) {
             setKind("done");
             return;
-        } else if (canReady(empty, gray)) {
+        } else if (canReady(empty)) {
             justFinished = false;
             setKind("ready");
             return;
@@ -224,8 +226,28 @@ function evaluateState() {
 
     streamContext = null;
     if (empty) setKind("wait");
-    else if (canReady(empty, gray)) setKind("ready");
+    else if (canReady(empty)) setKind("ready");
     else setKind("wait");
+}
+
+function unbindDraftRoot() {
+    if (!draftRoot) return;
+    for (const type of DRAFT_EVENTS) {
+        draftRoot.removeEventListener(type, onDraftEvent, true);
+    }
+    draftRoot = null;
+}
+
+function bindDraftRoot() {
+    const root = getComposerRoot();
+    const next = root && root !== document.body ? root : null;
+    if (draftRoot === next && next?.isConnected) return;
+    unbindDraftRoot();
+    if (!next) return;
+    draftRoot = next;
+    for (const type of DRAFT_EVENTS) {
+        draftRoot.addEventListener(type, onDraftEvent, { capture: true, passive: true });
+    }
 }
 
 function observeComposer() {
@@ -241,6 +263,7 @@ function observeComposer() {
     composerObs.observe(root, {
         childList: true,
         subtree: true,
+        characterData: true,
         attributes: true,
         attributeFilter: ["aria-label", "aria-disabled", "disabled", "data-testid"],
     });
@@ -252,9 +275,16 @@ function scheduleEvaluate() {
         raf = 0;
         if (!started) return;
         bindEditorInput();
+        bindDraftRoot();
         observeComposer();
+        if (hasDraftText()) primedReady = true;
         evaluateState();
     });
+}
+
+function onDraftEvent() {
+    if (hasDraftText()) primedReady = true;
+    scheduleEvaluate();
 }
 
 function onEditorInput() {
@@ -266,8 +296,8 @@ function bindEditorInput() {
     const editor = getActiveEditor();
     if (!editor || boundEditors.has(editor)) return;
     boundEditors.add(editor);
-    editor.addEventListener("input", onEditorInput, { passive: true });
-    editor.addEventListener("compositionend", onEditorInput, { passive: true });
+    editor.addEventListener("input", onEditorInput, { capture: true, passive: true });
+    editor.addEventListener("compositionend", onEditorInput, { capture: true, passive: true });
 }
 
 export default definePlugin({
@@ -294,6 +324,7 @@ export default definePlugin({
         inputCtrl = new AbortController();
         window.addEventListener("popstate", scheduleEvaluate, { signal: inputCtrl.signal });
         bindEditorInput();
+        bindDraftRoot();
         observeComposer();
         if (pollTimer !== undefined) clearInterval(pollTimer);
         pollTimer = setInterval(scheduleEvaluate, POLL_MS);
@@ -311,6 +342,7 @@ export default definePlugin({
         }
         inputCtrl?.abort();
         inputCtrl = null;
+        unbindDraftRoot();
         composerObs?.disconnect();
         composerObs = null;
         composerRoot = null;
