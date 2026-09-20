@@ -25,6 +25,7 @@ import promptQueue from "./plugins/promptQueue";
 import chatListStatus from "./plugins/chatListStatus";
 import widerChat from "./plugins/widerChat";
 import composerOpacity from "./plugins/composerOpacity";
+import betterNavigator from "./plugins/betterNavigator";
 import messageTimestamps from "./plugins/messageTimestamps";
 import streamerMode from "./plugins/streamerMode";
 import greetingCustomizer from "./plugins/greetingCustomizer";
@@ -47,6 +48,7 @@ const pluginList: Plugin[] = [
     chatListStatus,
     widerChat,
     composerOpacity,
+    betterNavigator,
     messageTimestamps,
     streamerMode,
     greetingCustomizer,

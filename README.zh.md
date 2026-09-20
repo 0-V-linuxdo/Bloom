@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.45](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.45)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.45`）。
+当前版本：**[v1.4.46](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.46)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.46`）。
 
 插件：
 
@@ -22,6 +22,7 @@
 | ChatListStatus | 开 | 只在**当前打开**的 Recents 行转圈。其它行沿用 ChatGPT 自带状态。 |
 | WiderChat | 开 | 加宽对话和输入栏（滑块 40–96 rem，默认 64）。纯 CSS。 |
 | ComposerOpacity | 开 | 输入栏背景透明度和模糊，让对话内容能透过输入条。纯 CSS。 |
+| BetterNavigator | 开 | 当前对话的 Notion 式目录。悬停 tick，点击或 ↑/↓ 跳转。 |
 | MessageTimestamps | 开 | 每条消息显示发送时间，读 ChatGPT 已有的会话 JSON。 |
 | StreamerMode | 关 | 模糊 Recents 标题、顶栏会话名、项目名和账号芯片。纯 CSS。悬停 Recents / 切换器可看一眼。 |
 | GreetingCustomizer | 关 | 用自己的文案替换首页问候语。可按访问、定时或点击轮播。 |
@@ -153,6 +154,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.46：**BetterNavigator**（默认开）。Void++ BetterNavigator 的 ChatGPT 改写（Notion 式 `#thread` 目录）。轨钉在 `document.body` 上对齐对话列；悬停展开摘要；点击或 ↑/↓ 跳转。只列当前挂载的回合。没有 Grok 原生 tick，不用 `:has()`，不观察 html/body subtree。
 
 v1.4.45：**ComposerOpacity**（默认开）。Void++ ComposerOpacity 的 ChatGPT 改写。透明度 100 保持官方输入条；低于 100 时用 `--bg-primary` 的 `color-mix` 画 unified-composer 药丸，可加模糊，并去掉 `#thread-bottom` 渐变遮罩，让对话透出来。不用 Grok `.query-bar` / hsl，不用 `:has()`，不用 `pointer-events:none`。
 

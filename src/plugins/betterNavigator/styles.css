@@ -1,0 +1,201 @@
+#bloom-bn-host {
+    position: fixed;
+    z-index: 4200;
+    width: 18px;
+    box-sizing: border-box;
+    pointer-events: none;
+    font: 13px/1.35 ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--text-primary, #0d0d0d);
+}
+
+#bloom-bn-host[hidden] {
+    display: none !important;
+}
+
+.bloom-bn-ticks {
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: flex-end;
+    height: 100%;
+    width: 18px;
+    padding: 6px 0;
+    box-sizing: border-box;
+}
+
+.bloom-bn-tick {
+    appearance: none;
+    flex: 0 0 auto;
+    width: 10px;
+    height: 8px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.bloom-bn-tick::after {
+    content: "";
+    display: block;
+    width: 6px;
+    height: 2px;
+    margin-left: auto;
+    border-radius: 999px;
+    background: var(--text-tertiary, #8f8f8f);
+    opacity: 0.7;
+}
+
+.bloom-bn-tick-asst::after {
+    width: 10px;
+    opacity: 0.45;
+}
+
+.bloom-bn-tick.bloom-bn-current::after {
+    width: 14px;
+    height: 3px;
+    background: var(--text-primary, #0d0d0d);
+    opacity: 1;
+}
+
+.bloom-bn-dense .bloom-bn-tick {
+    height: 4px;
+}
+
+.bloom-bn-dense .bloom-bn-tick::after {
+    height: 1px;
+}
+
+.bloom-bn-menu {
+    position: absolute;
+    top: 0;
+    right: 100%;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    width: min(16.5rem, calc(100vw - 4rem));
+    max-height: 100%;
+    padding: 8px 10px 8px 0;
+    box-sizing: border-box;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(6px);
+    transition: opacity 0.12s ease, transform 0.12s ease, visibility 0s linear 0.12s;
+}
+
+#bloom-bn-host:hover .bloom-bn-menu,
+#bloom-bn-host:focus-within .bloom-bn-menu {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(0);
+    transition-delay: 0s;
+}
+
+.bloom-bn-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: 100%;
+    padding: 8px;
+    border-radius: 12px;
+    border: 1px solid var(--border-light, rgba(0, 0, 0, 0.1));
+    background: var(--bg-primary, var(--main-surface-primary, #fff));
+    box-shadow: var(--shadow-long, 0 8px 24px rgba(0, 0, 0, 0.12));
+}
+
+.bloom-bn-meta {
+    flex: none;
+    margin: 0 0 6px;
+    padding: 0 6px;
+    font-size: 11px;
+    letter-spacing: -0.1px;
+    color: var(--text-secondary, #5d5d5d);
+}
+
+.bloom-bn-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-height: 0;
+    overflow: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.bloom-bn-item {
+    appearance: none;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+    margin: 0;
+    padding: 5px 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    text-align: start;
+    cursor: pointer;
+}
+
+.bloom-bn-item:hover,
+.bloom-bn-item:focus-visible {
+    background: var(--interactive-bg-secondary-hover, rgba(0, 0, 0, 0.05));
+    outline: none;
+}
+
+.bloom-bn-item.bloom-bn-active {
+    background: var(--main-surface-secondary, #f4f4f4);
+}
+
+.bloom-bn-mark {
+    flex: none;
+    width: 1.1rem;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--text-tertiary, #8f8f8f);
+}
+
+.bloom-bn-item.bloom-bn-user .bloom-bn-mark {
+    color: var(--text-secondary, #5d5d5d);
+}
+
+.bloom-bn-label {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    letter-spacing: -0.2px;
+}
+
+#thread [data-message-id] {
+    scroll-margin-top: 72px;
+}
+
+.bloom-bn-flash {
+    outline: 2px solid var(--text-primary, #0d0d0d);
+    outline-offset: 4px;
+    border-radius: 14px;
+}
+
+@media (max-width: 720px) {
+    #bloom-bn-host { display: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bloom-bn-menu {
+        transition: none;
+        transform: none;
+    }
+    .bloom-bn-flash {
+        outline-width: 1px;
+    }
+}
