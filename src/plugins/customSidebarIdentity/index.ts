@@ -4,13 +4,21 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * ChatGPT-side rewrite of Void++ CustomSidebarIdentity (GPL-3.0-or-later).
- * Page paint is CSS-only (img content/url + .truncate::before) — never extra
- * nodes on the React chip, never textContent on official .truncate, never
- * html/body[subtree] observers, never documentElement CSS vars, never
- * wrapper :has(), never hide the avatar node or #bloom-rail-item.
+ * Avatar: src-swap the official profile img (Void++ paintImg) plus padding-box
+ * CSS so Blink still shows the bake when content:url() is a no-op on <img>.
+ * Initials chips get data-bloom-csi-slot + ::after. Name is .truncate::before.
+ * Never extra nodes on the React chip, never textContent on official .truncate,
+ * never html/body[subtree], never documentElement CSS vars, never wrapper :has(),
+ * never hide the avatar node or #bloom-rail-item.
  */
 
 import { definePluginSettings } from "../../api/Settings";
+import {
+    findAccountMenu,
+    findProfileButton,
+    findTinyBar,
+    pathHitsProfile,
+} from "../../host/accountMenu";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -23,6 +31,10 @@ const UI_STYLE = "customSidebarIdentityUi";
 const PAGE_STYLE = "customSidebarIdentity";
 const FACE_CLASS = "bloom-csi-face";
 const NAME_CLASS = "bloom-csi-name";
+const MARK = "data-bloom-csi";
+const ORIG = "data-bloom-csi-orig";
+const SLOT = "data-bloom-csi-slot";
+const BLOOM_CHROME = "#bloom-root, #bloom-sidebar-panel, #bloom-rail-item, #bloom-plugin-layer, #bloom-plugin-dialog";
 const SOURCE_PX = 1024;
 const AVATAR_PX = 256;
 const SIZE_MIN = 24;
@@ -38,6 +50,7 @@ const PROFILE = [
     '[data-testid="account-menu-button"]',
     'button[aria-label*="profile" i][aria-haspopup]',
     'button[aria-label*="account" i][aria-haspopup]',
+    '[aria-haspopup="menu"][data-testid*="profile" i]',
 ];
 
 const MENU = [
@@ -50,7 +63,7 @@ const MENU = [
 const settings = definePluginSettings({
     displayName: {
         type: OptionType.STRING,
-        description: "Display name next to the sidebar avatar. Empty keeps the official name.",
+        description: "Display name next to the sidebar avatar. Empty fields keep the official name.",
         default: "",
     },
     avatarPanel: {
@@ -227,7 +240,16 @@ async function takeImage(data: DataTransfer | null) {
     return adoptSource(src);
 }
 
+const failed = new Set<string>();
 let started = false;
+let painting = false;
+let raf = 0;
+let pinRejects = 0;
+let pinBackoffUntil = 0;
+let keys: AbortController | null = null;
+const observers = new Map<Element, MutationObserver>();
+let watchedMenu: HTMLElement | null = null;
+let menuWatch: MutationObserver | null = null;
 let panelRefresh: (() => void) | null = null;
 
 function avatarSrc(): string | null {
@@ -241,6 +263,10 @@ function avatarSrc(): string | null {
         return null;
     }
     return null;
+}
+
+function inChrome(el: Element | null): boolean {
+    return !!el?.closest(BLOOM_CHROME);
 }
 
 function under(roots: string[], suffix: string): string[] {
@@ -262,15 +288,14 @@ function sizeBox(sel: string, px: number): string {
     return `${sel}{width:${px}px!important;height:${px}px!important;min-width:${px}px!important;min-height:${px}px!important;max-width:${px}px!important;max-height:${px}px!important;border-radius:999px!important;object-fit:cover!important;flex-shrink:0!important}`;
 }
 
-function faceCss(sel: string[], url: string): string {
-    const joined = sel.join(",");
+function faceImgCss(sel: string, url: string, px: number): string {
     const u = cssUrl(url);
-    const wraps = sel.map(s => `${s}:not(img)`).join(",");
-    return [
-        `${joined}{content:${u}!important;background-image:${u}!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important;object-fit:cover!important;border-radius:999px!important}`,
-        `${wraps}{position:relative!important;overflow:hidden!important}`,
-        `${wraps}::after{content:""!important;position:absolute!important;inset:0!important;border-radius:inherit!important;background-image:${u}!important;background-size:cover!important;background-position:center!important;pointer-events:none!important}`,
-    ].join("");
+    return `${sel}{box-sizing:border-box!important;width:${px}px!important;height:${px}px!important;min-width:${px}px!important;min-height:${px}px!important;max-width:${px}px!important;max-height:${px}px!important;padding:0 0 0 ${px}px!important;background-image:${u}!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important;background-origin:padding-box!important;background-clip:padding-box!important;border-radius:999px!important;object-fit:none!important;overflow:hidden!important;flex-shrink:0!important}`;
+}
+
+function slotCss(url: string): string {
+    const u = cssUrl(url);
+    return `[${SLOT}]{position:relative!important;overflow:hidden!important;border-radius:999px!important;color:transparent!important;font-size:0!important}[${SLOT}]::after{content:""!important;position:absolute!important;inset:0!important;border-radius:inherit!important;background-image:${u}!important;background-size:cover!important;background-position:center!important;pointer-events:none!important;z-index:1!important}`;
 }
 
 function nameCss(sel: string[], text: string): string {
@@ -282,44 +307,287 @@ function nameCss(sel: string[], text: string): string {
     ].join("");
 }
 
-function apply() {
-    if (!started) return;
+function faceImgs(root: HTMLElement): HTMLImageElement[] {
+    const out: HTMLImageElement[] = [];
+    for (const img of root.querySelectorAll("img")) {
+        if (!(img instanceof HTMLImageElement) || inChrome(img)) continue;
+        if (img.closest(".min-w-0")) continue;
+        out.push(img);
+    }
+    return out;
+}
+
+function pickFace(root: HTMLElement): HTMLImageElement | null {
+    const imgs = faceImgs(root);
+    if (!imgs.length) return null;
+    const ranked = imgs.find(i => /rounded-full|avatar/i.test(i.className) || !!i.getAttribute("alt"));
+    return ranked ?? imgs[0];
+}
+
+function pickSlot(root: HTMLElement): HTMLElement | null {
+    if (pickFace(root)) return null;
+    for (const node of root.querySelectorAll<HTMLElement>('[class*="rounded-full"]')) {
+        if (inChrome(node) || node.tagName === "IMG") continue;
+        if (node.querySelector(".min-w-0, .truncate")) continue;
+        const r = node.getBoundingClientRect();
+        if (r.width >= 16 && r.width <= 80 && r.height >= 16 && r.height <= 80) return node;
+    }
+    for (const node of root.querySelectorAll<HTMLElement>(".relative")) {
+        if (inChrome(node) || node.tagName === "IMG") continue;
+        if (node.querySelector(".min-w-0, .truncate")) continue;
+        const r = node.getBoundingClientRect();
+        if (r.width >= 16 && r.width <= 80 && Math.abs(r.width - r.height) < 12) return node;
+    }
+    return null;
+}
+
+function onImgError(e: Event) {
+    const img = e.currentTarget;
+    if (!(img instanceof HTMLImageElement)) return;
+    const url = img.getAttribute("src") ?? "";
+    if (url) failed.add(url);
+    restoreImg(img);
+    schedule();
+}
+
+function restoreImg(img: HTMLImageElement) {
+    img.removeEventListener("error", onImgError);
+    const orig = img.getAttribute(ORIG);
+    img.removeAttribute(MARK);
+    img.removeAttribute(ORIG);
+    if (orig && img.getAttribute("src") !== orig) img.src = orig;
+}
+
+function paintImg(img: HTMLImageElement, url: string | null) {
+    if (!url || failed.has(url)) {
+        restoreImg(img);
+        return;
+    }
+    const current = img.getAttribute("src") ?? "";
+    if (img.hasAttribute("srcset")) img.removeAttribute("srcset");
+    if (img.getAttribute(MARK) === "1") {
+        if (current === url) return;
+    } else if (current && current !== url && !img.hasAttribute(ORIG)) {
+        img.setAttribute(ORIG, current);
+    }
+    img.setAttribute(MARK, "1");
+    img.referrerPolicy = "no-referrer";
+    img.removeEventListener("error", onImgError);
+    img.addEventListener("error", onImgError);
+    if (current !== url) img.src = url;
+}
+
+function chipTargets(): HTMLElement[] {
+    const out: HTMLElement[] = [];
+    const profile = findProfileButton();
+    if (profile) out.push(profile);
+    const tiny = findTinyBar();
+    if (tiny && !out.some(el => tiny.contains(el) || el.contains(tiny))) {
+        const inner = tiny.querySelector<HTMLElement>(PROFILE.join(","))
+            ?? tiny.querySelector<HTMLElement>("button, a, [role='button']")
+            ?? tiny;
+        if (inner && !out.includes(inner)) out.push(inner);
+    }
+    return out;
+}
+
+function paintRoot(root: HTMLElement, url: string | null) {
+    const face = pickFace(root);
+    if (face) paintImg(face, url);
+    else {
+        for (const img of faceImgs(root)) restoreImg(img);
+    }
+    const wantSlot = !face && !!url;
+    const slot = wantSlot ? pickSlot(root) : null;
+    for (const el of root.querySelectorAll(`[${SLOT}]`)) {
+        if (el !== slot) el.removeAttribute(SLOT);
+    }
+    if (slot) slot.setAttribute(SLOT, "");
+}
+
+function menuHeader(menu: HTMLElement): HTMLElement | null {
+    const first = menu.firstElementChild;
+    if (!(first instanceof HTMLElement)) return null;
+    if (first.getAttribute("role")?.startsWith("menuitem")) return null;
+    return first;
+}
+
+function paintMenu(menu: HTMLElement, url: string | null) {
+    const header = menuHeader(menu);
+    if (!header) return;
+    paintRoot(header, url);
+}
+
+function restoreAll() {
+    for (const img of document.querySelectorAll<HTMLImageElement>(`img[${MARK}]`)) restoreImg(img);
+    for (const el of document.querySelectorAll(`[${SLOT}]`)) el.removeAttribute(SLOT);
+}
+
+function applyCss() {
     const size = clamp(Math.round(num(settings.store.avatarSize, SIZE_DEFAULT)), SIZE_MIN, SIZE_MAX);
     const url = avatarSrc();
     const name = trimName();
     const menuOn = settings.store.applyToMenu !== false;
     const rules: string[] = [];
 
-    const faceSel = [
+    const imgSel = [
         ...under(PROFILE, "img"),
-        ...under(PROFILE, '[class*="rounded-full"]'),
-        ...under(PROFILE, '[class*="avatar"]'),
         "#stage-sidebar-tiny-bar img",
-        '#stage-sidebar-tiny-bar [class*="rounded-full"]',
     ];
+    if (menuOn) imgSel.push(...under(MENU, "> :first-child img"));
+
     const nameSel = [
         ...under(PROFILE, ".min-w-0 > .truncate"),
         ...under(PROFILE, ".min-w-0.flex-1 .truncate"),
     ];
-    if (menuOn) {
-        faceSel.push(
-            ...under(MENU, "> :first-child img"),
-            ...under(MENU, "> :first-child [class*='rounded-full']"),
-        );
-        nameSel.push(...under(MENU, "> :first-child .truncate"));
-    }
+    if (menuOn) nameSel.push(...under(MENU, "> :first-child .truncate"));
 
     rules.push(sizeBox([
         ...under(PROFILE, "img"),
-        ...under(PROFILE, '[class*="rounded-full"]'),
-        ...under(PROFILE, '[class*="avatar"]'),
+        ...under(PROFILE, `[${SLOT}]`),
     ].join(","), size));
-    rules.push(sizeBox("#stage-sidebar-tiny-bar img,#stage-sidebar-tiny-bar [class*='rounded-full']", 32));
+    rules.push(sizeBox(`#stage-sidebar-tiny-bar img,#stage-sidebar-tiny-bar [${SLOT}]`, 32));
 
-    if (url) rules.push(faceCss(faceSel, url));
+    if (url) {
+        rules.push(faceImgCss(imgSel.join(","), url, size));
+        rules.push(faceImgCss("#stage-sidebar-tiny-bar img", url, 32));
+        rules.push(slotCss(url));
+    }
     if (name) rules.push(nameCss(nameSel, name));
 
     registerStyle(PAGE_STYLE, rules.join(""));
+}
+
+function paintDom() {
+    const url = avatarSrc();
+    const chips = chipTargets();
+    let ok = true;
+    for (const chip of chips) {
+        paintRoot(chip, url);
+        if (!url || failed.has(url)) continue;
+        const face = pickFace(chip);
+        if (face && face.getAttribute("src") !== url && !chip.querySelector(`[${SLOT}]`)) ok = false;
+    }
+    if (settings.store.applyToMenu !== false) {
+        const menu = findAccountMenu();
+        if (menu) paintMenu(menu, url);
+    }
+    for (const marked of document.querySelectorAll<HTMLImageElement>(`img[${MARK}]`)) {
+        if (chips.some(c => c.contains(marked))) continue;
+        if (marked.closest("[role='menu'], [data-radix-menu-content], [data-radix-dropdown-menu-content]")) continue;
+        restoreImg(marked);
+    }
+    notePin(ok || !chips.length);
+}
+
+function notePin(ok: boolean) {
+    if (ok) {
+        pinRejects = 0;
+        pinBackoffUntil = 0;
+        return;
+    }
+    pinRejects += 1;
+    pinBackoffUntil = Date.now() + Math.min(8_000, 250 * 2 ** Math.min(pinRejects, 5));
+}
+
+function apply() {
+    if (!started || painting) return;
+    painting = true;
+    const watched = [...observers.keys()];
+    for (const obs of observers.values()) obs.disconnect();
+    menuWatch?.disconnect();
+    try {
+        applyCss();
+        if (Date.now() >= pinBackoffUntil) paintDom();
+    } finally {
+        painting = false;
+        for (const node of watched) {
+            if (node.isConnected) bindNode(node);
+        }
+        if (watchedMenu?.isConnected) watchMenu(watchedMenu);
+    }
+}
+
+function schedule() {
+    if (!started || raf) return;
+    raf = requestAnimationFrame(() => {
+        raf = 0;
+        apply();
+    });
+}
+
+function onMut() {
+    if (painting || !started) return;
+    schedule();
+}
+
+function bindNode(root: Element) {
+    if (observers.has(root)) return;
+    const obs = new MutationObserver(onMut);
+    obs.observe(root, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["src", "srcset"],
+    });
+    observers.set(root, obs);
+}
+
+function unbindNode(root: Element) {
+    observers.get(root)?.disconnect();
+    observers.delete(root);
+}
+
+function rebindIslands() {
+    const want = new Set<Element>();
+    for (const chip of chipTargets()) {
+        want.add(chip);
+        if (chip.parentElement) want.add(chip.parentElement);
+    }
+    const tiny = findTinyBar();
+    if (tiny) want.add(tiny);
+    for (const node of [...observers.keys()]) {
+        if (!want.has(node) || !node.isConnected) unbindNode(node);
+    }
+    for (const node of want) {
+        if (node.isConnected) bindNode(node);
+    }
+}
+
+function watchMenu(menu: HTMLElement) {
+    if (watchedMenu === menu && menuWatch) return;
+    menuWatch?.disconnect();
+    watchedMenu = menu;
+    menuWatch = new MutationObserver(() => {
+        if (!menu.isConnected) {
+            menuWatch?.disconnect();
+            menuWatch = null;
+            watchedMenu = null;
+            return;
+        }
+        if (painting || !started) return;
+        schedule();
+    });
+    menuWatch.observe(menu, { childList: true, subtree: true, attributes: true, attributeFilter: ["src", "srcset"] });
+}
+
+function seekMenu(ticks: number) {
+    if (!started || settings.store.applyToMenu === false) return;
+    const menu = findAccountMenu();
+    if (menu) {
+        watchMenu(menu);
+        schedule();
+        return;
+    }
+    if (ticks <= 0) return;
+    requestAnimationFrame(() => seekMenu(ticks - 1));
+}
+
+function onDocClick(e: Event) {
+    if (!started) return;
+    if (settings.store.applyToMenu === false) return;
+    if (!pathHitsProfile(e) && !findAccountMenu()) return;
+    seekMenu(10);
 }
 
 function mountAvatarPanel(root: HTMLElement): () => void {
@@ -619,19 +887,40 @@ export default definePlugin({
 
     start() {
         started = true;
+        failed.clear();
+        pinRejects = 0;
+        pinBackoffUntil = 0;
         registerStyle(UI_STYLE, css);
+        keys = new AbortController();
+        document.addEventListener("click", onDocClick, { signal: keys.signal });
+        rebindIslands();
         apply();
         logger.debug("started");
     },
 
     onSettingsChange() {
+        failed.clear();
         panelRefresh?.();
-        if (started) apply();
+        if (started) {
+            rebindIslands();
+            apply();
+        }
     },
 
     stop() {
         started = false;
+        keys?.abort();
+        keys = null;
+        if (raf) cancelAnimationFrame(raf);
+        raf = 0;
+        for (const obs of observers.values()) obs.disconnect();
+        observers.clear();
+        menuWatch?.disconnect();
+        menuWatch = null;
+        watchedMenu = null;
+        restoreAll();
         removeStyle(PAGE_STYLE);
+        failed.clear();
         logger.debug("stopped");
     },
 });

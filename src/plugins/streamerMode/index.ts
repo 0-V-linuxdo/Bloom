@@ -8,7 +8,7 @@
  * no wrapper :has(). Blurs Recents titles, project names, and the account
  * chip. Also blurs the open-chat header title and RecentTopics HUD
  * titles so a screen share of the thread does not leak names. CustomSidebarIdentity
- * paints via CSS on the official profile `img` / `.truncate`, so the existing
+ * paints the official profile `img` / `[data-bloom-csi-slot]`, so the existing
  * account avatar / name toggles already cover it. Does not hide or blur Voice, Share, `#bloom-rail-item`,
  * or the composer.
  * Hover unblurs Recents / HUD cards so you can still aim a click.
@@ -116,15 +116,14 @@ function apply() {
         rules.push(rule([
             ...under(PROFILE, "img"),
             ...under(PROFILE, '[class*="avatar"]'),
-            ".bloom-csi-face",
+            ...under(PROFILE, "[data-bloom-csi-slot]"),
+            "[data-bloom-csi-slot]::after",
         ], false));
     }
     if (settings.store.accountName !== false) {
         rules.push(rule([
             ...under(PROFILE, ".min-w-0 > .truncate"),
             ...under(PROFILE, ".min-w-0.flex-1 .truncate"),
-            ...under(PROFILE, ".bloom-csi-name"),
-            ".bloom-csi-name",
         ], false));
     }
     if (settings.store.accountEmail !== false) {

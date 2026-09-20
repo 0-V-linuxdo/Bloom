@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.62](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.62)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.62`).
+Current release: **[v1.4.63](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.63)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.63`).
 
 Plugins:
 
@@ -169,6 +169,8 @@ v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses 
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
 
+v1.4.63: **CustomSidebarIdentity sidebar avatar actually replaces.** `content:url()` / `background-image` on a live `<img>` does nothing visible in Blink (replaced-element `src` stays on top). Now: src-swap the official profile `img` (Void++ `paintImg`, scoped observers) plus padding-box CSS so the bake shows even if React restores `src`. Initials chips (no `img`) use `data-bloom-csi-slot` + `::after`. Crop zoom from v1.4.62 stays.
+
 v1.4.62: **CustomSidebarIdentity actually paints.** Extra `img`/`div` on the React chip were wiped by hydrateRoot (zoom slider also snapped back because `paintStage` rewrote crop from the store). Page paint is now CSS-only: `content`/`background-image` on the official profile `img`, `::before` on `.truncate`. Crop zoom uses live `pos` (store sync only on mount / paste / Reset). Collapsed tiny-bar stays 32.
 
 v1.4.61: **Drop the list-chrome Appearance SELECT.** The Bloom++ panel no longer offers Follow host / Light / Dark. The shell always copies chatgpt.com tokens (`html.dark`). Stale `store.appearance` in the settings blob is ignored (not wiped). Aligns with Void++ Plugins tab (no scheme row; no Themes tab).
@@ -264,7 +266,7 @@ v1.4.21: **Restore the centered settings dock** (1.4.20 left-rail move was unwan
 - MessageTimestamps: `[data-message-id]` in `#thread`. Times from host harvest of GET `/backend-api/conversation/{id}` mapping `create_time` / POST SSE. Settings `showDate`, `hideOwnMessages`.
 - StreamerMode: `filter:blur(6px)` on Recents `a[href^="/c/"]`, project `/g/g-p-` / `/project`, profile avatar / `.truncate` / mailto, `#page-header` title (`headerTitle`), RecentTopics HUD names. Hover unblurs Recents / projects / HUD cards. Never `#bloom-rail-item` / Voice / Share / composer / model switcher.
 - GreetingCustomizer: home `/` only. Paints the first live `h1.text-page-header .text-pretty` / `.text-page-header` / `[data-splash-headline-option]` / `main h1`. Skips chrome / composer / Temporary Chat / `sr-only`. `mode` refresh|interval|manual, `order` sequential|random, `intervalSec` 1–3600. Empty list leaves the official greeting.
-- CustomSidebarIdentity: CSS-only paint on `[data-testid=accounts-profile-button]` `img` (`content`/`background-image`) and `.truncate::before`. Settings `displayName`, crop COMPONENT, `avatarSize` 24–64, `applyToMenu`. Hidden bake keys. Never extra nodes on the React chip, never `display:none` `.min-w-0`, never hide `#bloom-rail-item`.
+- CustomSidebarIdentity: src-swap + padding-box CSS on `[data-testid=accounts-profile-button]` `img`; initials slot `::after`; `.truncate::before` for the name. Settings `displayName`, crop COMPONENT, `avatarSize` 24–64, `applyToMenu`. Hidden bake keys. Never extra nodes on the React chip, never `display:none` `.min-w-0`, never hide `#bloom-rail-item`. Observes the chip / tiny-bar / opened account menu only (`src`/`srcset`).
 
 ## Build
 
