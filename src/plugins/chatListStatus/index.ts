@@ -6,16 +6,18 @@
  * ChatGPT-side rewrite of Void++ ChatListStatus (GPL-3.0-or-later).
  * Painter stays in this plugin (not core). ChatGPT already paints Recents
  * status on other rows; this only fills the open chat (native skips it).
- * Sources: host watchStreamingEdge + conversation id, host harvest of
- * conversation POSTs (shared fetch/SSE, not a second wrap), BroadcastChannel
- * across tabs. Paints only the Recents `a[href^="/c/"]` whose id is
+ * Sources: host harvest of generate POST/SSE (not /conversation/init),
+ * watchStreamingEdge onTick gated on harvest-arm / Stop (ignore hydrate
+ * isStreaming and last-resort spinners), BroadcastChannel across tabs.
+ * Paints only the Recents `a[href^="/c/"]` whose id is
  * `currentConversationId()`. No /backend-api/conversations poll, no
  * html/body subtree observer, no Grok Zustand stores.
  */
 
+import { getStopButton } from "../../host/composer";
 import { conversationIdFromHref, currentConversationId } from "../../host/conversation";
 import { subscribeHarvest, type HarvestEvent } from "../../host/harvest";
-import { hasErrorToast, watchStreamingEdge, type StreamingTick } from "../../host/streaming";
+import { getProStopButton, hasErrorToast, watchStreamingEdge, type StreamingTick } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -52,6 +54,7 @@ let channel: BroadcastChannel | null = null;
 let unsubHarvest: (() => void) | null = null;
 let unsubEdge: (() => void) | null = null;
 let pendingNew = false;
+const armedIds = new Set<string>();
 
 function now(): number {
     return Date.now();
@@ -207,21 +210,52 @@ function observeSidebar() {
     sidebarObs.observe(root, { childList: true, subtree: true });
 }
 
+function hasStop(): boolean {
+    return !!(getStopButton() || getProStopButton());
+}
+
+/** True generate — harvest SSE arm or a real Stop. Not hydrate aria-busy / header spin. */
+function isLiveGenerate(id: string): boolean {
+    if (pendingNew) return true;
+    if (id && armedIds.has(id)) return true;
+    if (hasStop()) return true;
+    return false;
+}
+
 function onHarvest(ev: HarvestEvent) {
     if (!started) return;
     if (ev.type === "post-start") {
         if (ev.conversationId) {
             pendingNew = false;
+            armedIds.add(ev.conversationId);
+            wasStreaming = true;
             setStatus(ev.conversationId, "streaming", "net");
         } else {
             pendingNew = true;
+            wasStreaming = true;
         }
         return;
     }
     if (ev.type === "post-end") {
         pendingNew = false;
-        if (ev.conversationId) setStatus(ev.conversationId, ev.error ? "error" : "done", "net");
+        if (ev.conversationId) {
+            armedIds.delete(ev.conversationId);
+            setStatus(ev.conversationId, ev.error ? "error" : "done", "net");
+        }
+        if (!hasStop()) wasStreaming = false;
     }
+}
+
+function onContext() {
+    if (!started) return;
+    const id = currentConversationId();
+    if (pendingNew || (id && armedIds.has(id))) return;
+    wasStreaming = false;
+    if (id && rows.get(id)?.kind === "streaming" && rows.get(id)?.source === "local") {
+        setStatus(id, "idle", "local");
+        return;
+    }
+    schedulePaint();
 }
 
 function localTick(state: StreamingTick) {
@@ -232,14 +266,14 @@ function localTick(state: StreamingTick) {
         if (prev?.kind === "streaming" && prev.source === "local") {
             setStatus(lastPathId, hasErrorToast() ? "error" : "done", "local");
         }
-        wasStreaming = false;
+        wasStreaming = !!(id && armedIds.has(id));
     }
     lastPathId = id;
 
-    if (state.streaming) {
+    const live = isLiveGenerate(id);
+    if (live && (state.streaming || hasStop())) {
         wasStreaming = true;
         if (id) setStatus(id, "streaming", "local");
-        else if (pendingNew) { /* wait for SSE id */ }
         schedulePaint();
         return;
     }
@@ -247,7 +281,6 @@ function localTick(state: StreamingTick) {
         wasStreaming = false;
         if (id) setStatus(id, hasErrorToast() ? "error" : "done", "local");
     }
-    pendingNew = false;
     schedulePaint();
 }
 
@@ -268,7 +301,7 @@ export default definePlugin({
         channel?.addEventListener("message", onChannel);
         unsubHarvest = subscribeHarvest(onHarvest);
         unsubEdge?.();
-        unsubEdge = watchStreamingEdge({ onTick: localTick });
+        unsubEdge = watchStreamingEdge({ onTick: localTick, onContext });
         observeSidebar();
         logger.debug("sidebar status watch started");
     },
@@ -286,6 +319,7 @@ export default definePlugin({
         try { channel?.close(); } catch { /* ignore */ }
         channel = null;
         rows.clear();
+        armedIds.clear();
         pendingNew = false;
         wasStreaming = false;
         lastPathId = "";

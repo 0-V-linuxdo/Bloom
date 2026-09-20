@@ -3,10 +3,11 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * One fetch wrap for conversation GET + POST/SSE. Plugins subscribe;
+ * One fetch wrap for conversation GET + generate POST/SSE. Plugins subscribe;
  * they must not wrap window.fetch themselves. Never intercept
- * /backend-api/conversations (list). No BloomEventMap.streamEnd —
- * listeners are harvest-local.
+ * /backend-api/conversations (list). Generate POST is only
+ * /backend-api/conversation or /f/conversation (not /conversation/init).
+ * No BloomEventMap.streamEnd — listeners are harvest-local.
  */
 
 import { conversationIdFromHref, currentConversationId } from "./conversation";
@@ -56,10 +57,15 @@ function isConversationList(url: string): boolean {
     return /\/backend-api\/conversations(?:\/|\?|$)/i.test(url);
 }
 
-function isConversationPost(url: string, method: string): boolean {
+const GENERATE_ACTION = /"action"\s*:\s*"(next|continue|variant)"/i;
+
+/** POST generate stream only — not /conversation/init or /conversation/{id}. */
+function isConversationPost(url: string, method: string, body?: BodyInit | null): boolean {
     if (method !== "POST") return false;
     if (isConversationList(url)) return false;
-    return /\/backend-api\/(?:f\/)?conversation(?:\/|\?|$)/i.test(url);
+    if (!/\/backend-api\/(?:f\/)?conversation\/?(?:[?#]|$)/i.test(url)) return false;
+    if (typeof body === "string" && /"action"\s*:/.test(body) && !GENERATE_ACTION.test(body)) return false;
+    return true;
 }
 
 function isConversationGet(url: string, method: string): boolean {
@@ -232,7 +238,7 @@ function intercept(orig: typeof fetch, input: RequestInfo | URL, init?: RequestI
     const url = urlOf(input);
     const method = methodOf(input, init);
     const get = isConversationGet(url, method);
-    const post = isConversationPost(url, method);
+    const post = isConversationPost(url, method, init?.body);
     const myEpoch = epoch;
     let seedId = "";
     if (post) {

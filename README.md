@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.48](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.48)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.48`).
+Current release: **[v1.4.49](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.49)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.49`).
 
 Plugins:
 
@@ -168,6 +168,8 @@ v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses 
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
 
+v1.4.49: **ChatListStatus** no longer spins on a finished Recents row while that chat is loading. Harvest `post-start` is generate POST `/backend-api/conversation` or `/f/conversation` only (`action: next|continue|variant`) — not `/conversation/init`. Local ticks require that harvest arm or a real Stop; hydrate `aria-busy` / header load spinner / Deep Research token skeleton are ignored. `onContext` clears a local mark unless a generate is in flight. Current-row-only, no done-dot.
+
 v1.4.48: **BetterNavigator** hover outline is vertically centered on the thread column (Void++ `.void-bn-self`: `top: 50%` / `translateY(-50%)`). It no longer stretches to the page top.
 
 v1.4.47: **BetterNavigator** shows the tick rail from the first mounted turn (one-round chats). Previously it waited for two messages.
@@ -230,7 +232,7 @@ v1.4.21: **Restore the centered settings dock** (1.4.20 left-rail move was unwan
 - RecentTopics: Ctrl+` / Ctrl+Shift+` / Esc / Enter. `maxRecent` 3–12 (default 5). `includeHome` (default on). Titles from Recents DOM + host harvest `conversation-meta`.
 - Cleaner: Download apps via `a[href*="/download"]` / `download-app-button` / Get the app / Windows / macOS aria-labels. Disclaimer via `[data-testid="thread-disclaimer"]` and `[class*="--vt-disclaimer"]` inside `#thread-bottom-container`. Upgrade CTAs via `upgrade-button` / `get-plus-button` / `get-go-button` / `/upgrade` / `/pricing`. Locked models via `aria-disabled` / `data-state="locked"` picker rows. Home promo and ads via `home-promo` / `codex-promo` / `sponsored` / `ad-slot` testids. `display:none` (those controls should leave the layout).
 - ResponseNotification: `isStreaming()` falling-edge, 3 quiet 400ms ticks, `contextKey` lock. Settings `sound`, `soundUrl`, `browserNotification`, `onlyWhenHidden`.
-- ChatListStatus: paints only the Recents `a[href^="/c/"]` whose id is the open chat. Subscribes to host harvest of POST `/backend-api/conversation` (not `/conversations`, not a plugin fetch wrap). Channel `bloom-cls`.
+- ChatListStatus: paints only the Recents `a[href^="/c/"]` whose id is the open chat. Subscribes to host harvest of generate POST `/backend-api/conversation` or `/f/conversation` (not `/conversation/init`, not `/conversations`, not a plugin fetch wrap). `onTick` gated on harvest-arm / Stop. Channel `bloom-cls`.
 - WiderChat: `--thread-content-max-width` / `--user-chat-width` / `--composer-container-max-width` plus `max-w-[40rem]` / `max-w-[48rem]` on `#thread` / `#thread-bottom-container` / `#thread-bottom`. Slider `width` 40–96 rem.
 - MessageTimestamps: `[data-message-id]` in `#thread`. Times from host harvest of GET `/backend-api/conversation/{id}` mapping `create_time` / POST SSE. Settings `showDate`, `hideOwnMessages`.
 - StreamerMode: `filter:blur(6px)` on Recents `a[href^="/c/"]`, project `/g/g-p-` / `/project`, profile avatar / `.truncate` / mailto, `#page-header` title (`headerTitle`), RecentTopics HUD names. Hover unblurs Recents / projects / HUD cards. Never `#bloom-rail-item` / Voice / Share / composer / model switcher.
