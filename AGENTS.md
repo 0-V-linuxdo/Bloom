@@ -8,10 +8,20 @@ Plugin host for chatgpt.com. Architecture follows Void++ (`definePlugin`, Plugin
 
 chatgpt.com 用 `hydrateRoot(document)` 管 SSR 节点。Bloom 若删掉或同步改这些节点，React 会立刻补回，MutationObserver 再改，形成死循环：标签锁死、点击无效、rAF 空转。已踩过的回路：
 
-1. **Favicon 对打（1.4.18 主因）。** `applyFavicon` 每次 evaluate 都 `remove()` 官方 `<link rel=icon>`。水合把 SSR 图标补回 → head 守卫再删 → React 再补，直到整页卡死。官方 link **必须留在树上**。要让 blossom 生效，只能就地停用（`media="not all"` + `rel="bloom-host-icon"`，1.4.21），不能 strip。`#bloom-chat-state-favicon` 保持最后一个 `rel=icon`（PNG 32×32）。守卫只修我们的 link。Composer 观察不要带 `class`（token 重绘会每帧 schedule）。
+1. **Favicon 对打（1.4.18 主因）。** `applyFavicon` 每次 evaluate 都 `remove()` 官方 `<link rel=icon>`。水合把 SSR 图标补回 → head 守卫再删 → React 再补，直到整页卡死。官方 link **必须留在树上**。要让 blossom 生效，只能就地停用（`media="not all"` + `rel="bloom-host-icon"`，1.4.21），不能 strip。`#bloom-chat-state-favicon` 保持最后一个 `rel=icon`。rotate / done / ready / error 是 PNG 32×32；wait 把**同一条** link 的 href 指到官方图标 URL。守卫只修我们的 link。Composer 观察不要带 `class`（token 重绘会每帧 schedule）。
 2. **`pinRail` 从 footer observer 同步插入。** React 甩掉芯片 → observer 再插入 → 第二回路。observer 里只能 `schedulePinRail`（rAF / 退避），改 DOM 前 disconnect。
 3. **设置面板插进账号 footer。** `rail.before(panel)` 或把面板写进 footer 会撑开 React shell，长对话卡死。面板只挂 `document.body` + `.bloom-rail-dock`。
 4. **往 `<html>` 挂子节点。** `<style>` / `#bloom-root` / HUD 挂到 `document.documentElement` 会破坏水合（白屏、点不动）。只挂 `document.head` / `document.body`。不要观察 `document.documentElement`，也不要对 `document.body` 开 `subtree`。
+
+## Favicon 慢一拍（ChatStateFavicons）
+
+用户路径：输入框打字再清空，tab 图标总是晚一拍。两层原因叠在一起，不要只修一层。
+
+**识别（1.4.53）。** ProseMirror `#prompt-textarea` 改字主路径是 `characterData`，不是 childList。只绑一个 WeakSet editor 的冒泡 `input` 会漏（节点被换掉、清空不派 `input`）。composer 观察必须在 unified-composer **form** 上：`childList` + `characterData` + Stop/Send attrs，**不要** `class`。form 上捕获委托 `input` / `beforeinput` / `cut` / `paste` / `compositionend`。`POLL_MS` 400 只作兜底，不要降到 50ms 狂轮，也不要观察 `html` / `body[subtree]`。`ready` = 真草稿 && `primedReady`；Send 灰是 ChatGPT 晚一帧的 UI，不能把图标留在 `wait`。芯片-only 不算草稿（`hasDraftText` / `isUserDraftEmpty` 忽略 `contenteditable=false` atom）。
+
+**绘制（1.4.54）。** 1.4.51 空闲 `restoreOfficialFavicon`（删 overlay + unpark 官方 SVG）观感对，但 Chrome FaviconService 要从 `data:png` 候选切回已映射的站点 SVG，tab 条淡入大约 200–400ms，识别已经下一帧了字形还停着。Void++ 空闲是同一条 `#void-chat-state-favicon` 改 href（`applyHref(icons.wait)`）。Bloom 对齐这个形态：**wait 也留 overlay**，href = 官方图标 URL，官方节点全程 park。`ready`↔`wait` 只改 href。`restoreOfficialFavicon` **只**在 `stop()`。不要抄 Void `stripCompetitors`（会再打 hydrateRoot）。不要把 wait 画成 `#212121` 底板 + 白花 PNG（1.4.51 前：图标糊、极性反，官方是白底黑结）。`icons.wait` 只是官方 href 拿不到时的兜底。
+
+**不要回归：** wait 拆 overlay、wait 走 unpark、ready 等 Send 不灰、composer 不看 `characterData`、只靠 400ms poll、观察 `class` / `html` / `body[subtree]`、strip 官方 link。
 
 - Brand: **Bloom++**. Repo: `Bloom`. Package: `bloompp`. Global: `window.Bloom`. CSS: `bloom-`.
 - Do not put `ChatGPT` in the product/repo/package name. `@match` may still target chatgpt.com.
