@@ -11,6 +11,8 @@
  * Rail `right` follows the inner message column
  * (`--thread-content-max-width` / turn wrapper), not `#thread`'s
  * viewport edge. Hover menu is Void-sized (min 18rem / 70vw).
+ * Tick glyphs follow Notion-style-AI-Navigator (1.25/1.75rem × 2px,
+ * 1rem gap, 0.125rem radius, current glow) — not Void mini-pills.
  * Live dash: the in-progress assistant tick only (aria-busy /
  * .result-streaming / empty markdown+thinking) AND harvest generate-arm
  * or a visible Stop. Never raw isStreaming(), never the previous finished

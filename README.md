@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.57](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.57)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.57`).
+Current release: **[v1.4.58](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.58)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.58`).
 
 Plugins:
 
@@ -167,6 +167,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.58: **BetterNavigator ticks match Notion-style-AI-Navigator.** Idle marks are `1.25rem × 2px`, the current mark is `1.75rem × 2px` with a 3px glow (same height, not a fatter pill). Gap is `1rem` (dense `0.375rem`), radius `0.125rem`. User/assistant no longer get different widths. Colors mix ChatGPT `--text-primary` at 40%/83% — no Notion `--nav-*` dump. Column-anchor, `2.5rem` hit-target, and midline compact rail from 1.4.57 stay.
 
 v1.4.57: **BetterNavigator outline sits on the message column, not the page scrollbar.** `placeHost` uses the inner `--thread-content-max-width` / turn wrapper for `right` (gutter when it fits, otherwise Void-style 0.75rem overlay on the column edge). Hover menu is `min(18rem, 70vw)` with a single card pad; tick hit-target `2.5rem`; `YOU`/`GPT` marks are `width: auto`. Still body-fixed — never `position:relative` on `#thread`.
 
