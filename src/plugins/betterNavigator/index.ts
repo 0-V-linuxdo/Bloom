@@ -385,9 +385,11 @@ function placeHost() {
     const gap = window.innerWidth - rect.right;
     const right = gap >= 22 ? Math.max(8, gap - 16) : 8;
     el.hidden = false;
-    el.style.top = `${Math.round(top)}px`;
-    el.style.height = `${Math.round(height)}px`;
+    el.style.top = `${Math.round((top + floor) / 2)}px`;
+    el.style.height = "auto";
+    el.style.maxHeight = `${Math.round(height)}px`;
     el.style.right = `${Math.round(right)}px`;
+    el.style.setProperty("--bloom-bn-cap", `${Math.round(height)}px`);
 }
 
 function placeSoon() {

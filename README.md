@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.47](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.47)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.47`).
+Current release: **[v1.4.48](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.48)** (`userscript/Bloom.latest.user.js`, `@version [20260920] v1.4.48`).
 
 Plugins:
 
@@ -167,6 +167,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.48: **BetterNavigator** hover outline is vertically centered on the thread column (Void++ `.void-bn-self`: `top: 50%` / `translateY(-50%)`). It no longer stretches to the page top.
 
 v1.4.47: **BetterNavigator** shows the tick rail from the first mounted turn (one-round chats). Previously it waited for two messages.
 
