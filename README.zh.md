@@ -39,7 +39,7 @@
 
 优先用油猴的**检查更新**（同一脚本 UUID，配置还在）。自动更新走 `Bloom.latest.user.js`（`raw.githubusercontent.com/.../refs/heads/main/...`）。只有在同时装着两条 Bloom++、或 `@updateURL` 仍指向 `Bloom.user.js` 时，才卸掉旧的再装。卸载会清掉油猴 GM 存储；Bloom++ 会尝试从当前站点的 IndexedDB / `localStorage` 救回。不要用 `.../Bloom/main/userscript/Bloom.user.js` 或 `.../refs/heads/main/userscript/Bloom.user.js`（Fastly 会卡住旧脚本）。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
 
-设置面板默认**跟随 `chatgpt.com` 自己的主题**（`Appearance: Follow host`）。可在 Bloom++ 面板强制浅色 / 深色。ChatStateFavicons **空闲时保持官方 ChatGPT 标签页图标**；只在 streaming / done / ready / error 时叠白色 blossom PNG（深色描边）。
+设置面板**跟随 `chatgpt.com` 自己的主题**。ChatStateFavicons **空闲时保持官方 ChatGPT 标签页图标**；只在 streaming / done / ready / error 时叠白色 blossom PNG（深色描边）。
 
 ## GreetingCustomizer
 
@@ -165,6 +165,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.61：**去掉列表壳 Appearance 下拉。** Bloom++ 面板不再提供 Follow host / 浅色 / 深色。壳始终复制 chatgpt.com token（`html.dark`）。blob 里旧的 `store.appearance` 忽略不读（不擦盘）。对齐 Void++ Plugins 页（没有配色行，也不做 Themes 页）。
 
 v1.4.60：**CustomSidebarIdentity**（默认关）。替换侧栏头像和显示名，留空保持官方。齿轮页可粘贴 / 拖入 / 填 URL，圆形台拖拽裁切。叠层 `img.bloom-csi-face` 画在账号芯片内部（官方头像留在树上，`visibility:hidden`）。自定义名是 `div.bloom-csi-name`，不写 React `.truncate`。展开侧栏头像直径 24–64（默认 40），折叠轨仍 32。可选 `applyToMenu` 只改账号下拉顶栏。StreamerMode 也会模糊自定义头像/名。不观察 `html` / `body[subtree]`。
 

@@ -39,7 +39,7 @@ The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in th
 
 Prefer Tampermonkey / Violentmonkey **Check for updates** — that keeps the same script UUID and the settings store. Auto-update uses `Bloom.latest.user.js` on `raw.githubusercontent.com/.../refs/heads/main/...`. Only remove an old copy if you have two Bloom++ entries or `@updateURL` still points at `Bloom.user.js`. Uninstall wipes the userscript store; Bloom++ will try to restore from this site’s IndexedDB / `localStorage`. Do not use `.../Bloom/main/userscript/Bloom.user.js` or `.../refs/heads/main/userscript/Bloom.user.js` (Fastly can keep an old script). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
 
-The settings shell **follows chatgpt.com's own theme** by default (`Appearance: Follow host`). Light / Dark can be forced from the Bloom++ panel. ChatStateFavicons **keeps the official ChatGPT tab icon while idle**; overlays (white blossom PNG, dark halo) appear only for streaming / done / ready / error.
+The settings shell **follows chatgpt.com's own theme**. ChatStateFavicons **keeps the official ChatGPT tab icon while idle**; overlays (white blossom PNG, dark halo) appear only for streaming / done / ready / error.
 
 ## ChatStateFavicons styles
 
@@ -168,6 +168,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.61: **Drop the list-chrome Appearance SELECT.** The Bloom++ panel no longer offers Follow host / Light / Dark. The shell always copies chatgpt.com tokens (`html.dark`). Stale `store.appearance` in the settings blob is ignored (not wiped). Aligns with Void++ Plugins tab (no scheme row; no Themes tab).
 
 v1.4.60: **CustomSidebarIdentity** (default off). Replace the sidebar avatar and display name. Empty fields keep official values. Paste / drop / URL + circular crop in the gear pane. Overlay `img.bloom-csi-face` inside the profile chip (official face stays, `visibility:hidden`). Custom name is `div.bloom-csi-name` — never writes the React `.truncate`. Size slider 24–64 (default 40) on the expanded chip; collapsed tiny-bar stays 32. Optional `applyToMenu` covers the account dropdown header only. StreamerMode also blurs the custom face / name. No `html` / `body[subtree]` observer.
 

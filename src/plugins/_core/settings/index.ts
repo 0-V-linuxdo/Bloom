@@ -12,7 +12,6 @@
 
 import { emitBloomEvent, onBloomEvent } from "../../../api/Events";
 import {
-    definePluginSettings,
     getPinnedPlugins,
     getStarredPlugins,
     isPluginPinned,
@@ -33,10 +32,8 @@ import {
 } from "../../../host/accountMenu";
 import {
     applySchemeTokens,
-    isSchemePref,
     resolveScheme,
     watchHostScheme,
-    type SchemePref,
 } from "../../../host/theme";
 import { requestIdleReady } from "../../../host/idleReady";
 import { Devs, VERSION } from "../../../utils/constants";
@@ -52,18 +49,6 @@ const DIALOG_ID = "bloom-plugin-dialog";
 const LAYER_ID = "bloom-plugin-layer";
 const STYLE_ID = "bloom-settings-css";
 const RAIL_POLL_MS = 2_000;
-
-const settings = definePluginSettings({
-    appearance: {
-        type: OptionType.SELECT,
-        description: "Color scheme for the Bloom++ shell and composed favicons.",
-        options: [
-            { label: "Follow host", value: "auto", default: true },
-            { label: "Light", value: "light" },
-            { label: "Dark", value: "dark" },
-        ],
-    },
-});
 
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
@@ -151,35 +136,6 @@ function pluginIcon(plugin: Plugin): string {
     return plugin.icon || PLUGIN_ICONS[plugin.name] || blossomSvg();
 }
 
-function appearancePref(): SchemePref {
-    return isSchemePref(settings.store.appearance) ? settings.store.appearance : "auto";
-}
-
-function appearanceRow(): HTMLElement {
-    const wrap = document.createElement("div");
-    wrap.className = "bloom-field bloom-appearance-row";
-    const label = document.createElement("span");
-    label.className = "bloom-field-label";
-    label.textContent = "Appearance";
-    const sel = document.createElement("select");
-    sel.setAttribute("aria-label", "Appearance");
-    const spec = settings.def.appearance;
-    const opts = spec.type === OptionType.SELECT ? spec.options ?? [] : [];
-    for (const opt of opts) {
-        const o = document.createElement("option");
-        o.value = opt.value;
-        o.textContent = opt.label;
-        sel.appendChild(o);
-    }
-    sel.value = appearancePref();
-    sel.addEventListener("change", () => {
-        if (!isSchemePref(sel.value)) return;
-        settings.store.appearance = sel.value;
-    });
-    wrap.append(label, sel);
-    return wrap;
-}
-
 function paintTarget(el: HTMLElement | null, scheme: ReturnType<typeof resolveScheme>, fromHost: boolean) {
     if (!el) return;
     el.setAttribute("data-bloom-scheme", scheme);
@@ -194,14 +150,13 @@ function clearRailSurface(el: HTMLElement | null) {
 }
 
 function paintScheme() {
-    const pref = appearancePref();
+    const pref = "auto" as const;
     const scheme = resolveScheme(pref);
-    const fromHost = pref === "auto";
-    paintTarget(host, scheme, fromHost);
+    paintTarget(host, scheme, true);
     const panel = document.getElementById(SIDEBAR_ID);
-    if (panel instanceof HTMLElement) paintTarget(panel, scheme, fromHost);
+    if (panel instanceof HTMLElement) paintTarget(panel, scheme, true);
     const dialog = document.getElementById(DIALOG_ID);
-    if (dialog instanceof HTMLElement) paintTarget(dialog, scheme, fromHost);
+    if (dialog instanceof HTMLElement) paintTarget(dialog, scheme, true);
     const rail = document.getElementById(RAIL_ID);
     if (rail instanceof HTMLElement) clearRailSurface(rail);
     emitBloomEvent("schemeChange", { scheme, pref });
@@ -814,7 +769,6 @@ function buildPanel(id: string): HTMLElement {
     close.addEventListener("click", hidePanel);
     head.append(titles, close);
     list.appendChild(head);
-    list.appendChild(appearanceRow());
 
     const tabs = document.createElement("div");
     tabs.className = "bloom-plugin-tabs";
@@ -1213,7 +1167,6 @@ export default definePlugin({
     required: true,
     hidden: true,
     enabledByDefault: true,
-    settings,
     startAt: StartAt.HostReady,
     cleanupSelectors: [`#${ROOT_ID}`, `#${RAIL_ID}`, `#${ITEM_ID}`, `#${SIDEBAR_ID}`, `#${LAYER_ID}`, `#${DIALOG_ID}`, `#${STYLE_ID}`, "#bloom-menu-panel"],
 
@@ -1252,6 +1205,4 @@ export default definePlugin({
         tabsEl = null;
         bloomOpen = false;
     },
-
-    onSettingsChange: paintScheme,
 });

@@ -767,11 +767,3 @@
   text-align: right;
   flex-shrink: 0;
 }
-
-.bloom-appearance-row {
-  padding: 0 0 0.25rem;
-}
-
-.bloom-appearance-row select {
-  max-width: 9rem;
-}

@@ -10,12 +10,6 @@
 export type ColorScheme = "light" | "dark";
 export type SchemePref = "auto" | "light" | "dark";
 
-export const SCHEME_OPTIONS = [
-    { label: "Follow host", value: "auto", default: true },
-    { label: "Light", value: "light" },
-    { label: "Dark", value: "dark" },
-] as const;
-
 /** chatgpt.com design tokens copied onto the shadow host so they inherit. */
 export const HOST_TOKEN_KEYS = [
     "--main-surface-primary",
