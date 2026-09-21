@@ -46,22 +46,46 @@ writeFileSync(html, `<!doctype html>
     <div class="min-w-0"><div class="truncate">Proffero</div></div>
   </div>
 </button>
+<button id="photo" data-testid="accounts-profile-button" type="button">
+  <div class="row" style="display:flex;align-items:center;gap:8px">
+    <div class="wrap rounded-full" style="width:24px;height:24px;border-radius:999px;overflow:hidden">
+      <img alt="Profile" width="24" height="24" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">
+    </div>
+    <div class="min-w-0"><div class="truncate">Photo</div></div>
+  </div>
+</button>
 <script>
 ${js}
+const bake = "data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=";
+function sizeCss(rootSel) {
+  const size = 40;
+  return CsiFace.faceSizeSuffixes(CsiFace.SLOT_ATTR).map(s => rootSel + " " + s).join(",")
+    + "{box-sizing:border-box!important;display:flex!important;width:"+size+"px!important;height:"+size+"px!important;min-width:"+size+"px!important;min-height:"+size+"px!important;max-width:"+size+"px!important;max-height:"+size+"px!important;border-radius:999px!important}";
+}
 const profile = document.getElementById("profile");
 const faceEl = profile.querySelector(".face");
 const slot = CsiFace.pickAvatarSlot(profile, null);
 if (slot) slot.setAttribute(CsiFace.SLOT_ATTR, "");
-const size = 40;
-const css = CsiFace.faceSizeSuffixes(CsiFace.SLOT_ATTR).map(s => "[data-testid='accounts-profile-button'] " + s).join(",")
-  + "{box-sizing:border-box!important;display:flex!important;width:"+size+"px!important;height:"+size+"px!important;min-width:"+size+"px!important;min-height:"+size+"px!important;max-width:"+size+"px!important;max-height:"+size+"px!important;border-radius:999px!important}";
-const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
+const photo = document.getElementById("photo");
+const img = photo.querySelector("img");
+const photoSlot = CsiFace.pickAvatarSlot(photo, img);
+if (photoSlot) photoSlot.setAttribute(CsiFace.SLOT_ATTR, "");
+const st = document.createElement("style");
+st.textContent = sizeCss("#profile") + sizeCss("#photo")
+  + "[" + CsiFace.SLOT_ATTR + "]{position:relative!important;color:transparent!important;font-size:0!important}"
+  + "[" + CsiFace.SLOT_ATTR + "]::after{content:\\"\\"!important;position:absolute!important;inset:0!important;background-image:url(\\"" + bake + "\\")!important}";
+document.head.appendChild(st);
 document.body.offsetHeight;
 const r = faceEl.getBoundingClientRect();
-const ok = !!(slot && slot.contains(faceEl) && Math.round(r.width) === 40 && Math.round(r.height) === 40);
+const after = getComputedStyle(slot, "::after");
+const pr = photoSlot.getBoundingClientRect();
+const sized = !!(slot && slot.contains(faceEl) && Math.round(r.width) === 40);
+const overlay = !!(after && after.backgroundImage.includes("data:image"));
+const photoOk = !!(photoSlot && photoSlot.contains(img) && Math.round(pr.width) === 40 && photoSlot.tagName !== "IMG");
+const ok = sized && overlay && photoOk;
 document.title = ok ? "PASS" : "FAIL";
 document.body.setAttribute("data-result", JSON.stringify({
-  ok, hasSlot: !!slot, w: Math.round(r.width), h: Math.round(r.height), text: faceEl.textContent
+  ok, sized, overlay, photoOk, w: Math.round(r.width), photoW: Math.round(pr.width)
 }));
 </script>
 </body></html>`);
@@ -70,9 +94,11 @@ const chrome = spawnSync("google-chrome", [
     "--headless=new",
     "--disable-gpu",
     "--no-sandbox",
+    "--user-data-dir=" + join(dir, "chrome"),
+    "--virtual-time-budget=1500",
     "--dump-dom",
     html,
-], { encoding: "utf8", timeout: 20_000 });
+], { encoding: "utf8", timeout: 25_000 });
 
 rmSync(dir, { recursive: true, force: true });
 
