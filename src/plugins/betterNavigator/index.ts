@@ -20,6 +20,8 @@
  * Collect mounted conversation-turn sections (data-turn user|assistant).
  * Image-gen assistant turns have no data-message-id / author-role; one
  * tick per data-turn-id (filmstrip thumbs are not extra ticks).
+ * Hover marks follow Void++ ❓/🤖 — never You/GPT text. Empty image-gen
+ * labels are `Image xN` (unique estuary file_* in the turn; n<2 stays Image).
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -43,6 +45,9 @@ const FAR_SCREENS = 2.5;
 const THRESHOLD = 0.4;
 const LIVE_LABEL = "正在输出…";
 const IMAGE_LABEL = "Image";
+const USER_MARK = "❓";
+const ASST_MARK = "🤖";
+const FILE_ID_RE = /file_[0-9a-f]+/gi;
 const HOST_W = 40;
 const COL_CLASS = /thread-content-max-width|thread-content-width|max-w-\(--thread-content|max-w-\[var\(--thread-content|max-w-\[40rem\]|max-w-\[48rem\]/;
 
@@ -116,6 +121,7 @@ const settings = definePluginSettings({
 });
 
 const labels = new Map<string, string>();
+const imageCounts = new Map<string, number>();
 const armedIds = new Set<string>();
 
 let started = false;
@@ -256,6 +262,62 @@ function isImageGen(el: HTMLElement): boolean {
     return false;
 }
 
+function isUploadNode(node: Element): boolean {
+    try {
+        return !!node.closest("[class*='message-image']");
+    } catch {
+        return true;
+    }
+}
+
+function collectFileIds(raw: string, into: Set<string>) {
+    if (!raw) return;
+    FILE_ID_RE.lastIndex = 0;
+    for (const m of raw.matchAll(FILE_ID_RE)) into.add(m[0].toLowerCase());
+}
+
+/** Unique generated variants in this turn — not img nodes, not shared #image-{turn-id}. */
+function imageVariantCount(el: HTMLElement): number {
+    try {
+        const ids = new Set<string>();
+        const addNode = (node: Element) => {
+            if (isUploadNode(node)) return;
+            collectFileIds(node.getAttribute("src") || "", ids);
+            collectFileIds(node.getAttribute("srcset") || "", ids);
+            collectFileIds(node.getAttribute("href") || "", ids);
+            if (node instanceof HTMLImageElement) collectFileIds(node.currentSrc || "", ids);
+        };
+        for (const node of el.querySelectorAll("[class*='imagegen-image']")) {
+            addNode(node);
+            for (const inner of node.querySelectorAll("[src], [srcset], [href]")) addNode(inner);
+        }
+        for (const img of el.querySelectorAll('img[alt="Generated image"], img[alt^="Generated image"]')) {
+            addNode(img);
+        }
+        if (ids.size) return ids.size;
+
+        const wraps = el.querySelectorAll("[class*='group/imagegen-image']");
+        let n = wraps.length;
+        if (!n) return 0;
+        const turnId = turnIdOf(el);
+        const hero = turnId
+            ? el.querySelector(`#image-${CSS.escape(turnId)}`)
+            : el.querySelector("[id^='image-']:not([id^='image-gen-'])");
+        if (hero && n >= 2) n -= 1;
+        return n;
+    } catch {
+        return 0;
+    }
+}
+
+function imageLabelOf(el: HTMLElement, id: string): string {
+    const n = imageVariantCount(el);
+    const prev = imageCounts.get(id) ?? 0;
+    const max = Math.max(prev, n);
+    if (max > 0) imageCounts.set(id, max);
+    return max >= 2 ? `${IMAGE_LABEL} x${max}` : IMAGE_LABEL;
+}
+
 function extractText(root: HTMLElement): string {
     const parts: string[] = [];
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
@@ -304,7 +366,7 @@ function itemText(el: HTMLElement, role: Role, index: number, live: boolean): st
     const raw = bodyText(el, role);
     if (raw) return clipText(raw);
     if (live) return LIVE_LABEL;
-    if (isImageGen(el)) return IMAGE_LABEL;
+    if (isImageGen(el)) return imageLabelOf(el, turnIdOf(el));
     return fallbackLabel(el, index);
 }
 
@@ -613,8 +675,8 @@ function renderNav(items: NavItem[]) {
         row.type = "button";
         row.className = `bloom-bn-item bloom-bn-${item.role}`;
         const mark = document.createElement("span");
-        mark.className = "bloom-bn-mark";
-        mark.textContent = item.role === "user" ? "You" : "GPT";
+        mark.className = "bloom-bn-emoji";
+        mark.textContent = item.role === "user" ? USER_MARK : ASST_MARK;
         const label = document.createElement("span");
         label.className = "bloom-bn-label";
         label.textContent = item.text;
@@ -647,6 +709,7 @@ function checkCid() {
     if (id === lastCid) return false;
     lastCid = id;
     labels.clear();
+    imageCounts.clear();
     lastNav = [];
     paintedKey = "";
     activeIdx = 0;
@@ -829,6 +892,7 @@ export default definePlugin({
             onContext(next, prev) {
                 if (!isDraftMigrate(prev, next)) {
                     labels.clear();
+                    imageCounts.clear();
                     paintedKey = "";
                 }
                 schedulePaint();
@@ -854,6 +918,7 @@ export default definePlugin({
         pendingNew = false;
         unmount();
         labels.clear();
+        imageCounts.clear();
         lastNav = [];
         paintedKey = "";
         removeStyle(STYLE_NAME);

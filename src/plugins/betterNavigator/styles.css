@@ -176,19 +176,10 @@
     background: var(--main-surface-secondary, #f4f4f4);
 }
 
-.bloom-bn-mark {
+.bloom-bn-emoji {
     flex: none;
-    width: auto;
-    min-width: 1.75em;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: var(--text-tertiary, #8f8f8f);
-}
-
-.bloom-bn-item.bloom-bn-user .bloom-bn-mark {
-    color: var(--text-secondary, #5d5d5d);
+    font-size: 1rem;
+    line-height: 1;
 }
 
 .bloom-bn-label {
