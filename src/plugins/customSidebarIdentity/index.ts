@@ -9,11 +9,12 @@
  * src (content:url / padding-box on <img> leave replaced-element pixels on top).
  * Initials / no-img chips (Helium): always mark data-bloom-csi-slot on the
  * face wrap (sibling of .min-w-0, size-* / rounded-full / 1–3 char glyph) so
- * avatarSize matches Bloom++ even with no custom image. Custom bake is ::after
- * on that non-replaced wrap, never on the profile button. Name is
- * .truncate::before. Never extra nodes on the React chip, never textContent
- * on official .truncate, never html/body[subtree], never documentElement CSS
- * vars, never wrapper :has(), never hide the avatar node or #bloom-rail-item.
+ * avatarSize matches Bloom++ even with no custom image. Custom bake paints the
+ * slot background and ::after (official children hidden), never a new node on
+ * the profile button. Name is .truncate::before. Never extra nodes on the
+ * React chip, never textContent on official .truncate, never html/body[subtree],
+ * never documentElement CSS vars, never wrapper :has(), never hide the avatar
+ * node or #bloom-rail-item.
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -35,6 +36,17 @@ import {
     pickAvatarSlot,
     SLOT_ATTR,
 } from "./face";
+import {
+    failedAvatars,
+    faceImgCss,
+    MARK,
+    ORIG,
+    paintImg,
+    restoreImg,
+    setAvatarFailHandler,
+    sizeBox,
+    slotCss,
+} from "./paint";
 import css from "./styles.css";
 
 const logger = new Logger("CustomSidebarIdentity");
@@ -42,8 +54,6 @@ const UI_STYLE = "customSidebarIdentityUi";
 const PAGE_STYLE = "customSidebarIdentity";
 const FACE_CLASS = "bloom-csi-face";
 const NAME_CLASS = "bloom-csi-name";
-const MARK = "data-bloom-csi";
-const ORIG = "data-bloom-csi-orig";
 const SLOT = SLOT_ATTR;
 const SOURCE_PX = 1024;
 const AVATAR_PX = 256;
@@ -250,7 +260,6 @@ async function takeImage(data: DataTransfer | null) {
     return adoptSource(src);
 }
 
-const failed = new Set<string>();
 let started = false;
 let painting = false;
 let raf = 0;
@@ -266,7 +275,7 @@ let panelRefresh: (() => void) | null = null;
 function avatarSrc(): string | null {
     const raw = String(settings.store.avatarUrl ?? "").trim();
     if (!raw) return null;
-    if (failed.has(raw)) return null;
+    if (failedAvatars.has(raw)) return null;
     if (raw.startsWith("data:image/")) return raw;
     try {
         const { protocol } = new URL(raw);
@@ -281,35 +290,11 @@ function under(roots: string[], suffix: string): string[] {
     return roots.map(root => `${root} ${suffix}`);
 }
 
-function cssUrl(url: string): string {
-    return `url(${JSON.stringify(url)})`;
-}
-
 function escapeForCssContent(text: string): string {
     return String(text ?? "")
         .replace(/\\/g, "\\\\")
         .replace(/"/g, "\\\"")
         .replace(/\n/g, "\\A ");
-}
-
-function sizeBox(sel: string, px: number): string {
-    return `${sel}{box-sizing:border-box!important;display:flex!important;align-items:center!important;justify-content:center!important;width:${px}px!important;height:${px}px!important;min-width:${px}px!important;min-height:${px}px!important;max-width:${px}px!important;max-height:${px}px!important;padding:0!important;border-radius:999px!important;overflow:hidden!important;flex-shrink:0!important}`;
-}
-
-/**
- * Blink paints replaced-element `src` on top of `content`/`background`.
- * Throw the official pixels out of the box (`object-position`) so the
- * padding/background area shows the bake. Same trick as
- * https://stackoverflow.com/questions/18481310
- */
-function faceImgCss(sel: string, url: string, px: number): string {
-    const u = cssUrl(url);
-    return `${sel}{box-sizing:border-box!important;width:${px}px!important;height:${px}px!important;min-width:${px}px!important;min-height:${px}px!important;max-width:${px}px!important;max-height:${px}px!important;padding:0!important;border-radius:999px!important;object-fit:none!important;object-position:-99999px -99999px!important;background-image:${u}!important;background-size:${px}px ${px}px!important;background-position:center!important;background-repeat:no-repeat!important;background-origin:border-box!important;background-clip:border-box!important;overflow:hidden!important;flex-shrink:0!important}`;
-}
-
-function slotCss(url: string): string {
-    const u = cssUrl(url);
-    return `[${SLOT}]{position:relative!important;overflow:hidden!important;border-radius:999px!important;color:transparent!important;font-size:0!important;line-height:0!important}[${SLOT}] *,[${SLOT}]::before{color:transparent!important;font-size:0!important}[${SLOT}]::after{content:""!important;position:absolute!important;inset:0!important;border-radius:inherit!important;background-image:${u}!important;background-size:cover!important;background-position:center!important;pointer-events:none!important;z-index:1!important}`;
 }
 
 function nameCss(sel: string[], text: string): string {
@@ -336,57 +321,6 @@ function pickFace(root: HTMLElement): HTMLImageElement | null {
     if (!imgs.length) return null;
     const ranked = imgs.find(i => /rounded-full|avatar/i.test(i.className) || !!i.getAttribute("alt"));
     return ranked ?? imgs[0];
-}
-
-function onImgError(e: Event) {
-    const img = e.currentTarget;
-    if (!(img instanceof HTMLImageElement)) return;
-    const url = img.getAttribute("src") ?? "";
-    if (url) failed.add(url);
-    restoreImg(img);
-    schedule();
-}
-
-function dropSrcset(img: HTMLImageElement) {
-    if (img.hasAttribute("srcset")) img.removeAttribute("srcset");
-    if (img.hasAttribute("sizes")) img.removeAttribute("sizes");
-    img.srcset = "";
-    img.sizes = "";
-    img.removeAttribute("crossorigin");
-    const pic = img.parentElement;
-    if (pic?.tagName === "PICTURE") {
-        for (const source of pic.querySelectorAll("source")) {
-            source.removeAttribute("srcset");
-            source.removeAttribute("src");
-        }
-    }
-}
-
-function restoreImg(img: HTMLImageElement) {
-    img.removeEventListener("error", onImgError);
-    const orig = img.getAttribute(ORIG);
-    img.removeAttribute(MARK);
-    img.removeAttribute(ORIG);
-    if (orig && img.getAttribute("src") !== orig) img.src = orig;
-}
-
-function paintImg(img: HTMLImageElement, url: string | null) {
-    if (!url || failed.has(url)) {
-        restoreImg(img);
-        return;
-    }
-    dropSrcset(img);
-    const current = img.getAttribute("src") ?? "";
-    if (img.getAttribute(MARK) === "1") {
-        if (current === url) return;
-    } else if (current && current !== url && !img.hasAttribute(ORIG)) {
-        img.setAttribute(ORIG, current);
-    }
-    img.setAttribute(MARK, "1");
-    img.referrerPolicy = "no-referrer";
-    img.removeEventListener("error", onImgError);
-    img.addEventListener("error", onImgError);
-    if (current !== url) img.src = url;
 }
 
 function chipTargets(): HTMLElement[] {
@@ -918,7 +852,8 @@ export default definePlugin({
 
     start() {
         started = true;
-        failed.clear();
+        failedAvatars.clear();
+        setAvatarFailHandler(schedule);
         registerStyle(UI_STYLE, css);
         keys = new AbortController();
         document.addEventListener("click", onDocClick, { signal: keys.signal });
@@ -927,7 +862,7 @@ export default definePlugin({
     },
 
     onSettingsChange() {
-        failed.clear();
+        failedAvatars.clear();
         panelRefresh?.();
         if (started) {
             rebindIslands();
@@ -953,7 +888,8 @@ export default definePlugin({
         watchedHost = null;
         restoreAll();
         removeStyle(PAGE_STYLE);
-        failed.clear();
+        setAvatarFailHandler(null);
+        failedAvatars.clear();
         logger.debug("stopped");
     },
 });

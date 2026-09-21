@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.65](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.65)** (`userscript/Bloom.latest.user.js`, `@version [20260921] v1.4.65`).
+Current release: **[v1.4.66](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.66)** (`userscript/Bloom.latest.user.js`, `@version [20260921] v1.4.66`).
 
 Plugins:
 
@@ -168,6 +168,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.66: **CustomSidebarIdentity actually replaces the official face with the custom photo.** Helium initials keep a teal class background and the “18” glyph; 1.4.65 sized the slot and painted `::after` only, so the official circle could still show through. The bake now sits on the slot `background-image` and `::after`, official children are `visibility:hidden`, and the replace check uses the attached emoji fixture (white face + cyan eyes — not a solid color). Img path is still src-swap + `object-position`. Paint CSS lives in `paint.ts`.
 
 v1.4.65: **CustomSidebarIdentity sizes official initials to match Bloom++.** Helium / current chatgpt.com often paint the account face as a 1–3 character glyph (no `<img>`, no `rounded-full`). v1.4.64 only sized `img` / `[data-bloom-csi-slot]` and required a 16–80px `getBoundingClientRect` before marking the slot, so the teal initials circle stayed native while the Bloom++ mark stayed 32px. Now the slot is always the face wrap beside `.min-w-0` (or `size-6`/`size-8` / initials text), `avatarSize` applies even with no custom image, and `pinRail` follows `[data-bloom-csi-slot]`. Custom bake still uses slot `::after`; img path is still src-swap + `object-position`.
 

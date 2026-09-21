@@ -3,9 +3,9 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Visual + pixel check of CustomSidebarIdentity avatar *replacement*
- * (not just resize). Uses the same sizeBox / faceImgCss / slotCss strings
- * as src/plugins/customSidebarIdentity/index.ts.
+ * Visual proof that CustomSidebarIdentity *replaces* the official face with
+ * the attached test photo (scripts/fixtures/csi-test-face.png). Uses the
+ * real paint.ts / face.ts exports — do not re-type the CSS.
  */
 
 import { spawnSync } from "node:child_process";
@@ -17,18 +17,28 @@ import { inflateSync } from "node:zlib";
 import * as esbuild from "esbuild";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
+const fixture = join(here, "fixtures/csi-test-face.png");
 const faceEntry = join(here, "../src/plugins/customSidebarIdentity/face.ts");
+const paintEntry = join(here, "../src/plugins/customSidebarIdentity/paint.ts");
 const dir = mkdtempSync(join(tmpdir(), "bloom-csi-replace-"));
-const bundle = join(dir, "face.js");
+const entry = join(dir, "entry.ts");
+const bundle = join(dir, "csi.js");
 const html = join(dir, "replace.html");
 const shot = join(dir, "replace.png");
-const artifact = "/opt/cursor/artifacts/csi_avatar_replace.png";
+const artifact = "/opt/cursor/artifacts/csi_avatar_replace_face.png";
+
+const bake = `data:image/png;base64,${readFileSync(fixture).toString("base64")}`;
+
+writeFileSync(entry, `
+export * from ${JSON.stringify(faceEntry)};
+export * from ${JSON.stringify(paintEntry)};
+`);
 
 esbuild.buildSync({
-    entryPoints: [faceEntry],
+    entryPoints: [entry],
     bundle: true,
     format: "iife",
-    globalName: "CsiFace",
+    globalName: "Csi",
     outfile: bundle,
     platform: "browser",
     target: "es2022",
@@ -39,25 +49,25 @@ const js = readFileSync(bundle, "utf8");
 writeFileSync(html, `<!doctype html>
 <html><head><meta charset="utf-8"><title>CSI replace pending</title>
 <style>
-  html,body{margin:0;background:#111;color:#eee;font:14px/1.25 ui-sans-serif,system-ui,sans-serif}
-  h1{font-size:15px;margin:0 0 10px}
-  .page{display:flex;gap:36px;padding:24px 28px}
-  .col{width:260px}
-  .label{font-size:12px;color:#9a9a9a;margin-bottom:8px}
+  html,body{margin:0;background:#171717;color:#eee;font:14px/1.25 ui-sans-serif,system-ui,sans-serif}
+  h1{font-size:15px;margin:0 0 12px}
+  .page{display:flex;gap:40px;padding:24px 28px}
+  .col{width:280px}
+  .label{font-size:12px;color:#9a9a9a;margin:0 0 8px}
   .chip{display:flex;align-items:center;gap:8px;width:100%;padding:8px;border:0;background:transparent;color:inherit;text-align:left;font:inherit}
   .face{width:24px;height:24px;border-radius:999px;background:#0d9488;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
   .wrap{width:24px;height:24px;border-radius:999px;overflow:hidden;flex-shrink:0;background:#1d4ed8}
   .wrap img{width:24px;height:24px;display:block}
   .min-w-0{min-width:0}
   .truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
-  #metrics{margin:0 28px 20px;font:13px/1.45 ui-monospace,monospace;color:#bbb}
+  #ref{width:80px;height:80px;border-radius:999px;background-size:cover;background-position:center;margin:0 28px 16px}
+  #metrics{margin:0 28px 20px;font:12px/1.45 ui-monospace,monospace;color:#bbb;white-space:pre-wrap}
   #metrics b.ok{color:#4ade80} #metrics b.bad{color:#f87171}
-  #swatch{width:40px;height:40px;border-radius:8px;margin:0 28px 16px}
 </style></head>
 <body>
 <div class="page">
   <div class="col">
-    <div class="label">Official · no CSI paint</div>
+    <div class="label">Official · no CSI</div>
     <h1>Teal 18 / blue photo</h1>
     <button class="chip" type="button">
       <div class="face">18</div>
@@ -69,8 +79,8 @@ writeFileSync(html, `<!doctype html>
     </button>
   </div>
   <div class="col">
-    <div class="label">CSI replace · bake #e11d48</div>
-    <h1>Initials + img must show rose</h1>
+    <div class="label">CSI replace · attached face</div>
+    <h1>Must show the emoji, not 18</h1>
     <button class="chip" id="initials" data-testid="accounts-profile-button" type="button">
       <div class="row" style="display:flex;align-items:center;gap:8px;width:100%">
         <div class="face" id="init-face">18</div>
@@ -83,106 +93,94 @@ writeFileSync(html, `<!doctype html>
         <div class="min-w-0"><div class="truncate">Photo</div></div>
       </div>
     </button>
+    <button class="chip" id="large" data-testid="accounts-profile-button" type="button" style="margin-top:12px">
+      <div class="row" style="display:flex;align-items:center;gap:8px;width:100%">
+        <div class="face" id="large-face" style="width:24px;height:24px">18</div>
+        <div class="min-w-0"><div class="truncate">80px check</div></div>
+      </div>
+    </button>
   </div>
 </div>
-<div id="swatch"></div>
+<div id="ref"></div>
 <pre id="metrics">painting…</pre>
 <script>
 ${js}
-function cssUrl(url){ return "url(" + JSON.stringify(url) + ")"; }
-function sizeBox(sel, px){
-  return sel+"{box-sizing:border-box!important;display:flex!important;align-items:center!important;justify-content:center!important;width:"+px+"px!important;height:"+px+"px!important;min-width:"+px+"px!important;min-height:"+px+"px!important;max-width:"+px+"px!important;max-height:"+px+"px!important;padding:0!important;border-radius:999px!important;overflow:hidden!important;flex-shrink:0!important}";
-}
-function faceImgCss(sel, url, px){
-  const u = cssUrl(url);
-  return sel+"{box-sizing:border-box!important;width:"+px+"px!important;height:"+px+"px!important;min-width:"+px+"px!important;min-height:"+px+"px!important;max-width:"+px+"px!important;max-height:"+px+"px!important;padding:0!important;border-radius:999px!important;object-fit:none!important;object-position:-99999px -99999px!important;background-image:"+u+"!important;background-size:"+px+"px "+px+"px!important;background-position:center!important;background-repeat:no-repeat!important;background-origin:border-box!important;background-clip:border-box!important;overflow:hidden!important;flex-shrink:0!important}";
-}
-function slotCss(url){
-  const u = cssUrl(url);
-  return "[data-bloom-csi-slot]{position:relative!important;overflow:hidden!important;border-radius:999px!important;color:transparent!important;font-size:0!important;line-height:0!important}[data-bloom-csi-slot] *,[data-bloom-csi-slot]::before{color:transparent!important;font-size:0!important}[data-bloom-csi-slot]::after{content:\\"\\"!important;position:absolute!important;inset:0!important;border-radius:inherit!important;background-image:"+u+"!important;background-size:cover!important;background-position:center!important;pointer-events:none!important;z-index:1!important}";
-}
-function paintImg(img, url){
-  img.setAttribute("data-bloom-csi","1");
-  if (!img.hasAttribute("data-bloom-csi-orig")) img.setAttribute("data-bloom-csi-orig", img.getAttribute("src")||"");
-  img.referrerPolicy = "no-referrer";
-  if (img.getAttribute("src") !== url) img.src = url;
-}
-
-const c = document.createElement("canvas");
-c.width = c.height = 256;
-const ctx = c.getContext("2d");
-ctx.fillStyle = "#e11d48";
-ctx.fillRect(0,0,256,256);
-ctx.fillStyle = "#ffffff";
-ctx.beginPath(); ctx.arc(128,128,72,0,Math.PI*2); ctx.fill();
-const bake = c.toDataURL("image/png");
-document.getElementById("swatch").style.background = "#e11d48";
+const bake = ${JSON.stringify(bake)};
+document.getElementById("ref").style.backgroundImage = "url(" + JSON.stringify(bake) + ")";
 
 const initials = document.getElementById("initials");
 const photo = document.getElementById("photo");
+const large = document.getElementById("large");
 const initFace = document.getElementById("init-face");
 const photoImg = document.getElementById("photo-img");
-const initSlot = CsiFace.pickAvatarSlot(initials, null);
-const photoSlot = CsiFace.pickAvatarSlot(photo, photoImg);
-if (initSlot) initSlot.setAttribute(CsiFace.SLOT_ATTR, "");
-if (photoSlot) photoSlot.setAttribute(CsiFace.SLOT_ATTR, "");
-paintImg(photoImg, bake);
+const largeFace = document.getElementById("large-face");
+const initSlot = Csi.pickAvatarSlot(initials, null);
+const photoSlot = Csi.pickAvatarSlot(photo, photoImg);
+const largeSlot = Csi.pickAvatarSlot(large, null);
+if (initSlot) initSlot.setAttribute(Csi.SLOT_ATTR, "");
+if (photoSlot) photoSlot.setAttribute(Csi.SLOT_ATTR, "");
+if (largeSlot) largeSlot.setAttribute(Csi.SLOT_ATTR, "");
+Csi.paintImg(photoImg, bake);
 
 const size = 40;
-const suffixes = CsiFace.faceSizeSuffixes(CsiFace.SLOT_ATTR);
-const sizeSel = suffixes.flatMap(s => ["#initials "+s, "#photo "+s]).join(",");
+const suffixes = Csi.faceSizeSuffixes(Csi.SLOT_ATTR);
+const size40 = suffixes.flatMap(s => ["#initials "+s, "#photo "+s]).join(",");
+const size80 = suffixes.map(s => "#large "+s).join(",");
 const imgSel = "#initials img, #photo img";
 const st = document.createElement("style");
-st.textContent = sizeBox(sizeSel, size) + faceImgCss(imgSel, bake, size) + slotCss(bake);
+st.textContent = Csi.sizeBox(size40, size) + Csi.sizeBox(size80, 80)
+  + Csi.faceImgCss(imgSel, bake, size) + Csi.slotCss(bake);
 document.head.appendChild(st);
 document.body.offsetHeight;
 
-function sample(el){
+function box(el){
   const r = el.getBoundingClientRect();
-  return { w: Math.round(r.width), h: Math.round(r.height), x: Math.round(r.left+r.width/2), y: Math.round(r.top+r.height/2) };
+  return { w: Math.round(r.width), h: Math.round(r.height), x: Math.round(r.left), y: Math.round(r.top), cx: Math.round(r.left+r.width/2), cy: Math.round(r.top+r.height/2) };
 }
 const after = initSlot ? getComputedStyle(initSlot, "::after") : null;
-const photoAfter = photoSlot ? getComputedStyle(photoSlot, "::after") : null;
+const slotCs = initSlot ? getComputedStyle(initSlot) : null;
 const initCs = getComputedStyle(initFace);
 const result = {
   initSlot: !!initSlot,
   photoSlot: !!(photoSlot && photoSlot.tagName !== "IMG"),
-  initBox: sample(initFace),
-  photoBox: sample(photoSlot || photoImg),
+  largeSlot: !!largeSlot,
+  initBox: box(initFace),
+  photoBox: box(photoSlot || photoImg),
+  largeBox: box(largeFace),
   initAfterBg: after ? after.backgroundImage.includes("data:image") : false,
-  photoAfterBg: photoAfter ? photoAfter.backgroundImage.includes("data:image") : false,
+  slotBg: slotCs ? slotCs.backgroundImage.includes("data:image") : false,
   initFont: initCs.fontSize,
-  initColor: initCs.color,
+  initVis: initCs.visibility,
   srcSwapped: photoImg.getAttribute("src") === bake,
   origKept: photoImg.getAttribute("data-bloom-csi-orig")?.startsWith("data:image/gif") === true,
 };
-const ok = result.initSlot && result.photoSlot && result.initBox.w === 40 && result.photoBox.w === 40
-  && result.initAfterBg && result.photoAfterBg && result.srcSwapped && result.origKept
+const ok = result.initSlot && result.photoSlot && result.largeSlot
+  && result.initBox.w === 40 && result.photoBox.w === 40 && result.largeBox.w === 80
+  && result.initAfterBg && result.slotBg && result.srcSwapped && result.origKept
   && result.initFont === "0px";
 document.title = ok ? "CSI replace PASS" : "CSI replace FAIL";
-document.getElementById("metrics").innerHTML = (ok?"<b class=ok>PASS</b>":"<b class=bad>FAIL</b>")
-  + "  initials slot="+result.initSlot+" "+result.initBox.w+"px after="+result.initAfterBg+" font="+result.initFont
-  + "\\n  photo slot="+result.photoSlot+" "+result.photoBox.w+"px after="+result.photoAfterBg+" srcSwap="+result.srcSwapped;
+document.getElementById("metrics").innerHTML = (ok?"<b class=ok>DOM PASS</b>":"<b class=bad>DOM FAIL</b>")
+  + "  initials "+result.initBox.w+"px after="+result.initAfterBg+" slotBg="+result.slotBg+" font="+result.initFont
+  + "\\n  photo "+result.photoBox.w+"px srcSwap="+result.srcSwapped
+  + "\\n  large "+result.largeBox.w+"px";
 document.body.setAttribute("data-result", JSON.stringify(result));
 document.body.setAttribute("data-ok", ok ? "1" : "0");
-document.body.setAttribute("data-init", result.initBox.x+","+result.initBox.y);
-document.body.setAttribute("data-photo", result.photoBox.x+","+result.photoBox.y);
 </script>
 </body></html>`);
 
 const chromeDir = join(dir, "chrome");
-const chrome = spawnSync("timeout", ["12", "google-chrome",
+const chrome = spawnSync("timeout", ["15", "google-chrome",
     "--headless=new",
     "--disable-gpu",
     "--no-sandbox",
     "--hide-scrollbars",
-    "--window-size=820,420",
+    "--window-size=900,560",
     "--user-data-dir=" + chromeDir,
-    "--virtual-time-budget=2000",
+    "--virtual-time-budget=2500",
     "--screenshot=" + shot,
     "--dump-dom",
     html,
-], { encoding: "utf8", timeout: 20_000 });
+], { encoding: "utf8", timeout: 25_000 });
 
 const dom = chrome.stdout || "";
 const m = dom.match(/data-result="([^"]+)"/);
@@ -190,6 +188,7 @@ const okAttr = /data-ok="1"/.test(dom);
 if (!m) {
     rmSync(dir, { recursive: true, force: true });
     console.error("no data-result");
+    console.error(chrome.stderr?.slice(0, 800));
     console.error(dom.slice(0, 1500));
     process.exit(1);
 }
@@ -265,33 +264,80 @@ function readPngRgb(buf) {
 }
 
 function pickRgb(png, x, y) {
-    const i = (Math.round(y) * png.width + Math.round(x)) * 3;
+    const xi = Math.max(0, Math.min(png.width - 1, Math.round(x)));
+    const yi = Math.max(0, Math.min(png.height - 1, Math.round(y)));
+    const i = (yi * png.width + xi) * 3;
     return [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2]];
 }
 
-function near(rgb, target, tol = 45) {
+function near(rgb, target, tol = 40) {
     return Math.abs(rgb[0] - target[0]) <= tol
         && Math.abs(rgb[1] - target[1]) <= tol
         && Math.abs(rgb[2] - target[2]) <= tol;
 }
 
-let pixel = {
-    initials: null, photo: null,
-    initialsIsRose: false, photoIsRose: false,
-    initialsIsWhite: false, photoIsWhite: false,
-    initialsIsTeal: false, photoIsBlue: false,
-};
+function isWhite(rgb) {
+    return rgb[0] > 210 && rgb[1] > 210 && rgb[2] > 210;
+}
+
+function isTeal(rgb) {
+    return near(rgb, [13, 148, 136], 36);
+}
+
+function isBluePlate(rgb) {
+    return near(rgb, [29, 78, 216], 40);
+}
+
+function isCyanEye(rgb) {
+    return rgb[2] > 150 && rgb[1] > 140 && rgb[0] < rgb[2] - 20 && rgb[1] > rgb[0];
+}
+
+function isDarkFeature(rgb) {
+    return rgb[0] < 90 && rgb[1] < 80 && rgb[2] < 80;
+}
+
+function scanBox(png, box) {
+    let white = 0;
+    let teal = 0;
+    let cyan = 0;
+    let dark = 0;
+    let n = 0;
+    const x0 = box.x + 2;
+    const y0 = box.y + 2;
+    const x1 = box.x + box.w - 2;
+    const y1 = box.y + box.h - 2;
+    for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+            const rgb = pickRgb(png, x, y);
+            n++;
+            if (isWhite(rgb)) white++;
+            if (isTeal(rgb)) teal++;
+            if (isCyanEye(rgb)) cyan++;
+            if (isDarkFeature(rgb)) dark++;
+        }
+    }
+    return {
+        n,
+        white,
+        teal,
+        cyan,
+        dark,
+        center: pickRgb(png, box.cx, box.cy),
+        whiteRatio: n ? white / n : 0,
+        tealRatio: n ? teal / n : 0,
+    };
+}
+
+let pixel = { skip: true };
 try {
     const png = readPngRgb(readFileSync(shot));
-    pixel.initials = pickRgb(png, result.initBox.x, result.initBox.y);
-    pixel.photo = pickRgb(png, result.photoBox.x, result.photoBox.y);
-    pixel.initialsIsRose = near(pixel.initials, [225, 29, 72]);
-    pixel.photoIsRose = near(pixel.photo, [225, 29, 72]);
-    pixel.initialsIsWhite = near(pixel.initials, [255, 255, 255]);
-    pixel.photoIsWhite = near(pixel.photo, [255, 255, 255]);
-    pixel.initialsIsTeal = near(pixel.initials, [13, 148, 136]);
-    pixel.photoIsBlue = near(pixel.photo, [29, 78, 216]);
-    pixel.png = { w: png.width, h: png.height };
+    pixel = {
+        skip: false,
+        png: { w: png.width, h: png.height },
+        initials: scanBox(png, result.initBox),
+        photo: scanBox(png, result.photoBox),
+        large: scanBox(png, result.largeBox),
+    };
 } catch (e) {
     console.log("pixel-sample-skip", e);
 }
@@ -300,11 +346,25 @@ try { copyFileSync(shot, artifact); } catch { /* artifacts optional */ }
 console.log("csi-replace-pixels", pixel);
 rmSync(dir, { recursive: true, force: true });
 
-const initReplaced = (pixel.initialsIsRose || pixel.initialsIsWhite) && !pixel.initialsIsTeal;
-const photoReplaced = (pixel.photoIsRose || pixel.photoIsWhite) && !pixel.photoIsBlue;
-const replaced = initReplaced && photoReplaced;
+function faceReplaced(scan) {
+    if (!scan) return false;
+    const centerWhite = isWhite(scan.center);
+    const centerTeal = isTeal(scan.center);
+    const centerBlue = isBluePlate(scan.center);
+    const features = scan.cyan + scan.dark;
+    return centerWhite && !centerTeal && !centerBlue
+        && scan.tealRatio < 0.04
+        && scan.whiteRatio > 0.25
+        && features >= 4;
+}
+
+const replaced = !pixel.skip
+    && faceReplaced(pixel.initials)
+    && faceReplaced(pixel.photo)
+    && faceReplaced(pixel.large);
+
 if (!okAttr || !replaced) {
-    console.error("avatar replacement check failed");
+    console.error("avatar replacement check failed — official face still showing or bake missing");
     process.exit(1);
 }
-console.log("csi-replace-check: ok");
+console.log("csi-replace-check: ok (attached face replaced initials + photo)");
