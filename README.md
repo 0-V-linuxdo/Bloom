@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.68](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.68)** (`userscript/Bloom.update.user.js`, `@version [20260921] v1.4.68`).
+Current release: **[v1.4.69](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.69)** (`userscript/Bloom.update.user.js`, `@version [20260921] v1.4.69`).
 
 Plugins:
 
@@ -168,6 +168,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.69: **Settings list header matches Void++.** Close is absolute (`right/top 1rem`) so it no longer floats across the 56rem card. Category tabs are an underline strip (Favorites / Recent / All / Chat / UI / Privacy / Other) instead of ChatGPT General pills. Recent is last-7-days from build-stamped `plugin.updatedAt` (git log of each plugin dir). Other only appears when a non-required plugin has no chat/ui/privacy tag. Title stays **Bloom++** plus the blossom and the existing subtitle.
 
 v1.4.68: **CustomSidebarIdentity paste actually paints the Helium chip.** Gear crop already showed the pasted face (`avatarSource`); the live sidebar stayed official teal “18” + “Pro” because (1) `bake()` used `fetch(data:image/…)`, which Helium throws, so `avatarUrl` never wrote, and page paint read only `avatarUrl`; (2) Helium’s face is the first child of `.min-w-0.flex` (`h-8 w-8`, no `<img>`, often no `rounded-full`) — `firstClassHit` missed `h-8`, and “Pro” is 3 chars. Now: decode data: URLs without fetch (`bitmap.ts`), `avatarSrc()` falls back to `avatarSource`, slot the `.min-w-0.flex` face (never the plan label), size `h-8`/`w-8`.
 

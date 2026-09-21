@@ -53,6 +53,7 @@ export interface PluginDef {
     description: string;
     authors: string[];
     tags?: string[];
+    updatedAt?: number;
     enabledByDefault?: boolean;
     required?: boolean;
     hidden?: boolean;

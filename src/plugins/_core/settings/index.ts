@@ -73,7 +73,7 @@ let unsubList: Array<() => void> = [];
 let pluginKeyBound = false;
 
 type ListFilter = "all" | "enabled" | "disabled";
-type PluginCategory = "favorites" | "all" | "chat" | "ui" | "privacy";
+type PluginCategory = "favorites" | "recent" | "all" | "chat" | "ui" | "privacy" | "other";
 
 const FILTER_OPTIONS: readonly { value: ListFilter; label: string }[] = [
     { value: "all", label: "All" },
@@ -83,11 +83,16 @@ const FILTER_OPTIONS: readonly { value: ListFilter; label: string }[] = [
 
 const CATEGORY_TABS: readonly { id: PluginCategory; label: string }[] = [
     { id: "favorites", label: "Favorites" },
+    { id: "recent", label: "Recent" },
     { id: "all", label: "All" },
     { id: "chat", label: "Chat" },
     { id: "ui", label: "UI" },
     { id: "privacy", label: "Privacy" },
+    { id: "other", label: "Other" },
 ];
+
+const CATEGORY_TAGS = new Set(["chat", "ui", "privacy"]);
+const RECENT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 let searchQuery = "";
 let listFilter: ListFilter = "all";
@@ -616,9 +621,16 @@ function visiblePlugins(): Plugin[] {
     return Object.values(plugins).filter(p => !p.hidden && p.name !== "Settings");
 }
 
+function isRecentlyUpdated(plugin: Plugin): boolean {
+    return plugin.updatedAt != null && Date.now() - plugin.updatedAt < RECENT_TTL_MS;
+}
+
 function pluginMatchesCategory(plugin: Plugin, tab: PluginCategory): boolean {
     if (tab === "all" || tab === "favorites") return true;
-    return (plugin.tags ?? []).includes(tab);
+    if (tab === "recent") return isRecentlyUpdated(plugin);
+    const tags = (plugin.tags ?? []).map(t => t === "sidebar" ? "ui" : t);
+    if (tab === "other") return !plugin.required && !tags.some(t => CATEGORY_TAGS.has(t));
+    return tags.includes(tab);
 }
 
 function searchKey(plugin: Plugin): string {
@@ -628,13 +640,14 @@ function searchKey(plugin: Plugin): string {
 function emptyHint(): string {
     if (searchQuery.trim()) return "No plugins match your search.";
     if (category === "favorites") return "No favorites yet. Star a plugin to see it here.";
+    if (category === "recent") return "No plugins updated in the last 7 days.";
     return "No plugins available.";
 }
 
 function visibleTabs(): typeof CATEGORY_TABS[number][] {
     const pool = visiblePlugins();
     return CATEGORY_TABS.filter(t => {
-        if (t.id === "favorites" || t.id === "all") return true;
+        if (t.id === "favorites" || t.id === "all" || t.id === "recent") return true;
         return pool.some(p => pluginMatchesCategory(p, t.id));
     });
 }
@@ -763,11 +776,11 @@ function buildPanel(id: string): HTMLElement {
     titles.append(brand, sub);
     const close = document.createElement("button");
     close.type = "button";
-    close.className = "bloom-icon-btn";
+    close.className = "bloom-icon-btn bloom-settings-close";
     close.setAttribute("aria-label", "Close");
     close.innerHTML = closeSvg();
     close.addEventListener("click", hidePanel);
-    head.append(titles, close);
+    head.appendChild(titles);
     list.appendChild(head);
 
     const tabs = document.createElement("div");
@@ -811,7 +824,7 @@ function buildPanel(id: string): HTMLElement {
     empty.hidden = true;
     list.appendChild(empty);
 
-    panel.appendChild(list);
+    panel.append(close, list);
 
     gridEl = grid;
     emptyEl = empty;

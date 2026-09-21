@@ -9,6 +9,7 @@ import { initSettings as loadSettings } from "./api/Settings";
 import { requestChromeReady, requestIdleReady, requestShellReady, runIdleSequence, whenChromeReady, whenIdleReady, whenShellReady } from "./host/idleReady";
 import { Logger } from "./utils/Logger";
 import { VERSION } from "./utils/constants";
+import { stampPluginUpdatedAt } from "./utils/pluginMtime";
 import { flushStyles } from "./utils/css";
 import { hasComposer, hasLateIslands } from "./utils/hydration";
 import { StartAt, type Plugin } from "./utils/types";
@@ -171,7 +172,10 @@ export async function init() {
     initialized = true;
 
     for (const plugin of pluginList) {
-        try { registerPlugin(plugin); }
+        try {
+            registerPlugin(plugin);
+            stampPluginUpdatedAt(plugin);
+        }
         catch (e) { logger.error("register failed", plugin.name, e); }
     }
     initPluginManager();
