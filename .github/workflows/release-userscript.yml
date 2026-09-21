@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - "v*"
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -13,9 +15,66 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: ver
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            ver="${GITHUB_REF_NAME#v}"
+          else
+            ver="$(node -p "require('./package.json').version")"
+          fi
+          if [[ ! "$ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "unexpected version: $ver"
+            exit 1
+          fi
+          echo "ver=$ver" >> "$GITHUB_OUTPUT"
+          echo "tag=v$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Check userscript header and update URLs
+        run: node scripts/check-update-urls.mjs
+
+      - name: Confirm header matches this release
+        run: |
+          set -euo pipefail
+          grep -m1 '@version' userscript/Bloom.latest.user.js | grep -Fq "v${{ steps.ver.outputs.ver }}"
+          cmp -s userscript/Bloom.user.js userscript/Bloom.latest.user.js
+
+      - name: Tag main when the version tag is missing
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          tag="${{ steps.ver.outputs.tag }}"
+          if git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
+            echo "tag $tag already exists"
+          else
+            git tag "$tag"
+            git push origin "$tag"
+            echo "created $tag"
+          fi
+
+      - name: Skip if this main push already has a release
+        id: existing
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "${{ steps.ver.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "release ${{ steps.ver.outputs.tag }} already exists"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Attach userscript to the tag
+        if: github.ref_type == 'tag' || steps.existing.outputs.exists != 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.ver.outputs.tag }}
           files: |
             userscript/Bloom.user.js
             userscript/Bloom.latest.user.js

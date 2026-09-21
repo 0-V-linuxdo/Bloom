@@ -17,7 +17,8 @@
     "build": "node build.mjs",
     "build:dev": "node build.mjs --dev",
     "watch": "node build.mjs --watch",
-    "tsc": "tsc --noEmit"
+    "tsc": "tsc --noEmit",
+    "check:update-urls": "node scripts/check-update-urls.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.9",
