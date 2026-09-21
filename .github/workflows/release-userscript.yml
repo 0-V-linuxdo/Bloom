@@ -40,43 +40,34 @@ jobs:
       - name: Confirm header matches this release
         run: |
           set -euo pipefail
-          grep -m1 '@version' userscript/Bloom.latest.user.js | grep -Fq "v${{ steps.ver.outputs.ver }}"
+          grep -m1 '@version' userscript/Bloom.update.user.js | grep -Fq "v${{ steps.ver.outputs.ver }}"
           cmp -s userscript/Bloom.user.js userscript/Bloom.latest.user.js
+          cmp -s userscript/Bloom.user.js userscript/Bloom.update.user.js
 
       - name: Tag main when the version tag is missing
+        id: tag
         if: github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
           tag="${{ steps.ver.outputs.tag }}"
           if git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
+            echo "created=false" >> "$GITHUB_OUTPUT"
             echo "tag $tag already exists"
           else
             git tag "$tag"
             git push origin "$tag"
+            echo "created=true" >> "$GITHUB_OUTPUT"
             echo "created $tag"
           fi
 
-      - name: Skip if this main push already has a release
-        id: existing
-        if: github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          if gh release view "${{ steps.ver.outputs.tag }}" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "release ${{ steps.ver.outputs.tag }} already exists"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Attach userscript to the tag
-        if: github.ref_type == 'tag' || steps.existing.outputs.exists != 'true'
+        if: github.ref_type == 'tag' || steps.tag.outputs.created == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
           files: |
             userscript/Bloom.user.js
             userscript/Bloom.latest.user.js
+            userscript/Bloom.update.user.js
           fail_on_unmatched_files: true
           generate_release_notes: true

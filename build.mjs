@@ -48,13 +48,14 @@ const header = `// ==UserScript==
 // @compatible   firefox
 // @compatible   edge
 // @license      GPL-3.0-or-later
-// @downloadURL  ${raw}/userscript/Bloom.latest.user.js
-// @updateURL    ${raw}/userscript/Bloom.latest.user.js
+// @downloadURL  ${raw}/userscript/Bloom.update.user.js
+// @updateURL    ${raw}/userscript/Bloom.update.user.js
 // ==/UserScript==
 `;
 
 const outfile = resolve(here, "userscript/Bloom.user.js");
 const latestOut = resolve(here, "userscript/Bloom.latest.user.js");
+const updateOut = resolve(here, "userscript/Bloom.update.user.js");
 mkdirSync(dirname(outfile), { recursive: true });
 
 const banner = `${header}
@@ -84,5 +85,6 @@ if (isWatch) {
     const built = readFileSync(outfile, "utf8");
     writeFileSync(outfile, built);
     writeFileSync(latestOut, built);
-    console.log(`[Bloom++] wrote ${outfile} and ${latestOut} (${built.length} bytes)`);
+    writeFileSync(updateOut, built);
+    console.log(`[Bloom++] wrote ${outfile}, ${latestOut}, and ${updateOut} (${built.length} bytes)`);
 }
