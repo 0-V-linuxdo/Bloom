@@ -132,7 +132,7 @@
 .bloom-settings-head {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
+  text-align: left;
   margin: 0;
   padding-right: 2.5rem;
 }
@@ -140,7 +140,6 @@
 .bloom-settings-titles {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
   min-width: 0;
   flex: 1;
 }
@@ -168,16 +167,16 @@
 
 .bloom-settings-head h2 {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 600;
   line-height: 1.5rem;
   color: var(--text-primary, inherit);
 }
 
 .bloom-settings-sub {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1rem;
+  margin: 2px 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
   color: var(--text-secondary, #5d5d5d);
 }
 
@@ -231,7 +230,7 @@
   position: absolute;
   right: 1rem;
   top: 1rem;
-  z-index: 1;
+  z-index: 10;
 }
 
 .bloom-plugin-tabs {

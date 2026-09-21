@@ -689,7 +689,9 @@ function fillGrid() {
     let list = beforeSearch;
     const q = searchQuery.trim().toLowerCase();
     if (q) list = list.filter(p => searchKey(p).includes(q));
-    if (category !== "favorites") {
+    if (category === "recent") {
+        list = list.slice().sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0) || a.name.localeCompare(b.name));
+    } else if (category !== "favorites") {
         const pinned = getPinnedPlugins();
         if (pinned.length) {
             const rank = new Map(pinned.map((n, i) => [n, i]));
@@ -751,6 +753,8 @@ function hidePanel() {
 function buildPanel(id: string): HTMLElement {
     const panel = document.createElement("div");
     panel.id = id;
+    panel.setAttribute("aria-labelledby", "bloom-settings-title");
+    panel.setAttribute("aria-describedby", "bloom-settings-desc");
     panel.addEventListener("pointerdown", holdMenu);
     panel.addEventListener("pointerup", holdMenu);
     panel.addEventListener("click", holdMenu);
@@ -768,9 +772,11 @@ function buildPanel(id: string): HTMLElement {
     mark.className = "bloom-settings-mark";
     mark.innerHTML = blossomSvg();
     const title = document.createElement("h2");
+    title.id = "bloom-settings-title";
     title.textContent = "Bloom++";
     brand.append(mark, title);
     const sub = document.createElement("p");
+    sub.id = "bloom-settings-desc";
     sub.className = "bloom-settings-sub";
     sub.textContent = "Toggle features. Some need a reload. Click the sliders icon to configure.";
     titles.append(brand, sub);
