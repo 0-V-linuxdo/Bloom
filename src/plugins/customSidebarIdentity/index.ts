@@ -7,11 +7,13 @@
  * Avatar: Void++ paintImg src-swap on the official profile img, plus Blink
  * object-position throw-off so background-image shows even when React restores
  * src (content:url / padding-box on <img> leave replaced-element pixels on top).
- * Initials chips get data-bloom-csi-slot + ::after on a non-replaced wrapper.
- * Name is .truncate::before. Never extra nodes on the React chip, never
- * textContent on official .truncate, never html/body[subtree], never
- * documentElement CSS vars, never wrapper :has(), never hide the avatar node
- * or #bloom-rail-item.
+ * Initials / no-img chips (Helium): always mark data-bloom-csi-slot on the
+ * face wrap (sibling of .min-w-0, size-* / rounded-full / 1–3 char glyph) so
+ * avatarSize matches Bloom++ even with no custom image. Custom bake is ::after
+ * on that non-replaced wrap, never on the profile button. Name is
+ * .truncate::before. Never extra nodes on the React chip, never textContent
+ * on official .truncate, never html/body[subtree], never documentElement CSS
+ * vars, never wrapper :has(), never hide the avatar node or #bloom-rail-item.
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -27,6 +29,12 @@ import { registerStyle, removeStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
 import { clamp } from "../../utils/misc";
 import definePlugin, { OptionType, StartAt } from "../../utils/types";
+import {
+    faceSizeSuffixes,
+    inChrome,
+    pickAvatarSlot,
+    SLOT_ATTR,
+} from "./face";
 import css from "./styles.css";
 
 const logger = new Logger("CustomSidebarIdentity");
@@ -36,8 +44,7 @@ const FACE_CLASS = "bloom-csi-face";
 const NAME_CLASS = "bloom-csi-name";
 const MARK = "data-bloom-csi";
 const ORIG = "data-bloom-csi-orig";
-const SLOT = "data-bloom-csi-slot";
-const BLOOM_CHROME = "#bloom-root, #bloom-sidebar-panel, #bloom-rail-item, #bloom-plugin-layer, #bloom-plugin-dialog";
+const SLOT = SLOT_ATTR;
 const SOURCE_PX = 1024;
 const AVATAR_PX = 256;
 const SIZE_MIN = 24;
@@ -270,10 +277,6 @@ function avatarSrc(): string | null {
     return null;
 }
 
-function inChrome(el: Element | null): boolean {
-    return !!el?.closest(BLOOM_CHROME);
-}
-
 function under(roots: string[], suffix: string): string[] {
     return roots.map(root => `${root} ${suffix}`);
 }
@@ -290,7 +293,7 @@ function escapeForCssContent(text: string): string {
 }
 
 function sizeBox(sel: string, px: number): string {
-    return `${sel}{width:${px}px!important;height:${px}px!important;min-width:${px}px!important;min-height:${px}px!important;max-width:${px}px!important;max-height:${px}px!important;border-radius:999px!important;flex-shrink:0!important}`;
+    return `${sel}{box-sizing:border-box!important;display:flex!important;align-items:center!important;justify-content:center!important;width:${px}px!important;height:${px}px!important;min-width:${px}px!important;min-height:${px}px!important;max-width:${px}px!important;max-height:${px}px!important;padding:0!important;border-radius:999px!important;overflow:hidden!important;flex-shrink:0!important}`;
 }
 
 /**
@@ -306,7 +309,7 @@ function faceImgCss(sel: string, url: string, px: number): string {
 
 function slotCss(url: string): string {
     const u = cssUrl(url);
-    return `[${SLOT}]{position:relative!important;overflow:hidden!important;border-radius:999px!important;color:transparent!important;font-size:0!important}[${SLOT}]::after{content:""!important;position:absolute!important;inset:0!important;border-radius:inherit!important;background-image:${u}!important;background-size:cover!important;background-position:center!important;pointer-events:none!important;z-index:1!important}`;
+    return `[${SLOT}]{position:relative!important;overflow:hidden!important;border-radius:999px!important;color:transparent!important;font-size:0!important;line-height:0!important}[${SLOT}] *,[${SLOT}]::before{color:transparent!important;font-size:0!important}[${SLOT}]::after{content:""!important;position:absolute!important;inset:0!important;border-radius:inherit!important;background-image:${u}!important;background-size:cover!important;background-position:center!important;pointer-events:none!important;z-index:1!important}`;
 }
 
 function nameCss(sel: string[], text: string): string {
@@ -333,32 +336,6 @@ function pickFace(root: HTMLElement): HTMLImageElement | null {
     if (!imgs.length) return null;
     const ranked = imgs.find(i => /rounded-full|avatar/i.test(i.className) || !!i.getAttribute("alt"));
     return ranked ?? imgs[0];
-}
-
-function isSmallCircle(el: HTMLElement): boolean {
-    if (inChrome(el) || el.tagName === "IMG" || el.tagName === "BUTTON") return false;
-    if (el.querySelector(".min-w-0, .truncate")) return false;
-    const r = el.getBoundingClientRect();
-    if (r.width < 16 || r.width > 80 || r.height < 16 || r.height > 80) return false;
-    return Math.abs(r.width - r.height) < 12;
-}
-
-function pickSlot(root: HTMLElement, face: HTMLImageElement | null): HTMLElement | null {
-    if (face) {
-        let n: HTMLElement | null = face.parentElement;
-        while (n && n !== root) {
-            if (isSmallCircle(n)) return n;
-            n = n.parentElement;
-        }
-        return null;
-    }
-    for (const node of root.querySelectorAll<HTMLElement>('[class*="rounded-full"]')) {
-        if (isSmallCircle(node)) return node;
-    }
-    for (const node of root.querySelectorAll<HTMLElement>(".relative")) {
-        if (isSmallCircle(node)) return node;
-    }
-    return null;
 }
 
 function onImgError(e: Event) {
@@ -432,7 +409,7 @@ function paintRoot(root: HTMLElement, url: string | null) {
     else {
         for (const img of faceImgs(root)) restoreImg(img);
     }
-    const slot = url ? pickSlot(root, face) : null;
+    const slot = pickAvatarSlot(root, face);
     for (const el of root.querySelectorAll(`[${SLOT}]`)) {
         if (el !== slot) el.removeAttribute(SLOT);
     }
@@ -476,11 +453,20 @@ function applyCss() {
     ];
     if (menuOn) nameSel.push(...under(MENU, "> :first-child .truncate"));
 
+    const sizeSels = faceSizeSuffixes(SLOT);
     rules.push(sizeBox([
-        ...under(PROFILE, "img"),
-        ...under(PROFILE, `[${SLOT}]`),
+        ...sizeSels.flatMap(suffix => under(PROFILE, suffix)),
     ].join(","), size));
-    rules.push(sizeBox(`#stage-sidebar-tiny-bar img,#stage-sidebar-tiny-bar [${SLOT}]`, 32));
+    rules.push(sizeBox(
+        sizeSels.map(suffix => `#stage-sidebar-tiny-bar ${suffix}`).join(","),
+        32,
+    ));
+    if (menuOn) {
+        rules.push(sizeBox(
+            sizeSels.flatMap(suffix => under(MENU, `> :first-child ${suffix}`)).join(","),
+            size,
+        ));
+    }
 
     if (url) {
         rules.push(faceImgCss(imgSel.join(","), url, size));

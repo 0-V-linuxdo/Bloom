@@ -881,15 +881,30 @@ function syncCollapsed(row: HTMLElement, force?: boolean) {
 }
 
 function profileFace(profile: HTMLElement): HTMLElement | null {
+    const slot = profile.querySelector("[data-bloom-csi-slot]");
+    if (slot instanceof HTMLElement) {
+        const r = slot.getBoundingClientRect();
+        if (r.width > 8 && r.height > 8) return slot;
+    }
     const img = profile.querySelector("img");
     if (img instanceof HTMLElement) {
         const r = img.getBoundingClientRect();
         if (r.width > 8 && r.height > 8) return img;
     }
-    for (const hit of profile.querySelectorAll('[class*="rounded-full"]')) {
-        if (!(hit instanceof HTMLElement)) continue;
-        const r = hit.getBoundingClientRect();
-        if (r.width > 8 && r.height > 8) return hit;
+    const sels = [
+        '[class~="rounded-full"]',
+        '[class*="avatar"]',
+        '[class~="size-6"]',
+        '[class~="size-7"]',
+        '[class~="size-8"]',
+    ];
+    for (const sel of sels) {
+        for (const hit of profile.querySelectorAll(sel)) {
+            if (!(hit instanceof HTMLElement)) continue;
+            if (hit.querySelector(".min-w-0, .truncate")) continue;
+            const r = hit.getBoundingClientRect();
+            if (r.width > 8 && r.height > 8) return hit;
+        }
     }
     return null;
 }

@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.64](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.64)**（`userscript/Bloom.latest.user.js`，`@version [20260920] v1.4.64`）。
+当前版本：**[v1.4.65](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.65)**（`userscript/Bloom.latest.user.js`，`@version [20260921] v1.4.65`）。
 
 插件：
 
@@ -55,9 +55,9 @@
 
 默认关闭。替换侧栏头像和显示名，**留空则保持官方**。
 
-- 官方头像 `img` 走 src 替换 + Blink `object-position` 把官方像素甩出盒子，再用 `background-image` 画裁切结果（`content:url()` / padding-box 在活的 `<img>` 上看不见）。没有 `img` 的字母圆、或头像外包一层圆，用槽 `::after`。不往芯片插节点、不改 `.truncate` 文本
+- 官方头像 `img` 走 src 替换 + Blink `object-position` 把官方像素甩出盒子，再用 `background-image` 画裁切结果（`content:url()` / padding-box 在活的 `<img>` 上看不见）。没有 `img` 的字母圆（Helium 常见）打在 `.min-w-0` 旁的脸容器上：`avatarSize` 一直生效；有自定义图再用槽 `::after`。不往芯片插节点、不改 `.truncate` 文本
 - 粘贴、拖入或填 URL；圆形台拖拽平移、滚轮/滑条缩放
-- `avatarSize` 只放大展开侧栏（24–64px，默认 40）；折叠轨仍 32
+- `avatarSize` 放大展开侧栏的官方头像（含无 `img` 的字母圆，24–64px，默认 40），与 Bloom++ 花标对齐；折叠轨仍 32
 - 可选同步账号下拉**顶栏**（不改 Settings / 退出）
 - 和 NoSidebarIdentity 同时开：官方名仍隐，自定义名仍可见
 
@@ -165,6 +165,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.65：**CustomSidebarIdentity 官方字母圆跟 Bloom++ 对齐。** Helium / 当前 chatgpt.com 的账号脸经常是 1–3 个字的色圆（没有 `<img>`，也不一定有 `rounded-full`）。1.4.64 只给 `img` / `[data-bloom-csi-slot]` 设尺寸，而且要 `getBoundingClientRect` 先落到 16–80px 才打槽，所以官方「18」还是原生小圆、Bloom++ 花标仍是 32。现在槽永远打在 `.min-w-0` 旁边的脸容器（或 `size-6`/`size-8` / 字母节点）上，没自定义图也走 `avatarSize`，`pinRail` 跟 `[data-bloom-csi-slot]`。自定义图仍用槽 `::after`；`img` 仍是 src 替换 + `object-position`。
 
 v1.4.64：**CustomSidebarIdentity 头像在 Blink 里可见。** 1.4.63 的 src 替换 + padding-box 仍被 replaced element 的 `src` 盖住。改为 `object-position` 把官方图甩出盒子，让 `background-image` 露出裁切结果，并继续 Void++ `paintImg` src 替换（清 `srcset`/`sizes`/`<source>`）。字母圆 / 外包圆用非 replaced 节点的 `::after`。观察 `findSidebarHost()` 的 childList（pinRail 口袋），启动时 rAF 寻找芯片。裁切缩放沿用 1.4.62。
 
