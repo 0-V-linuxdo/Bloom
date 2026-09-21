@@ -106,6 +106,10 @@ function closeSvg(): string {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
 }
 
+function infoSvg(): string {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`;
+}
+
 function settings2Svg(): string {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>`;
 }
@@ -754,7 +758,6 @@ function buildPanel(id: string): HTMLElement {
     const panel = document.createElement("div");
     panel.id = id;
     panel.setAttribute("aria-labelledby", "bloom-settings-title");
-    panel.setAttribute("aria-describedby", "bloom-settings-desc");
     panel.addEventListener("pointerdown", holdMenu);
     panel.addEventListener("pointerup", holdMenu);
     panel.addEventListener("click", holdMenu);
@@ -764,29 +767,36 @@ function buildPanel(id: string): HTMLElement {
 
     const head = document.createElement("div");
     head.className = "bloom-settings-head";
-    const titles = document.createElement("div");
-    titles.className = "bloom-settings-titles";
     const brand = document.createElement("div");
     brand.className = "bloom-settings-brand";
     const mark = document.createElement("span");
     mark.className = "bloom-settings-mark";
     mark.innerHTML = blossomSvg();
+    const titleRow = document.createElement("span");
+    titleRow.className = "bloom-settings-title-row";
     const title = document.createElement("h2");
     title.id = "bloom-settings-title";
     title.textContent = "Bloom++";
-    brand.append(mark, title);
-    const sub = document.createElement("p");
-    sub.id = "bloom-settings-desc";
-    sub.className = "bloom-settings-sub";
-    sub.textContent = "Toggle features. Some need a reload. Click the sliders icon to configure.";
-    titles.append(brand, sub);
+    const hintText = "Toggle features. Some need a reload. Click the sliders icon to configure.";
+    const hint = document.createElement("button");
+    hint.type = "button";
+    hint.className = "bloom-info-hint";
+    hint.setAttribute("aria-label", hintText);
+    hint.innerHTML = infoSvg();
+    const tip = document.createElement("span");
+    tip.className = "bloom-info-hint-tip";
+    tip.setAttribute("role", "tooltip");
+    tip.textContent = hintText;
+    hint.appendChild(tip);
+    titleRow.append(title, hint);
+    brand.append(mark, titleRow);
     const close = document.createElement("button");
     close.type = "button";
     close.className = "bloom-icon-btn bloom-settings-close";
     close.setAttribute("aria-label", "Close");
     close.innerHTML = closeSvg();
     close.addEventListener("click", hidePanel);
-    head.appendChild(titles);
+    head.appendChild(brand);
     list.appendChild(head);
 
     const tabs = document.createElement("div");
