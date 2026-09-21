@@ -8,13 +8,17 @@
  */
 
 import assert from "node:assert/strict";
-import { isInitialsText, looksLikeAvatarClass } from "../src/plugins/customSidebarIdentity/face.ts";
+import { isInitialsText, isPlanLabel, looksLikeAvatarClass } from "../src/plugins/customSidebarIdentity/face.ts";
 
 assert.equal(isInitialsText("18"), true);
 assert.equal(isInitialsText("P"), true);
 assert.equal(isInitialsText("  AB  "), true);
 assert.equal(isInitialsText("Proffero"), false);
 assert.equal(isInitialsText(""), false);
+assert.equal(isInitialsText("Pro"), false);
+assert.equal(isPlanLabel("Pro"), true);
+assert.equal(isPlanLabel("plus"), true);
+assert.equal(isPlanLabel("18"), false);
 
 assert.equal(looksLikeAvatarClass("rounded-full"), true);
 assert.equal(looksLikeAvatarClass("flex h-8 w-8 items-center justify-center overflow-hidden"), true);

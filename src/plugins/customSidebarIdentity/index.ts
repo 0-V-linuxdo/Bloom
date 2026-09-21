@@ -8,13 +8,17 @@
  * object-position throw-off so background-image shows even when React restores
  * src (content:url / padding-box on <img> leave replaced-element pixels on top).
  * Initials / no-img chips (Helium): always mark data-bloom-csi-slot on the
- * face wrap (sibling of .min-w-0, size-* / rounded-full / 1–3 char glyph) so
- * avatarSize matches Bloom++ even with no custom image. Custom bake paints the
- * slot background and ::after (official children hidden), never a new node on
- * the profile button. Name is .truncate::before. Never extra nodes on the
- * React chip, never textContent on official .truncate, never html/body[subtree],
- * never documentElement CSS vars, never wrapper :has(), never hide the avatar
- * node or #bloom-rail-item.
+ * face wrap — sibling of .min-w-0, or first child of Helium `.min-w-0.flex`
+ * (NSI 1.4.14: that child IS the avatar), or h-8/w-8 / size-* / rounded-full
+ * / 1–3 char glyph. Never the Plus/Pro/Free plan label. avatarSize matches
+ * Bloom++ even with no custom image. Custom bake paints the slot background
+ * and ::after (official children hidden). Paste bake must not fetch(data:)
+ * (Helium throws; gear preview then works while the chip stays official).
+ * Page paint falls back to avatarSource if avatarUrl is empty. Never a new
+ * node on the profile button. Name is .truncate::before. Never extra nodes
+ * on the React chip, never textContent on official .truncate, never
+ * html/body[subtree], never documentElement CSS vars, never wrapper :has(),
+ * never hide the avatar node or #bloom-rail-item.
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -30,6 +34,7 @@ import { registerStyle, removeStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
 import { clamp } from "../../utils/misc";
 import definePlugin, { OptionType, StartAt } from "../../utils/types";
+import { bitmapFromBlob, bitmapFromUrl } from "./bitmap";
 import {
     faceSizeSuffixes,
     inChrome,
@@ -151,24 +156,6 @@ function cropRect(w: number, h: number, zoom: number, cx: number, cy: number) {
     return { z, side, x, y };
 }
 
-async function bitmapFromBlob(blob: Blob): Promise<ImageBitmap | null> {
-    try {
-        return await createImageBitmap(blob);
-    } catch {
-        return null;
-    }
-}
-
-async function bitmapFromUrl(url: string): Promise<ImageBitmap | null> {
-    try {
-        const res = await fetch(url, url.startsWith("data:") ? undefined : { mode: "cors", credentials: "omit", referrerPolicy: "no-referrer" });
-        if (!res.ok) return null;
-        return bitmapFromBlob(await res.blob());
-    } catch {
-        return null;
-    }
-}
-
 function pngFromBitmap(bmp: ImageBitmap, w: number, h: number): string | null {
     const canvas = document.createElement("canvas");
     canvas.width = w;
@@ -272,10 +259,9 @@ let watchedHost: HTMLElement | null = null;
 let hostWatch: MutationObserver | null = null;
 let panelRefresh: (() => void) | null = null;
 
-function avatarSrc(): string | null {
-    const raw = String(settings.store.avatarUrl ?? "").trim();
-    if (!raw) return null;
-    if (failedAvatars.has(raw)) return null;
+function sanitizeSrc(value: unknown): string | null {
+    const raw = String(value ?? "").trim();
+    if (!raw || failedAvatars.has(raw)) return null;
     if (raw.startsWith("data:image/")) return raw;
     try {
         const { protocol } = new URL(raw);
@@ -284,6 +270,42 @@ function avatarSrc(): string | null {
         return null;
     }
     return null;
+}
+
+/**
+ * Page paint. Gear preview already uses `avatarSource` (`cropSrc`).
+ * Helium `fetch(data:)` can leave `avatarUrl` empty after paste, so the
+ * live chip must fall back to the source the crop stage is already showing.
+ */
+function avatarSrc(): string | null {
+    return sanitizeSrc(settings.store.avatarUrl) ?? sanitizeSrc(settings.store.avatarSource);
+}
+
+let bakeInFlight = false;
+const failedBakes = new Set<string>();
+
+function ensureBake() {
+    const source = sanitizeSrc(settings.store.avatarSource);
+    if (!source?.startsWith("data:image/")) return;
+    if (sanitizeSrc(settings.store.avatarUrl)?.startsWith("data:image/")) return;
+    if (bakeInFlight || failedBakes.has(source)) return;
+    bakeInFlight = true;
+    const x = num(settings.store.cropX, 0.5);
+    const y = num(settings.store.cropY, 0.5);
+    const z = num(settings.store.cropZoom, 1);
+    void bake(source, x, y, z).then(url => {
+        bakeInFlight = false;
+        if (!url) {
+            failedBakes.add(source);
+            return;
+        }
+        if (!started) return;
+        settings.store.avatarUrl = url;
+        apply();
+    }).catch(() => {
+        bakeInFlight = false;
+        failedBakes.add(source);
+    });
 }
 
 function under(roots: string[], suffix: string): string[] {
@@ -441,6 +463,7 @@ function apply() {
         rebindIslands();
         bindHost();
         if (watchedMenu?.isConnected) watchMenu(watchedMenu);
+        ensureBake();
     }
 }
 
@@ -858,6 +881,7 @@ export default definePlugin({
         keys = new AbortController();
         document.addEventListener("click", onDocClick, { signal: keys.signal });
         seekChip(40);
+        ensureBake();
         logger.debug("started");
     },
 

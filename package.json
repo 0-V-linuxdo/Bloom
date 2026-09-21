@@ -1,6 +1,6 @@
 {
   "name": "bloompp",
-  "version": "1.4.67",
+  "version": "1.4.68",
   "description": "Bloom++ — a Void++-style plugin host for chatgpt.com",
   "homepage": "https://github.com/0-V-linuxdo/Bloom#readme",
   "bugs": {
@@ -18,7 +18,7 @@
     "build:dev": "node build.mjs --dev",
     "watch": "node build.mjs --watch",
     "tsc": "tsc --noEmit",
-    "test:csi": "node --experimental-strip-types scripts/csi-face-test.ts && node scripts/csi-avatar-check.mjs && node scripts/csi-replace-check.mjs",
+    "test:csi": "node --experimental-strip-types scripts/csi-face-test.ts && node --experimental-strip-types scripts/csi-bitmap-test.ts && node scripts/csi-avatar-check.mjs && node scripts/csi-replace-check.mjs && node scripts/csi-bake-check.mjs",
     "check:update-urls": "node scripts/check-update-urls.mjs"
   },
   "devDependencies": {

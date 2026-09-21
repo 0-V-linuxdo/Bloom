@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.67](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.67)** (`userscript/Bloom.update.user.js`, `@version [20260921] v1.4.67`).
+Current release: **[v1.4.68](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.68)** (`userscript/Bloom.update.user.js`, `@version [20260921] v1.4.68`).
 
 Plugins:
 
@@ -169,6 +169,8 @@ v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses 
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
 
+v1.4.68: **CustomSidebarIdentity paste actually paints the Helium chip.** Gear crop already showed the pasted face (`avatarSource`); the live sidebar stayed official teal “18” + “Pro” because (1) `bake()` used `fetch(data:image/…)`, which Helium throws, so `avatarUrl` never wrote, and page paint read only `avatarUrl`; (2) Helium’s face is the first child of `.min-w-0.flex` (`h-8 w-8`, no `<img>`, often no `rounded-full`) — `firstClassHit` missed `h-8`, and “Pro” is 3 chars. Now: decode data: URLs without fetch (`bitmap.ts`), `avatarSrc()` falls back to `avatarSource`, slot the `.min-w-0.flex` face (never the plan label), size `h-8`/`w-8`.
+
 v1.4.67: **Install / `@updateURL` / `@downloadURL` move to `userscript/Bloom.update.user.js`.** Fastly kept `Bloom.latest.user.js` on 1.4.65 after 1.4.66 reached `main` (`x-cache: HIT`, same etag), so Violentmonkey “脚本已更新” stayed at `[20260921] v1.4.65`. Same class of bug as 1.4.35 / 1.4.36. Still write `Bloom.latest.user.js` and `Bloom.user.js`. Release download is a fallback. Do not drop the date prefix (bare `1.4.67` compares older than `[20260921] v1.4.65`).
 
 v1.4.66: **CustomSidebarIdentity actually replaces the official face with the custom photo.** Helium initials keep a teal class background and the “18” glyph; 1.4.65 sized the slot and painted `::after` only, so the official circle could still show through. The bake now sits on the slot `background-image` and `::after`, official children are `visibility:hidden`, and the replace check uses the attached emoji fixture (white face + cyan eyes — not a solid color). Img path is still src-swap + `object-position`. Paint CSS lives in `paint.ts`.
@@ -274,7 +276,7 @@ v1.4.21: **Restore the centered settings dock** (1.4.20 left-rail move was unwan
 - MessageTimestamps: `[data-message-id]` in `#thread`. Times from host harvest of GET `/backend-api/conversation/{id}` mapping `create_time` / POST SSE. Settings `showDate`, `hideOwnMessages`.
 - StreamerMode: `filter:blur(6px)` on Recents `a[href^="/c/"]`, project `/g/g-p-` / `/project`, profile avatar / `.truncate` / mailto, `#page-header` title (`headerTitle`), RecentTopics HUD names. Hover unblurs Recents / projects / HUD cards. Never `#bloom-rail-item` / Voice / Share / composer / model switcher.
 - GreetingCustomizer: home `/` only. Paints the first live `h1.text-page-header .text-pretty` / `.text-page-header` / `[data-splash-headline-option]` / `main h1`. Skips chrome / composer / Temporary Chat / `sr-only`. `mode` refresh|interval|manual, `order` sequential|random, `intervalSec` 1–3600. Empty list leaves the official greeting.
-- CustomSidebarIdentity: src-swap + Blink `object-position` throw-off + `background-image` on `[data-testid=accounts-profile-button]` `img`; always mark `data-bloom-csi-slot` on the face wrap beside `.min-w-0` (initials / `size-*` / `rounded-full`, not only a laid-out circle) so `avatarSize` matches Bloom++; custom bake is slot `::after`; `html body` `.truncate::before` for the name. Settings `displayName`, crop COMPONENT, `avatarSize` 24–64, `applyToMenu`. Hidden bake keys. Never extra nodes on the React chip, never `display:none` `.min-w-0`, never hide `#bloom-rail-item`. Observes the chip / tiny-bar / footer pocket / opened account menu only (`src`/`srcset`/`sizes`).
+- CustomSidebarIdentity: src-swap + Blink `object-position` throw-off + `background-image` on `[data-testid=accounts-profile-button]` `img`; always mark `data-bloom-csi-slot` on the face wrap beside `.min-w-0` **or** the first child of Helium `.min-w-0.flex` (initials / `h-8`/`w-8` / `size-*` / `rounded-full`, never Plus/Pro/Free). `avatarSrc()` is `avatarUrl` then `avatarSource`. Never `fetch(data:)` (`bitmap.ts`). Custom bake is slot background + `::after`; `html body` `.truncate::before` for the name. Settings `displayName`, crop COMPONENT, `avatarSize` 24–64, `applyToMenu`. Hidden bake keys. Never extra nodes on the React chip, never `display:none` `.min-w-0`, never hide `#bloom-rail-item`. Observes the chip / tiny-bar / footer pocket / opened account menu only (`src`/`srcset`/`sizes`).
 
 ## Build
 

@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.67](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.67)**（`userscript/Bloom.update.user.js`，`@version [20260921] v1.4.67`）。
+当前版本：**[v1.4.68](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.68)**（`userscript/Bloom.update.user.js`，`@version [20260921] v1.4.68`）。
 
 插件：
 
@@ -55,7 +55,7 @@
 
 默认关闭。替换侧栏头像和显示名，**留空则保持官方**。
 
-- 官方头像 `img` 走 src 替换 + Blink `object-position` 把官方像素甩出盒子，再用 `background-image` 画裁切结果（`content:url()` / padding-box 在活的 `<img>` 上看不见）。没有 `img` 的字母圆（Helium 常见）打在 `.min-w-0` 旁的脸容器上：`avatarSize` 一直生效；有自定义图再用槽 `::after`。不往芯片插节点、不改 `.truncate` 文本
+- 官方头像 `img` 走 src 替换 + Blink `object-position` 把官方像素甩出盒子，再用 `background-image` 画裁切结果（`content:url()` / padding-box 在活的 `<img>` 上看不见）。没有 `img` 的字母圆（Helium 常见：`.min-w-0.flex` 的第一个子节点，`h-8 w-8`，旁边是隐藏的 `.truncate` 和「Pro」）打在那张脸上：`avatarSize` 一直生效；有自定义图再用槽背景 + `::after`。粘贴后页面先用 `avatarSource`（Helium 不能 `fetch(data:)`）。不往芯片插节点、不改 `.truncate` 文本，不把套餐字当头像
 - 粘贴、拖入或填 URL；圆形台拖拽平移、滚轮/滑条缩放
 - `avatarSize` 放大展开侧栏的官方头像（含无 `img` 的字母圆，24–64px，默认 40），与 Bloom++ 花标对齐；折叠轨仍 32
 - 可选同步账号下拉**顶栏**（不改 Settings / 退出）
@@ -165,6 +165,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.68：**CustomSidebarIdentity 粘贴后 Helium 侧栏真正换脸。** 齿轮裁切台已经能显示粘贴图（`avatarSource`），侧栏仍是官方青绿「18」+「Pro」：一是 `bake()` 走 `fetch(data:image/…)`，Helium 会抛，`avatarUrl` 写不进去，页面只读 `avatarUrl`；二是 Helium 脸在 `.min-w-0.flex` 的第一个子节点（`h-8 w-8`，没有 `<img>`，经常没有 `rounded-full`），`firstClassHit` 看不到 `h-8`，「Pro」又正好 3 个字母。现在 data: 不再 fetch（`bitmap.ts`），`avatarSrc()` 回退 `avatarSource`，槽打在 `.min-w-0.flex` 的脸上（不打套餐字），`h-8`/`w-8` 也跟尺寸。
 
 v1.4.67：**安装 / `@updateURL` / `@downloadURL` 改走 `userscript/Bloom.update.user.js`。** 1.4.66 进 `main` 之后 Fastly 仍把 `Bloom.latest.user.js` 卡在 1.4.65（`x-cache: HIT`，etag 不变），油猴提示「脚本已更新」却停在 `[20260921] v1.4.65`。和 1.4.35 / 1.4.36 同一类问题。`Bloom.latest.user.js` / `Bloom.user.js` 仍会写一份。发布页下载作备用。不要去掉日期前缀（光写 `1.4.67` 会被判比 `[20260921] v1.4.65` 旧）。
 

@@ -99,6 +99,15 @@ writeFileSync(html, `<!doctype html>
         <div class="min-w-0"><div class="truncate">80px check</div></div>
       </div>
     </button>
+    <button class="chip" id="helium" data-testid="accounts-profile-button" type="button" style="margin-top:12px">
+      <div class="min-w-0 flex" style="display:flex;align-items:center;gap:8px;width:100%">
+        <div class="flex h-8 w-8 items-center justify-center overflow-hidden" id="helium-face" style="width:32px;height:32px;background:#0d9488;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0">18</div>
+        <div>
+          <div class="truncate" style="visibility:hidden">UserName</div>
+          <div class="text-xs text-token-text-secondary">Pro</div>
+        </div>
+      </div>
+    </button>
   </div>
 </div>
 <div id="ref"></div>
@@ -111,20 +120,25 @@ document.getElementById("ref").style.backgroundImage = "url(" + JSON.stringify(b
 const initials = document.getElementById("initials");
 const photo = document.getElementById("photo");
 const large = document.getElementById("large");
+const helium = document.getElementById("helium");
 const initFace = document.getElementById("init-face");
 const photoImg = document.getElementById("photo-img");
 const largeFace = document.getElementById("large-face");
+const heliumFace = document.getElementById("helium-face");
+const heliumPlan = helium.querySelector(".text-xs");
 const initSlot = Csi.pickAvatarSlot(initials, null);
 const photoSlot = Csi.pickAvatarSlot(photo, photoImg);
 const largeSlot = Csi.pickAvatarSlot(large, null);
+const heliumSlot = Csi.pickAvatarSlot(helium, null);
 if (initSlot) initSlot.setAttribute(Csi.SLOT_ATTR, "");
 if (photoSlot) photoSlot.setAttribute(Csi.SLOT_ATTR, "");
 if (largeSlot) largeSlot.setAttribute(Csi.SLOT_ATTR, "");
+if (heliumSlot) heliumSlot.setAttribute(Csi.SLOT_ATTR, "");
 Csi.paintImg(photoImg, bake);
 
 const size = 40;
 const suffixes = Csi.faceSizeSuffixes(Csi.SLOT_ATTR);
-const size40 = suffixes.flatMap(s => ["#initials "+s, "#photo "+s]).join(",");
+const size40 = suffixes.flatMap(s => ["#initials "+s, "#photo "+s, "#helium "+s]).join(",");
 const size80 = suffixes.map(s => "#large "+s).join(",");
 const imgSel = "#initials img, #photo img";
 const st = document.createElement("style");
@@ -144,9 +158,11 @@ const result = {
   initSlot: !!initSlot,
   photoSlot: !!(photoSlot && photoSlot.tagName !== "IMG"),
   largeSlot: !!largeSlot,
+  heliumSlot: !!(heliumSlot && heliumSlot.contains(heliumFace) && heliumSlot !== heliumPlan && !heliumSlot.contains(heliumPlan)),
   initBox: box(initFace),
   photoBox: box(photoSlot || photoImg),
   largeBox: box(largeFace),
+  heliumBox: box(heliumFace),
   initAfterBg: after ? after.backgroundImage.includes("data:image") : false,
   slotBg: slotCs ? slotCs.backgroundImage.includes("data:image") : false,
   initFont: initCs.fontSize,
@@ -154,15 +170,16 @@ const result = {
   srcSwapped: photoImg.getAttribute("src") === bake,
   origKept: photoImg.getAttribute("data-bloom-csi-orig")?.startsWith("data:image/gif") === true,
 };
-const ok = result.initSlot && result.photoSlot && result.largeSlot
-  && result.initBox.w === 40 && result.photoBox.w === 40 && result.largeBox.w === 80
+const ok = result.initSlot && result.photoSlot && result.largeSlot && result.heliumSlot
+  && result.initBox.w === 40 && result.photoBox.w === 40 && result.largeBox.w === 80 && result.heliumBox.w === 40
   && result.initAfterBg && result.slotBg && result.srcSwapped && result.origKept
   && result.initFont === "0px";
 document.title = ok ? "CSI replace PASS" : "CSI replace FAIL";
 document.getElementById("metrics").innerHTML = (ok?"<b class=ok>DOM PASS</b>":"<b class=bad>DOM FAIL</b>")
   + "  initials "+result.initBox.w+"px after="+result.initAfterBg+" slotBg="+result.slotBg+" font="+result.initFont
   + "\\n  photo "+result.photoBox.w+"px srcSwap="+result.srcSwapped
-  + "\\n  large "+result.largeBox.w+"px";
+  + "\\n  large "+result.largeBox.w+"px"
+  + "\\n  helium "+result.heliumBox.w+"px slot="+result.heliumSlot;
 document.body.setAttribute("data-result", JSON.stringify(result));
 document.body.setAttribute("data-ok", ok ? "1" : "0");
 </script>
@@ -174,7 +191,7 @@ const chrome = spawnSync("timeout", ["15", "google-chrome",
     "--disable-gpu",
     "--no-sandbox",
     "--hide-scrollbars",
-    "--window-size=900,560",
+    "--window-size=900,720",
     "--user-data-dir=" + chromeDir,
     "--virtual-time-budget=2500",
     "--screenshot=" + shot,
@@ -337,6 +354,7 @@ try {
         initials: scanBox(png, result.initBox),
         photo: scanBox(png, result.photoBox),
         large: scanBox(png, result.largeBox),
+        helium: scanBox(png, result.heliumBox),
     };
 } catch (e) {
     console.log("pixel-sample-skip", e);
@@ -361,7 +379,8 @@ function faceReplaced(scan) {
 const replaced = !pixel.skip
     && faceReplaced(pixel.initials)
     && faceReplaced(pixel.photo)
-    && faceReplaced(pixel.large);
+    && faceReplaced(pixel.large)
+    && faceReplaced(pixel.helium);
 
 if (!okAttr || !replaced) {
     console.error("avatar replacement check failed — official face still showing or bake missing");

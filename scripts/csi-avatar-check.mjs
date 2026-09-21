@@ -54,6 +54,15 @@ writeFileSync(html, `<!doctype html>
     <div class="min-w-0"><div class="truncate">Photo</div></div>
   </div>
 </button>
+<button id="helium" data-testid="accounts-profile-button" type="button">
+  <div class="min-w-0 flex" style="display:flex;align-items:center;gap:8px">
+    <div class="flex h-8 w-8 items-center justify-center overflow-hidden" id="helium-face" style="width:32px;height:32px;background:#0d9488;color:#fff;display:flex;align-items:center;justify-content:center">18</div>
+    <div>
+      <div class="truncate" style="visibility:hidden">UserName</div>
+      <div class="text-xs text-token-text-secondary">Pro</div>
+    </div>
+  </div>
+</button>
 <script>
 ${js}
 const bake = "data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=";
@@ -70,8 +79,13 @@ const photo = document.getElementById("photo");
 const img = photo.querySelector("img");
 const photoSlot = CsiFace.pickAvatarSlot(photo, img);
 if (photoSlot) photoSlot.setAttribute(CsiFace.SLOT_ATTR, "");
+const helium = document.getElementById("helium");
+const heliumFace = document.getElementById("helium-face");
+const heliumPlan = helium.querySelector(".text-xs");
+const heliumSlot = CsiFace.pickAvatarSlot(helium, null);
+if (heliumSlot) heliumSlot.setAttribute(CsiFace.SLOT_ATTR, "");
 const st = document.createElement("style");
-st.textContent = sizeCss("#profile") + sizeCss("#photo")
+st.textContent = sizeCss("#profile") + sizeCss("#photo") + sizeCss("#helium")
   + "[" + CsiFace.SLOT_ATTR + "]{position:relative!important;color:transparent!important;font-size:0!important}"
   + "[" + CsiFace.SLOT_ATTR + "]::after{content:\\"\\"!important;position:absolute!important;inset:0!important;background-image:url(\\"" + bake + "\\")!important}";
 document.head.appendChild(st);
@@ -79,13 +93,16 @@ document.body.offsetHeight;
 const r = faceEl.getBoundingClientRect();
 const after = getComputedStyle(slot, "::after");
 const pr = photoSlot.getBoundingClientRect();
+const hr = heliumFace.getBoundingClientRect();
 const sized = !!(slot && slot.contains(faceEl) && Math.round(r.width) === 40);
 const overlay = !!(after && after.backgroundImage.includes("data:image"));
 const photoOk = !!(photoSlot && photoSlot.contains(img) && Math.round(pr.width) === 40 && photoSlot.tagName !== "IMG");
-const ok = sized && overlay && photoOk;
+const heliumOk = !!(heliumSlot && heliumSlot.contains(heliumFace) && heliumSlot !== heliumPlan
+  && !heliumSlot.contains(heliumPlan) && Math.round(hr.width) === 40);
+const ok = sized && overlay && photoOk && heliumOk;
 document.title = ok ? "PASS" : "FAIL";
 document.body.setAttribute("data-result", JSON.stringify({
-  ok, sized, overlay, photoOk, w: Math.round(r.width), photoW: Math.round(pr.width)
+  ok, sized, overlay, photoOk, heliumOk, w: Math.round(r.width), photoW: Math.round(pr.width), heliumW: Math.round(hr.width)
 }));
 </script>
 </body></html>`);
