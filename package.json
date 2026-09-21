@@ -18,7 +18,8 @@
     "build:dev": "node build.mjs --dev",
     "watch": "node build.mjs --watch",
     "tsc": "tsc --noEmit",
-    "test:csi": "node --experimental-strip-types scripts/csi-face-test.ts && node scripts/csi-avatar-check.mjs && node scripts/csi-replace-check.mjs"
+    "test:csi": "node --experimental-strip-types scripts/csi-face-test.ts && node scripts/csi-avatar-check.mjs && node scripts/csi-replace-check.mjs",
+    "check:update-urls": "node scripts/check-update-urls.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.9",
