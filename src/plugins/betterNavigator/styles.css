@@ -201,7 +201,8 @@
     letter-spacing: -0.2px;
 }
 
-#thread [data-message-id] {
+#thread [data-message-id],
+#thread [data-testid^="conversation-turn-"] {
     scroll-margin-top: 72px;
 }
 

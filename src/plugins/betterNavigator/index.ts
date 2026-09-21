@@ -17,6 +17,9 @@
  * .result-streaming / empty markdown+thinking) AND harvest generate-arm
  * or a visible Stop. Never raw isStreaming(), never the previous finished
  * reply, no streamEnd, no Grok stores.
+ * Collect mounted conversation-turn sections (data-turn user|assistant).
+ * Image-gen assistant turns have no data-message-id / author-role; one
+ * tick per data-turn-id (filmstrip thumbs are not extra ticks).
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -39,8 +42,16 @@ const LOCK_MS = 1000;
 const FAR_SCREENS = 2.5;
 const THRESHOLD = 0.4;
 const LIVE_LABEL = "正在输出…";
+const IMAGE_LABEL = "Image";
 const HOST_W = 40;
 const COL_CLASS = /thread-content-max-width|thread-content-width|max-w-\(--thread-content|max-w-\[var\(--thread-content|max-w-\[40rem\]|max-w-\[48rem\]/;
+
+const TURN_SEL = [
+    'section[data-testid^="conversation-turn-"][data-turn="user"]',
+    'section[data-testid^="conversation-turn-"][data-turn="assistant"]',
+    'article[data-testid^="conversation-turn-"][data-turn="user"]',
+    'article[data-testid^="conversation-turn-"][data-turn="assistant"]',
+].join(", ");
 
 const SKIP = [
     "#thread-bottom-container",
@@ -159,8 +170,13 @@ function contentColumnRect(thread: HTMLElement): DOMRect {
     const thr = thread.getBoundingClientRect();
     let wrap: HTMLElement | null = null;
     try {
-        const turn = thread.querySelector<HTMLElement>("[data-message-id]");
-        let n: HTMLElement | null = turn;
+        const turn = thread.querySelector<HTMLElement>(
+            "[data-message-id], [data-testid^='conversation-turn-']",
+        );
+        const inner = turn?.querySelector<HTMLElement>(
+            '[class*="thread-content-max-width"], [class*="max-w-(--thread-content"]',
+        );
+        let n: HTMLElement | null = inner ?? turn;
         while (n && n !== thread) {
             if (COL_CLASS.test(classNameOf(n))) wrap = n;
             n = n.parentElement;
@@ -205,15 +221,39 @@ function skipNode(el: Element): boolean {
 }
 
 function roleOf(el: HTMLElement): Role | null {
-    const direct = (el.getAttribute("data-message-author-role")
-        || el.closest("[data-message-author-role]")?.getAttribute("data-message-author-role")
-        || el.getAttribute("data-turn")
+    const turn = (el.getAttribute("data-turn")
+        || el.closest("[data-turn]")?.getAttribute("data-turn")
         || "").toLowerCase();
-    if (direct === "user" || direct === "assistant") return direct;
+    if (turn === "user" || turn === "assistant") return turn;
+    const roleAttr = (el.getAttribute("data-message-author-role")
+        || el.querySelector("[data-message-author-role]")?.getAttribute("data-message-author-role")
+        || el.closest("[data-message-author-role]")?.getAttribute("data-message-author-role")
+        || "").toLowerCase();
+    if (roleAttr === "user" || roleAttr === "assistant") return roleAttr;
+    try {
+        const heading = (el.querySelector("h4.sr-only, h5.sr-only, h6.sr-only")?.textContent || "").toLowerCase();
+        if (heading.includes("you said")) return "user";
+        if (heading.includes("chatgpt said") || heading.includes("assistant said")) return "assistant";
+    } catch { /* ignore */ }
     const aria = (el.getAttribute("aria-label") || "").toLowerCase();
     if (aria.includes("you said")) return "user";
     if (aria.includes("chatgpt said") || aria.includes("assistant said")) return "assistant";
     return null;
+}
+
+function turnIdOf(el: HTMLElement): string {
+    return el.getAttribute("data-turn-id")
+        || el.getAttribute("data-message-id")
+        || el.querySelector("[data-message-id]")?.getAttribute("data-message-id")
+        || "";
+}
+
+function isImageGen(el: HTMLElement): boolean {
+    try {
+        if (el.querySelector("[class*='imagegen-image']")) return true;
+        if (el.querySelector('img[alt="Generated image"], img[alt^="Generated image"]')) return true;
+    } catch { /* ignore */ }
+    return false;
 }
 
 function extractText(root: HTMLElement): string {
@@ -240,7 +280,7 @@ function extractText(root: HTMLElement): string {
 
 function fallbackLabel(el: HTMLElement, index: number): string {
     try {
-        if (el.querySelector("img, picture, video, canvas")) return "Image";
+        if (isImageGen(el) || el.querySelector("img, picture, video, canvas")) return IMAGE_LABEL;
         if (el.querySelector("a[download], [class*='attachment']")) return "File";
         if (el.querySelector("pre, code")) return "Code";
     } catch { /* ignore */ }
@@ -248,10 +288,12 @@ function fallbackLabel(el: HTMLElement, index: number): string {
 }
 
 function bodyText(el: HTMLElement, role: Role): string {
-    const root = role === "user"
-        ? el.querySelector<HTMLElement>(".whitespace-pre-wrap") ?? el
-        : el.querySelector<HTMLElement>(".markdown") ?? el;
-    return extractText(root);
+    if (role === "user") {
+        const root = el.querySelector<HTMLElement>(".whitespace-pre-wrap") ?? el;
+        return extractText(root);
+    }
+    const md = el.querySelector<HTMLElement>(".markdown");
+    return md ? extractText(md) : "";
 }
 
 function clipText(raw: string): string {
@@ -262,6 +304,7 @@ function itemText(el: HTMLElement, role: Role, index: number, live: boolean): st
     const raw = bodyText(el, role);
     if (raw) return clipText(raw);
     if (live) return LIVE_LABEL;
+    if (isImageGen(el)) return IMAGE_LABEL;
     return fallbackLabel(el, index);
 }
 
@@ -287,6 +330,33 @@ function nodeInProgress(el: HTMLElement): boolean {
     return false;
 }
 
+function collectNodes(root: HTMLElement): HTMLElement[] {
+    const seen = new Set<string>();
+    const out: HTMLElement[] = [];
+    try {
+        for (const node of root.querySelectorAll<HTMLElement>(TURN_SEL)) {
+            if (skipNode(node)) continue;
+            const id = turnIdOf(node);
+            const key = id || `anon:${out.length}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push(node);
+        }
+    } catch { /* ignore */ }
+    if (out.length) return out;
+    try {
+        for (const node of root.querySelectorAll<HTMLElement>("[data-message-id]")) {
+            if (skipNode(node)) continue;
+            const id = node.getAttribute("data-message-id") || "";
+            const key = id || `mid:${out.length}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push(node);
+        }
+    } catch { /* ignore */ }
+    return out;
+}
+
 function collect(): NavItem[] {
     const root = threadRoot();
     if (!root || root === document.body) return [];
@@ -294,9 +364,8 @@ function collect(): NavItem[] {
     const armed = showAsst && generationArmed();
     const out: NavItem[] = [];
     try {
-        for (const node of root.querySelectorAll<HTMLElement>("[data-message-id]")) {
-            if (skipNode(node)) continue;
-            const id = node.getAttribute("data-message-id") || "";
+        for (const node of collectNodes(root)) {
+            const id = turnIdOf(node);
             if (!id) continue;
             const role = roleOf(node);
             if (role !== "user" && role !== "assistant") continue;
