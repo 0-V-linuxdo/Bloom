@@ -10,8 +10,10 @@
  */
 
 import { definePluginSettings } from "../../api/Settings";
+import { onBloomEvent } from "../../api/Events";
 import { conversationToken } from "../../host/conversation";
 import { conversationTitle, subscribeHarvest, type HarvestEvent } from "../../host/harvest";
+import { applySchemeTokens, resolveScheme } from "../../host/theme";
 import { Devs } from "../../utils/constants";
 import { registerStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -91,6 +93,7 @@ let origPush: History["pushState"] | null = null;
 let origReplace: History["replaceState"] | null = null;
 let routeTimer: ReturnType<typeof setTimeout> | undefined;
 let unsubHarvest: (() => void) | null = null;
+let unsubScheme: (() => void) | null = null;
 
 function maxCount(): number {
     const n = Number(settings.store.maxRecent ?? 5);
@@ -506,11 +509,17 @@ function onVisibility() {
     if (document.visibilityState === "hidden") captureId(currentVisit());
 }
 
+function paintHostScheme(el: HTMLElement | null = host) {
+    if (!(el instanceof HTMLElement)) return;
+    applySchemeTokens(el, resolveScheme("auto"), true);
+}
+
 function ensureHost(): HTMLElement | null {
     if (!document.body) return null;
     let el = document.getElementById(HOST_ID);
     if (el instanceof HTMLElement) {
         host = el;
+        paintHostScheme(el);
         return el;
     }
     el = document.createElement("div");
@@ -524,6 +533,7 @@ function ensureHost(): HTMLElement | null {
     el.append(panel);
     document.body.append(el);
     host = el;
+    paintHostScheme(el);
     return el;
 }
 
@@ -631,6 +641,7 @@ export default definePlugin({
         document.addEventListener("click", onClickCapture, { capture: true, signal });
         document.addEventListener("click", onDocClick, { signal });
         document.addEventListener("visibilitychange", onVisibility, { signal });
+        unsubScheme = onBloomEvent("schemeChange", () => paintHostScheme());
     },
 
     stop() {
@@ -643,6 +654,8 @@ export default definePlugin({
         unhookHistory();
         unsubHarvest?.();
         unsubHarvest = null;
+        unsubScheme?.();
+        unsubScheme = null;
         open = false;
         held = false;
         ctrlHeld = false;

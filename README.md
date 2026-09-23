@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.73](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.73)** (`userscript/Bloom.update.user.js`, `@version [20260921] v1.4.73`).
+Current release: **[v1.4.74](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.74)** (`userscript/Bloom.update.user.js`, `@version [20260923] v1.4.74`).
 
 Plugins:
 
@@ -168,6 +168,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.74: **RecentTopics uses the settings card surface.** The switcher was `var(--main-surface-primary)` (page canvas, `#000` in dark) plus a black drop shadow, so it disappeared into the thread. Panel is now `--bg-primary` + `--border-xlight` + `--shadow-long`, same as the settings dialog. The active row uses `--interactive-bg-secondary-hover` so it stays a lift on `#353535` instead of a `#212121` hole. `#bloom-rt-host` copies host tokens via `applySchemeTokens`.
 
 v1.4.73: **BetterNavigator hover marks match Void++.** Drop You/GPT (`YOU`/`GPT` after uppercase). Role column is `.bloom-bn-emoji` ❓/🤖. Empty image-gen labels are `Image xN` when the turn has 2+ unique estuary `file_*` variants (hero + selected thumb share an id — not img count, not `#image-{turn-id}`). `n<2` stays `Image`. One tick per turn still. Do not key collect on estuary alone.
 
