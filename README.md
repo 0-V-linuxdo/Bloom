@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.93](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.93)** (`userscript/Bloom.update.user.js`, `@version [20260924] v1.4.93`).
+Current release: **[v1.4.94](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.94)** (`userscript/Bloom.update.user.js`, `@version [20260924] v1.4.94`).
 
 Plugins:
 
@@ -77,7 +77,7 @@ Off until you turn it on. While ChatGPT is generating, **Enter / Send appends th
 - Only the head is sent, and only after the current reply is finished. The next item waits until that new reply has started and then finished
 - Stop still stops generation and does **not** auto-send the queue
 - Alt+Enter, or a row’s **Send now**, still interrupts immediately
-- Chip `#bloom-pq-chip` mounts on `document.body` above the composer. Header is a toggle: muted count, then `Queued messages` (always plural). Each row is draggable: two-line preview, then drag / remove / edit / send. No model picker. Click the text to edit in a textarea (Save / Cancel). Hover a button and the hint sits in the header
+- Chip `#bloom-pq-chip` mounts on `document.body` above the composer. Header is a toggle: muted count, then `Queued messages` (always plural). Press a row and drag it; other rows slide aside. No drag handle and no model picker. Click the text to edit in a textarea (Save / Cancel). The rail is remove, edit, send now. Hover a button and the hint sits in the header
 - Text only; session-only (gone on reload)
 - Independent of ResponseNotification / InputHistory / AutoContinue
 
@@ -171,7 +171,9 @@ v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses 
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
 
-v1.4.93: **PromptQueue uses the Grok queued-messages tray skeleton.** Header toggle is the count plus `Queued messages` (no chevron, no model picker). Each row is `draggable`, text is `line-clamp-2`, and the right rail is drag, Remove from queue, Edit, Send now. Trash hover is the same neutral circle as the other icons. Editing is a textarea, not `contenteditable`.
+v1.4.94: **PromptQueue drags the row, not a handle.** Press the message and move it. The row follows the pointer and the others slide when the pointer crosses a midline. The rail is only remove, edit, and send now.
+
+v1.4.93: **PromptQueue uses the Grok queued-messages tray skeleton.** Header toggle is the count plus `Queued messages` (no chevron, no model picker). Each row clamps to two lines. Trash hover is the same neutral circle as the other icons. Editing is a textarea, not `contenteditable`. This build still put a grip on the rail.
 
 v1.4.92: **PromptQueue drag shows where the row will land.** The grip still starts the drag, but the ghost is the whole message. A line marks insert-before or insert-after. Gaps between rows accept the drop. The tray is no longer centered with `translateX(-50%)`, which was offsetting the ghost.
 

@@ -87,12 +87,14 @@ html.dark .bloom-pq-row {
 .bloom-pq-body {
     min-width: 0;
     flex: 1 1 auto;
+    cursor: grab;
 }
 
 .bloom-pq-text {
     color: inherit;
     font: inherit;
-    cursor: text;
+    cursor: grab;
+    user-select: none;
 }
 
 textarea.bloom-pq-editing {
@@ -109,6 +111,7 @@ textarea.bloom-pq-editing {
     line-height: 1.35;
     caret-color: currentColor;
     cursor: text;
+    user-select: text;
     field-sizing: content;
 }
 
@@ -174,36 +177,14 @@ html.dark button.bloom-pq-ico:focus-visible {
     display: none;
 }
 
-.bloom-pq-dragging {
+.bloom-pq-placeholder {
     opacity: 0.35;
 }
 
-.bloom-pq-row.bloom-pq-drop-before::before,
-.bloom-pq-row.bloom-pq-drop-after::after {
-    content: "";
-    position: absolute;
-    left: 8px;
-    right: 8px;
-    height: 2px;
-    border-radius: 1px;
-    background: currentColor;
+.bloom-pq-overlay {
+    z-index: 10001;
     pointer-events: none;
-}
-
-.bloom-pq-row.bloom-pq-drop-before::before {
-    top: -2px;
-}
-
-.bloom-pq-row.bloom-pq-drop-after::after {
-    bottom: -2px;
-}
-
-.bloom-pq-grip {
-    cursor: grab;
-}
-
-.bloom-pq-grip:active {
-    cursor: grabbing;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.38);
 }
 
 .bloom-pq-tip {

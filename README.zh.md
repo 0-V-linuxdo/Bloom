@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.93](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.93)**（`userscript/Bloom.update.user.js`，`@version [20260924] v1.4.93`）。
+当前版本：**[v1.4.94](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.94)**（`userscript/Bloom.update.user.js`，`@version [20260924] v1.4.94`）。
 
 插件：
 
@@ -70,7 +70,7 @@
 - 只发出队头，而且要等当前回复结束。后面的条目要等这次新回复真正开始、再结束，才接着发
 - Stop 只停止生成，**不会**自动发出队列
 - Alt+Enter 或某一行的 **立即发送** 仍立刻打断
-- `#bloom-pq-chip` 挂在 `document.body`、贴在输入栏上方。标题是可折叠按钮：灰色条数 + `Queued messages`（永远复数，没有箭头，没有模型按钮）。每一行可拖：正文最多两行，右轨是拖拽、移出队列、编辑、立即发送。点正文用 textarea 编辑（保存 / 取消）。按钮悬停时提示在标题右侧
+- `#bloom-pq-chip` 挂在 `document.body`、贴在输入栏上方。标题是可折叠按钮：灰色条数 + `Queued messages`（永远复数，没有箭头，没有模型按钮）。按住正文拖动，其它行会让开。没有拖拽把手。点正文用 textarea 编辑（保存 / 取消）。右轨是移出队列、编辑、立即发送。按钮悬停时提示在标题右侧
 - 只排队纯文本；刷新页面即丢（session-only）
 - 独立于 ResponseNotification / InputHistory / AutoContinue
 
@@ -168,7 +168,9 @@ v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**fav
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
 
-v1.4.93：**队列卡片对齐 Grok `queued-messages-tray`。** 标题是条数加 `Queued messages`，没有箭头，也没有模型选择。行是 `draggable`，正文 `line-clamp-2`，右轨依次是拖拽、移出队列、编辑、立即发送。删除悬停是和其他图标一样的圆底，不是红色。编辑用 textarea，不再是 `contenteditable`。
+v1.4.94：**按住整行拖动，不再有拖拽把手。** 行跟着指针走，指针越过另一行中线时那一行让开。右轨只剩移出队列、编辑、立即发送。
+
+v1.4.93：**队列卡片对齐 Grok `queued-messages-tray`。** 标题是条数加 `Queued messages`，没有箭头，也没有模型选择。正文最多两行。删除悬停是和其他图标一样的圆底，不是红色。编辑用 textarea，不再是 `contenteditable`。这一版右轨开头仍是握把。
 
 v1.4.92：**队列拖拽能看见落点。** 仍从握把起拖，幽灵图是整行。指针在行中线以上插到前面，以下插到后面。行与行之间的缝也能松手。卡片不再用 `translateX(-50%)` 居中，避免幽灵图错位。
 
