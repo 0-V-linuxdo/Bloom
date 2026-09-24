@@ -70,6 +70,7 @@ let unsub: (() => void) | null = null;
 let drainTimer: ReturnType<typeof setTimeout> | undefined;
 let bypassTimer: ReturnType<typeof setTimeout> | undefined;
 let chip: HTMLElement | null = null;
+let editingKey: string | null = null;
 
 function contextKey(): string {
     return contextKeyFromUrl(conversationToken());
@@ -294,23 +295,106 @@ function finishDrain(key: string, text: string) {
     }
 }
 
-function placeChip(el: HTMLElement) {
+function composerFrame(): DOMRect | null {
     const root = getComposerRoot();
-    if (!root || root === document.body) {
+    if (!root || root === document.body) return null;
+    const pill = root.querySelector<HTMLElement>('[class*="corner-superellipse"]');
+    const box = (pill ?? root).getBoundingClientRect();
+    if (box.width < 160 || box.height < 16) return null;
+    return box;
+}
+
+function placeChip(el: HTMLElement) {
+    const box = composerFrame();
+    if (!box) {
         el.style.left = "50%";
+        el.style.width = "min(48rem, calc(100vw - 1rem))";
         el.style.bottom = "6.5rem";
         return;
     }
-    const r = root.getBoundingClientRect();
-    el.style.left = `${Math.round(r.left + r.width / 2)}px`;
-    el.style.bottom = `${Math.round(Math.max(12, window.innerHeight - r.top + 8))}px`;
-    const width = Math.min(32 * 16, Math.max(160, r.width - 24));
-    el.style.maxWidth = `${Math.round(width)}px`;
+    const width = Math.min(box.width, window.innerWidth - 16);
+    el.style.left = `${Math.round(box.left + box.width / 2)}px`;
+    el.style.width = `${Math.round(width)}px`;
+    el.style.bottom = `${Math.round(Math.max(12, window.innerHeight - box.top + 8))}px`;
 }
 
 function dropChip() {
     chip?.remove();
     chip = null;
+    editingKey = null;
+}
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function svgIcon(): SVGSVGElement {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 16 16");
+    svg.setAttribute("aria-hidden", "true");
+    return svg;
+}
+
+function strokeIcon(d: string): SVGSVGElement {
+    const svg = svgIcon();
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", d);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "currentColor");
+    path.setAttribute("stroke-width", "1.35");
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
+    svg.append(path);
+    return svg;
+}
+
+function gripIcon(): SVGSVGElement {
+    const svg = svgIcon();
+    const dots: Array<[number, number]> = [[5.5, 4], [10.5, 4], [5.5, 8], [10.5, 8], [5.5, 12], [10.5, 12]];
+    for (const [cx, cy] of dots) {
+        const dot = document.createElementNS(SVG_NS, "circle");
+        dot.setAttribute("cx", String(cx));
+        dot.setAttribute("cy", String(cy));
+        dot.setAttribute("r", "1.05");
+        dot.setAttribute("fill", "currentColor");
+        svg.append(dot);
+    }
+    return svg;
+}
+
+function iconButton(label: string, graphic: SVGSVGElement, onClick: () => void): HTMLButtonElement {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "bloom-pq-ico";
+    btn.setAttribute("aria-label", label);
+    btn.append(graphic);
+    btn.addEventListener("mousedown", ev => ev.preventDefault());
+    btn.addEventListener("click", ev => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        onClick();
+    });
+    return btn;
+}
+
+function liveEditValue(): string | null {
+    const input = chip?.querySelector("input.bloom-pq-edit");
+    return input instanceof HTMLInputElement ? input.value : null;
+}
+
+function endEdit(key: string, value: string | null) {
+    if (editingKey !== key) return;
+    editingKey = null;
+    if (value === null) {
+        paintChip();
+        return;
+    }
+    const next = normalize(value);
+    if (!next) {
+        dropPending(key);
+        return;
+    }
+    const slot = pending.get(key);
+    if (slot) slot.text = next;
+    paintChip();
 }
 
 function paintChip() {
@@ -332,38 +416,78 @@ function paintChip() {
         chip = el;
     }
     el.replaceChildren();
-    const kicker = document.createElement("span");
-    kicker.className = "bloom-pq-kicker";
-    kicker.textContent = "Next";
-    const text = document.createElement("span");
-    text.className = "bloom-pq-text";
-    const clip = slot.text.length > CLIP ? `${slot.text.slice(0, CLIP)}…` : slot.text;
-    text.textContent = clip;
-    text.title = slot.text;
+    const head = document.createElement("div");
+    head.className = "bloom-pq-head";
+    head.textContent = "1 Queued messages";
+    const row = document.createElement("div");
+    row.className = "bloom-pq-row";
+    const editing = editingKey === key;
+    let focusEdit: HTMLInputElement | null = null;
+    if (editing) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "bloom-pq-edit";
+        input.value = slot.text;
+        input.setAttribute("aria-label", "Edit queued prompt");
+        input.addEventListener("keydown", ev => {
+            ev.stopPropagation();
+            if (ev.key === "Enter") {
+                ev.preventDefault();
+                endEdit(key, input.value);
+            } else if (ev.key === "Escape") {
+                ev.preventDefault();
+                endEdit(key, null);
+            }
+        });
+        input.addEventListener("blur", () => endEdit(key, input.value));
+        row.append(input);
+        focusEdit = input;
+    } else {
+        const text = document.createElement("span");
+        text.className = "bloom-pq-text";
+        const clip = slot.text.length > CLIP ? `${slot.text.slice(0, CLIP)}…` : slot.text;
+        text.textContent = clip;
+        text.title = slot.text;
+        row.append(text);
+    }
     const actions = document.createElement("div");
     actions.className = "bloom-pq-actions";
-    const send = document.createElement("button");
-    send.type = "button";
-    send.className = "bloom-pq-btn bloom-pq-send";
-    send.textContent = "Send now";
-    send.addEventListener("click", ev => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        sendNow();
-    });
-    const x = document.createElement("button");
-    x.type = "button";
-    x.className = "bloom-pq-btn bloom-pq-x";
-    x.setAttribute("aria-label", "Dismiss queued prompt");
-    x.textContent = "×";
-    x.addEventListener("click", ev => {
-        ev.preventDefault();
-        ev.stopPropagation();
+    const grip = document.createElement("span");
+    grip.className = "bloom-pq-ico bloom-pq-grip";
+    grip.title = "Only one prompt can wait";
+    grip.append(gripIcon());
+    const dismiss = iconButton("Dismiss queued prompt", strokeIcon("M3.2 4.2h9.6M6.2 4.2V3.2h3.6v1M4.6 4.2l.6 8.4h5.6l.6-8.4"), () => {
+        editingKey = null;
         dropPending(key);
     });
-    actions.append(send, x);
-    el.append(kicker, text, actions);
+    const edit = iconButton("Edit queued prompt", strokeIcon("M9.4 3.2l3.4 3.4M3.2 12.8l.7-3.2L10.6 3l3.4 3.4-6.7 6.6z"), () => {
+        if (editingKey === key) {
+            endEdit(key, liveEditValue());
+            return;
+        }
+        if (!pending.has(key)) return;
+        editingKey = key;
+        paintChip();
+    });
+    const send = iconButton("Send now", strokeIcon("M8 12.4V3.8M4.6 7.1 8 3.7l3.4 3.4"), () => {
+        const live = liveEditValue();
+        if (live !== null) {
+            const next = normalize(live);
+            editingKey = null;
+            if (!next) {
+                dropPending(key);
+                return;
+            }
+            const slotNow = pending.get(key);
+            if (slotNow) slotNow.text = next;
+        }
+        sendNow();
+    });
+    actions.append(grip, dismiss, edit, send);
+    row.append(actions);
+    el.append(head, row);
     placeChip(el);
+    if (focusEdit) focusEdit.focus();
 }
 
 function watchLeak() {

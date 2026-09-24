@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.84](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.84)**（`userscript/Bloom.update.user.js`，`@version [20260924] v1.4.84`）。
+当前版本：**[v1.4.85](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.85)**（`userscript/Bloom.update.user.js`，`@version [20260924] v1.4.85`）。
 
 插件：
 
@@ -165,6 +165,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.85：**PromptQueue 改成 Grok 骨架的队列卡。** 跟输入条同宽，标题是 `1 Queued messages`，下面一行预览。图标是拖拽（只有一条，不排序）、删除、行内编辑、上箭头立即发送。不再是胶囊。
 
 v1.4.84：**消息导航保留文件芯片下面的短文字。** `zh-cn` 这种药丸就是标签，不是 File，也不是文件名。语言码不再当成 sources 噪声。外层 attachment 不会把这颗药丸吞进芯片。芯片下没有剩余文字才回退 File。
 
