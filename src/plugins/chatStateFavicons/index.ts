@@ -22,6 +22,12 @@
  * in hidden tabs, which is when ResponseNotification usually fires.
  * rAF only coalesces composer/draft noise while the tab is visible.
  * First-message `/` → `/c/{id}` is host isDraftMigrate, not a chat switch.
+ * Leaving a generating chat (New chat `/`, or any other non-migrate
+ * context change) is wait, not done. Page-global isStreaming() can stay
+ * true for a frame after the URL flips (Stop / aria-busy still mounted);
+ * that leftover must not arm a new stream on the page we landed on.
+ * sameStreamContext is strict (empty ≠ same). The lock is not held across
+ * a real switch — only across an in-flight draft migrate.
  *
  * Draft emptiness uses host isUserDraftEmpty (leftover App/@plugin chips
  * inside #prompt-textarea do not count). primedReady resets on streaming
@@ -85,6 +91,8 @@ let streamContext: string | null = null;
 let lockedToken = "";
 let lastContext = "";
 let primedReady = true;
+/** After a real switch, ignore isStreaming() until it has been false once. */
+let ignoreStreaming = false;
 let inputCtrl: AbortController | null = null;
 let raf = 0;
 let unsubEdge: (() => void) | null = null;
@@ -164,9 +172,14 @@ function getContextKey(): string {
         lockedToken = "";
         return key;
     }
-    if (lockedToken && key && lockedToken !== key && isDraftMigrate(lockedToken, key)) {
-        adoptContext(lockedToken, key);
-        lockedToken = key;
+    if (lockedToken && key && lockedToken !== key) {
+        if (isDraftMigrate(lockedToken, key)) {
+            adoptContext(lockedToken, key);
+            lockedToken = key;
+        } else {
+            lockedToken = "";
+            return key;
+        }
     } else if (!lockedToken && key) {
         lockedToken = key;
     }
@@ -174,7 +187,7 @@ function getContextKey(): string {
 }
 
 function sameStreamContext(next: string): boolean {
-    if (!streamContext || !next) return true;
+    if (!streamContext || !next) return false;
     if (streamContext === next) return true;
     return isDraftMigrate(streamContext, next);
 }
@@ -190,6 +203,7 @@ function onConversationSwitch(id: string) {
     lastContext = id;
     resetStreamFlags();
     primedReady = false;
+    ignoreStreaming = true;
     setKind("wait");
 }
 
@@ -207,8 +221,17 @@ function evaluateState() {
     if (lastContext && live && isDraftMigrate(lastContext, live)) adoptContext(lastContext, live);
     if (live) lastContext = live;
 
-    const contextKey = getContextKey();
     const streaming = isStreaming();
+    // Leftover Stop / aria-busy from the chat we just left is not this page's reply.
+    if (ignoreStreaming) {
+        if (streaming) {
+            setKind("wait");
+            return;
+        }
+        ignoreStreaming = false;
+    }
+
+    const contextKey = getContextKey();
     const empty = isUserDraftEmpty();
 
     if (hasErrorToast() && !streaming) {
@@ -230,11 +253,11 @@ function evaluateState() {
     }
 
     if (wasStreaming) {
-        const sameContext = sameStreamContext(contextKey);
+        const sameContext = sameStreamContext(live);
         wasStreaming = false;
         if (sameContext) {
             justFinished = true;
-            streamContext = contextKey;
+            streamContext = live || contextKey;
             setKind("done");
             return;
         }
@@ -243,7 +266,7 @@ function evaluateState() {
     }
 
     if (justFinished) {
-        if (streamContext && contextKey && !sameStreamContext(contextKey)) {
+        if (streamContext && live && !sameStreamContext(live)) {
             justFinished = false;
             streamContext = null;
         } else if (empty) {
@@ -441,6 +464,7 @@ export default definePlugin({
         resetStreamFlags();
         lastContext = "";
         primedReady = true;
+        ignoreStreaming = false;
         kind = "wait";
         restoreOfficialFavicon(ICON_ID, officialHref);
     },
