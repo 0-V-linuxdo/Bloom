@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.99](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.99)**（`userscript/Bloom.update.user.js`，`@version [20260924] v1.4.99`）。
+当前版本：**[v1.4.100](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.100)**（`userscript/Bloom.update.user.js`，`@version [20260924] v1.4.100`）。
 
 插件：
 
@@ -167,6 +167,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.100：**没挂上的轮也留在消息导航里。** 懒加载 / 虚拟化的气泡仍列出。只排除工具调用和思考（并进同一条 assistant）。
 
 v1.4.99：**消息导航一行对应一个可见气泡。** mapping 里的工具调用、思考、隐藏系统行留在同一条 assistant 刻度里。官方 Prompt Navigator 只补标题，不把「跳到第 N 条」插进目录。
 

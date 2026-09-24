@@ -39,6 +39,8 @@ RN 订 `watchStreamingEdge(onFall)`，host 400ms `setInterval` 在后台仍跑�
 
 **1.4.79：** `currentConversationId()` 只认 pathname `/c/{id}`。`/` 和 `/g/` 上的残留 `data-conversation-id` 不是当前对话。`isDraftMigrate` 只在目标 id 等于这场 harvest id（id 还没到时，仅草稿页的空 `post-start` / `pendingDraft`，第一个 `/c/{id}` 认领）时成立；点另一条 Recents 是真切会话。CSF 在宿主 `onFall` 之前保持 rotate，不要闪官方 wait。CLS / BN 的页级 Stop 还要看 `streamingSuppressed()`。RN 用 `currentConversationId() || inFlightConversationId()`。不要第二份 history wrap。
 
+**1.4.100：** BetterNavigator / harvest 主链列出整条对话，包括 `#thread` 还没挂上的轮。只排除工具和思考：`recipient` 不是 `all`、`author.role=tool`、`content_type` 为 thought/reasoning/code/execution_output/`tether_`/`computer_`、以及 `channel` 为 commentary/thought/reasoning/analysis 且没有 `end_turn`。不要用「页面上出现过」当条件，不要要求 `channel===final`。隐藏系统行仍不是刻度；连续 assistant 收成一条。不要 `/conversations` 列表轮询，不要 Grok stores，不要 `html`/`body` MO。
+
 **1.4.99：** BetterNavigator / harvest 主链只留页面上真正可见的 user/assistant 气泡。mapping 里 `recipient` 不是 `all`、`content_type` 为 thought/reasoning/code/execution_output、`channel` 不是 final（且没有 `end_turn`）、以及 `is_visually_hidden_from_conversation` 的节点不算独立刻度；连续 assistant 收成一条。隐藏的 user 行仍隔开两轮回复。官方 `#prompt-nav-container` 只补已有行的标题，不把无 id 的「Go to message N」插进目录。不要 `/conversations` 列表轮询，不要 Grok stores，不要 `html`/`body` MO。
 
 **1.4.98：** BetterNavigator 打开长对话立刻列出主链，不跟 `#thread` 懒加载窗口走。宿主认窗口化 `GET /backend-api/conversations/{id}?num_turns=`（不是 Recents `GET /conversations?offset=`）。Init 就 pin `fetch` wrap。`document-idle` 错过首包时，宿主一次回填单数 `GET /conversation/{id}`（失败再试不带 `num_turns` 的复数详情），不改页面自己的 `num_turns`，不整段滚线程。官方 `#prompt-nav-container` 只读补用户行，不往里插节点。不要 `/conversations` 列表轮询，不要 Grok stores，不要 `html`/`body` MO。

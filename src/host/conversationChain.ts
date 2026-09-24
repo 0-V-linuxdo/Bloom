@@ -6,9 +6,9 @@
  * Pure conversation URL + mapping/window chain helpers. No fetch wrap.
  * Recents list GET is not a detail GET. Windowed
  * `/conversations/{id}?num_turns=` is a detail GET.
- * The chain is visible bubbles only: one user or assistant tick per
- * ChatGPT section. Tools, thoughts, and hidden system rows stay inside
- * the assistant turn.
+ * The chain is the full active branch, including turns ChatGPT has
+ * not mounted yet. Skip tool calls and thoughts only — they stay
+ * inside the assistant tick. Hidden system rows are not turns.
  */
 
 export type ChainTurn = {
@@ -106,31 +106,36 @@ function messageRole(msg: Record<string, unknown>): "user" | "assistant" | "" {
     return role === "user" || role === "assistant" ? role : "";
 }
 
-/**
- * One outline row per ChatGPT bubble. Tool calls, thoughts, and hidden
- * system rows stay inside the assistant turn — they are not their own tick.
- */
 function isUserAuthor(msg: Record<string, unknown>): boolean {
     const author = asRecord(msg.author);
     const role = author?.role ?? msg.role;
     return role === "user";
 }
 
-function isVisibleConversationMessage(msg: Record<string, unknown>): boolean {
-    const role = messageRole(msg);
-    if (!role) return false;
+/** Tool call or thought — not its own outline row. Unmounted user/assistant turns stay. */
+function isToolOrThought(msg: Record<string, unknown>): boolean {
     const recipient = typeof msg.recipient === "string" ? msg.recipient.toLowerCase() : "";
-    if (recipient && recipient !== "all") return false;
+    if (recipient && recipient !== "all") return true;
+    const author = asRecord(msg.author);
+    const role = author?.role ?? msg.role;
+    if (role === "tool") return true;
     const content = asRecord(msg.content);
     const kind = (typeof content?.content_type === "string" ? content.content_type : "").toLowerCase();
-    if (/thought|reasoning|execution_output|system_error|tether_|computer_|sonic_/.test(kind)) return false;
-    if (kind === "code") return false;
+    if (/thought|reasoning/.test(kind)) return true;
+    if (kind === "code" || kind === "execution_output") return true;
+    if (/^(?:tether_|computer_)/.test(kind)) return true;
     const channel = typeof msg.channel === "string" ? msg.channel.toLowerCase() : "";
-    if (channel && channel !== "final" && msg.end_turn !== true) return false;
-    return true;
+    if (/^(?:commentary|thought|thoughts|reasoning|analysis)$/.test(channel) && msg.end_turn !== true) {
+        return true;
+    }
+    return false;
 }
 
-function collapseVisibleTurns(turns: ChainTurn[]): ChainTurn[] {
+function isOutlineTurn(msg: Record<string, unknown>): boolean {
+    return !!messageRole(msg) && !isToolOrThought(msg);
+}
+
+function collapseOutlineTurns(turns: ChainTurn[]): ChainTurn[] {
     const out: ChainTurn[] = [];
     for (const turn of turns) {
         const prev = out[out.length - 1];
@@ -187,7 +192,7 @@ function pathFromLeaf(nodes: Record<string, unknown>, leaf: string): ChainTurn[]
         const msg = rec.message && typeof rec.message === "object" && !Array.isArray(rec.message)
             ? rec.message as Record<string, unknown>
             : null;
-        if (msg && isVisibleConversationMessage(msg)) {
+        if (msg && isOutlineTurn(msg)) {
             const role = messageRole(msg);
             const mid = typeof msg.id === "string" && msg.id ? msg.id : id;
             if (role) {
@@ -203,7 +208,7 @@ function pathFromLeaf(nodes: Record<string, unknown>, leaf: string): ChainTurn[]
         id = typeof rec.parent === "string" ? rec.parent : null;
     }
     out.reverse();
-    return collapseVisibleTurns(out).filter(t => t.id);
+    return collapseOutlineTurns(out).filter(t => t.id);
 }
 
 function capTail(turns: ChainTurn[]): ChainTurn[] {
@@ -256,7 +261,7 @@ function chainFromTurns(turns: unknown[]): ChainTurn[] {
         const rec = asRecord(item);
         if (!rec) continue;
         const msg = asRecord(rec.message) ?? rec;
-        if (!isVisibleConversationMessage(msg)) continue;
+        if (!isOutlineTurn(msg)) continue;
         const role = messageRole(msg) || messageRole(rec);
         if (!role) continue;
         const mid = (typeof msg.id === "string" && msg.id)
@@ -270,7 +275,7 @@ function chainFromTurns(turns: unknown[]): ChainTurn[] {
         if (alias) turn.alias = alias;
         out.push(turn);
     }
-    return collapseVisibleTurns(out);
+    return collapseOutlineTurns(out);
 }
 
 function chainFromMapping(root: Record<string, unknown>): ChainTurn[] {

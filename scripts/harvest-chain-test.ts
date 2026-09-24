@@ -231,4 +231,54 @@ const windowNoise = chainFromPayload({
 });
 assert.deepEqual(windowNoise.map(t => t.id), ["mu1", "ma1"]);
 
+const longMap: Record<string, unknown> = {
+    root: { id: "root", parent: null, children: ["u0"], message: null },
+};
+let prev = "root";
+const expectLong: string[] = [];
+for (let i = 0; i < 12; i++) {
+    const uid = `u${i}`;
+    const aid = `a${i}`;
+    const next = i === 11 ? [] : [`u${i + 1}`];
+    longMap[uid] = {
+        id: uid,
+        parent: prev,
+        children: [aid],
+        message: { id: `mu${i}`, author: { role: "user" }, content: { parts: [`user ${i}`] } },
+    };
+    longMap[aid] = {
+        id: aid,
+        parent: uid,
+        children: next,
+        message: { id: `ma${i}`, author: { role: "assistant" }, content: { parts: [`answer ${i}`] } },
+    };
+    expectLong.push(`mu${i}`, `ma${i}`);
+    prev = aid;
+}
+const long = chainFromPayload({ conversation_id: ID, current_node: "a11", mapping: longMap });
+assert.deepEqual(long.map(t => t.id), expectLong);
+assert.equal(long[0].text, "user 0");
+assert.equal(long[1].text, "answer 0");
+
+const noChannel = chainFromPayload({
+    conversation_id: ID,
+    current_node: "a1",
+    mapping: {
+        root: { id: "root", parent: null, children: ["u1"], message: null },
+        u1: {
+            id: "u1",
+            parent: "root",
+            children: ["a1"],
+            message: { id: "mu1", author: { role: "user" }, content: { parts: ["old user"] } },
+        },
+        a1: {
+            id: "a1",
+            parent: "u1",
+            children: [],
+            message: { id: "ma1", author: { role: "assistant" }, content: { parts: ["old answer"] } },
+        },
+    },
+});
+assert.deepEqual(noChannel.map(t => t.id), ["mu1", "ma1"]);
+
 console.log("harvest-chain-test: ok");

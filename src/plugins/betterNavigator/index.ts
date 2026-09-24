@@ -30,12 +30,13 @@
  * Collect the active branch, not only the turns ChatGPT has mounted.
  * Host harvest of GET `/conversation/{id}` and windowed
  * `/conversations/{id}?num_turns=` (not the Recents list) supplies
- * visible user|assistant bubble ids (tools / thoughts / hidden
- * system rows stay inside the assistant tick). A one-shot host
- * backfill covers the first GET missed at document-idle. Native
- * `#prompt-nav-container` is read-only labels only — never splice
- * chrome rows. Mounted nodes fill the label and the live dash.
- * A virtualized turn stays in the outline with no element.
+ * user|assistant ids for the whole branch, mounted or not. Tools
+ * and thoughts stay inside the assistant tick — they are not rows.
+ * A one-shot host backfill covers the first GET missed at
+ * document-idle. Native `#prompt-nav-container` is read-only labels
+ * only — never splice chrome rows. Mounted nodes fill the label
+ * and the live dash. A virtualized turn stays in the outline with
+ * no element.
  * Jump nudges the thread until that id mounts; opening the chat does
  * not scroll it.
  * Image-gen assistant turns have no data-message-id / author-role; one
