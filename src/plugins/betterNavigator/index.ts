@@ -36,9 +36,11 @@
  * and thoughts stay inside the assistant tick — they are not rows.
  * Host pages older mapping windows until the branch is whole.
  * Native `#prompt-nav-container` rows with a real message id fill
- * missing user turns (no "Go to message N" chrome). Mounted nodes
- * fill the label and the live dash. A virtualized turn stays in
- * the outline with no element.
+ * missing user turns (no "Go to message N" chrome). Same-text user
+ * rows are not inserted twice — consecutive user ticks without a
+ * reply were duplicate ids, not two prompts. Mounted nodes fill
+ * the label and the live dash. A virtualized turn stays in the
+ * outline with no element.
  * Jump nudges the thread until that id mounts; opening the chat does
  * not scroll it.
  * Image-gen assistant turns have no data-message-id / author-role; one
@@ -175,7 +177,7 @@ const TYPING = [
 ].join(", ");
 
 type Role = "user" | "assistant";
-type NavItem = { id: string; el: HTMLElement | null; role: Role; text: string; live?: boolean };
+type NavItem = { id: string; el: HTMLElement | null; role: Role; text: string; live?: boolean; alias?: string };
 
 const settings = definePluginSettings({
     showAssistant: {
@@ -866,20 +868,51 @@ function collectMounted(root: HTMLElement): NavItem[] {
     return out;
 }
 
+function outlineKey(text: string): string {
+    return normSpace(text).replace(/…+$/g, "").trim().toLowerCase();
+}
+
+function indexIds(map: Map<string, NavItem>, item: NavItem) {
+    map.set(item.id, item);
+    if (item.alias) map.set(item.alias, item);
+    if (!item.el) return;
+    for (const id of nodeIds(item.el)) map.set(id, item);
+}
+
 function indexMounted(items: NavItem[]): Map<string, NavItem> {
     const map = new Map<string, NavItem>();
-    for (const item of items) {
-        map.set(item.id, item);
-        if (!item.el) continue;
-        for (const id of nodeIds(item.el)) map.set(id, item);
-    }
+    for (const item of items) indexIds(map, item);
     return map;
+}
+
+function absorbRow(into: NavItem, from: NavItem) {
+    if (!into.el && from.el?.isConnected) into.el = from.el;
+    if (from.text && (!into.text || isWeakLabel(into.text))) {
+        into.text = from.text;
+        labels.set(into.id, from.text);
+    }
+    if (from.id && from.id !== into.id && !into.alias) into.alias = from.id;
+}
+
+function findSameText(items: NavItem[], role: Role, text: string, prefer: number): NavItem | undefined {
+    const key = outlineKey(text);
+    if (!key) return undefined;
+    const hits = items.filter(it => it.role === role && outlineKey(it.text) === key);
+    if (!hits.length) return undefined;
+    const empty = hits.find(it => !it.el);
+    if (empty) return empty;
+    if (prefer < 0) return hits[0];
+    return hits.reduce((best, it) => {
+        const d = Math.abs(items.indexOf(it) - prefer);
+        const bd = Math.abs(items.indexOf(best) - prefer);
+        return d < bd ? it : best;
+    });
 }
 
 function chainItem(turn: ChainTurn, dom: NavItem | undefined): NavItem {
     if (dom) {
         if (dom.text && dom.text !== LIVE_LABEL) labels.set(turn.id, dom.text);
-        return { ...dom, id: turn.id };
+        return { ...dom, id: turn.id, alias: turn.alias || dom.alias };
     }
     const cached = labels.get(turn.id) || (turn.alias ? labels.get(turn.alias) : "") || "";
     return {
@@ -887,7 +920,21 @@ function chainItem(turn: ChainTurn, dom: NavItem | undefined): NavItem {
         el: null,
         role: turn.role,
         text: cached || turn.text || "Message",
+        ...(turn.alias ? { alias: turn.alias } : {}),
     };
+}
+
+function collapseAdjacentUsers(items: NavItem[]): NavItem[] {
+    const out: NavItem[] = [];
+    for (const item of items) {
+        const prev = out[out.length - 1];
+        if (prev && prev.role === "user" && item.role === "user" && outlineKey(prev.text) && outlineKey(prev.text) === outlineKey(item.text)) {
+            absorbRow(prev, item);
+            continue;
+        }
+        out.push(item);
+    }
+    return out;
 }
 
 /** Chain order, plus mounted turns the mapping has not seen yet (the live tail). */
@@ -898,7 +945,14 @@ function mergeOutline(chain: readonly ChainTurn[], mounted: NavItem[]): NavItem[
     const out: NavItem[] = [];
     for (const turn of chain) {
         if (turn.role === "assistant" && !showAsst) continue;
-        const dom = byId.get(turn.id) || (turn.alias ? byId.get(turn.alias) : undefined);
+        const dom = byId.get(turn.id)
+            || (turn.alias ? byId.get(turn.alias) : undefined)
+            || mounted.find(m => (
+                m.role === turn.role
+                && !!m.el
+                && !used.has(m.el)
+                && outlineKey(m.text) === outlineKey(turn.text || "")
+            ));
         const item = chainItem(turn, dom);
         if (item.el) used.add(item.el);
         out.push(item);
@@ -926,6 +980,12 @@ function mergeOutline(chain: readonly ChainTurn[], mounted: NavItem[]): NavItem[
                     break;
                 }
             }
+        }
+        const twin = findSameText(out, item.role, item.text, at);
+        if (twin) {
+            absorbRow(twin, item);
+            used.add(item.el);
+            continue;
         }
         out.splice(at, 0, item);
         used.add(item.el);
@@ -1026,23 +1086,9 @@ function mergeNative(items: NavItem[], native: NavItem[]): NavItem[] {
     if (!rows.length) return items;
     const out = items.slice();
     const index = new Map<string, NavItem>();
-    for (const item of out) {
-        index.set(item.id, item);
-        if (item.el) {
-            for (const id of nodeIds(item.el)) index.set(id, item);
-        }
-    }
+    for (const item of out) indexIds(index, item);
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
-        const hit = index.get(row.id);
-        if (hit) {
-            if (row.text && (!hit.text || isWeakLabel(hit.text))) {
-                hit.text = row.text;
-                labels.set(hit.id, row.text);
-            }
-            if (!hit.el && row.el?.isConnected) hit.el = row.el;
-            continue;
-        }
         let at = out.length;
         for (let j = i + 1; j < rows.length; j++) {
             const later = index.get(rows[j].id);
@@ -1053,6 +1099,12 @@ function mergeNative(items: NavItem[], native: NavItem[]): NavItem[] {
                 break;
             }
         }
+        const hit = index.get(row.id) || findSameText(out, "user", row.text, at);
+        if (hit) {
+            absorbRow(hit, row);
+            indexIds(index, hit);
+            continue;
+        }
         const added: NavItem = {
             id: row.id,
             el: row.el,
@@ -1060,7 +1112,7 @@ function mergeNative(items: NavItem[], native: NavItem[]): NavItem[] {
             text: row.text || "Message",
         };
         out.splice(at, 0, added);
-        index.set(added.id, added);
+        indexIds(index, added);
         labels.set(added.id, added.text);
     }
     return out;
@@ -1074,7 +1126,7 @@ function collect(): NavItem[] {
     if (cid) ensureConversationChain(cid);
     const chain = cid ? conversationChain(cid) : [];
     const merged = chain.length ? mergeOutline(chain, mounted) : mounted;
-    const out = mergeNative(merged, collectNative());
+    const out = collapseAdjacentUsers(mergeNative(merged, collectNative()));
     releaseArmIfSettled(out);
     return out;
 }
