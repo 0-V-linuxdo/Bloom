@@ -13,9 +13,13 @@
  * viewport edge. Hover menu is Void-sized (min 18rem / 70vw).
  * Tick glyphs follow Notion-style-AI-Navigator (1.25/1.75rem × 2px,
  * 1rem gap, 0.125rem radius, current glow) — not Void mini-pills.
- * Live dash: the in-progress assistant tick only (aria-busy /
- * .result-streaming / empty markdown+thinking) AND harvest generate-arm
- * or a visible Stop. Never raw isStreaming(), never the previous finished
+ * Live dash: the in-progress assistant tick only. Turn-level
+ * aria-busy / .result-streaming (not a nested citation or filmstrip) or
+ * the last assistant still thinking with an empty markdown, AND harvest
+ * generate-arm or a visible Stop. lookSettled (Void++ c91c194) forces
+ * the dash off once Stop is gone and the turn has copy/good/bad, markdown
+ * text, or a generated image — leftover <details> / descendant aria-busy
+ * do not keep it. Never raw isStreaming(), never the previous finished
  * reply, no streamEnd, no Grok stores.
  * Collect mounted conversation-turn sections (data-turn user|assistant).
  * Image-gen assistant turns have no data-message-id / author-role; one
@@ -48,6 +52,18 @@ const IMAGE_LABEL = "Image";
 const USER_MARK = "❓";
 const ASST_MARK = "🤖";
 const FILE_ID_RE = /file_[0-9a-f]+/gi;
+/** Footer controls that appear only after ChatGPT finishes the turn. Not code-block Copy. */
+const DONE_ACTION_SEL = [
+    'button[data-testid="copy-turn-action-button"]',
+    'button[data-testid="good-response-turn-action-button"]',
+    'button[data-testid="bad-response-turn-action-button"]',
+    'button[aria-label="Good response"]',
+    'button[aria-label="Bad response"]',
+    'button[aria-label="好评"]',
+    'button[aria-label="差评"]',
+].join(", ");
+/** Keep a fresh generate-arm across the gap before the new bubble mounts. */
+const ARM_HOLD_MS = 2000;
 const HOST_W = 40;
 const COL_CLASS = /thread-content-max-width|thread-content-width|max-w-\(--thread-content|max-w-\[var\(--thread-content|max-w-\[40rem\]|max-w-\[48rem\]/;
 
@@ -123,6 +139,7 @@ const settings = definePluginSettings({
 const labels = new Map<string, string>();
 const imageCounts = new Map<string, number>();
 const armedIds = new Set<string>();
+let armedAt = 0;
 
 let started = false;
 let pendingNew = false;
@@ -375,21 +392,89 @@ function generationArmed(): boolean {
     if (pendingNew) return true;
     const id = currentConversationId();
     if (id && armedIds.has(id)) return true;
-    if (getStopButton() || getProStopButton()) return true;
+    if (stopVisible()) return true;
     return false;
 }
 
-/** This assistant node itself looks in-progress. Never pick a victim by "last". */
-function nodeInProgress(el: HTMLElement): boolean {
+function stopVisible(): boolean {
+    return !!(getStopButton() || getProStopButton());
+}
+
+function noteArm() {
+    armedAt = Date.now();
+}
+
+function disarm(conversationId?: string) {
+    pendingNew = false;
+    if (conversationId) armedIds.delete(conversationId);
+    const id = currentConversationId();
+    if (id) armedIds.delete(id);
+}
+
+/** This turn's own streaming marks. Not a nested citation, filmstrip, or source chip. */
+function turnBusy(el: HTMLElement): boolean {
+    if (el.getAttribute("aria-busy") === "true") return true;
+    if (el.classList.contains("result-streaming")) return true;
+    const msg = el.querySelector<HTMLElement>('[data-message-author-role="assistant"]');
+    if (msg && msg !== el) {
+        if (msg.getAttribute("aria-busy") === "true") return true;
+        if (msg.classList.contains("result-streaming")) return true;
+    }
+    return false;
+}
+
+/**
+ * Last assistant, empty markdown, thinking UI still open.
+ * A collapsed "Thought for" <details> after Stop is gone is not live.
+ * Image-gen turns have no .markdown — they are not this path.
+ */
+function thinkingActive(el: HTMLElement): boolean {
+    if (isImageGen(el) || !stopVisible()) return false;
+    const md = el.querySelector(".markdown");
+    const empty = !md || (md instanceof HTMLElement && !extractText(md));
+    if (!empty) return false;
+    const think = el.querySelector<HTMLElement>("[class*='thinking'], [class*='reasoning']");
+    if (!think) return false;
+    if (think.getAttribute("aria-busy") === "true" || think.classList.contains("result-streaming")) return true;
     try {
-        if (el.getAttribute("aria-busy") === "true") return true;
-        if (el.classList.contains("result-streaming")) return true;
-        if (el.querySelector("[aria-busy='true'], .result-streaming")) return true;
-        const md = el.querySelector(".markdown");
-        const empty = !md || (md instanceof HTMLElement && !extractText(md));
-        if (empty && el.querySelector("[class*='thinking'], [class*='reasoning'], details")) return true;
+        if (think.querySelector("[aria-busy='true'], .result-streaming")) return true;
+    } catch { /* ignore */ }
+    const details = think.closest("details") ?? think.querySelector("details");
+    return details instanceof HTMLDetailsElement && details.open;
+}
+
+/** This assistant node itself looks in-progress. Never pick a victim by "last" for aria-busy. */
+function nodeInProgress(el: HTMLElement, lastAssistant: boolean): boolean {
+    try {
+        if (turnBusy(el)) return true;
+        if (lastAssistant && thinkingActive(el)) return true;
     } catch { /* ignore */ }
     return false;
+}
+
+/**
+ * Void++ lookSettled: Stop gone and the turn already shows a finished reply.
+ * Done-action buttons, generated images, and markdown text all win even if
+ * aria-busy was left on. Copy inside a code block is not a done action.
+ */
+function lookSettled(el: HTMLElement | null): boolean {
+    if (!el || stopVisible()) return false;
+    try {
+        if (el.querySelector(DONE_ACTION_SEL)) return true;
+        if (isImageGen(el)) return true;
+        const md = el.querySelector(".markdown");
+        if (md instanceof HTMLElement && extractText(md)) return true;
+    } catch { /* ignore */ }
+    return false;
+}
+
+/** Drop the harvest latch once the open reply has settled. Not during the mount gap. */
+function releaseArmIfSettled(items: NavItem[]) {
+    if (stopVisible()) return;
+    if (armedAt && Date.now() - armedAt < ARM_HOLD_MS) return;
+    const last = [...items].reverse().find(it => it.role === "assistant");
+    if (!last || !lookSettled(last.el)) return;
+    disarm();
 }
 
 function collectNodes(root: HTMLElement): HTMLElement[] {
@@ -424,21 +509,32 @@ function collect(): NavItem[] {
     if (!root || root === document.body) return [];
     const showAsst = settings.store.showAssistant !== false;
     const armed = showAsst && generationArmed();
+    const nodes = collectNodes(root);
+    let lastAsst: HTMLElement | null = null;
+    if (showAsst) {
+        for (const node of nodes) {
+            if (roleOf(node) === "assistant") lastAsst = node;
+        }
+    }
     const out: NavItem[] = [];
     try {
-        for (const node of collectNodes(root)) {
+        for (const node of nodes) {
             const id = turnIdOf(node);
             if (!id) continue;
             const role = roleOf(node);
             if (role !== "user" && role !== "assistant") continue;
             if (role === "assistant" && !showAsst) continue;
-            const live = role === "assistant" && armed && nodeInProgress(node);
+            const live = role === "assistant"
+                && armed
+                && nodeInProgress(node, node === lastAsst)
+                && !lookSettled(node);
             const fresh = itemText(node, role, out.length, live);
             if (fresh && fresh !== LIVE_LABEL && fresh !== labels.get(id)) labels.set(id, fresh);
             const text = live && fresh === LIVE_LABEL ? LIVE_LABEL : (labels.get(id) || fresh);
             out.push({ id, el: node, role, text, live });
         }
     } catch { /* ignore */ }
+    releaseArmIfSettled(out);
     return out;
 }
 
@@ -793,6 +889,7 @@ function observeThread() {
 function onHarvest(ev: HarvestEvent) {
     if (!started) return;
     if (ev.type === "post-start") {
+        noteArm();
         if (ev.conversationId) {
             pendingNew = false;
             armedIds.add(ev.conversationId);
@@ -886,7 +983,8 @@ export default definePlugin({
             onTick() {
                 schedulePaint();
             },
-            onFall() {
+            onFall(edge) {
+                disarm(edge.conversationId);
                 schedulePaint();
             },
             onContext(next, prev) {
@@ -894,6 +992,7 @@ export default definePlugin({
                     labels.clear();
                     imageCounts.clear();
                     paintedKey = "";
+                    pendingNew = false;
                 }
                 schedulePaint();
             },
@@ -916,6 +1015,7 @@ export default definePlugin({
         unsubHarvest = null;
         armedIds.clear();
         pendingNew = false;
+        armedAt = 0;
         unmount();
         labels.clear();
         imageCounts.clear();

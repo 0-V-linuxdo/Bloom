@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.74](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.74)**（`userscript/Bloom.update.user.js`，`@version [20260923] v1.4.74`）。
+当前版本：**[v1.4.75](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.75)**（`userscript/Bloom.update.user.js`，`@version [20260924] v1.4.75`）。
 
 插件：
 
@@ -165,6 +165,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.75：**BetterNavigator 回复结束后收回虚线。** 对齐 Void++ `lookSettled`（`c91c194`）：Stop/ProStop 没了，且这一回合已经有复制/好评/差评、markdown 正文、或生成图，下一帧 paint 就把 `live` 摘掉，不等 `onFall`，也不等 SSE `post-end`。还在生成只认回合自己的 `aria-busy` / `.result-streaming`（或最后一条 assistant 仍在对空 markdown 思考），不认子孙引用/胶卷上的 `aria-busy`，也不认留下的 `<details>`。`onFall` 清掉 harvest 闩锁。新的 `post-start` 有 2 秒保持，避免新气泡还没挂上时被上一条已完成回合解除武装。
 
 v1.4.74：**RecentTopics 改用设置弹窗底色。** 切换器原先是 `--main-surface-primary`（暗色页面画布 `#000`）加黑色投影，浮层和对话融在一起。面板改为 `--bg-primary` + `--border-xlight` + `--shadow-long`，和设置弹窗一样。选中行改 `--interactive-bg-secondary-hover`，在 `#353535` 上仍是抬升，不再打出一个 `#212121` 的洞。`#bloom-rt-host` 用 `applySchemeTokens` 抄宿主 token。
 
