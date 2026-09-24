@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.104](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.104)**（`userscript/Bloom.update2.user.js`，`@version [20260924] v1.4.104`）。
+当前版本：**[v1.4.105](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.105)**（`userscript/Bloom.update3.user.js`，`@version [20260924] v1.4.105`）。
 
 插件：
 
@@ -33,11 +33,11 @@
 ## 安装
 
 1. 安装 [Violentmonkey](https://violentmonkey.github.io/) 或 Tampermonkey。
-2. 打开 [`userscript/Bloom.update2.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update2.user.js)。
+2. 打开 [`userscript/Bloom.update3.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update3.user.js)。
 3. 确认安装后刷新 `chatgpt.com`。
 4. 左侧栏头像上方会出现 **Bloom++**。油猴菜单 **Bloom++ settings** 也会打开同一块面板（再点一次关闭）。面板永远停在页面左侧的 `document.body` 上，不会插入侧栏 DOM。插件列表是 **Void++ BaseCard** 栈（图标砖、两行描述、作者栏、齿轮 + 开关）。
 
-优先用油猴的**检查更新**（同一脚本 UUID，配置还在）。自动更新走 `Bloom.update2.user.js`（`raw.githubusercontent.com/.../refs/heads/main/...`）。如果提示「脚本已更新」但 `@version` 还是旧的，那是 Fastly 把 `Bloom.update.user.js` / `Bloom.latest.user.js` / `Bloom.user.js` 卡在旧稿：改点 `Bloom.update2.user.js` raw 或 [`releases/latest/download/Bloom.update2.user.js`](https://github.com/0-V-linuxdo/Bloom/releases/latest/download/Bloom.update2.user.js)。只有同时装着两条 Bloom++ 时才卸旧的。卸载会清掉油猴 GM 存储；Bloom++ 会尝试从当前站点的 IndexedDB / `localStorage` 救回。不要用 `.../Bloom/main/userscript/Bloom.user.js`、`.../refs/heads/main/userscript/Bloom.user.js`、`Bloom.latest.user.js` 或 `Bloom.update.user.js`（Fastly 会卡住旧脚本）。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
+优先用油猴的**检查更新**（同一脚本 UUID，配置还在）。自动更新走 `Bloom.update3.user.js`（`raw.githubusercontent.com/.../refs/heads/main/...`）。如果提示「脚本已更新」但 `@version` 还是旧的，那是 Fastly 把 `Bloom.update2.user.js` / `Bloom.update.user.js` / `Bloom.latest.user.js` / `Bloom.user.js` 卡在旧稿：改点 `Bloom.update3.user.js` raw 或 [`releases/latest/download/Bloom.update3.user.js`](https://github.com/0-V-linuxdo/Bloom/releases/latest/download/Bloom.update3.user.js)。只有同时装着两条 Bloom++ 时才卸旧的。卸载会清掉油猴 GM 存储；Bloom++ 会尝试从当前站点的 IndexedDB / `localStorage` 救回。不要用 `.../Bloom/main/userscript/Bloom.user.js`、`.../refs/heads/main/userscript/Bloom.user.js`、`Bloom.latest.user.js`、`Bloom.update.user.js` 或 `Bloom.update2.user.js`（Fastly 会卡住旧脚本）。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
 
 设置面板**跟随 `chatgpt.com` 自己的主题**。ChatStateFavicons **空闲时保持官方 ChatGPT 标签页图标**；只在 streaming / done / ready / error 时叠白色 blossom PNG（深色描边）。
 
@@ -167,6 +167,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.105：**安装 / `@updateURL` / `@downloadURL` 改走 `userscript/Bloom.update3.user.js`。** 1.4.104 进 `main` 之后 Fastly 仍把 `Bloom.update2.user.js` 卡在 1.4.103。去重规则与 1.4.104 相同。
 
 v1.4.104：**消息导航不再把同一条用户输入列两次。** 官方导航 / 已挂载节点 id 不同但正文相同，并进已有行。连续两条用户、中间没有回复，是重复识别。
 

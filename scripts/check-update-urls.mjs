@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Guard the install / in-place update path:
- *   - header @updateURL / @downloadURL stay on Bloom.update2.user.js (refs/heads/main raw)
+ *   - header @updateURL / @downloadURL stay on Bloom.update3.user.js (refs/heads/main raw)
  *   - never github.com/.../raw (HTML) or jsDelivr @heads/main
  *   - @version vX.Y.Z matches package.json
  *   - optional --fetch checks the live raw body is JS with that same version
@@ -18,7 +18,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 const pkg = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
 const REQUIRED_UPDATE =
-    "https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update2.user.js";
+    "https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update3.user.js";
 
 function fail(message) {
     console.error(`[Bloom++] check-update-urls: ${message}`);
@@ -68,6 +68,7 @@ checkFile("userscript/Bloom.user.js");
 checkFile("userscript/Bloom.latest.user.js");
 checkFile("userscript/Bloom.update.user.js");
 checkFile("userscript/Bloom.update2.user.js");
+checkFile("userscript/Bloom.update3.user.js");
 
 if (!process.argv.includes("--fetch")) {
     process.exit(0);
