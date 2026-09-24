@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.106](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.106)** (`userscript/Bloom.update3.user.js`, `@version [20260924] v1.4.106`).
+Current release: **[v1.4.107](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.107)** (`userscript/Bloom.update3.user.js`, `@version [20260924] v1.4.107`).
 
 Plugins:
 
@@ -170,6 +170,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.107: **BetterNavigator fills the rest of a windowed chat without the open-chat stall.** A `num_turns=10` GET is not the whole branch, even after tool collapse shrinks it below 10. Older pages drip one `num_turns=10` window at a time, 8s apart, after the page's own GET; HTTP 429 stops. Opening a chat still does not fetch detail. A locale pill such as `zh-cn` under a file chip is not a second user tick — the prompt is. Two different chain ids with the same text stay two ticks. Install URL stays `userscript/Bloom.update3.user.js`.
 
 v1.4.106: **Opening a chat no longer fetches conversation detail.** BetterNavigator reuses the page's own windowed GET. One older `num_turns=10` window is requested only when the outline is hovered or a jump targets an unmounted id, and HTTP 429 stops. A blank assistant section is not a `Message 1` tick. Two user sends with the same text stay two ticks when they are different chain ids. Install URL stays `userscript/Bloom.update3.user.js`.
 

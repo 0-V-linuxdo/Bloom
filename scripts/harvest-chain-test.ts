@@ -306,7 +306,7 @@ assert.equal(isTruncatedPayload(cut), true);
 assert.equal(oldestNodeId(cut), "u2");
 assert.equal(payloadCompletesChain(cut, WINDOW), false);
 assert.equal(payloadCompletesChain(mapping, SINGULAR), true);
-assert.equal(payloadCompletesChain(mapping, WINDOW), true);
+assert.equal(payloadCompletesChain(mapping, WINDOW), false);
 assert.equal(payloadCompletesChain({ conversation_id: ID, current_node: "a11", mapping: longMap }, WINDOW), false);
 
 const later = [

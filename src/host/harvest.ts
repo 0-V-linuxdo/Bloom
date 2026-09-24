@@ -15,9 +15,11 @@
  * Opening a chat does not GET conversation detail. The page's own
  * windowed GET is enough; cloning it must not add `/f/conversation/{id}`,
  * an unwindowed `/conversations/{id}`, or `num_turns=480`.
- * `ensureConversationChain` asks for one older window only, and only when
- * a caller already has a chain (BetterNavigator hover / unmounted jump).
- * HTTP 429 stops. No BloomEventMap.streamEnd.
+ * A windowed `num_turns` body is not the whole branch (tool collapse can
+ * shrink it below N). After that page GET lands, one older `num_turns=10`
+ * window is requested at a time, at least 8s apart, until a page does not
+ * grow the chain. Hover / unmounted jump may start the same drip. HTTP 429
+ * stops it. No BloomEventMap.streamEnd.
  */
 
 import { conversationIdFromHref, currentConversationId } from "./conversation";
@@ -69,9 +71,10 @@ const EMPTY_CHAIN: readonly ChainTurn[] = [];
 const complete = new Set<string>();
 const backfilling = new Set<string>();
 const retryAt = new Map<string, number>();
+const followUps = new Map<string, ReturnType<typeof setTimeout>>();
 const lastDetailHeaders: Record<string, string> = { Accept: "application/json" };
 const HEADER_KEEP = /^(authorization|oai-|openai-|chatgpt-|x-authorization)/i;
-/** Pause between on-demand older windows so a hover does not walk the branch. */
+/** Pause between older windows. One page per cooldown, never a burst. */
 const PAGE_COOLDOWN_MS = 8_000;
 /** Back off hard when the conversation API is rate-limiting the page. */
 const RATE_LIMIT_MS = 60_000;
@@ -164,6 +167,25 @@ function rememberTitle(conversationId: string, title: string) {
     emit({ type: "conversation-meta", conversationId, title: clean });
 }
 
+function stopOlderWindow(id: string) {
+    const timer = followUps.get(id);
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    followUps.delete(id);
+}
+
+/** One older page after the cooldown. Does not run until a chain exists. */
+function scheduleOlderWindow(id: string) {
+    if (!id || complete.has(id) || followUps.has(id) || backfilling.has(id)) return;
+    retryAt.set(id, Date.now() + PAGE_COOLDOWN_MS);
+    const timer = setTimeout(() => {
+        followUps.delete(id);
+        retryAt.delete(id);
+        ensureConversationChain(id);
+    }, PAGE_COOLDOWN_MS);
+    followUps.set(id, timer);
+}
+
 function rememberChain(conversationId: string, data: unknown, url = "") {
     const cid = conversationIdFromPayload(data, conversationId);
     if (!cid) return;
@@ -171,11 +193,17 @@ function rememberChain(conversationId: string, data: unknown, url = "") {
     if (!path.length) return;
     const prev = chains.get(cid) ?? [];
     const next = mergeConversationChain(prev, path);
-    if (payloadCompletesChain(data, url)) complete.add(cid);
-    if (sameChain(prev, next)) return;
-    chains.set(cid, next);
-    capMap(chains, CHAIN_CONVS);
-    emit({ type: "conversation-chain", conversationId: cid });
+    if (payloadCompletesChain(data, url)) {
+        complete.add(cid);
+        stopOlderWindow(cid);
+    }
+    if (!sameChain(prev, next)) {
+        chains.set(cid, next);
+        capMap(chains, CHAIN_CONVS);
+        emit({ type: "conversation-chain", conversationId: cid });
+    }
+    // Page GET only. Our own backfill is `backfilling` and schedules from ensure.
+    if (!complete.has(cid) && !backfilling.has(cid)) scheduleOlderWindow(cid);
 }
 
 function harvestObject(value: unknown, conversationId: string, depth = 0) {
@@ -392,7 +420,8 @@ async function fetchDetail(win: Window & { fetch: typeof fetch }, url: string, i
 /**
  * One older window for a chain the page GET already started.
  * No-op until that chain exists — do not probe detail URLs on open.
- * 429 backs off. A window that does not grow marks the chain complete.
+ * A page that grows schedules the next window after the cooldown.
+ * 429 stops the drip. A window that does not grow marks the chain complete.
  */
 export function ensureConversationChain(id: string) {
     if (!id || complete.has(id) || backfilling.has(id)) return;
@@ -406,6 +435,7 @@ export function ensureConversationChain(id: string) {
     const win = pageWindow();
     void (async () => {
         let limited = false;
+        let grew = false;
         try {
             const size = chains.get(id)?.length ?? 0;
             for (const url of olderWindowUrls(id, before)) {
@@ -417,19 +447,25 @@ export function ensureConversationChain(id: string) {
                 }
                 if (result.status === 429) {
                     limited = true;
+                    stopOlderWindow(id);
                     retryAt.set(id, Date.now() + RATE_LIMIT_MS);
                     logger.debug("conversation chain rate-limited", id);
                     return;
                 }
                 if (!result.data) continue;
-                const grew = (chains.get(id)?.length ?? 0) > size;
+                grew = (chains.get(id)?.length ?? 0) > size;
                 if (complete.has(id)) return;
-                if (!grew) complete.add(id);
+                if (!grew) {
+                    complete.add(id);
+                    stopOlderWindow(id);
+                }
                 return;
             }
         } finally {
             backfilling.delete(id);
-            if (!limited && !complete.has(id) && (retryAt.get(id) ?? 0) <= Date.now()) {
+            if (limited || complete.has(id)) return;
+            if (grew) scheduleOlderWindow(id);
+            else if ((retryAt.get(id) ?? 0) <= Date.now()) {
                 retryAt.set(id, Date.now() + PAGE_COOLDOWN_MS);
             }
         }

@@ -235,8 +235,10 @@ export function payloadCompletesChain(data: unknown, url = ""): boolean {
     if (isTruncatedPayload(data)) return false;
     const path = chainFromPayload(data);
     if (!path.length) return false;
-    const n = numTurnsFromUrl(url);
-    if (n && path.length >= n) return false;
+    // A windowed GET is one page. Tool / thought collapse can shrink a
+    // full num_turns=N body below N without reaching the start. Missing
+    // mapping parents are not "the whole chat" either.
+    if (numTurnsFromUrl(url)) return false;
     return true;
 }
 

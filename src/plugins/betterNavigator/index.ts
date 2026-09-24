@@ -36,12 +36,13 @@
  * and thoughts stay inside the assistant tick — they are not rows.
  * Host harvest listens to the page's own windowed conversation GET.
  * It does not GET detail on open (`/f/conversation/{id}`, unwindowed
- * `/conversations/{id}`, or `num_turns=480` stalled hydrate). One older
- * window is requested only when the outline is hovered or a jump targets
- * an unmounted id, and a 429 stops. Native `#prompt-nav-container` rows
- * with a real message id fill missing user turns (no "Go to message N"
- * chrome). Two chain user ids stay two ticks even when the text matches.
- * Same-bubble id/alias mismatch still absorbs. A blank assistant section
+ * `/conversations/{id}`, or `num_turns=480` stalled hydrate). A windowed
+ * body is not the whole branch. Older `num_turns=10` pages drip one at a
+ * time after that GET (and on hover / unmounted jump), 8s apart; 429 stops.
+ * Native `#prompt-nav-container` rows with a real message id fill missing
+ * user turns (no "Go to message N" chrome). Two chain user ids stay two
+ * ticks even when the text matches. Same-bubble id/alias mismatch still
+ * absorbs, even when one label is a locale pill. A blank assistant section
  * (no message id, no prose, not image-gen, not in progress) is not a tick.
  * Jump nudges the thread until that id mounts; opening the chat does
  * not scroll it.
@@ -49,9 +50,9 @@
  * tick per data-turn-id (filmstrip thumbs are not extra ticks).
  * Hover marks follow Void++ ❓/🤖 — never You/GPT text. Empty image-gen
  * labels are `Image xN` (unique estuary file_* in the turn; n<2 stays Image).
- * File turns use the text under the chip (including a short pill
- * such as zh-cn), not the filename and not the File subtitle.
- * No leftover text falls back to File. Short user text such as
+ * File turns use the prompt under the chip (`.whitespace-pre-wrap`),
+ * not the filename, not the File subtitle, and not a locale pill such
+ * as zh-cn. No leftover text falls back to File. Short user text such as
  * continue stays. Decorative imgs (favicon, ≤48px, citation/tool)
  * are not Image.
  * Tool rows stay inside the assistant tick — never one tick per tool.
@@ -600,13 +601,19 @@ function looseProse(root: HTMLElement): string {
     return normSpace(blocks.join(" "));
 }
 
-/** Text under the file chip. Filename and "File" are not the caption; zh-cn is. */
+const LOCALE_PILL_RE = /^[a-z]{2,3}(?:[-_][a-z0-9]{2,4})+$/i;
+
+function isLocalePill(raw: string): boolean {
+    return LOCALE_PILL_RE.test(normSpace(raw));
+}
+
+/** Prompt under the file chip. A locale pill such as zh-cn is not the caption. */
 function textBelowFile(el: HTMLElement): string {
     const chip = fileChipOf(el);
     if (!chip) return "";
-    const blocks: string[] = [];
-    const seen = new Set<string>();
-    const take = (node: HTMLElement) => {
+    let prose = "";
+    let other = "";
+    const take = (node: HTMLElement, preferProse: boolean) => {
         try {
             if (chip.contains(node) || node.contains(chip)) return;
             if (!(chip.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING)) return;
@@ -614,21 +621,29 @@ function textBelowFile(el: HTMLElement): string {
         } catch {
             return;
         }
-        // A locale pill is often a button. noiseInside would drop it.
         const t = normSpace(node.innerText || node.textContent || "");
-        if (!t || t.length > CLIP + 20 || seen.has(t) || isChipLine(t)) return;
-        seen.add(t);
-        blocks.push(t);
+        if (!t || t.length > CLIP + 20 || isChipLine(t) || isLocalePill(t)) return;
+        if (!preferProse && node.matches("button, [role='button']")) return;
+        if (preferProse) {
+            if (!prose) prose = t;
+        } else if (!other) {
+            other = t;
+        }
     };
     try {
-        const sel = "button, [role='button'], p, li, h1, h2, h3, blockquote, .whitespace-pre-wrap, .markdown, div, span";
-        for (const node of el.querySelectorAll<HTMLElement>(sel)) {
-            if (node.matches("div, span") && node.querySelector("div, p, li, button")) continue;
-            take(node);
-            if (blocks.length) break;
+        for (const node of el.querySelectorAll<HTMLElement>(".whitespace-pre-wrap, .markdown, p, li, h1, h2, h3, blockquote")) {
+            take(node, true);
+            if (prose) break;
+        }
+        if (!prose) {
+            for (const node of el.querySelectorAll<HTMLElement>("div, span")) {
+                if (node.querySelector("div, p, li, button")) continue;
+                take(node, false);
+                if (other) break;
+            }
         }
     } catch { /* ignore */ }
-    return normSpace(blocks.join(" "));
+    return normSpace(prose || other);
 }
 
 function bodyText(el: HTMLElement, role: Role): string {
@@ -867,7 +882,7 @@ function collectMounted(root: HTMLElement): NavItem[] {
                 && !lookSettled(node)
                 && (marker || spinning || armed || nodeInProgress(node, true));
             const fresh = itemText(node, role, out.length, live);
-            if (fresh && fresh !== LIVE_LABEL) {
+            if (fresh && fresh !== LIVE_LABEL && !isLocalePill(fresh)) {
                 const prev = labels.get(id);
                 const staleName = !!prev && (isFileName(prev) || isFileStem(prev));
                 if (!prev || staleName || !isWeakLabel(fresh) || isWeakLabel(prev)) {
@@ -900,7 +915,9 @@ function indexMounted(items: NavItem[]): Map<string, NavItem> {
 
 function absorbRow(into: NavItem, from: NavItem) {
     if (!into.el && from.el?.isConnected) into.el = from.el;
-    if (from.text && (!into.text || isWeakLabel(into.text))) {
+    const fromOk = !!from.text && !isLocalePill(from.text);
+    const intoWeak = !into.text || isWeakLabel(into.text) || isLocalePill(into.text);
+    if (fromOk && intoWeak) {
         into.text = from.text;
         labels.set(into.id, from.text);
     }
@@ -923,16 +940,20 @@ function findSameText(items: NavItem[], role: Role, text: string, prefer: number
 }
 
 function chainItem(turn: ChainTurn, dom: NavItem | undefined): NavItem {
+    const turnText = turn.text && !isLocalePill(turn.text) ? turn.text : "";
     if (dom) {
-        if (dom.text && dom.text !== LIVE_LABEL) labels.set(turn.id, dom.text);
-        return { ...dom, id: turn.id, alias: turn.alias || dom.alias };
+        const domOk = !!dom.text && dom.text !== LIVE_LABEL && !isLocalePill(dom.text);
+        const text = domOk ? dom.text : (turnText || dom.text);
+        if (text && text !== LIVE_LABEL) labels.set(turn.id, text);
+        return { ...dom, id: turn.id, text, alias: turn.alias || dom.alias };
     }
     const cached = labels.get(turn.id) || (turn.alias ? labels.get(turn.alias) : "") || "";
+    const cachedOk = cached && !isLocalePill(cached) ? cached : "";
     return {
         id: turn.id,
         el: null,
         role: turn.role,
-        text: cached || turn.text || "Message",
+        text: cachedOk || turnText || cached || "Message",
         ...(turn.alias ? { alias: turn.alias } : {}),
     };
 }
@@ -947,6 +968,12 @@ function sharesBubble(a: NavItem, b: NavItem): boolean {
     if (b.alias && ids.has(b.alias)) return true;
     if (b.el) for (const id of nodeIds(b.el)) if (ids.has(id)) return true;
     return false;
+}
+
+function distinctChainTurns(a: NavItem, b: NavItem, chainIds: Set<string>): boolean {
+    if (!a.id || !b.id || a.id === b.id) return false;
+    if (a.alias === b.id || b.alias === a.id) return false;
+    return chainIds.has(a.id) && chainIds.has(b.id);
 }
 
 function collapseAdjacentUsers(items: NavItem[]): NavItem[] {
@@ -1011,6 +1038,12 @@ function mergeOutline(chain: readonly ChainTurn[], mounted: NavItem[]): NavItem[
                     break;
                 }
             }
+        }
+        const shared = out.find(row => row.role === item.role && sharesBubble(row, item));
+        if (shared && !distinctChainTurns(shared, item, chainIds)) {
+            absorbRow(shared, item);
+            used.add(item.el);
+            continue;
         }
         const twin = findSameText(out, item.role, item.text, at);
         const otherChain = !!twin
