@@ -480,12 +480,13 @@ function gripIcon(): SVGSVGElement {
     return svg;
 }
 
-function iconButton(label: string, graphic: SVGSVGElement, onClick: () => void): HTMLButtonElement {
+function iconButton(label: string, graphic: SVGSVGElement, onClick: () => void, tip?: HTMLElement): HTMLButtonElement {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "bloom-pq-ico";
     btn.setAttribute("aria-label", label);
     btn.append(graphic);
+    if (tip) bindHoverTip(btn, tip, label);
     btn.addEventListener("mousedown", ev => ev.preventDefault());
     btn.addEventListener("click", ev => {
         ev.preventDefault();
@@ -534,6 +535,25 @@ function endEdit(id: string, value: string | null) {
     paintChip();
 }
 
+function startEdit(id: string) {
+    if (editingId === id) return;
+    if (editingId) endEdit(editingId, liveEditValue());
+    if (!slotsOf(contextKey()).some(item => item.id === id)) return;
+    editingId = id;
+    paintChip();
+}
+
+/** Header pill, same place as the ChatGPT hover hint in the tray. */
+function bindHoverTip(el: HTMLElement, tip: HTMLElement, label: string) {
+    el.addEventListener("pointerenter", () => {
+        tip.textContent = label;
+        tip.hidden = false;
+    });
+    el.addEventListener("pointerleave", () => {
+        if (tip.textContent === label) tip.hidden = true;
+    });
+}
+
 function paintChip() {
     if (!started || !document.body) {
         dropChip();
@@ -557,7 +577,12 @@ function paintChip() {
     const n = slots.length;
     const head = document.createElement("div");
     head.className = "bloom-pq-head";
-    head.textContent = `${n} Queued message${n === 1 ? "" : "s"}`;
+    const headLabel = document.createElement("span");
+    headLabel.textContent = `${n} Queued message${n === 1 ? "" : "s"}`;
+    const tip = document.createElement("span");
+    tip.className = "bloom-pq-tip";
+    tip.hidden = true;
+    head.append(headLabel, tip);
     const list = document.createElement("div");
     list.className = "bloom-pq-list";
     let focusEdit: HTMLElement | null = null;
@@ -589,82 +614,74 @@ function paintChip() {
             const clip = slot.text.length > CLIP ? `${slot.text.slice(0, CLIP)}…` : slot.text;
             text.textContent = clip;
             text.title = slot.text;
+            text.addEventListener("click", ev => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                startEdit(slot.id);
+            });
         }
         row.append(text);
         const actions = document.createElement("div");
         actions.className = "bloom-pq-actions";
-        const grip = document.createElement("span");
-        grip.className = "bloom-pq-ico bloom-pq-grip";
-        grip.title = "Drag to reorder";
-        grip.draggable = true;
-        grip.append(gripIcon());
-        grip.addEventListener("dragstart", ev => {
-            dragId = slot.id;
-            ev.dataTransfer?.setData("text/plain", slot.id);
-            if (ev.dataTransfer) ev.dataTransfer.effectAllowed = "move";
-        });
-        grip.addEventListener("dragend", () => {
-            dragId = null;
-        });
-        row.addEventListener("dragover", ev => {
-            if (!dragId || dragId === slot.id) return;
-            ev.preventDefault();
-            if (ev.dataTransfer) ev.dataTransfer.dropEffect = "move";
-        });
-        row.addEventListener("drop", ev => {
-            ev.preventDefault();
-            const from = ev.dataTransfer?.getData("text/plain") || dragId || "";
-            dragId = null;
-            moveItem(key, from, slot.id);
-        });
-        const dismiss = iconButton("Dismiss queued prompt", strokeGlyph([
-            "M10 11v6",
-            "M14 11v6",
-            "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6",
-            "M3 6h18",
-            "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
-        ]), () => {
-            if (editingId && editingId !== slot.id) endEdit(editingId, liveEditValue());
-            editingId = editingId === slot.id ? null : editingId;
-            dropItem(key, slot.id);
-        });
-        dismiss.classList.add("bloom-pq-ico-danger");
-        dismiss.title = "Delete";
-        const edit = iconButton("Edit queued prompt", strokeGlyph([
-            "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z",
-            "m15 5 4 4",
-        ]), () => {
-            if (editingId === slot.id) {
-                endEdit(slot.id, liveEditValue());
-                return;
-            }
-            if (editingId) endEdit(editingId, liveEditValue());
-            if (!slotsOf(key).some(item => item.id === slot.id)) return;
-            editingId = slot.id;
-            paintChip();
-        });
-        if (editing) edit.classList.add("bloom-pq-ico-active");
-        const send = iconButton("Send now", strokeGlyph([
-            "M12 19V5",
-            "M6 11 12 5l6 6",
-        ]), () => {
-            const id = slot.id;
-            if (editingId === id) {
-                const live = liveEditValue();
-                editingId = null;
-                const next = live === null ? slot.text : normalize(live);
-                if (!next) {
-                    dropItem(key, id);
-                    return;
-                }
-                const cur = slotsOf(key).find(item => item.id === id);
-                if (cur) cur.text = next;
-            } else if (editingId) {
-                endEdit(editingId, liveEditValue());
-            }
-            sendItemNow(id);
-        });
-        actions.append(grip, dismiss, edit, send);
+        if (editing) {
+            const save = iconButton("Save", strokeGlyph(["M20 6 9 17l-5-5"]), () => {
+                endEdit(slot.id, text.innerText);
+            }, tip);
+            const cancel = iconButton("Cancel", strokeGlyph(["M18 6 6 18", "m6 6 12 12"]), () => {
+                endEdit(slot.id, null);
+            }, tip);
+            actions.append(save, cancel);
+        } else {
+            const grip = document.createElement("span");
+            grip.className = "bloom-pq-ico bloom-pq-grip";
+            grip.setAttribute("aria-label", "Drag to reorder");
+            grip.draggable = true;
+            grip.append(gripIcon());
+            bindHoverTip(grip, tip, "Drag to reorder");
+            grip.addEventListener("dragstart", ev => {
+                dragId = slot.id;
+                ev.dataTransfer?.setData("text/plain", slot.id);
+                if (ev.dataTransfer) ev.dataTransfer.effectAllowed = "move";
+            });
+            grip.addEventListener("dragend", () => {
+                dragId = null;
+            });
+            row.addEventListener("dragover", ev => {
+                if (!dragId || dragId === slot.id) return;
+                ev.preventDefault();
+                if (ev.dataTransfer) ev.dataTransfer.dropEffect = "move";
+            });
+            row.addEventListener("drop", ev => {
+                ev.preventDefault();
+                const from = ev.dataTransfer?.getData("text/plain") || dragId || "";
+                dragId = null;
+                moveItem(key, from, slot.id);
+            });
+            const dismiss = iconButton("Remove from queue", strokeGlyph([
+                "M10 11v6",
+                "M14 11v6",
+                "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6",
+                "M3 6h18",
+                "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
+            ]), () => {
+                if (editingId && editingId !== slot.id) endEdit(editingId, liveEditValue());
+                editingId = editingId === slot.id ? null : editingId;
+                dropItem(key, slot.id);
+            }, tip);
+            dismiss.classList.add("bloom-pq-ico-danger");
+            const edit = iconButton("Edit", strokeGlyph([
+                "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z",
+                "m15 5 4 4",
+            ]), () => startEdit(slot.id), tip);
+            const send = iconButton("Send now", strokeGlyph([
+                "M12 19V5",
+                "M6 11 12 5l6 6",
+            ]), () => {
+                if (editingId && editingId !== slot.id) endEdit(editingId, liveEditValue());
+                sendItemNow(slot.id);
+            }, tip);
+            actions.append(grip, dismiss, edit, send);
+        }
         row.append(actions);
         list.append(row);
     }
