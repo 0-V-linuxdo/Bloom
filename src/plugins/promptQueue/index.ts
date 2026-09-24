@@ -89,6 +89,9 @@ let editingId: string | null = null;
 let dragAbort: AbortController | null = null;
 /** A drag that just ended must not also open the editor. */
 let skipEditClick = false;
+/** Send now holds this row as “Sending” until the composer click is issued. */
+let sendingId: string | null = null;
+let sendHold: ReturnType<typeof setTimeout> | undefined;
 /** Grok header toggle. Collapsed keeps the rows; it only hides the list. */
 let trayOpen = true;
 /** Still the open reply after Stop remounts as Send. Not cleared by deleting the chip. */
@@ -326,14 +329,35 @@ function dropItem(key: string, id: string) {
 function cancelRowDrag() {
     dragAbort?.abort();
     dragAbort = null;
-    document.querySelectorAll(".bloom-pq-overlay").forEach(node => node.remove());
-    if (document.body?.style.cursor === "grabbing") document.body.style.cursor = "";
 }
 
-/** Pointer-drag the row itself. dnd-kit sortable: no handle, rows slide as the pointer crosses a midline. */
+/** Insertion index in the live list (the dragged row still occupies its slot). Same midline rule as 1.4.94. */
+function insertionIndex(pointer: number, mids: number[]): number {
+    let index = mids.length;
+    for (let i = 0; i < mids.length; i++) {
+        if (pointer < mids[i]!) {
+            index = i;
+            break;
+        }
+    }
+    return index;
+}
+
+/** Projected row order after a midline insertion. No-op when the pointer is still on this row. */
+function projectedOrder(count: number, from: number, insertAt: number): number[] {
+    const order = Array.from({ length: count }, (_, i) => i);
+    if (insertAt === from || insertAt === from + 1) return order;
+    const [item] = order.splice(from, 1);
+    let dest = insertAt;
+    if (dest > from) dest -= 1;
+    order.splice(Math.max(0, Math.min(dest, order.length)), 0, item!);
+    return order;
+}
+
+/** Pointer-drag the row itself. dnd-kit look: the row lifts, neighbors translateY, DOM order commits on drop. */
 function bindRowDrag(row: HTMLElement, list: HTMLElement, key: string, id: string) {
     row.addEventListener("pointerdown", ev => {
-        if (ev.button !== 0 || editingId) return;
+        if (ev.button !== 0 || editingId || sendingId) return;
         const target = ev.target;
         if (target instanceof Element && target.closest("button, textarea, a, input")) return;
         const pointerId = ev.pointerId;
@@ -344,95 +368,165 @@ function bindRowDrag(row: HTMLElement, list: HTMLElement, key: string, id: strin
         dragAbort = session;
         const { signal } = session;
         let active = false;
-        let overlay: HTMLElement | null = null;
+        let settled = false;
+        let fromIndex = 0;
+        let insertAt = 0;
         let originLeft = 0;
         let originTop = 0;
-        let done = false;
-        const restoreCursor = () => {
+        let gap: HTMLElement | null = null;
+        const rowsAtStart: HTMLElement[] = [];
+        let metrics: { top: number; height: number; mid: number }[] = [];
+        const clearTransforms = () => {
+            list.classList.add("bloom-pq-settling");
+            for (const el of rowsAtStart) el.style.transform = "";
+            requestAnimationFrame(() => list.classList.remove("bloom-pq-settling"));
+        };
+        const clearLift = () => {
+            row.classList.remove("bloom-pq-lift");
+            row.style.position = "";
+            row.style.left = "";
+            row.style.top = "";
+            row.style.width = "";
+            row.style.margin = "";
+            row.style.zIndex = "";
+            row.style.boxSizing = "";
+            row.style.pointerEvents = "";
+            row.style.color = "";
+            row.style.font = "";
+            row.setAttribute("aria-pressed", "false");
+            if (row.parentElement !== list && list.isConnected) {
+                if (gap?.isConnected) gap.before(row);
+                else list.append(row);
+            }
+            gap?.remove();
+            gap = null;
+            clearTransforms();
             if (document.body.style.cursor === "grabbing") document.body.style.cursor = "";
         };
-        signal.addEventListener("abort", () => {
-            overlay?.remove();
-            overlay = null;
-            row.classList.remove("bloom-pq-placeholder");
-            restoreCursor();
-            if (active) {
-                skipEditClick = true;
-                const stopClick = (ev: Event) => {
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                };
-                window.addEventListener("click", stopClick, true);
-                setTimeout(() => {
-                    skipEditClick = false;
-                    window.removeEventListener("click", stopClick, true);
-                }, 0);
+        const swallowClick = () => {
+            skipEditClick = true;
+            const stopClick = (click: Event) => {
+                click.preventDefault();
+                click.stopPropagation();
+            };
+            window.addEventListener("click", stopClick, true);
+            setTimeout(() => {
+                skipEditClick = false;
+                window.removeEventListener("click", stopClick, true);
+            }, 0);
+        };
+        const layoutShift = () => {
+            const order = projectedOrder(rowsAtStart.length, fromIndex, insertAt);
+            const gapPx = metrics.length > 1
+                ? (metrics[metrics.length - 1]!.top - metrics[0]!.top
+                    - metrics.slice(0, -1).reduce((sum, box) => sum + box.height, 0)) / (metrics.length - 1)
+                : 2;
+            const desired = new Array<number>(metrics.length);
+            let y = metrics[0]?.top ?? 0;
+            for (const index of order) {
+                desired[index] = y;
+                y += metrics[index]!.height + gapPx;
             }
-            done = true;
-        });
-        const finish = (commit: boolean) => {
-            if (done) return;
-            const mine = dragAbort === session;
-            if (mine) dragAbort = null;
-            const wasActive = active;
-            session.abort();
-            if (!wasActive || !commit || !mine || !row.isConnected) return;
+            for (let i = 0; i < rowsAtStart.length; i++) {
+                if (i === fromIndex) continue;
+                const dy = desired[i]! - metrics[i]!.top;
+                rowsAtStart[i]!.style.transform = Math.abs(dy) < 0.5 ? "" : `translate3d(0,${Math.round(dy)}px,0)`;
+            }
+        };
+        const applyOrder = () => {
             const slots = slotsOf(key).slice();
-            const order = [...list.querySelectorAll<HTMLElement>(".bloom-pq-row")].map(el => el.dataset.pqId || "");
-            const next: Slot[] = [];
-            for (const oid of order) {
-                const slot = slots.find(item => item.id === oid);
-                if (slot) next.push(slot);
-            }
-            if (next.length !== slots.length || next.every((slot, i) => slot.id === slots[i]?.id)) return;
+            if (fromIndex < 0 || fromIndex >= slots.length) return;
+            const order = projectedOrder(slots.length, fromIndex, insertAt);
+            if (order.every((index, i) => index === i)) return;
+            const next = order.map(index => slots[index]!).filter(Boolean);
+            if (next.length !== slots.length) return;
             writeSlots(key, next);
-            paintChip();
+            const byId = new Map(rowsAtStart.map(el => [el.dataset.pqId || "", el]));
+            for (const slot of next) {
+                const el = byId.get(slot.id);
+                if (el) list.append(el);
+            }
+        };
+        const settle = (commit: boolean) => {
+            if (settled) return;
+            settled = true;
+            const wasActive = active;
+            if (dragAbort === session) dragAbort = null;
+            if (wasActive && commit && row.isConnected) applyOrder();
+            clearLift();
+            if (wasActive) swallowClick();
+            session.abort();
+        };
+        signal.addEventListener("abort", () => {
+            if (settled) return;
+            settled = true;
+            const wasActive = active;
+            clearLift();
+            if (wasActive) swallowClick();
+        });
+        const activate = () => {
+            active = true;
+            rowsAtStart.push(...list.querySelectorAll<HTMLElement>(":scope > .bloom-pq-row"));
+            fromIndex = rowsAtStart.indexOf(row);
+            if (fromIndex < 0) {
+                fromIndex = rowsAtStart.findIndex(el => el.dataset.pqId === id);
+            }
+            insertAt = fromIndex < 0 ? 0 : fromIndex;
+            const box = row.getBoundingClientRect();
+            originLeft = box.left;
+            originTop = box.top;
+            const computed = getComputedStyle(row);
+            gap = document.createElement("div");
+            gap.className = "bloom-pq-gap";
+            gap.style.height = `${box.height}px`;
+            row.before(gap);
+            document.body.append(row);
+            row.classList.add("bloom-pq-lift");
+            row.style.position = "fixed";
+            row.style.left = `${box.left}px`;
+            row.style.top = `${box.top}px`;
+            row.style.width = `${box.width}px`;
+            row.style.margin = "0";
+            row.style.zIndex = "10001";
+            row.style.boxSizing = "border-box";
+            row.style.pointerEvents = "none";
+            row.style.color = computed.color;
+            row.style.font = computed.font;
+            row.setAttribute("aria-pressed", "true");
+            document.body.style.cursor = "grabbing";
+            const listRect = list.getBoundingClientRect();
+            const scroll = list.scrollTop;
+            metrics = rowsAtStart.map(el => {
+                const src = el === row ? gap! : el;
+                const rect = src.getBoundingClientRect();
+                const top = rect.top - listRect.top + scroll;
+                return { top, height: rect.height, mid: top + rect.height / 2 };
+            });
         };
         const onMove = (e: PointerEvent) => {
-            if (e.pointerId !== pointerId || done) return;
+            if (e.pointerId !== pointerId || settled) return;
             if (!active) {
                 if (Math.hypot(e.clientX - startX, e.clientY - startY) < 6) return;
-                active = true;
-                const box = row.getBoundingClientRect();
-                originLeft = box.left;
-                originTop = box.top;
-                overlay = row.cloneNode(true) as HTMLElement;
-                overlay.classList.add("bloom-pq-overlay");
-                overlay.style.position = "fixed";
-                overlay.style.left = `${box.left}px`;
-                overlay.style.top = `${box.top}px`;
-                overlay.style.width = `${box.width}px`;
-                overlay.style.margin = "0";
-                overlay.style.zIndex = "10001";
-                overlay.style.pointerEvents = "none";
-                document.body.append(overlay);
-                row.classList.add("bloom-pq-placeholder");
-                document.body.style.cursor = "grabbing";
+                activate();
+                if (!active || fromIndex < 0) return;
             }
-            if (overlay) {
-                overlay.style.left = `${originLeft + (e.clientX - startX)}px`;
-                overlay.style.top = `${originTop + (e.clientY - startY)}px`;
-            }
-            const rows = [...list.querySelectorAll<HTMLElement>(".bloom-pq-row")];
-            let index = rows.length;
-            for (let i = 0; i < rows.length; i++) {
-                const box = rows[i]!.getBoundingClientRect();
-                if (e.clientY < box.top + box.height / 2) {
-                    index = i;
-                    break;
-                }
-            }
-            const current = rows.indexOf(row);
-            if (index === current || index === current + 1) return;
-            list.insertBefore(row, rows[index] ?? null);
+            e.preventDefault();
+            row.style.left = `${originLeft + (e.clientX - startX)}px`;
+            row.style.top = `${originTop + (e.clientY - startY)}px`;
+            const listRect = list.getBoundingClientRect();
+            const pointer = e.clientY - listRect.top + list.scrollTop;
+            const next = insertionIndex(pointer, metrics.map(box => box.mid));
+            if (next === insertAt) return;
+            insertAt = next;
+            layoutShift();
         };
         const onUp = (e: PointerEvent) => {
             if (e.pointerId !== pointerId) return;
-            finish(true);
+            settle(true);
         };
         window.addEventListener("pointermove", onMove, { signal });
         window.addEventListener("pointerup", onUp, { signal });
-        window.addEventListener("pointercancel", onUp, { signal });
+        window.addEventListener("pointercancel", () => settle(false), { signal });
     });
 }
 
@@ -446,27 +540,41 @@ function armBypass() {
 }
 
 function sendItemNow(id: string) {
+    if (sendingId) return;
     const key = contextKey();
     const slot = slotsOf(key).find(item => item.id === id);
     if (!slot) return;
     const editor = getActiveEditor();
     if (!editor) return;
     const text = slot.text;
-    writeSlots(key, slotsOf(key).filter(item => item.id !== id));
+    sendingId = id;
     if (editingId === id) editingId = null;
+    cancelRowDrag();
     paintChip();
-    armBypass();
-    setEditorText(editor, text);
-    const send = getSubmitButton();
-    if (send && !isStopControl(send) && !isDisabledControl(send)) {
-        send.click();
-        bypassIntercept = false;
-    }
-    noteSentTail(key);
+    clearTimeout(sendHold);
+    sendHold = setTimeout(() => {
+        sendHold = undefined;
+        if (!started || sendingId !== id) return;
+        sendingId = null;
+        if (contextKey() !== key || !slotsOf(key).some(item => item.id === id)) {
+            paintChip();
+            return;
+        }
+        writeSlots(key, slotsOf(key).filter(item => item.id !== id));
+        paintChip();
+        armBypass();
+        setEditorText(editor, text);
+        const send = getSubmitButton();
+        if (send && !isStopControl(send) && !isDisabledControl(send)) {
+            send.click();
+            bypassIntercept = false;
+        }
+        noteSentTail(key);
+    }, 160);
 }
 
 function tryDrain(key: string) {
-    if (!started || draining || tailHold) return;
+    if (!started || draining || tailHold || sendingId) return;
     if (isStreaming()) return;
     if (contextKey() !== key) return;
     const slot = headOf(key);
@@ -493,7 +601,7 @@ function tryDrain(key: string) {
 function finishDrain(key: string, id: string, text: string) {
     drainTimer = undefined;
     try {
-        if (!started || tailHold) return;
+        if (!started || tailHold || sendingId) return;
         const slot = headOf(key);
         if (!slot || slot.id !== id || slot.text !== text) return;
         if (isStreaming()) return;
@@ -573,11 +681,12 @@ function strokeGlyph(ds: string[]): SVGSVGElement {
     return svg;
 }
 
-function iconButton(label: string, graphic: SVGSVGElement, onClick: () => void, tip?: HTMLElement, tipLabel?: string): HTMLButtonElement {
+function iconButton(label: string, graphic: SVGSVGElement, onClick: () => void, tip?: HTMLElement, tipLabel?: string, disabled = false): HTMLButtonElement {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "bloom-pq-ico";
     btn.setAttribute("aria-label", label);
+    if (disabled) btn.disabled = true;
     btn.append(graphic);
     if (tip) bindHoverTip(btn, tip, tipLabel ?? label);
     btn.addEventListener("mousedown", ev => ev.preventDefault());
@@ -635,6 +744,7 @@ function endEdit(id: string, value: string | null) {
 }
 
 function startEdit(id: string) {
+    if (sendingId) return;
     if (editingId === id) return;
     if (editingId) endEdit(editingId, liveEditValue());
     if (!slotsOf(contextKey()).some(item => item.id === id)) return;
@@ -654,6 +764,46 @@ function bindHoverTip(el: HTMLElement, tip: HTMLElement, label: string) {
     });
 }
 
+function slotMode(id: string): "edit" | "send" | "text" {
+    if (editingId === id) return "edit";
+    if (sendingId === id) return "send";
+    return "text";
+}
+
+function rowMode(row: HTMLElement): "edit" | "send" | "text" {
+    if (row.querySelector("textarea.bloom-pq-editing")) return "edit";
+    if (row.dataset.pqState === "sending") return "send";
+    return "text";
+}
+
+/** Reorder and retitle existing rows. A mode change (edit / Sending) still rebuilds. */
+function patchChip(el: HTMLElement, slots: Slot[]): boolean {
+    const list = el.querySelector<HTMLElement>(":scope > .bloom-pq-list");
+    const toggle = el.querySelector<HTMLElement>(".bloom-pq-toggle");
+    const count = el.querySelector(".bloom-pq-count");
+    if (!list || !toggle || !count) return false;
+    const rows = [...list.querySelectorAll<HTMLElement>(":scope > .bloom-pq-row")];
+    if (rows.length !== slots.length) return false;
+    const byId = new Map(rows.map(row => [row.dataset.pqId || "", row]));
+    for (const slot of slots) {
+        const row = byId.get(slot.id);
+        if (!row || rowMode(row) !== slotMode(slot.id)) return false;
+    }
+    count.textContent = String(slots.length);
+    toggle.setAttribute("aria-expanded", trayOpen ? "true" : "false");
+    list.hidden = !trayOpen;
+    for (const slot of slots) {
+        const row = byId.get(slot.id)!;
+        if (slotMode(slot.id) === "text") {
+            const text = row.querySelector(":scope > .bloom-pq-body > .bloom-pq-text");
+            if (text && text.textContent !== slot.text) text.textContent = slot.text;
+        }
+        if (row.getAttribute("aria-pressed") === "true") row.setAttribute("aria-pressed", "false");
+        list.append(row);
+    }
+    return true;
+}
+
 function paintChip() {
     cancelRowDrag();
     if (!started || !document.body) {
@@ -667,12 +817,17 @@ function paintChip() {
         return;
     }
     if (editingId && !slots.some(slot => slot.id === editingId)) editingId = null;
+    if (sendingId && !slots.some(slot => slot.id === sendingId)) sendingId = null;
     let el = chip;
     if (!el?.isConnected) {
         el = document.createElement("div");
         el.id = CHIP_ID;
         document.body.appendChild(el);
         chip = el;
+    }
+    if (patchChip(el, slots)) {
+        placeChip(el);
+        return;
     }
     el.replaceChildren();
     el.setAttribute("role", "region");
@@ -710,8 +865,18 @@ function paintChip() {
         const row = document.createElement("div");
         row.className = "bloom-pq-row";
         row.dataset.pqId = slot.id;
-        row.setAttribute("aria-roledescription", "sortable");
         const editing = editingId === slot.id;
+        const sending = sendingId === slot.id;
+        if (!editing) {
+            row.setAttribute("role", "button");
+            row.tabIndex = sending ? -1 : 0;
+            row.setAttribute("aria-roledescription", "sortable");
+            row.setAttribute("aria-pressed", "false");
+            if (sending) {
+                row.dataset.pqState = "sending";
+                row.setAttribute("aria-disabled", "true");
+            }
+        }
         const body = document.createElement("div");
         body.className = "bloom-pq-body";
         let field: HTMLElement;
@@ -738,18 +903,22 @@ function paintChip() {
         } else {
             const text = document.createElement("span");
             text.className = "bloom-pq-text line-clamp-2";
-            text.textContent = slot.text;
-            text.addEventListener("click", ev => {
-                if (skipEditClick) {
-                    skipEditClick = false;
+            text.textContent = sending ? "Sending" : slot.text;
+            if (sending) {
+                bindHoverTip(text, tip, "Sending now");
+            } else {
+                text.addEventListener("click", ev => {
+                    if (skipEditClick) {
+                        skipEditClick = false;
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        return;
+                    }
                     ev.preventDefault();
                     ev.stopPropagation();
-                    return;
-                }
-                ev.preventDefault();
-                ev.stopPropagation();
-                startEdit(slot.id);
-            });
+                    startEdit(slot.id);
+                });
+            }
             field = text;
         }
         body.append(field);
@@ -775,22 +944,22 @@ function paintChip() {
                 if (editingId && editingId !== slot.id) endEdit(editingId, liveEditValue());
                 editingId = editingId === slot.id ? null : editingId;
                 dropItem(key, slot.id);
-            }, tip);
+            }, tip, undefined, sending);
             const edit = iconButton("Edit queued message", strokeGlyph([
                 "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z",
                 "m15 5 4 4",
-            ]), () => startEdit(slot.id), tip, "Edit");
+            ]), () => startEdit(slot.id), tip, "Edit", sending);
             const send = iconButton("Send now", strokeGlyph([
                 "M12 19V5",
                 "M6 11 12 5l6 6",
             ]), () => {
                 if (editingId && editingId !== slot.id) endEdit(editingId, liveEditValue());
                 sendItemNow(slot.id);
-            }, tip);
+            }, tip, "Send now (or Enter on empty composer)", sending);
             actions.append(dismiss, edit, send);
         }
         row.append(actions);
-        if (!editing) bindRowDrag(row, list, key, slot.id);
+        if (!editing && !sending) bindRowDrag(row, list, key, slot.id);
         list.append(row);
     }
     el.append(head, list);
@@ -960,6 +1129,9 @@ export default definePlugin({
         tailHold = false;
         sawBusyAfterSend = false;
         editingId = null;
+        sendingId = null;
+        clearTimeout(sendHold);
+        sendHold = undefined;
         registerStyle(STYLE_NAME, css);
         keys?.abort();
         keys = new AbortController();
@@ -1066,6 +1238,9 @@ export default definePlugin({
         drainTimer = undefined;
         clearTimeout(bypassTimer);
         bypassTimer = undefined;
+        clearTimeout(sendHold);
+        sendHold = undefined;
+        sendingId = null;
         pending.clear();
         leak = null;
         drainKey = "";

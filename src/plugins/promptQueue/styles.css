@@ -78,6 +78,7 @@ html.dark .bloom-pq-count {
     padding: 4px 4px 4px 8px;
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.05);
+    transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 html.dark .bloom-pq-row {
@@ -152,16 +153,21 @@ html.dark .bloom-pq-ico {
     color: #9e9e9e;
 }
 
-button.bloom-pq-ico:hover,
-button.bloom-pq-ico:focus-visible {
+button.bloom-pq-ico:hover:not(:disabled),
+button.bloom-pq-ico:focus-visible:not(:disabled) {
     background: rgba(0, 0, 0, 0.08);
     color: #0d0d0d;
 }
 
-html.dark button.bloom-pq-ico:hover,
-html.dark button.bloom-pq-ico:focus-visible {
+html.dark button.bloom-pq-ico:hover:not(:disabled),
+html.dark button.bloom-pq-ico:focus-visible:not(:disabled) {
     background: #3f3e3d;
     color: #f5f5f5;
+}
+
+button.bloom-pq-ico:disabled {
+    cursor: default;
+    opacity: 0.45;
 }
 
 .bloom-pq-list {
@@ -177,14 +183,26 @@ html.dark button.bloom-pq-ico:focus-visible {
     display: none;
 }
 
-.bloom-pq-placeholder {
-    opacity: 0.35;
+.bloom-pq-settling .bloom-pq-row {
+    transition: none;
 }
 
-.bloom-pq-overlay {
+.bloom-pq-lift {
     z-index: 10001;
-    pointer-events: none;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.38);
+    transition: none;
+    cursor: grabbing;
+}
+
+.bloom-pq-lift .bloom-pq-body,
+.bloom-pq-lift .bloom-pq-text {
+    cursor: grabbing;
+}
+
+.bloom-pq-gap {
+    flex: none;
+    border-radius: 8px;
+    pointer-events: none;
 }
 
 .bloom-pq-tip {
@@ -219,5 +237,6 @@ html.dark .bloom-pq-tip {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    #bloom-pq-chip { transition: none; }
+    #bloom-pq-chip,
+    .bloom-pq-row { transition: none; }
 }
