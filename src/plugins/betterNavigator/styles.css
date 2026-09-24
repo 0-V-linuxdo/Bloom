@@ -145,9 +145,26 @@
     gap: 0.125rem;
     min-height: 0;
     overflow: auto;
+    overscroll-behavior: contain;
+    overflow-anchor: none;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--text-secondary, #5d5d5d) 55%, transparent) transparent;
     margin: 0;
     padding: 0;
     list-style: none;
+}
+
+.bloom-bn-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.bloom-bn-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.bloom-bn-list::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--text-secondary, #5d5d5d) 55%, transparent);
+    border-radius: 999px;
 }
 
 .bloom-bn-item {

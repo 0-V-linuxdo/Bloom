@@ -38,6 +38,10 @@
  * continue stays. Decorative imgs (favicon, ≤48px, citation/tool)
  * are not Image.
  * Tool rows stay inside the assistant tick — never one tick per tool.
+ * Hover list does not follow the reading line. `setActive` only
+ * updates the current tick, the active row, and the counter. The list
+ * `scrollTop` moves on jump (tick click or ↑/↓) with `block: nearest`,
+ * and not while the pointer is on the menu.
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -196,6 +200,7 @@ let threadRo: ResizeObserver | null = null;
 let io: IntersectionObserver | null = null;
 let scroller: HTMLElement | Window | null = null;
 let unbindScroll: (() => void) | null = null;
+let overMenu = false;
 
 function threadRoot(): HTMLElement | null {
     return document.getElementById("thread")
@@ -889,14 +894,13 @@ function setActive(index: number) {
         n.classList.toggle("bloom-bn-active", k === i);
     });
     if (metaEl) metaEl.textContent = `${i + 1} / ${lastNav.length}`;
-    const active = listEl?.children[i];
-    if (active instanceof HTMLElement) {
-        const parent = listEl;
-        if (parent) {
-            const top = active.offsetTop - parent.clientHeight / 2 + active.offsetHeight / 2;
-            parent.scrollTop = Math.max(0, top);
-        }
-    }
+}
+
+/** User-intent only. Paint / scroll-spy must not move the hover list. */
+function alignMenu(index: number) {
+    if (overMenu) return;
+    const row = listEl?.children[index];
+    if (row instanceof HTMLElement) row.scrollIntoView({ block: "nearest" });
 }
 
 function jump(index: number) {
@@ -905,6 +909,7 @@ function jump(index: number) {
     lockIdx = index;
     lockUntil = Date.now() + LOCK_MS;
     setActive(index);
+    alignMenu(index);
     const parent = scroller ?? findScroller(item.el);
     const dist = Math.abs(item.el.getBoundingClientRect().top - headerOffset());
     const far = dist > FAR_SCREENS * viewHeight(parent);
@@ -969,6 +974,8 @@ function ensureHost(): HTMLElement | null {
     ticks.className = "bloom-bn-ticks";
     const menu = document.createElement("div");
     menu.className = "bloom-bn-menu";
+    menu.addEventListener("pointerenter", () => { overMenu = true; });
+    menu.addEventListener("pointerleave", () => { overMenu = false; });
     const card = document.createElement("div");
     card.className = "bloom-bn-card";
     const meta = document.createElement("div");
@@ -1229,6 +1236,7 @@ function unmount() {
     unbindScroll?.();
     unbindScroll = null;
     scroller = null;
+    overMenu = false;
     host?.remove();
     host = null;
     ticksEl = null;
