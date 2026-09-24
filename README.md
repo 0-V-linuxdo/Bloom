@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.101](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.101)** (`userscript/Bloom.update2.user.js`, `@version [20260924] v1.4.101`).
+Current release: **[v1.4.102](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.102)** (`userscript/Bloom.update2.user.js`, `@version [20260924] v1.4.102`).
 
 Plugins:
 
@@ -170,6 +170,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.102: **BetterNavigator fills the rest of a windowed chat.** A `num_turns=10` GET is not the whole branch. The host pages older windows and keeps going until the mapping reaches the start. Official Prompt Navigator rows with a real message id fill missing user turns. Tools and thoughts stay inside the assistant tick.
 
 v1.4.101: **Install / `@updateURL` / `@downloadURL` move to `userscript/Bloom.update2.user.js`.** Fastly kept `Bloom.update.user.js` on 1.4.99 after 1.4.100 reached `main`. Still write the old copies. The outline still lists unmounted turns and skips tools / thoughts.
 

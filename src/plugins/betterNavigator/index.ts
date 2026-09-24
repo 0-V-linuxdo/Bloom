@@ -32,11 +32,11 @@
  * `/conversations/{id}?num_turns=` (not the Recents list) supplies
  * user|assistant ids for the whole branch, mounted or not. Tools
  * and thoughts stay inside the assistant tick — they are not rows.
- * A one-shot host backfill covers the first GET missed at
- * document-idle. Native `#prompt-nav-container` is read-only labels
- * only — never splice chrome rows. Mounted nodes fill the label
- * and the live dash. A virtualized turn stays in the outline with
- * no element.
+ * Host pages older mapping windows until the branch is whole.
+ * Native `#prompt-nav-container` rows with a real message id fill
+ * missing user turns (no "Go to message N" chrome). Mounted nodes
+ * fill the label and the live dash. A virtualized turn stays in
+ * the outline with no element.
  * Jump nudges the thread until that id mounts; opening the chat does
  * not scroll it.
  * Image-gen assistant turns have no data-message-id / author-role; one
@@ -952,12 +952,25 @@ function nativeHostOk(host: HTMLElement): boolean {
     return /prompt-nav|promptnav|conversation-nav|prompt navigator|conversation navigator/i.test(mark);
 }
 
+const NATIVE_UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+const NATIVE_CHROME = /^(?:go to message(?: \d+)?|message \d+|prompt navigator|conversation navigator|\d+)$/i;
+
 function nativeIdOf(node: HTMLElement): string {
-    return node.getAttribute("data-turn-id")
-        || node.getAttribute("data-message-id")
-        || node.getAttribute("data-goto-message-id")
-        || node.getAttribute("data-messageid")
-        || "";
+    const attrs = [
+        "data-turn-id",
+        "data-message-id",
+        "data-goto-message-id",
+        "data-messageid",
+        "data-conversation-turn-id",
+        "data-scroll-to-id",
+        "data-id",
+    ];
+    for (const name of attrs) {
+        const v = node.getAttribute(name) || "";
+        if (v) return v;
+    }
+    const href = node.getAttribute("href") || "";
+    return href.match(NATIVE_UUID)?.[0] ?? "";
 }
 
 function nativeTextOf(node: HTMLElement): string {
@@ -970,7 +983,13 @@ function nativeTextOf(node: HTMLElement): string {
 }
 
 function isRealNativeId(id: string): boolean {
-    return !!id && !id.startsWith("native:") && !id.startsWith("anon:") && !id.startsWith("mid:");
+    if (!id || id.startsWith("native:") || id.startsWith("anon:") || id.startsWith("mid:")) return false;
+    if (NATIVE_UUID.test(id)) return true;
+    return /^[a-zA-Z0-9_-]{8,}$/.test(id);
+}
+
+function isNativeChrome(text: string): boolean {
+    return !text || NATIVE_CHROME.test(text.trim());
 }
 
 /** Official Prompt Navigator only. Do not mount into it. */
@@ -999,27 +1018,51 @@ function collectNative(): NavItem[] {
     return out;
 }
 
-/** Labels only. Never insert "Go to message N" chrome as outline rows. */
+/** Real-id native rows fill missing user turns. Chrome without an id is skipped. */
 function mergeNative(items: NavItem[], native: NavItem[]): NavItem[] {
     if (!native.length) return items;
+    const rows = native.filter(row => isRealNativeId(row.id) && !isNativeChrome(row.text));
+    if (!rows.length) return items;
+    const out = items.slice();
     const index = new Map<string, NavItem>();
-    for (const item of items) {
+    for (const item of out) {
         index.set(item.id, item);
         if (item.el) {
             for (const id of nodeIds(item.el)) index.set(id, item);
         }
     }
-    for (const row of native) {
-        if (!isRealNativeId(row.id)) continue;
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
         const hit = index.get(row.id);
-        if (!hit) continue;
-        if (row.text && (!hit.text || isWeakLabel(hit.text))) {
-            hit.text = row.text;
-            labels.set(hit.id, row.text);
+        if (hit) {
+            if (row.text && (!hit.text || isWeakLabel(hit.text))) {
+                hit.text = row.text;
+                labels.set(hit.id, row.text);
+            }
+            if (!hit.el && row.el?.isConnected) hit.el = row.el;
+            continue;
         }
-        if (!hit.el && row.el?.isConnected) hit.el = row.el;
+        let at = out.length;
+        for (let j = i + 1; j < rows.length; j++) {
+            const later = index.get(rows[j].id);
+            if (!later) continue;
+            const idx = out.indexOf(later);
+            if (idx >= 0) {
+                at = idx;
+                break;
+            }
+        }
+        const added: NavItem = {
+            id: row.id,
+            el: row.el,
+            role: "user",
+            text: row.text || "Message",
+        };
+        out.splice(at, 0, added);
+        index.set(added.id, added);
+        labels.set(added.id, added.text);
     }
-    return items;
+    return out;
 }
 
 function collect(): NavItem[] {

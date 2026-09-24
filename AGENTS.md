@@ -39,6 +39,8 @@ RN 订 `watchStreamingEdge(onFall)`，host 400ms `setInterval` 在后台仍跑�
 
 **1.4.79：** `currentConversationId()` 只认 pathname `/c/{id}`。`/` 和 `/g/` 上的残留 `data-conversation-id` 不是当前对话。`isDraftMigrate` 只在目标 id 等于这场 harvest id（id 还没到时，仅草稿页的空 `post-start` / `pendingDraft`，第一个 `/c/{id}` 认领）时成立；点另一条 Recents 是真切会话。CSF 在宿主 `onFall` 之前保持 rotate，不要闪官方 wait。CLS / BN 的页级 Stop 还要看 `streamingSuppressed()`。RN 用 `currentConversationId() || inFlightConversationId()`。不要第二份 history wrap。
 
+**1.4.102：** BetterNavigator / harvest 不能把窗口化 `num_turns=10` 当成整条主链。`ensureConversationChain` 在 payload 仍 truncated（缺 parent、`has_more`、或 URL `num_turns` 装满）时继续要更早的窗口（`before_node` / `before`），不改页面自己的 `num_turns`。窗口无 overlap 时按 `create_time` 往前缝。官方 `#prompt-nav-container` 带真实 message id 的行补缺的 user 轮，无 id 的「Go to message N」仍不插。工具 / 思考仍不是独立刻度。不要 `/conversations` 列表轮询，不要 Grok stores，不要 `html`/`body` MO。
+
 **1.4.101：** `@updateURL` / `@downloadURL` 改走 `userscript/Bloom.update2.user.js`。1.4.100 进 `main` 之后 Fastly 仍把 `Bloom.update.user.js` 卡在 1.4.99。旧文件继续写。目录规则仍是 1.4.100：没挂上的轮也列，只排除工具 / 思考。
 
 **1.4.100：** BetterNavigator / harvest 主链列出整条对话，包括 `#thread` 还没挂上的轮。只排除工具和思考：`recipient` 不是 `all`、`author.role=tool`、`content_type` 为 thought/reasoning/code/execution_output/`tether_`/`computer_`、以及 `channel` 为 commentary/thought/reasoning/analysis 且没有 `end_turn`。不要用「页面上出现过」当条件，不要要求 `channel===final`。隐藏系统行仍不是刻度；连续 assistant 收成一条。不要 `/conversations` 列表轮询，不要 Grok stores，不要 `html`/`body` MO。

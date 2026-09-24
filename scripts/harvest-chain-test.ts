@@ -13,8 +13,11 @@ import {
     idFromApiUrl,
     isConversationGet,
     isConversationList,
+    isTruncatedPayload,
     isWindowedConversationGet,
     mergeConversationChain,
+    oldestNodeId,
+    payloadCompletesChain,
 } from "../src/host/conversationChain.ts";
 
 const LIST = "https://chatgpt.com/backend-api/conversations?offset=0&limit=28&order=updated";
@@ -280,5 +283,40 @@ const noChannel = chainFromPayload({
     },
 });
 assert.deepEqual(noChannel.map(t => t.id), ["mu1", "ma1"]);
+
+const cut = {
+    conversation_id: ID,
+    current_node: "a2",
+    mapping: {
+        u2: {
+            id: "u2",
+            parent: "a1",
+            children: ["a2"],
+            message: { id: "mu2", author: { role: "user" }, content: { parts: ["later"] } },
+        },
+        a2: {
+            id: "a2",
+            parent: "u2",
+            children: [],
+            message: { id: "ma2", author: { role: "assistant" }, content: { parts: ["later answer"] } },
+        },
+    },
+};
+assert.equal(isTruncatedPayload(cut), true);
+assert.equal(oldestNodeId(cut), "u2");
+assert.equal(payloadCompletesChain(cut, WINDOW), false);
+assert.equal(payloadCompletesChain(mapping, SINGULAR), true);
+assert.equal(payloadCompletesChain(mapping, WINDOW), true);
+assert.equal(payloadCompletesChain({ conversation_id: ID, current_node: "a11", mapping: longMap }, WINDOW), false);
+
+const later = [
+    { id: "c", role: "user" as const, text: "c", at: 300 },
+    { id: "d", role: "assistant" as const, text: "d", at: 400 },
+];
+const earlier = [
+    { id: "a", role: "user" as const, text: "a", at: 100 },
+    { id: "b", role: "assistant" as const, text: "b", at: 200 },
+];
+assert.deepEqual(mergeConversationChain(later, earlier).map(t => t.id), ["a", "b", "c", "d"]);
 
 console.log("harvest-chain-test: ok");

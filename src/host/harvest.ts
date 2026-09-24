@@ -12,8 +12,8 @@
  * window, including ids ChatGPT has not mounted yet. Tool / thought
  * nodes stay inside the assistant tick. Init pins the wrap so the
  * first GET is not missed.
- * Opening a long chat may one-shot the singular `{id}` if the chain is
- * still a window. No BloomEventMap.streamEnd.
+ * Opening a long chat pages older windows until the branch is whole.
+ * Does not rewrite ChatGPT's own `num_turns`. No BloomEventMap.streamEnd.
  */
 
 import { conversationIdFromHref, currentConversationId } from "./conversation";
@@ -23,6 +23,8 @@ import {
     idFromApiUrl,
     isConversationGet,
     isConversationList,
+    oldestNodeId,
+    payloadCompletesChain,
     mergeConversationChain,
     sameChain,
     type ChainTurn,
@@ -34,8 +36,11 @@ export {
     idFromApiUrl,
     isConversationGet,
     isConversationList,
+    isTruncatedPayload,
     isWindowedConversationGet,
     mergeConversationChain,
+    oldestNodeId,
+    payloadCompletesChain,
 } from "./conversationChain";
 export type { ChainTurn } from "./conversationChain";
 
@@ -58,8 +63,13 @@ const titles = new Map<string, string>();
 const times = new Map<string, number>();
 const chains = new Map<string, ChainTurn[]>();
 const EMPTY_CHAIN: readonly ChainTurn[] = [];
-const backfilled = new Set<string>();
+const complete = new Set<string>();
 const backfilling = new Set<string>();
+const retryAt = new Map<string, number>();
+const lastDetailHeaders: Record<string, string> = { Accept: "application/json" };
+const HEADER_KEEP = /^(authorization|oai-|openai-|chatgpt-|x-authorization)/i;
+const BACKFILL_PAGES = 16;
+const RETRY_MS = 10_000;
 
 let origFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
 let wrappedFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
@@ -149,13 +159,14 @@ function rememberTitle(conversationId: string, title: string) {
     emit({ type: "conversation-meta", conversationId, title: clean });
 }
 
-function rememberChain(conversationId: string, data: unknown) {
+function rememberChain(conversationId: string, data: unknown, url = "") {
     const cid = conversationIdFromPayload(data, conversationId);
     if (!cid) return;
     const path = chainFromPayload(data);
     if (!path.length) return;
     const prev = chains.get(cid) ?? [];
     const next = mergeConversationChain(prev, path);
+    if (payloadCompletesChain(data, url)) complete.add(cid);
     if (sameChain(prev, next)) return;
     chains.set(cid, next);
     capMap(chains, CHAIN_CONVS);
@@ -210,13 +221,27 @@ function emit(event: HarvestEvent) {
     }
 }
 
-async function tapJson(res: Response, conversationId: string, myEpoch: number) {
+function rememberDetailHeaders(input: RequestInfo | URL, init?: RequestInit) {
+    const raw = init?.headers
+        ?? (typeof Request !== "undefined" && input instanceof Request ? input.headers : null);
+    if (!raw) return;
+    const entries = raw instanceof Headers
+        ? raw.entries()
+        : Array.isArray(raw)
+            ? raw
+            : Object.entries(raw as Record<string, string>);
+    for (const [key, value] of entries) {
+        if (typeof value === "string" && HEADER_KEEP.test(key)) lastDetailHeaders[key] = value;
+    }
+}
+
+async function tapJson(res: Response, conversationId: string, myEpoch: number, url: string) {
     if (myEpoch !== epoch) return;
     try {
         const data = await res.json();
         if (myEpoch !== epoch) return;
         harvestObject(data, conversationId);
-        rememberChain(conversationId, data);
+        rememberChain(conversationId, data, url);
     } catch { /* ignore */ }
 }
 
@@ -278,12 +303,13 @@ function intercept(orig: typeof fetch, input: RequestInfo | URL, init?: RequestI
         seedId = idFromBody(init?.body) || idFromApiUrl(url) || conversationIdFromHref(url) || currentConversationId();
         emit({ type: "post-start", conversationId: seedId, url });
     }
+    if (get) rememberDetailHeaders(input, init);
     return orig(input, init).then(res => {
         if (myEpoch !== epoch) return res;
         if (!get && !post) return res;
         try {
             const copy = res.clone();
-            if (get) void tapJson(copy, idFromApiUrl(url) || currentConversationId(), myEpoch);
+            if (get) void tapJson(copy, idFromApiUrl(url) || currentConversationId(), myEpoch, url);
             else void tapSse(copy, seedId, !res.ok, myEpoch);
         } catch {
             if (post) emit({ type: "post-end", conversationId: seedId, error: !res.ok });
@@ -328,47 +354,89 @@ export function pinHarvest() {
     hookFetch();
 }
 
-function backfillUrl(id: string, kind: "singular" | "plural"): string {
-    return kind === "singular"
-        ? `/backend-api/conversation/${id}`
-        : `/backend-api/conversations/${id}`;
+function backfillUrls(id: string, before = ""): string[] {
+    if (before) {
+        const q = `include_has_versions=true&num_turns=80&before_node=${encodeURIComponent(before)}`;
+        const alt = `include_has_versions=true&num_turns=80&before=${encodeURIComponent(before)}`;
+        return [
+            `/backend-api/conversations/${id}?${q}`,
+            `/backend-api/conversations/${id}?${alt}`,
+        ];
+    }
+    return [
+        `/backend-api/conversation/${id}`,
+        `/backend-api/f/conversation/${id}`,
+        `/backend-api/conversations/${id}`,
+        `/backend-api/conversations/${id}?include_has_versions=true`,
+        `/backend-api/conversations/${id}?include_has_versions=true&num_turns=480`,
+    ];
+}
+
+async function fetchDetail(win: Window & { fetch: typeof fetch }, url: string, id: string): Promise<unknown> {
+    const res = await win.fetch(url, {
+        method: "GET",
+        credentials: "include",
+        headers: { ...lastDetailHeaders },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    harvestObject(data, id);
+    rememberChain(id, data, url);
+    return data;
 }
 
 /**
- * One host GET of the singular (then plural) detail if this chat has not
- * been backfilled. Does not rewrite ChatGPT's `num_turns`. Not a list poll.
+ * Host GETs of the open chat until the active branch is whole.
+ * Does not rewrite ChatGPT's `num_turns`. Not a Recents list poll.
  */
 export function ensureConversationChain(id: string) {
-    if (!id || backfilled.has(id) || backfilling.has(id)) return;
+    if (!id || complete.has(id) || backfilling.has(id)) return;
+    const wait = retryAt.get(id) ?? 0;
+    if (Date.now() < wait) return;
     backfilling.add(id);
     hookFetch();
     const win = pageWindow();
-    const before = chains.get(id)?.length ?? 0;
     void (async () => {
         try {
-            for (const kind of ["singular", "plural"] as const) {
+            let lastData: unknown = null;
+            let fetched = false;
+            for (const url of backfillUrls(id)) {
                 try {
-                    const res = await win.fetch(backfillUrl(id, kind), {
-                        method: "GET",
-                        credentials: "include",
-                        headers: { Accept: "application/json" },
-                    });
-                    if (!res.ok) continue;
-                    try {
-                        const data = await res.json();
-                        harvestObject(data, id);
-                        rememberChain(id, data);
-                    } catch { /* empty or non-JSON */ }
-                    const after = chains.get(id)?.length ?? 0;
-                    if (after > 0) {
-                        backfilled.add(id);
-                        if (after !== before) logger.debug("conversation chain backfill", id, after);
+                    const data = await fetchDetail(win, url, id);
+                    if (!data) continue;
+                    lastData = data;
+                    fetched = true;
+                    if (complete.has(id)) {
+                        logger.debug("conversation chain complete", id, chains.get(id)?.length ?? 0);
                         return;
                     }
-                } catch { /* try the other shape */ }
+                } catch { /* try the next shape */ }
             }
+            let before = lastData ? oldestNodeId(lastData) : (chains.get(id)?.[0]?.alias || chains.get(id)?.[0]?.id || "");
+            let pages = 0;
+            let grew = true;
+            while (before && grew && pages++ < BACKFILL_PAGES && !complete.has(id)) {
+                grew = false;
+                const size = chains.get(id)?.length ?? 0;
+                for (const url of backfillUrls(id, before)) {
+                    try {
+                        const data = await fetchDetail(win, url, id);
+                        if (!data) continue;
+                        lastData = data;
+                        fetched = true;
+                        const next = oldestNodeId(data);
+                        if (next && next !== before) before = next;
+                        if ((chains.get(id)?.length ?? 0) > size) grew = true;
+                        if (complete.has(id)) return;
+                        if (grew) break;
+                    } catch { /* try the other cursor name */ }
+                }
+            }
+            if (complete.has(id)) return;
+            if (fetched && !grew) complete.add(id);
         } finally {
             backfilling.delete(id);
+            if (!complete.has(id)) retryAt.set(id, Date.now() + RETRY_MS);
         }
     })();
 }

@@ -17,6 +17,8 @@ export type ChainTurn = {
     alias?: string;
     role: "user" | "assistant";
     text: string;
+    /** create_time ms — used to prepend older windows that do not overlap. */
+    at?: number;
 };
 
 const CHAIN_MAX = 480;
@@ -60,6 +62,21 @@ function toMs(value: unknown): number | null {
 function asRecord(value: unknown): Record<string, unknown> | null {
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     return value as Record<string, unknown>;
+}
+
+function innerPayload(data: unknown): Record<string, unknown> | null {
+    const root = asRecord(data);
+    if (!root) return null;
+    return !root.mapping && asRecord(root.conversation)
+        ? root.conversation as Record<string, unknown>
+        : root;
+}
+
+export function numTurnsFromUrl(url: string): number {
+    const m = url.match(/[?&]num_turns=(\d+)/i);
+    if (!m) return 0;
+    const n = Number(m[1]);
+    return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 function clipChainText(raw: string): string {
@@ -141,17 +158,86 @@ function collapseOutlineTurns(turns: ChainTurn[]): ChainTurn[] {
         const prev = out[out.length - 1];
         if (prev && prev.role === "assistant" && turn.role === "assistant") {
             const alias = turn.alias || prev.alias || (prev.id !== turn.id ? prev.id : undefined);
+            const at = turn.at ?? prev.at;
             out[out.length - 1] = {
                 id: turn.id,
                 role: "assistant",
                 text: turn.text || prev.text,
                 ...(alias && alias !== turn.id ? { alias } : {}),
+                ...(at ? { at } : {}),
             };
             continue;
         }
         out.push(turn);
     }
     return out;
+}
+
+function mappingWalkTruncated(root: Record<string, unknown>, nodes: Record<string, unknown>): boolean {
+    const leaf = leafIdOf(root, nodes);
+    if (!leaf) return true;
+    const seen = new Set<string>();
+    let id: string | null = leaf;
+    let lastParent: string | null = null;
+    while (id && nodes[id] && !seen.has(id)) {
+        seen.add(id);
+        const rec = asRecord(nodes[id]);
+        lastParent = rec && typeof rec.parent === "string" ? rec.parent : null;
+        id = lastParent;
+    }
+    return !!(lastParent && !nodes[lastParent]);
+}
+
+/** Window / page that is not the whole active branch. */
+export function isTruncatedPayload(data: unknown): boolean {
+    const inner = innerPayload(data);
+    if (!inner) return false;
+    const root = asRecord(data);
+    for (const rec of [inner, root]) {
+        if (!rec) continue;
+        if (rec.has_more === true || rec.has_more_before === true || rec.truncated === true) return true;
+    }
+    const mapping = asRecord(inner.mapping);
+    if (mapping && Object.keys(mapping).length) return mappingWalkTruncated(inner, mapping);
+    const listed = Array.isArray(inner.turns) ? inner.turns
+        : Array.isArray(inner.messages) ? inner.messages
+        : Array.isArray(inner.items) ? inner.items
+        : [];
+    const total = Number(inner.num_turns ?? inner.turn_count ?? inner.total_turns ?? inner.total);
+    return Number.isFinite(total) && total > listed.length && listed.length > 0;
+}
+
+export function oldestNodeId(data: unknown): string {
+    const inner = innerPayload(data);
+    if (!inner) return "";
+    const mapping = asRecord(inner.mapping);
+    if (mapping && Object.keys(mapping).length) {
+        const leaf = leafIdOf(inner, mapping);
+        const seen = new Set<string>();
+        let id: string | null = leaf;
+        let oldest = leaf;
+        while (id && mapping[id] && !seen.has(id)) {
+            seen.add(id);
+            oldest = id;
+            const rec = asRecord(mapping[id]);
+            const parent = rec && typeof rec.parent === "string" ? rec.parent : "";
+            if (parent && !mapping[parent]) break;
+            id = parent || null;
+        }
+        return oldest;
+    }
+    const path = chainFromPayload(data);
+    return path[0]?.alias || path[0]?.id || "";
+}
+
+/** True when this body is the whole branch, not a num_turns window. */
+export function payloadCompletesChain(data: unknown, url = ""): boolean {
+    if (isTruncatedPayload(data)) return false;
+    const path = chainFromPayload(data);
+    if (!path.length) return false;
+    const n = numTurnsFromUrl(url);
+    if (n && path.length >= n) return false;
+    return true;
 }
 
 function leafIdOf(root: Record<string, unknown>, nodes: Record<string, unknown>): string {
@@ -198,6 +284,8 @@ function pathFromLeaf(nodes: Record<string, unknown>, leaf: string): ChainTurn[]
             if (role) {
                 const turn: ChainTurn = { id: mid, role, text: messageText(msg) };
                 if (mid !== id) turn.alias = id;
+                const at = toMs(msg.create_time ?? msg.createTime);
+                if (at) turn.at = at;
                 out.push(turn);
             }
         } else if (msg && isUserAuthor(msg)) {
@@ -234,7 +322,15 @@ export function mergeConversationChain(prev: ChainTurn[], next: ChainTurn[]): Ch
         const seen = new Set(prev.map(t => t.id));
         const lastInPrev = prevIdx.has(next[next.length - 1].id);
         const head = next.filter(t => !seen.has(t.id));
-        return capTail(lastInPrev ? [...head, ...prev] : [...prev, ...head]);
+        const nextLastAt = next[next.length - 1].at;
+        const nextFirstAt = next[0].at;
+        const prevFirstAt = prev[0].at;
+        const prevLastAt = prev[prev.length - 1].at;
+        const older = lastInPrev
+            || (!!nextLastAt && !!prevFirstAt && nextLastAt <= prevFirstAt);
+        const newer = !!nextFirstAt && !!prevLastAt && nextFirstAt >= prevLastAt;
+        if (older && !newer) return capTail([...head, ...prev]);
+        return capTail([...prev, ...head]);
     }
     let len = 0;
     while (a + len < prev.length && b + len < next.length && prev[a + len].id === next[b + len].id) len++;
@@ -273,6 +369,8 @@ function chainFromTurns(turns: unknown[]): ChainTurn[] {
         const turn: ChainTurn = { id: mid, role, text: messageText(msg) || messageText(rec) };
         const alias = typeof rec.id === "string" && rec.id && rec.id !== mid ? rec.id : "";
         if (alias) turn.alias = alias;
+        const at = toMs(msg.create_time ?? msg.createTime ?? rec.create_time ?? rec.createTime);
+        if (at) turn.at = at;
         out.push(turn);
     }
     return collapseOutlineTurns(out);
@@ -290,9 +388,8 @@ function chainFromMapping(root: Record<string, unknown>): ChainTurn[] {
 
 /** Active-branch turns from a conversation GET body (`mapping` or `turns`). */
 export function chainFromPayload(data: unknown): ChainTurn[] {
-    const root = asRecord(data);
-    if (!root) return [];
-    const inner = !root.mapping && asRecord(root.conversation) ? root.conversation as Record<string, unknown> : root;
+    const inner = innerPayload(data);
+    if (!inner) return [];
     const fromMap = chainFromMapping(inner);
     if (fromMap.length) return fromMap;
     const listed = Array.isArray(inner.turns) ? inner.turns
@@ -305,7 +402,7 @@ export function chainFromPayload(data: unknown): ChainTurn[] {
 export function conversationIdFromPayload(data: unknown, fallback = ""): string {
     const root = asRecord(data);
     if (!root) return fallback;
-    const inner = !root.mapping && asRecord(root.conversation) ? root.conversation as Record<string, unknown> : root;
+    const inner = innerPayload(data) ?? root;
     return (typeof inner.conversation_id === "string" && inner.conversation_id)
         || (typeof inner.conversationId === "string" && inner.conversationId)
         || (typeof root.conversation_id === "string" && root.conversation_id)
