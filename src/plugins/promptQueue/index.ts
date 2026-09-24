@@ -41,7 +41,6 @@ import css from "./styles.css";
 const logger = new Logger("PromptQueue");
 const CHIP_ID = "bloom-pq-chip";
 const STYLE_NAME = "promptQueue";
-const CLIP = 80;
 const QUEUE_CAP = 8;
 const DRAIN_PAUSE_MS = 50;
 const BYPASS_MS = 2000;
@@ -90,6 +89,8 @@ let dragId: string | null = null;
 /** Insertion index in the live row list, including the dragged row. */
 let dropAt: number | null = null;
 const DRAG_MIME = "application/x-bloom-pq";
+/** Grok header toggle. Collapsed keeps the rows; it only hides the list. */
+let trayOpen = true;
 /** Still the open reply after Stop remounts as Send. Not cleared by deleting the chip. */
 let busyLatch = false;
 /** Head was just sent and the tail must wait until that new reply has been busy, then settled. */
@@ -465,6 +466,7 @@ function dropChip() {
     editingId = null;
     dragId = null;
     dropAt = null;
+    trayOpen = true;
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -492,7 +494,7 @@ function strokeGlyph(ds: string[]): SVGSVGElement {
     return svg;
 }
 
-/** Lucide grip-vertical. Drag a row by this handle to reorder. */
+/** Lucide grip-vertical. This slot is the drag button, not a model picker. */
 function gripIcon(): SVGSVGElement {
     const svg = svgIcon();
     const dots: Array<[number, number]> = [[9, 5], [15, 5], [9, 12], [15, 12], [9, 19], [15, 19]];
@@ -507,13 +509,13 @@ function gripIcon(): SVGSVGElement {
     return svg;
 }
 
-function iconButton(label: string, graphic: SVGSVGElement, onClick: () => void, tip?: HTMLElement): HTMLButtonElement {
+function iconButton(label: string, graphic: SVGSVGElement, onClick: () => void, tip?: HTMLElement, tipLabel?: string): HTMLButtonElement {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "bloom-pq-ico";
     btn.setAttribute("aria-label", label);
     btn.append(graphic);
-    if (tip) bindHoverTip(btn, tip, label);
+    if (tip) bindHoverTip(btn, tip, tipLabel ?? label);
     btn.addEventListener("mousedown", ev => ev.preventDefault());
     btn.addEventListener("click", ev => {
         ev.preventDefault();
@@ -530,11 +532,17 @@ function fromChip(t: EventTarget | null): boolean {
 
 function liveEditValue(): string | null {
     const node = chip?.querySelector(".bloom-pq-editing");
+    if (node instanceof HTMLTextAreaElement) return node.value;
     return node instanceof HTMLElement ? node.innerText : null;
 }
 
 function focusEditable(el: HTMLElement) {
     el.focus();
+    if (el instanceof HTMLTextAreaElement) {
+        const end = el.value.length;
+        el.setSelectionRange(end, end);
+        return;
+    }
     const sel = window.getSelection();
     if (!sel) return;
     const range = document.createRange();
@@ -567,6 +575,7 @@ function startEdit(id: string) {
     if (editingId) endEdit(editingId, liveEditValue());
     if (!slotsOf(contextKey()).some(item => item.id === id)) return;
     editingId = id;
+    trayOpen = true;
     paintChip();
 }
 
@@ -601,65 +610,91 @@ function paintChip() {
         chip = el;
     }
     el.replaceChildren();
+    el.setAttribute("role", "region");
+    el.setAttribute("aria-label", "Queued messages");
     const n = slots.length;
     const head = document.createElement("div");
     head.className = "bloom-pq-head";
-    const headLabel = document.createElement("span");
-    headLabel.textContent = `${n} Queued message${n === 1 ? "" : "s"}`;
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "bloom-pq-toggle";
+    toggle.setAttribute("aria-label", "Toggle queued messages");
+    toggle.setAttribute("aria-expanded", trayOpen ? "true" : "false");
+    const count = document.createElement("span");
+    count.className = "bloom-pq-count";
+    count.textContent = String(n);
+    const title = document.createElement("span");
+    title.className = "bloom-pq-title line-clamp-2";
+    title.textContent = "Queued messages";
+    toggle.append(count, title);
+    toggle.addEventListener("click", ev => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        trayOpen = !trayOpen;
+        paintChip();
+    });
     const tip = document.createElement("span");
     tip.className = "bloom-pq-tip";
     tip.hidden = true;
-    head.append(headLabel, tip);
+    head.append(toggle, tip);
     const list = document.createElement("div");
     list.className = "bloom-pq-list";
+    if (!trayOpen) list.hidden = true;
     let focusEdit: HTMLElement | null = null;
     for (const slot of slots) {
         const row = document.createElement("div");
         row.className = "bloom-pq-row";
+        row.setAttribute("aria-roledescription", "draggable");
         const editing = editingId === slot.id;
-        const text = document.createElement("span");
-        text.className = editing ? "bloom-pq-text bloom-pq-editing" : "bloom-pq-text";
+        const body = document.createElement("div");
+        body.className = "bloom-pq-body";
+        let field: HTMLElement;
         if (editing) {
-            text.textContent = slot.text;
-            text.contentEditable = "true";
-            text.spellcheck = false;
-            text.setAttribute("role", "textbox");
-            text.setAttribute("aria-label", "Edit queued prompt");
-            text.addEventListener("keydown", ev => {
+            const area = document.createElement("textarea");
+            area.className = "bloom-pq-text bloom-pq-editing";
+            area.value = slot.text;
+            area.rows = 2;
+            area.spellcheck = false;
+            area.setAttribute("aria-label", "Queued message text");
+            area.addEventListener("keydown", ev => {
                 ev.stopPropagation();
-                if (ev.key === "Enter") {
+                if (ev.key === "Enter" && !ev.shiftKey) {
                     ev.preventDefault();
-                    if (!ev.shiftKey) endEdit(slot.id, text.innerText);
+                    endEdit(slot.id, area.value);
                 } else if (ev.key === "Escape") {
                     ev.preventDefault();
                     endEdit(slot.id, null);
                 }
             });
-            text.addEventListener("blur", () => endEdit(slot.id, text.innerText));
-            focusEdit = text;
+            area.addEventListener("blur", () => endEdit(slot.id, area.value));
+            field = area;
+            focusEdit = area;
         } else {
-            const clip = slot.text.length > CLIP ? `${slot.text.slice(0, CLIP)}…` : slot.text;
-            text.textContent = clip;
-            text.title = slot.text;
+            const text = document.createElement("span");
+            text.className = "bloom-pq-text line-clamp-2";
+            text.textContent = slot.text;
             text.addEventListener("click", ev => {
                 ev.preventDefault();
                 ev.stopPropagation();
                 startEdit(slot.id);
             });
+            field = text;
         }
-        row.append(text);
+        body.append(field);
+        row.append(body);
         const actions = document.createElement("div");
-        actions.className = "bloom-pq-actions";
+        actions.className = "bloom-pq-rail";
         if (editing) {
             const save = iconButton("Save", strokeGlyph(["M20 6 9 17l-5-5"]), () => {
-                endEdit(slot.id, text.innerText);
+                endEdit(slot.id, field instanceof HTMLTextAreaElement ? field.value : liveEditValue());
             }, tip);
             const cancel = iconButton("Cancel", strokeGlyph(["M18 6 6 18", "m6 6 12 12"]), () => {
                 endEdit(slot.id, null);
             }, tip);
             actions.append(save, cancel);
         } else {
-            const grip = document.createElement("span");
+            const grip = document.createElement("button");
+            grip.type = "button";
             grip.className = "bloom-pq-ico bloom-pq-grip";
             grip.setAttribute("aria-label", "Drag to reorder");
             grip.draggable = true;
@@ -683,6 +718,10 @@ function paintChip() {
                 clearDropMarks(host);
                 chip?.querySelectorAll(".bloom-pq-dragging").forEach(node => node.classList.remove("bloom-pq-dragging"));
             });
+            grip.addEventListener("click", ev => {
+                ev.preventDefault();
+                ev.stopPropagation();
+            });
             const dismiss = iconButton("Remove from queue", strokeGlyph([
                 "M10 11v6",
                 "M14 11v6",
@@ -694,11 +733,10 @@ function paintChip() {
                 editingId = editingId === slot.id ? null : editingId;
                 dropItem(key, slot.id);
             }, tip);
-            dismiss.classList.add("bloom-pq-ico-danger");
-            const edit = iconButton("Edit", strokeGlyph([
+            const edit = iconButton("Edit queued message", strokeGlyph([
                 "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z",
                 "m15 5 4 4",
-            ]), () => startEdit(slot.id), tip);
+            ]), () => startEdit(slot.id), tip, "Edit");
             const send = iconButton("Send now", strokeGlyph([
                 "M12 19V5",
                 "M6 11 12 5l6 6",
