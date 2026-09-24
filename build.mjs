@@ -49,14 +49,15 @@ const header = `// ==UserScript==
 // @compatible   firefox
 // @compatible   edge
 // @license      GPL-3.0-or-later
-// @downloadURL  ${raw}/userscript/Bloom.update.user.js
-// @updateURL    ${raw}/userscript/Bloom.update.user.js
+// @downloadURL  ${raw}/userscript/Bloom.update2.user.js
+// @updateURL    ${raw}/userscript/Bloom.update2.user.js
 // ==/UserScript==
 `;
 
 const outfile = resolve(here, "userscript/Bloom.user.js");
 const latestOut = resolve(here, "userscript/Bloom.latest.user.js");
 const updateOut = resolve(here, "userscript/Bloom.update.user.js");
+const update2Out = resolve(here, "userscript/Bloom.update2.user.js");
 mkdirSync(dirname(outfile), { recursive: true });
 
 const SKIP_SUBJECT = /^(chore|brand|docs|ci|style|test|build)([:(]|$)/i;
@@ -185,5 +186,6 @@ if (isWatch) {
     writeFileSync(outfile, built);
     writeFileSync(latestOut, built);
     writeFileSync(updateOut, built);
-    console.log(`[Bloom++] wrote ${outfile}, ${latestOut}, and ${updateOut} (${built.length} bytes)`);
+    writeFileSync(update2Out, built);
+    console.log(`[Bloom++] wrote ${outfile}, ${latestOut}, ${updateOut}, and ${update2Out} (${built.length} bytes)`);
 }
