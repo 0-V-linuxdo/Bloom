@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.89](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.89)** (`userscript/Bloom.update.user.js`, `@version [20260924] v1.4.89`).
+Current release: **[v1.4.90](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.90)** (`userscript/Bloom.update.user.js`, `@version [20260924] v1.4.90`).
 
 Plugins:
 
@@ -19,7 +19,7 @@ Plugins:
 | RecentTopics | On | Switch recently opened chats with Ctrl+` (title + last-turn preview). |
 | Cleaner | On | Hide Download apps, the composer “can make mistakes” notice, upgrade CTAs, locked models, home GPT promo, and Free ads. CSS-only. |
 | ResponseNotification | On | Sound + browser notification when a reply finishes. Default: only when the tab is hidden. |
-| PromptQueue | Off | Queue the next prompt while a reply is streaming. Enter/Send waits for this turn instead of interrupting. |
+| PromptQueue | Off | Queue follow-up prompts while a reply is streaming. Enter appends; the head sends after this turn. |
 | ChatListStatus | On | Spinner on the **open** Recents row while this chat is answering. Other rows keep ChatGPT’s own status. |
 | WiderChat | On | Widen the thread and composer (slider 40–96 rem, default 64). CSS-only. |
 | ComposerOpacity | On | Composer background opacity and blur, so the thread can show through the input bar. CSS-only. |
@@ -70,12 +70,14 @@ Off until you turn it on. Replaces the chatgpt.com **home** heading (`/` only) w
 
 ## PromptQueue
 
-Off until you turn it on. While ChatGPT is generating, **Enter / Send queues the next prompt** instead of interrupting the current reply (the native chatgpt.com behavior).
+Off until you turn it on. While ChatGPT is generating, **Enter / Send appends the next prompt** instead of interrupting the current reply (the native chatgpt.com behavior).
 
-- Depth-1 per chat (a second Enter replaces the queued text)
+- Up to 8 prompts per chat. A later Enter appends; it does not replace item 1
+- The setting “replace last” overwrites only the newest item
+- Only the head is sent, and only after the current reply is finished. The next item waits until that new reply has started and then finished
 - Stop still stops generation and does **not** auto-send the queue
-- Alt+Enter, or the chip’s **Send now**, still interrupts immediately
-- Chip `#bloom-pq-chip` mounts on `document.body` above the composer (dismiss with ×)
+- Alt+Enter, or a row’s **Send now**, still interrupts immediately
+- Chip `#bloom-pq-chip` mounts on `document.body` above the composer: `N Queued message(s)`, one row each, drag the grip to reorder
 - Text only; session-only (gone on reload)
 - Independent of ResponseNotification / InputHistory / AutoContinue
 
@@ -168,6 +170,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.90: **PromptQueue keeps every follow-up.** Enter appends (up to 8) instead of replacing the only queued line. The head sends when this reply finishes; the rest wait until that new reply has actually started and then settled. Each row can be deleted, edited, sent now, or dragged. “Replace last” is off by default and only overwrites the newest item. A saved “on” from 1.4.89 is reset once.
 
 v1.4.89: **PromptQueue icons match ChatGPT.** Dismiss is Lucide trash-2 (turns `--text-error` on hover, no “Delete” label). Edit is Lucide pencil, with a filled rounded well while you are editing. Grip and the up-arrow share the same 24-box size. The tray layout is unchanged.
 

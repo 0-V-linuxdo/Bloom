@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.89](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.89)**（`userscript/Bloom.update.user.js`，`@version [20260924] v1.4.89`）。
+当前版本：**[v1.4.90](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.90)**（`userscript/Bloom.update.user.js`，`@version [20260924] v1.4.90`）。
 
 插件：
 
@@ -19,7 +19,7 @@
 | RecentTopics | 开 | Ctrl+` 切换最近打开的会话（标题 + 上轮预览）。 |
 | Cleaner | 开 | 隐藏 Download apps、「也会犯错」提示、升级入口、锁定模型、首页促销、Free 广告。纯 CSS。 |
 | ResponseNotification | 开 | 回复结束时响铃 / 浏览器通知。默认只在标签隐藏时通知。 |
-| PromptQueue | 关 | 生成中排队下一条提示。Enter / Send 等本轮结束再发，而不是打断当前回复。 |
+| PromptQueue | 关 | 生成中排队后续提示。Enter 追加；队头在本轮结束后再发。 |
 | ChatListStatus | 开 | 只在**当前打开**的 Recents 行转圈。其它行沿用 ChatGPT 自带状态。 |
 | WiderChat | 开 | 加宽对话和输入栏（滑块 40–96 rem，默认 64）。纯 CSS。 |
 | ComposerOpacity | 开 | 输入栏背景透明度和模糊，让对话内容能透过输入条。纯 CSS。 |
@@ -63,12 +63,14 @@
 
 ## PromptQueue
 
-默认关闭。ChatGPT 正在生成时，**Enter / Send 会排队下一条提示**，而不是按原生行为打断当前回复并立刻发出。
+默认关闭。ChatGPT 正在生成时，**Enter / Send 会把下一条提示追加进队列**，而不是按原生行为打断当前回复并立刻发出。
 
-- 每个会话只存一条（再按 Enter 覆盖）
+- 每个会话最多 8 条。再按 Enter 是追加，不会把第 1 条换成新的
+- 「替换最后一条」默认关，打开也只改最新那条
+- 只发出队头，而且要等当前回复结束。后面的条目要等这次新回复真正开始、再结束，才接着发
 - Stop 只停止生成，**不会**自动发出队列
-- Alt+Enter 或芯片上的 **立即发送** 仍立刻打断
-- `#bloom-pq-chip` 挂在 `document.body`、贴在输入栏上方（× 丢弃）
+- Alt+Enter 或某一行的 **立即发送** 仍立刻打断
+- `#bloom-pq-chip` 挂在 `document.body`、贴在输入栏上方：标题是 `N Queued message(s)`，一行一条，拖握把可以排序
 - 只排队纯文本；刷新页面即丢（session-only）
 - 独立于 ResponseNotification / InputHistory / AutoContinue
 
@@ -165,6 +167,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.90：**队列改成 FIFO。** 再按 Enter 会追加（最多 8 条），不再把原来那条换成新的。只发队头；后面的要等这次新回复先忙起来再结束。每一行可以删、改、立即发送、拖动排序。「替换最后一条」默认关，开了也只覆盖最新一条。1.4.89 存下来的旧默认「开」会重置一次。
 
 v1.4.89：**队列图标对齐 ChatGPT。** 删除是 Lucide `trash-2`，悬停才变 `--text-error`，轨上不写 Delete。编辑是 Lucide `pencil`，正在编辑时按钮有填充圆角底。拖拽和上箭头同一套 24 盒。卡片骨架不变。
 

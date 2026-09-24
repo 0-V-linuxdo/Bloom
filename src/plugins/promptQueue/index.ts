@@ -3,10 +3,12 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Depth-1 next-turn stash. ChatGPT native Enter/Send during generate
+ * FIFO follow-up stash (cap 8). ChatGPT native Enter/Send during generate
  * interrupts the current reply and POSTs immediately — this plugin
- * intercepts that path, queues the draft, and sends after host
- * watchStreamingEdge. Stop stays native and does not drain.
+ * intercepts that path, appends the draft, and sends the head after host
+ * watchStreamingEdge. Later Enter appends; it does not replace item 1.
+ * Stop stays native and does not drain. A sent head waits for that new
+ * reply to rise and settle before the next item goes.
  * isStreaming() goes false when the trailing control remounts as Send
  * (the interrupt button). Steal also while this page's harvest id is
  * still held, or the last assistant turn is still busy / Pro thinking.
@@ -40,6 +42,7 @@ const logger = new Logger("PromptQueue");
 const CHIP_ID = "bloom-pq-chip";
 const STYLE_NAME = "promptQueue";
 const CLIP = 80;
+const QUEUE_CAP = 8;
 const DRAIN_PAUSE_MS = 50;
 const BYPASS_MS = 2000;
 const ASSISTANT_TURN_SEL = '#thread section[data-testid^="conversation-turn-"][data-turn="assistant"], #thread article[data-testid^="conversation-turn-"][data-turn="assistant"]';
@@ -59,15 +62,16 @@ const DONE_ACTION_SEL = [
 const settings = definePluginSettings({
     replacePending: {
         type: OptionType.BOOLEAN,
-        description: "Replace the queued prompt if you Enter again while one is waiting.",
-        default: true,
+        description: "Replace the last queued prompt on the next Enter. Off appends another item (up to 8).",
+        default: false,
     },
 });
 
-type Slot = { text: string; at: number };
+type Slot = { id: string; text: string; at: number };
 type Leak = { key: string; text: string; turns: number; ticks: number };
 
-const pending = new Map<string, Slot>();
+const pending = new Map<string, Slot[]>();
+let slotSeq = 0;
 
 let started = false;
 let lastKey = "";
@@ -81,9 +85,13 @@ let unsub: (() => void) | null = null;
 let drainTimer: ReturnType<typeof setTimeout> | undefined;
 let bypassTimer: ReturnType<typeof setTimeout> | undefined;
 let chip: HTMLElement | null = null;
-let editingKey: string | null = null;
+let editingId: string | null = null;
+let dragId: string | null = null;
 /** Still the open reply after Stop remounts as Send. Not cleared by deleting the chip. */
 let busyLatch = false;
+/** Head was just sent and the tail must wait until that new reply has been busy, then settled. */
+let tailHold = false;
+let sawBusyAfterSend = false;
 
 function contextKey(): string {
     return contextKeyFromUrl(conversationToken());
@@ -226,13 +234,45 @@ function lastUserText(): string {
     }
 }
 
+function newId(): string {
+    slotSeq += 1;
+    return `pq${Date.now().toString(36)}${slotSeq.toString(36)}`;
+}
+
+function slotsOf(key: string): Slot[] {
+    return pending.get(key) ?? [];
+}
+
+function headOf(key: string): Slot | undefined {
+    return slotsOf(key)[0];
+}
+
+function writeSlots(key: string, slots: Slot[]) {
+    if (!slots.length) pending.delete(key);
+    else pending.set(key, slots);
+}
+
+/** After the head (or a Send now) leaves, the rest must see that reply go busy, then settle. */
+function noteSentTail(key: string) {
+    if (!slotsOf(key).length) {
+        tailHold = false;
+        sawBusyAfterSend = false;
+        drainKey = "";
+        return;
+    }
+    tailHold = true;
+    sawBusyAfterSend = false;
+    busyLatch = true;
+    drainKey = "";
+}
+
 function migrateIfNeeded(key: string) {
     if (!lastKey || lastKey === key) return;
-    const slot = pending.get(lastKey);
-    if (!slot || pending.has(key)) return;
+    const slots = pending.get(lastKey);
+    if (!slots?.length || pending.has(key)) return;
     if (!isDraftMigrate(lastKey, key)) return;
     pending.delete(lastKey);
-    pending.set(key, slot);
+    pending.set(key, slots);
     if (drainKey === lastKey) drainKey = key;
     if (leak?.key === lastKey) leak.key = key;
     logger.debug("migrated pending", lastKey, "→", key);
@@ -240,9 +280,19 @@ function migrateIfNeeded(key: string) {
 
 function enqueue(text: string) {
     const key = contextKey();
-    const existing = pending.get(key);
-    if (existing && settings.store.replacePending === false) return;
-    pending.set(key, { text, at: Date.now() });
+    const slots = slotsOf(key);
+    if (settings.store.replacePending && slots.length) {
+        const last = slots[slots.length - 1]!;
+        last.text = text;
+        last.at = Date.now();
+        writeSlots(key, slots);
+    } else if (slots.length >= QUEUE_CAP) {
+        logger.debug("queue full", key);
+        return;
+    } else {
+        slots.push({ id: newId(), text, at: Date.now() });
+        writeSlots(key, slots);
+    }
     busyLatch = true;
     leak = { key, text, turns: userTurnCount(), ticks: 3 };
     const editor = getActiveEditor();
@@ -252,13 +302,33 @@ function enqueue(text: string) {
     } catch (err) {
         logger.error("chip", err);
     }
-    logger.debug("queued", key, text.length);
+    logger.debug("queued", key, slots.length, text.length);
 }
 
-function dropPending(key: string) {
-    pending.delete(key);
-    if (drainKey === key) drainKey = "";
-    if (leak?.key === key) leak = null;
+function dropItem(key: string, id: string) {
+    const slots = slotsOf(key).filter(slot => slot.id !== id);
+    writeSlots(key, slots);
+    if (editingId === id) editingId = null;
+    if (!slots.length) {
+        if (drainKey === key) drainKey = "";
+        if (leak?.key === key) leak = null;
+    } else if (leak?.key === key) {
+        const leaked = leak.text;
+        if (!slots.some(slot => slot.text === leaked)) leak = null;
+    }
+    paintChip();
+}
+
+function moveItem(key: string, fromId: string, toId: string) {
+    if (!fromId || fromId === toId) return;
+    const slots = slotsOf(key).slice();
+    const from = slots.findIndex(slot => slot.id === fromId);
+    const to = slots.findIndex(slot => slot.id === toId);
+    if (from < 0 || to < 0) return;
+    const [item] = slots.splice(from, 1);
+    if (!item) return;
+    slots.splice(to, 0, item);
+    writeSlots(key, slots);
     paintChip();
 }
 
@@ -271,29 +341,31 @@ function armBypass() {
     }, BYPASS_MS);
 }
 
-function sendNow() {
+function sendItemNow(id: string) {
     const key = contextKey();
-    const slot = pending.get(key);
+    const slot = slotsOf(key).find(item => item.id === id);
     if (!slot) return;
     const editor = getActiveEditor();
     if (!editor) return;
-    pending.delete(key);
-    drainKey = "";
+    const text = slot.text;
+    writeSlots(key, slotsOf(key).filter(item => item.id !== id));
+    if (editingId === id) editingId = null;
     paintChip();
     armBypass();
-    setEditorText(editor, slot.text);
+    setEditorText(editor, text);
     const send = getSubmitButton();
     if (send && !isStopControl(send) && !isDisabledControl(send)) {
         send.click();
         bypassIntercept = false;
     }
+    noteSentTail(key);
 }
 
 function tryDrain(key: string) {
-    if (!started || draining) return;
+    if (!started || draining || tailHold) return;
     if (isStreaming()) return;
     if (contextKey() !== key) return;
-    const slot = pending.get(key);
+    const slot = headOf(key);
     if (!slot) {
         drainKey = "";
         return;
@@ -311,15 +383,15 @@ function tryDrain(key: string) {
     draining = true;
     setEditorText(editor, slot.text);
     clearTimeout(drainTimer);
-    drainTimer = setTimeout(() => finishDrain(key, slot.text), DRAIN_PAUSE_MS);
+    drainTimer = setTimeout(() => finishDrain(key, slot.id, slot.text), DRAIN_PAUSE_MS);
 }
 
-function finishDrain(key: string, text: string) {
+function finishDrain(key: string, id: string, text: string) {
     drainTimer = undefined;
     try {
-        if (!started) return;
-        const slot = pending.get(key);
-        if (!slot || slot.text !== text) return;
+        if (!started || tailHold) return;
+        const slot = headOf(key);
+        if (!slot || slot.id !== id || slot.text !== text) return;
         if (isStreaming()) return;
         if (contextKey() !== key) return;
         const editor = getActiveEditor();
@@ -330,10 +402,10 @@ function finishDrain(key: string, text: string) {
         const send = getSubmitButton();
         if (!send || isStopControl(send) || isDisabledControl(send)) return;
         send.click();
-        pending.delete(key);
-        drainKey = "";
+        writeSlots(key, slotsOf(key).filter(item => item.id !== id));
         paintChip();
-        logger.debug("drained", key);
+        noteSentTail(key);
+        logger.debug("drained", key, slotsOf(key).length);
     } finally {
         draining = false;
     }
@@ -364,7 +436,8 @@ function placeChip(el: HTMLElement) {
 function dropChip() {
     chip?.remove();
     chip = null;
-    editingKey = null;
+    editingId = null;
+    dragId = null;
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -392,7 +465,7 @@ function strokeGlyph(ds: string[]): SVGSVGElement {
     return svg;
 }
 
-/** Lucide grip-vertical. Depth-1, inert. */
+/** Lucide grip-vertical. Drag a row by this handle to reorder. */
 function gripIcon(): SVGSVGElement {
     const svg = svgIcon();
     const dots: Array<[number, number]> = [[9, 5], [15, 5], [9, 12], [15, 12], [9, 19], [15, 19]];
@@ -443,19 +516,20 @@ function focusEditable(el: HTMLElement) {
     sel.addRange(range);
 }
 
-function endEdit(key: string, value: string | null) {
-    if (editingKey !== key) return;
-    editingKey = null;
+function endEdit(id: string, value: string | null) {
+    if (editingId !== id) return;
+    editingId = null;
     if (value === null) {
         paintChip();
         return;
     }
     const next = normalize(value);
+    const key = contextKey();
     if (!next) {
-        dropPending(key);
+        dropItem(key, id);
         return;
     }
-    const slot = pending.get(key);
+    const slot = slotsOf(key).find(item => item.id === id);
     if (slot) slot.text = next;
     paintChip();
 }
@@ -466,11 +540,12 @@ function paintChip() {
         return;
     }
     const key = contextKey();
-    const slot = pending.get(key);
-    if (!slot) {
+    const slots = slotsOf(key);
+    if (!slots.length) {
         dropChip();
         return;
     }
+    if (editingId && !slots.some(slot => slot.id === editingId)) editingId = null;
     let el = chip;
     if (!el?.isConnected) {
         el = document.createElement("div");
@@ -479,95 +554,127 @@ function paintChip() {
         chip = el;
     }
     el.replaceChildren();
+    const n = slots.length;
     const head = document.createElement("div");
     head.className = "bloom-pq-head";
-    head.textContent = "1 Queued messages";
-    const row = document.createElement("div");
-    row.className = "bloom-pq-row";
-    const editing = editingKey === key;
+    head.textContent = `${n} Queued message${n === 1 ? "" : "s"}`;
+    const list = document.createElement("div");
+    list.className = "bloom-pq-list";
     let focusEdit: HTMLElement | null = null;
-    const text = document.createElement("span");
-    text.className = editing ? "bloom-pq-text bloom-pq-editing" : "bloom-pq-text";
-    if (editing) {
-        text.textContent = slot.text;
-        text.contentEditable = "true";
-        text.spellcheck = false;
-        text.setAttribute("role", "textbox");
-        text.setAttribute("aria-label", "Edit queued prompt");
-        text.addEventListener("keydown", ev => {
-            ev.stopPropagation();
-            if (ev.key === "Enter") {
-                ev.preventDefault();
-                if (!ev.shiftKey) endEdit(key, text.innerText);
-            } else if (ev.key === "Escape") {
-                ev.preventDefault();
-                endEdit(key, null);
-            }
-        });
-        text.addEventListener("blur", () => endEdit(key, text.innerText));
-        focusEdit = text;
-    } else {
-        const clip = slot.text.length > CLIP ? `${slot.text.slice(0, CLIP)}…` : slot.text;
-        text.textContent = clip;
-        text.title = slot.text;
-    }
-    row.append(text);
-    const actions = document.createElement("div");
-    actions.className = "bloom-pq-actions";
-    const grip = document.createElement("span");
-    grip.className = "bloom-pq-ico bloom-pq-grip";
-    grip.title = "Only one prompt can wait";
-    grip.append(gripIcon());
-    const dismiss = iconButton("Dismiss queued prompt", strokeGlyph([
-        "M10 11v6",
-        "M14 11v6",
-        "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6",
-        "M3 6h18",
-        "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
-    ]), () => {
-        editingKey = null;
-        dropPending(key);
-    });
-    dismiss.classList.add("bloom-pq-ico-danger");
-    dismiss.title = "Delete";
-    const edit = iconButton("Edit queued prompt", strokeGlyph([
-        "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z",
-        "m15 5 4 4",
-    ]), () => {
-        if (editingKey === key) {
-            endEdit(key, liveEditValue());
-            return;
+    for (const slot of slots) {
+        const row = document.createElement("div");
+        row.className = "bloom-pq-row";
+        const editing = editingId === slot.id;
+        const text = document.createElement("span");
+        text.className = editing ? "bloom-pq-text bloom-pq-editing" : "bloom-pq-text";
+        if (editing) {
+            text.textContent = slot.text;
+            text.contentEditable = "true";
+            text.spellcheck = false;
+            text.setAttribute("role", "textbox");
+            text.setAttribute("aria-label", "Edit queued prompt");
+            text.addEventListener("keydown", ev => {
+                ev.stopPropagation();
+                if (ev.key === "Enter") {
+                    ev.preventDefault();
+                    if (!ev.shiftKey) endEdit(slot.id, text.innerText);
+                } else if (ev.key === "Escape") {
+                    ev.preventDefault();
+                    endEdit(slot.id, null);
+                }
+            });
+            text.addEventListener("blur", () => endEdit(slot.id, text.innerText));
+            focusEdit = text;
+        } else {
+            const clip = slot.text.length > CLIP ? `${slot.text.slice(0, CLIP)}…` : slot.text;
+            text.textContent = clip;
+            text.title = slot.text;
         }
-        if (!pending.has(key)) return;
-        editingKey = key;
-        paintChip();
-    });
-    if (editing) edit.classList.add("bloom-pq-ico-active");
-    const send = iconButton("Send now", strokeGlyph([
-        "M12 19V5",
-        "M6 11 12 5l6 6",
-    ]), () => {
-        const live = liveEditValue();
-        if (live !== null) {
-            const next = normalize(live);
-            editingKey = null;
-            if (!next) {
-                dropPending(key);
+        row.append(text);
+        const actions = document.createElement("div");
+        actions.className = "bloom-pq-actions";
+        const grip = document.createElement("span");
+        grip.className = "bloom-pq-ico bloom-pq-grip";
+        grip.title = "Drag to reorder";
+        grip.draggable = true;
+        grip.append(gripIcon());
+        grip.addEventListener("dragstart", ev => {
+            dragId = slot.id;
+            ev.dataTransfer?.setData("text/plain", slot.id);
+            if (ev.dataTransfer) ev.dataTransfer.effectAllowed = "move";
+        });
+        grip.addEventListener("dragend", () => {
+            dragId = null;
+        });
+        row.addEventListener("dragover", ev => {
+            if (!dragId || dragId === slot.id) return;
+            ev.preventDefault();
+            if (ev.dataTransfer) ev.dataTransfer.dropEffect = "move";
+        });
+        row.addEventListener("drop", ev => {
+            ev.preventDefault();
+            const from = ev.dataTransfer?.getData("text/plain") || dragId || "";
+            dragId = null;
+            moveItem(key, from, slot.id);
+        });
+        const dismiss = iconButton("Dismiss queued prompt", strokeGlyph([
+            "M10 11v6",
+            "M14 11v6",
+            "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6",
+            "M3 6h18",
+            "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
+        ]), () => {
+            if (editingId && editingId !== slot.id) endEdit(editingId, liveEditValue());
+            editingId = editingId === slot.id ? null : editingId;
+            dropItem(key, slot.id);
+        });
+        dismiss.classList.add("bloom-pq-ico-danger");
+        dismiss.title = "Delete";
+        const edit = iconButton("Edit queued prompt", strokeGlyph([
+            "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z",
+            "m15 5 4 4",
+        ]), () => {
+            if (editingId === slot.id) {
+                endEdit(slot.id, liveEditValue());
                 return;
             }
-            const slotNow = pending.get(key);
-            if (slotNow) slotNow.text = next;
-        }
-        sendNow();
-    });
-    actions.append(grip, dismiss, edit, send);
-    row.append(actions);
-    el.append(head, row);
+            if (editingId) endEdit(editingId, liveEditValue());
+            if (!slotsOf(key).some(item => item.id === slot.id)) return;
+            editingId = slot.id;
+            paintChip();
+        });
+        if (editing) edit.classList.add("bloom-pq-ico-active");
+        const send = iconButton("Send now", strokeGlyph([
+            "M12 19V5",
+            "M6 11 12 5l6 6",
+        ]), () => {
+            const id = slot.id;
+            if (editingId === id) {
+                const live = liveEditValue();
+                editingId = null;
+                const next = live === null ? slot.text : normalize(live);
+                if (!next) {
+                    dropItem(key, id);
+                    return;
+                }
+                const cur = slotsOf(key).find(item => item.id === id);
+                if (cur) cur.text = next;
+            } else if (editingId) {
+                endEdit(editingId, liveEditValue());
+            }
+            sendItemNow(id);
+        });
+        actions.append(grip, dismiss, edit, send);
+        row.append(actions);
+        list.append(row);
+    }
+    el.append(head, list);
     placeChip(el);
     if (focusEdit) {
         const input = focusEdit;
+        const focusId = editingId;
         queueMicrotask(() => {
-            if (editingKey === key && input.isConnected) focusEditable(input);
+            if (editingId === focusId && input.isConnected) focusEditable(input);
         });
     }
 }
@@ -575,13 +682,21 @@ function paintChip() {
 function watchLeak() {
     if (!leak) return;
     leak.ticks -= 1;
-    const slot = pending.get(leak.key);
-    if (slot && userTurnCount() > leak.turns) {
+    const slots = slotsOf(leak.key);
+    if (slots.length && userTurnCount() > leak.turns) {
         const last = lastUserText();
         if (last && last === leak.text) {
-            logger.debug("native send leaked; dropping pending");
-            pending.delete(leak.key);
-            if (drainKey === leak.key) drainKey = "";
+            logger.debug("native send leaked; dropping matching item");
+            let idx = -1;
+            for (let i = slots.length - 1; i >= 0; i--) {
+                if (slots[i]?.text === leak.text) {
+                    idx = i;
+                    break;
+                }
+            }
+            if (idx >= 0) slots.splice(idx, 1);
+            writeSlots(leak.key, slots);
+            if (!slots.length && drainKey === leak.key) drainKey = "";
             leak = null;
             paintChip();
             return;
@@ -692,7 +807,7 @@ function onSubmit(e: Event) {
 
 export default definePlugin({
     name: "PromptQueue",
-    description: "Queue the next prompt while a reply is streaming. Enter/Send waits for this turn instead of interrupting.",
+    description: "Queue follow-up prompts while a reply is streaming. Enter appends; the head sends after this turn.",
     authors: [Devs.p],
     tags: ["chat"],
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>`,
@@ -703,6 +818,13 @@ export default definePlugin({
     settings,
     start() {
         started = true;
+        // 1.4.89 wrote the old default `true` into the bag on read. That
+        // replaced the only queued line. Append unless the user opts in again.
+        const row = settings.store as { replacePending?: boolean; queueModeRev?: number };
+        if (row.queueModeRev !== 1) {
+            row.replacePending = false;
+            row.queueModeRev = 1;
+        }
         lastKey = contextKey();
         drainKey = "";
         draining = false;
@@ -710,6 +832,10 @@ export default definePlugin({
         passNative = false;
         leak = null;
         busyLatch = !streamingSuppressed() && !stoppedByUser() && (isStreaming() || generateHeld());
+        tailHold = false;
+        sawBusyAfterSend = false;
+        editingId = null;
+        dragId = null;
         registerStyle(STYLE_NAME, css);
         keys?.abort();
         keys = new AbortController();
@@ -726,8 +852,20 @@ export default definePlugin({
                 if (!started) return;
                 if (edge.userStopped || edge.error) {
                     busyLatch = false;
+                    tailHold = false;
+                    sawBusyAfterSend = false;
                     drainKey = "";
                     paintChip();
+                    return;
+                }
+                if (tailHold && !sawBusyAfterSend) return;
+                if (tailHold && sawBusyAfterSend) {
+                    if (!replySettled()) return;
+                    tailHold = false;
+                    sawBusyAfterSend = false;
+                    busyLatch = false;
+                    drainKey = edge.contextKey;
+                    tryDrain(edge.contextKey);
                     return;
                 }
                 if (!replySettled()) {
@@ -740,11 +878,14 @@ export default definePlugin({
             },
             onRise() {
                 if (streamingSuppressed() || stoppedByUser()) return;
+                if (tailHold) sawBusyAfterSend = true;
                 busyLatch = true;
             },
             onContext(next, prev) {
                 if (prev && next && !isDraftMigrate(prev, next)) {
                     busyLatch = false;
+                    tailHold = false;
+                    sawBusyAfterSend = false;
                     drainKey = "";
                     draining = false;
                     if (drainTimer !== undefined) {
@@ -760,15 +901,31 @@ export default definePlugin({
                 migrateIfNeeded(state.contextKey);
                 lastKey = state.contextKey;
                 watchLeak();
-                if (busyLatch && replySettled()) {
+                if (streamingSuppressed() || stoppedByUser()) {
+                    tailHold = false;
+                    sawBusyAfterSend = false;
                     busyLatch = false;
-                    if (!drainKey && pending.get(state.contextKey)) {
+                    drainKey = "";
+                }
+                if (tailHold && (isStreaming() || generateHeld())) sawBusyAfterSend = true;
+                if (tailHold && sawBusyAfterSend && replySettled()) {
+                    tailHold = false;
+                    sawBusyAfterSend = false;
+                    busyLatch = false;
+                    if (slotsOf(state.contextKey).length) {
                         drainKey = state.contextKey;
                         tryDrain(state.contextKey);
                     }
                 }
-                if (drainKey && drainKey === state.contextKey) tryDrain(drainKey);
-                if (pending.get(state.contextKey) && !chip?.isConnected) paintChip();
+                if (!tailHold && busyLatch && replySettled()) {
+                    busyLatch = false;
+                    if (!drainKey && slotsOf(state.contextKey).length) {
+                        drainKey = state.contextKey;
+                        tryDrain(state.contextKey);
+                    }
+                }
+                if (!tailHold && drainKey && drainKey === state.contextKey) tryDrain(drainKey);
+                if (slotsOf(state.contextKey).length && !chip?.isConnected) paintChip();
                 else if (chip) placeChip(chip);
             },
         });
@@ -792,6 +949,9 @@ export default definePlugin({
         bypassIntercept = false;
         passNative = false;
         busyLatch = false;
+        tailHold = false;
+        sawBusyAfterSend = false;
+        dragId = null;
         dropChip();
     },
 });
