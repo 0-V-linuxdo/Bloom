@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.107](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.107)** (`userscript/Bloom.update3.user.js`, `@version [20260924] v1.4.107`).
+Current release: **[v1.4.108](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.108)** (`userscript/Bloom.update3.user.js`, `@version [20260924] v1.4.108`).
 
 Plugins:
 
@@ -170,6 +170,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.108: **BetterNavigator is restored to v1.4.97** ([d4015b5](https://github.com/0-V-linuxdo/Bloom/commit/d4015b53f11b7241cfd62f725b6150071c720cea)). The outline experiments from 1.4.98 through 1.4.107 are reverted. The host no longer requests older conversation pages. Install URL stays `userscript/Bloom.update3.user.js`.
 
 v1.4.107: **BetterNavigator fills the rest of a windowed chat without the open-chat stall.** A `num_turns=10` GET is not the whole branch, even after tool collapse shrinks it below 10. Older pages drip one `num_turns=10` window at a time, 8s apart, after the page's own GET; HTTP 429 stops. Opening a chat still does not fetch detail. A locale pill such as `zh-cn` under a file chip is not a second user tick — the prompt is. Two different chain ids with the same text stay two ticks. Install URL stays `userscript/Bloom.update3.user.js`.
 

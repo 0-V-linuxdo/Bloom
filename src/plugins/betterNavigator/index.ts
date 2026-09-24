@@ -13,8 +13,6 @@
  * viewport edge. Hover menu is Void-sized (min 18rem / 70vw).
  * Tick glyphs follow Notion-style-AI-Navigator (1.25/1.75rem × 2px,
  * 1rem gap, 0.125rem radius, current glow) — not Void mini-pills.
- * Long outlines keep that 1rem slot and scroll the rail. Do not
- * crush ticks to 0.375rem / 3px.
  * Live dash: the in-progress assistant tick only. Turn-level
  * aria-busy / .result-streaming (not a nested citation or filmstrip),
  * the last assistant still thinking with an empty markdown, or a
@@ -30,29 +28,18 @@
  * isStreaming(), never the previous finished reply, no streamEnd, no
  * Grok stores.
  * Collect the active branch, not only the turns ChatGPT has mounted.
- * Host harvest of GET `/conversation/{id}` and windowed
- * `/conversations/{id}?num_turns=` (not the Recents list) supplies
- * user|assistant ids for the whole branch, mounted or not. Tools
- * and thoughts stay inside the assistant tick — they are not rows.
- * Host harvest listens to the page's own windowed conversation GET.
- * It does not GET detail on open (`/f/conversation/{id}`, unwindowed
- * `/conversations/{id}`, or `num_turns=480` stalled hydrate). A windowed
- * body is not the whole branch. Older `num_turns=10` pages drip one at a
- * time after that GET (and on hover / unmounted jump), 8s apart; 429 stops.
- * Native `#prompt-nav-container` rows with a real message id fill missing
- * user turns (no "Go to message N" chrome). Two chain user ids stay two
- * ticks even when the text matches. Same-bubble id/alias mismatch still
- * absorbs, even when one label is a locale pill. A blank assistant section
- * (no message id, no prose, not image-gen, not in progress) is not a tick.
- * Jump nudges the thread until that id mounts; opening the chat does
- * not scroll it.
+ * GET `/backend-api/conversation/{id}` mapping (via host harvest, no
+ * second fetch, no `/conversations` poll, no Grok store) supplies
+ * user|assistant ids. Mounted nodes fill the label and the live dash.
+ * A virtualized turn stays in the outline with no element. Jump nudges
+ * the thread until that id mounts; opening the chat does not scroll it.
  * Image-gen assistant turns have no data-message-id / author-role; one
  * tick per data-turn-id (filmstrip thumbs are not extra ticks).
  * Hover marks follow Void++ ❓/🤖 — never You/GPT text. Empty image-gen
  * labels are `Image xN` (unique estuary file_* in the turn; n<2 stays Image).
- * File turns use the prompt under the chip (`.whitespace-pre-wrap`),
- * not the filename, not the File subtitle, and not a locale pill such
- * as zh-cn. No leftover text falls back to File. Short user text such as
+ * File turns use the text under the chip (including a short pill
+ * such as zh-cn), not the filename and not the File subtitle.
+ * No leftover text falls back to File. Short user text such as
  * continue stays. Decorative imgs (favicon, ≤48px, citation/tool)
  * are not Image.
  * Tool rows stay inside the assistant tick — never one tick per tool.
@@ -65,7 +52,7 @@
 import { definePluginSettings } from "../../api/Settings";
 import { getStopButton } from "../../host/composer";
 import { currentConversationId } from "../../host/conversation";
-import { conversationChain, ensureConversationChain, subscribeHarvest, type ChainTurn, type HarvestEvent } from "../../host/harvest";
+import { conversationChain, subscribeHarvest, type ChainTurn, type HarvestEvent } from "../../host/harvest";
 import { getProStopButton, isDraftMigrate, streamingSuppressed, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
@@ -77,6 +64,7 @@ const logger = new Logger("BetterNavigator");
 const STYLE_NAME = "betterNavigator";
 const HOST_ID = "bloom-bn-host";
 const CLIP = 60;
+const DENSE_AT = 16;
 const LOCK_MS = 1000;
 const HYDRATE_MS = 2400;
 const HYDRATE_STEP = 80;
@@ -128,16 +116,6 @@ const TURN_SEL = [
     'article[data-testid^="conversation-turn-"][data-turn="assistant"]',
 ].join(", ");
 
-const NATIVE_HOST_SEL = [
-    "#prompt-nav-container",
-    "[id*='prompt-nav' i]",
-    "[data-testid*='prompt-nav' i]",
-    "[aria-label='Prompt navigator' i]",
-    "[aria-label='Conversation navigator' i]",
-    "nav[aria-label*='prompt navigator' i]",
-    "nav[aria-label*='conversation navigator' i]",
-].join(", ");
-
 const SKIP = [
     "#thread-bottom-container",
     "#prompt-textarea",
@@ -180,7 +158,7 @@ const TYPING = [
 ].join(", ");
 
 type Role = "user" | "assistant";
-type NavItem = { id: string; el: HTMLElement | null; role: Role; text: string; live?: boolean; alias?: string };
+type NavItem = { id: string; el: HTMLElement | null; role: Role; text: string; live?: boolean };
 
 const settings = definePluginSettings({
     showAssistant: {
@@ -601,19 +579,13 @@ function looseProse(root: HTMLElement): string {
     return normSpace(blocks.join(" "));
 }
 
-const LOCALE_PILL_RE = /^[a-z]{2,3}(?:[-_][a-z0-9]{2,4})+$/i;
-
-function isLocalePill(raw: string): boolean {
-    return LOCALE_PILL_RE.test(normSpace(raw));
-}
-
-/** Prompt under the file chip. A locale pill such as zh-cn is not the caption. */
+/** Text under the file chip. Filename and "File" are not the caption; zh-cn is. */
 function textBelowFile(el: HTMLElement): string {
     const chip = fileChipOf(el);
     if (!chip) return "";
-    let prose = "";
-    let other = "";
-    const take = (node: HTMLElement, preferProse: boolean) => {
+    const blocks: string[] = [];
+    const seen = new Set<string>();
+    const take = (node: HTMLElement) => {
         try {
             if (chip.contains(node) || node.contains(chip)) return;
             if (!(chip.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING)) return;
@@ -621,29 +593,21 @@ function textBelowFile(el: HTMLElement): string {
         } catch {
             return;
         }
+        // A locale pill is often a button. noiseInside would drop it.
         const t = normSpace(node.innerText || node.textContent || "");
-        if (!t || t.length > CLIP + 20 || isChipLine(t) || isLocalePill(t)) return;
-        if (!preferProse && node.matches("button, [role='button']")) return;
-        if (preferProse) {
-            if (!prose) prose = t;
-        } else if (!other) {
-            other = t;
-        }
+        if (!t || t.length > CLIP + 20 || seen.has(t) || isChipLine(t)) return;
+        seen.add(t);
+        blocks.push(t);
     };
     try {
-        for (const node of el.querySelectorAll<HTMLElement>(".whitespace-pre-wrap, .markdown, p, li, h1, h2, h3, blockquote")) {
-            take(node, true);
-            if (prose) break;
-        }
-        if (!prose) {
-            for (const node of el.querySelectorAll<HTMLElement>("div, span")) {
-                if (node.querySelector("div, p, li, button")) continue;
-                take(node, false);
-                if (other) break;
-            }
+        const sel = "button, [role='button'], p, li, h1, h2, h3, blockquote, .whitespace-pre-wrap, .markdown, div, span";
+        for (const node of el.querySelectorAll<HTMLElement>(sel)) {
+            if (node.matches("div, span") && node.querySelector("div, p, li, button")) continue;
+            take(node);
+            if (blocks.length) break;
         }
     } catch { /* ignore */ }
-    return normSpace(prose || other);
+    return normSpace(blocks.join(" "));
 }
 
 function bodyText(el: HTMLElement, role: Role): string {
@@ -845,16 +809,6 @@ function nodeIds(el: HTMLElement): string[] {
     return out;
 }
 
-function isBlankAssistant(el: HTMLElement, last: boolean, armed: boolean): boolean {
-    if (isImageGen(el)) return false;
-    if (el.getAttribute("data-message-id") || el.querySelector("[data-message-id]")) return false;
-    if (turnBusy(el) || turnSpinner(el) || proThinkingLive(el)) return false;
-    if (last && armed) return false;
-    if (bodyText(el, "assistant")) return false;
-    if (fileLabelOf(el)) return false;
-    return true;
-}
-
 function collectMounted(root: HTMLElement): NavItem[] {
     const showAsst = settings.store.showAssistant !== false;
     const armed = showAsst && generationArmed();
@@ -874,7 +828,6 @@ function collectMounted(root: HTMLElement): NavItem[] {
             if (role !== "user" && role !== "assistant") continue;
             if (role === "assistant" && !showAsst) continue;
             const last = node === lastAsst;
-            if (role === "assistant" && isBlankAssistant(node, last, armed)) continue;
             const marker = last && proThinkingLive(node);
             const spinning = last && turnSpinner(node);
             const live = role === "assistant"
@@ -882,7 +835,7 @@ function collectMounted(root: HTMLElement): NavItem[] {
                 && !lookSettled(node)
                 && (marker || spinning || armed || nodeInProgress(node, true));
             const fresh = itemText(node, role, out.length, live);
-            if (fresh && fresh !== LIVE_LABEL && !isLocalePill(fresh)) {
+            if (fresh && fresh !== LIVE_LABEL) {
                 const prev = labels.get(id);
                 const staleName = !!prev && (isFileName(prev) || isFileStem(prev));
                 if (!prev || staleName || !isWeakLabel(fresh) || isWeakLabel(prev)) {
@@ -896,121 +849,39 @@ function collectMounted(root: HTMLElement): NavItem[] {
     return out;
 }
 
-function outlineKey(text: string): string {
-    return normSpace(text).replace(/…+$/g, "").trim().toLowerCase();
-}
-
-function indexIds(map: Map<string, NavItem>, item: NavItem) {
-    map.set(item.id, item);
-    if (item.alias) map.set(item.alias, item);
-    if (!item.el) return;
-    for (const id of nodeIds(item.el)) map.set(id, item);
-}
-
 function indexMounted(items: NavItem[]): Map<string, NavItem> {
     const map = new Map<string, NavItem>();
-    for (const item of items) indexIds(map, item);
+    for (const item of items) {
+        map.set(item.id, item);
+        if (!item.el) continue;
+        for (const id of nodeIds(item.el)) map.set(id, item);
+    }
     return map;
 }
 
-function absorbRow(into: NavItem, from: NavItem) {
-    if (!into.el && from.el?.isConnected) into.el = from.el;
-    const fromOk = !!from.text && !isLocalePill(from.text);
-    const intoWeak = !into.text || isWeakLabel(into.text) || isLocalePill(into.text);
-    if (fromOk && intoWeak) {
-        into.text = from.text;
-        labels.set(into.id, from.text);
-    }
-    if (from.id && from.id !== into.id && !into.alias) into.alias = from.id;
-}
-
-function findSameText(items: NavItem[], role: Role, text: string, prefer: number): NavItem | undefined {
-    const key = outlineKey(text);
-    if (!key) return undefined;
-    const hits = items.filter(it => it.role === role && outlineKey(it.text) === key);
-    if (!hits.length) return undefined;
-    const empty = hits.find(it => !it.el);
-    if (empty) return empty;
-    if (prefer < 0) return hits[0];
-    return hits.reduce((best, it) => {
-        const d = Math.abs(items.indexOf(it) - prefer);
-        const bd = Math.abs(items.indexOf(best) - prefer);
-        return d < bd ? it : best;
-    });
-}
-
 function chainItem(turn: ChainTurn, dom: NavItem | undefined): NavItem {
-    const turnText = turn.text && !isLocalePill(turn.text) ? turn.text : "";
     if (dom) {
-        const domOk = !!dom.text && dom.text !== LIVE_LABEL && !isLocalePill(dom.text);
-        const text = domOk ? dom.text : (turnText || dom.text);
-        if (text && text !== LIVE_LABEL) labels.set(turn.id, text);
-        return { ...dom, id: turn.id, text, alias: turn.alias || dom.alias };
+        if (dom.text && dom.text !== LIVE_LABEL) labels.set(turn.id, dom.text);
+        return { ...dom, id: turn.id };
     }
     const cached = labels.get(turn.id) || (turn.alias ? labels.get(turn.alias) : "") || "";
-    const cachedOk = cached && !isLocalePill(cached) ? cached : "";
     return {
         id: turn.id,
         el: null,
         role: turn.role,
-        text: cachedOk || turnText || cached || "Message",
-        ...(turn.alias ? { alias: turn.alias } : {}),
+        text: cached || turn.text || "Message",
     };
-}
-
-function sharesBubble(a: NavItem, b: NavItem): boolean {
-    if (a.el && b.el && a.el === b.el) return true;
-    const ids = new Set<string>();
-    if (a.id) ids.add(a.id);
-    if (a.alias) ids.add(a.alias);
-    if (a.el) for (const id of nodeIds(a.el)) ids.add(id);
-    if (b.id && ids.has(b.id)) return true;
-    if (b.alias && ids.has(b.alias)) return true;
-    if (b.el) for (const id of nodeIds(b.el)) if (ids.has(id)) return true;
-    return false;
-}
-
-function distinctChainTurns(a: NavItem, b: NavItem, chainIds: Set<string>): boolean {
-    if (!a.id || !b.id || a.id === b.id) return false;
-    if (a.alias === b.id || b.alias === a.id) return false;
-    return chainIds.has(a.id) && chainIds.has(b.id);
-}
-
-function collapseAdjacentUsers(items: NavItem[]): NavItem[] {
-    const out: NavItem[] = [];
-    for (const item of items) {
-        const prev = out[out.length - 1];
-        if (prev && prev.role === "user" && item.role === "user" && sharesBubble(prev, item)) {
-            absorbRow(prev, item);
-            continue;
-        }
-        out.push(item);
-    }
-    return out;
 }
 
 /** Chain order, plus mounted turns the mapping has not seen yet (the live tail). */
 function mergeOutline(chain: readonly ChainTurn[], mounted: NavItem[]): NavItem[] {
     const showAsst = settings.store.showAssistant !== false;
     const byId = indexMounted(mounted);
-    const chainIds = new Set<string>();
-    for (const turn of chain) {
-        if (turn.id) chainIds.add(turn.id);
-        if (turn.alias) chainIds.add(turn.alias);
-    }
     const used = new Set<HTMLElement>();
     const out: NavItem[] = [];
     for (const turn of chain) {
         if (turn.role === "assistant" && !showAsst) continue;
-        const dom = byId.get(turn.id)
-            || (turn.alias ? byId.get(turn.alias) : undefined)
-            || mounted.find(m => (
-                m.role === turn.role
-                && !!m.el
-                && !used.has(m.el)
-                && outlineKey(m.text) === outlineKey(turn.text || "")
-                && !(m.id && chainIds.has(m.id) && m.id !== turn.id && m.id !== turn.alias)
-            ));
+        const dom = byId.get(turn.id) || (turn.alias ? byId.get(turn.alias) : undefined);
         const item = chainItem(turn, dom);
         if (item.el) used.add(item.el);
         out.push(item);
@@ -1039,23 +910,6 @@ function mergeOutline(chain: readonly ChainTurn[], mounted: NavItem[]): NavItem[
                 }
             }
         }
-        const shared = out.find(row => row.role === item.role && sharesBubble(row, item));
-        if (shared && !distinctChainTurns(shared, item, chainIds)) {
-            absorbRow(shared, item);
-            used.add(item.el);
-            continue;
-        }
-        const twin = findSameText(out, item.role, item.text, at);
-        const otherChain = !!twin
-            && !!item.id
-            && chainIds.has(item.id)
-            && item.id !== twin.id
-            && item.id !== twin.alias;
-        if (twin && !otherChain) {
-            absorbRow(twin, item);
-            used.add(item.el);
-            continue;
-        }
         out.splice(at, 0, item);
         used.add(item.el);
     }
@@ -1069,140 +923,13 @@ function mergeOutline(chain: readonly ChainTurn[], mounted: NavItem[]): NavItem[
     return out;
 }
 
-function nativeHostOk(host: HTMLElement): boolean {
-    if (skipNode(host)) return false;
-    try {
-        if (host.closest("#bloom-bn-host, #bloom-root, #bloom-sidebar-panel, #bloom-plugin-layer")) {
-            return false;
-        }
-    } catch {
-        return false;
-    }
-    const mark = `${host.id} ${host.getAttribute("data-testid") || ""} ${host.getAttribute("aria-label") || ""}`;
-    return /prompt-nav|promptnav|conversation-nav|prompt navigator|conversation navigator/i.test(mark);
-}
-
-const NATIVE_UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-const NATIVE_CHROME = /^(?:go to message(?: \d+)?|message \d+|prompt navigator|conversation navigator|\d+)$/i;
-
-function nativeIdOf(node: HTMLElement): string {
-    const attrs = [
-        "data-turn-id",
-        "data-message-id",
-        "data-goto-message-id",
-        "data-messageid",
-        "data-conversation-turn-id",
-        "data-scroll-to-id",
-        "data-id",
-    ];
-    for (const name of attrs) {
-        const v = node.getAttribute(name) || "";
-        if (v) return v;
-    }
-    const href = node.getAttribute("href") || "";
-    return href.match(NATIVE_UUID)?.[0] ?? "";
-}
-
-function nativeTextOf(node: HTMLElement): string {
-    const raw = node.getAttribute("aria-label")
-        || node.getAttribute("title")
-        || node.getAttribute("data-preview")
-        || node.textContent
-        || "";
-    return clipText(normSpace(raw));
-}
-
-function isRealNativeId(id: string): boolean {
-    if (!id || id.startsWith("native:") || id.startsWith("anon:") || id.startsWith("mid:")) return false;
-    if (NATIVE_UUID.test(id)) return true;
-    return /^[a-zA-Z0-9_-]{8,}$/.test(id);
-}
-
-function isNativeChrome(text: string): boolean {
-    return !text || NATIVE_CHROME.test(text.trim());
-}
-
-/** Official Prompt Navigator only. Do not mount into it. */
-function collectNative(): NavItem[] {
-    const out: NavItem[] = [];
-    const seen = new Set<string>();
-    try {
-        for (const host of document.querySelectorAll<HTMLElement>(NATIVE_HOST_SEL)) {
-            if (!nativeHostOk(host)) continue;
-            for (const node of host.querySelectorAll<HTMLElement>("button, a, [role='button']")) {
-                if (skipNode(node)) continue;
-                const id = nativeIdOf(node);
-                if (!isRealNativeId(id) || seen.has(id)) continue;
-                seen.add(id);
-                const text = nativeTextOf(node);
-                const el = findTurn(id);
-                out.push({
-                    id,
-                    el: el?.isConnected ? el : null,
-                    role: "user",
-                    text: text || "Message",
-                });
-            }
-        }
-    } catch { /* ignore */ }
-    return out;
-}
-
-/** Real-id native rows fill missing user turns. Chrome without an id is skipped. */
-function mergeNative(items: NavItem[], native: NavItem[]): NavItem[] {
-    if (!native.length) return items;
-    const rows = native.filter(row => isRealNativeId(row.id) && !isNativeChrome(row.text));
-    if (!rows.length) return items;
-    const out = items.slice();
-    const index = new Map<string, NavItem>();
-    for (const item of out) indexIds(index, item);
-    for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        let at = out.length;
-        for (let j = i + 1; j < rows.length; j++) {
-            const later = index.get(rows[j].id);
-            if (!later) continue;
-            const idx = out.indexOf(later);
-            if (idx >= 0) {
-                at = idx;
-                break;
-            }
-        }
-        const hit = index.get(row.id);
-        if (hit) {
-            absorbRow(hit, row);
-            indexIds(index, hit);
-            continue;
-        }
-        const key = outlineKey(row.text);
-        const hits = key ? out.filter(it => it.role === "user" && outlineKey(it.text) === key) : [];
-        if (hits.length === 1) {
-            absorbRow(hits[0], row);
-            indexIds(index, hits[0]);
-            continue;
-        }
-        if (hits.length > 1) continue;
-        const added: NavItem = {
-            id: row.id,
-            el: row.el,
-            role: "user",
-            text: row.text || "Message",
-        };
-        out.splice(at, 0, added);
-        indexIds(index, added);
-        labels.set(added.id, added.text);
-    }
-    return out;
-}
-
 function collect(): NavItem[] {
     const root = threadRoot();
     if (!root || root === document.body) return [];
     const mounted = collectMounted(root);
     const cid = currentConversationId();
     const chain = cid ? conversationChain(cid) : [];
-    const merged = chain.length ? mergeOutline(chain, mounted) : mounted;
-    const out = collapseAdjacentUsers(mergeNative(merged, collectNative()));
+    const out = chain.length ? mergeOutline(chain, mounted) : mounted;
     releaseArmIfSettled(out);
     return out;
 }
@@ -1269,17 +996,6 @@ function setActive(index: number) {
         n.classList.toggle("bloom-bn-active", k === i);
     });
     if (metaEl) metaEl.textContent = `${i + 1} / ${lastNav.length}`;
-    alignTick(i);
-}
-
-function alignTick(index: number) {
-    const rail = ticksEl;
-    const tick = rail?.children[index];
-    if (!(rail instanceof HTMLElement) || !(tick instanceof HTMLElement)) return;
-    const r = rail.getBoundingClientRect();
-    const t = tick.getBoundingClientRect();
-    if (t.top < r.top) rail.scrollTop -= r.top - t.top;
-    else if (t.bottom > r.bottom) rail.scrollTop += t.bottom - r.bottom;
 }
 
 /** User-intent only. Paint / scroll-spy must not move the hover list. */
@@ -1360,10 +1076,6 @@ async function hydrateJump(index: number) {
     const gen = ++hydrateGen;
     const item = lastNav[index];
     if (!item) return;
-    if (!item.el) {
-        const id = currentConversationId();
-        if (id) ensureConversationChain(id);
-    }
     lockIdx = index;
     lockUntil = Date.now() + HYDRATE_MS + LOCK_MS;
     setActive(index);
@@ -1454,10 +1166,6 @@ function ensureHost(): HTMLElement | null {
     el.setAttribute("role", "navigation");
     el.setAttribute("aria-label", "Conversation outline");
     el.hidden = true;
-    el.addEventListener("pointerenter", () => {
-        const id = currentConversationId();
-        if (id) ensureConversationChain(id);
-    });
     const ticks = document.createElement("div");
     ticks.className = "bloom-bn-ticks";
     const menu = document.createElement("div");
@@ -1539,8 +1247,8 @@ function renderNav(items: NavItem[]) {
     if (!ticks || !list) return;
     ticks.replaceChildren();
     list.replaceChildren();
-    const cap = Number.parseFloat(getComputedStyle(host ?? ticks).getPropertyValue("--bloom-bn-cap")) || 0;
-    ticks.style.justifyContent = cap && items.length * 18 + 16 > cap ? "flex-start" : "center";
+    ticks.classList.toggle("bloom-bn-dense", items.length > DENSE_AT);
+    ticks.classList.toggle("bloom-bn-fit", items.length > DENSE_AT);
     items.forEach((item, i) => {
         const tick = document.createElement("button");
         tick.type = "button";
@@ -1740,7 +1448,7 @@ function unmount() {
 
 export default definePlugin({
     name: "BetterNavigator",
-    description: "Notion-style outline of the open chat, including turns ChatGPT has not mounted yet. Hover the ticks, click or use ↑/↓ to jump. A dashed tick marks the reply still streaming.",
+    description: "Notion-style outline of the open chat, including turns ChatGPT has not mounted. Hover the ticks, click or use ↑/↓ to jump. A dashed tick marks the reply still streaming.",
     authors: [Devs.p],
     tags: ["chat", "ui"],
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5v14"/><path d="M14 7h5M12 12h7M14 17h5"/></svg>`,

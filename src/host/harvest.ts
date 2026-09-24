@@ -15,11 +15,8 @@
  * Opening a chat does not GET conversation detail. The page's own
  * windowed GET is enough; cloning it must not add `/f/conversation/{id}`,
  * an unwindowed `/conversations/{id}`, or `num_turns=480`.
- * A windowed `num_turns` body is not the whole branch (tool collapse can
- * shrink it below N). After that page GET lands, one older `num_turns=10`
- * window is requested at a time, at least 8s apart, until a page does not
- * grow the chain. Hover / unmounted jump may start the same drip. HTTP 429
- * stops it. No BloomEventMap.streamEnd.
+ * BetterNavigator is the v1.4.97 outline (d4015b5): no older-page drip.
+ * No BloomEventMap.streamEnd.
  */
 
 import { conversationIdFromHref, currentConversationId } from "./conversation";
@@ -202,8 +199,6 @@ function rememberChain(conversationId: string, data: unknown, url = "") {
         capMap(chains, CHAIN_CONVS);
         emit({ type: "conversation-chain", conversationId: cid });
     }
-    // Page GET only. Our own backfill is `backfilling` and schedules from ensure.
-    if (!complete.has(cid) && !backfilling.has(cid)) scheduleOlderWindow(cid);
 }
 
 function harvestObject(value: unknown, conversationId: string, depth = 0) {
@@ -417,59 +412,8 @@ async function fetchDetail(win: Window & { fetch: typeof fetch }, url: string, i
     return { status: res.status, data };
 }
 
-/**
- * One older window for a chain the page GET already started.
- * No-op until that chain exists — do not probe detail URLs on open.
- * A page that grows schedules the next window after the cooldown.
- * 429 stops the drip. A window that does not grow marks the chain complete.
- */
-export function ensureConversationChain(id: string) {
-    if (!id || complete.has(id) || backfilling.has(id)) return;
-    const wait = retryAt.get(id) ?? 0;
-    if (Date.now() < wait) return;
-    const chain = chains.get(id);
-    const before = chain?.[0]?.alias || chain?.[0]?.id || "";
-    if (!before) return;
-    backfilling.add(id);
-    hookFetch();
-    const win = pageWindow();
-    void (async () => {
-        let limited = false;
-        let grew = false;
-        try {
-            const size = chains.get(id)?.length ?? 0;
-            for (const url of olderWindowUrls(id, before)) {
-                let result: DetailResult;
-                try {
-                    result = await fetchDetail(win, url, id);
-                } catch {
-                    continue;
-                }
-                if (result.status === 429) {
-                    limited = true;
-                    stopOlderWindow(id);
-                    retryAt.set(id, Date.now() + RATE_LIMIT_MS);
-                    logger.debug("conversation chain rate-limited", id);
-                    return;
-                }
-                if (!result.data) continue;
-                grew = (chains.get(id)?.length ?? 0) > size;
-                if (complete.has(id)) return;
-                if (!grew) {
-                    complete.add(id);
-                    stopOlderWindow(id);
-                }
-                return;
-            }
-        } finally {
-            backfilling.delete(id);
-            if (limited || complete.has(id)) return;
-            if (grew) scheduleOlderWindow(id);
-            else if ((retryAt.get(id) ?? 0) <= Date.now()) {
-                retryAt.set(id, Date.now() + PAGE_COOLDOWN_MS);
-            }
-        }
-    })();
+/** Kept for the host export. v1.4.97 navigator does not page older windows. */
+export function ensureConversationChain(_id: string) {
 }
 
 export function subscribeHarvest(listener: HarvestListener): () => void {

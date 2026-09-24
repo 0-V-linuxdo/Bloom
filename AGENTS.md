@@ -39,6 +39,8 @@ RN 订 `watchStreamingEdge(onFall)`，host 400ms `setInterval` 在后台仍跑�
 
 **1.4.79：** `currentConversationId()` 只认 pathname `/c/{id}`。`/` 和 `/g/` 上的残留 `data-conversation-id` 不是当前对话。`isDraftMigrate` 只在目标 id 等于这场 harvest id（id 还没到时，仅草稿页的空 `post-start` / `pendingDraft`，第一个 `/c/{id}` 认领）时成立；点另一条 Recents 是真切会话。CSF 在宿主 `onFall` 之前保持 rotate，不要闪官方 wait。CLS / BN 的页级 Stop 还要看 `streamingSuppressed()`。RN 用 `currentConversationId() || inFlightConversationId()`。不要第二份 history wrap。
 
+**1.4.108：** BetterNavigator 源码与样式退回 `d4015b5`（v1.4.97，列出尚未挂载的轮）。1.4.98–1.4.107 的目录实验作废，不要按那些段落改回去。宿主不再自动要更早的 `num_turns` 页。`@updateURL` 仍是 `Bloom.update3.user.js`。
+
 **1.4.107：** 窗口化 `num_turns` 不是整条主链。工具折叠后条数 < `num_turns` 也不标 complete；没有 mapping 父节点也不等于走到头。打开 `/c/{id}` 仍然不要 GET `/f/conversation/{id}`、不带窗口的详情、或 `num_turns=480`。页面自己的窗口落地之后，每隔至少 8s 要 **一页** 更早的 `num_turns=10`（`before_node`，失败再 `before`），这一页没变长就停，HTTP 429 立刻停。悬停或跳到未挂载 id 走同一条补页，不连发。文件芯片下的目录标题用 `.whitespace-pre-wrap` / harvest 正文，不用 `zh-cn` 这种 locale 药丸。同一气泡即使一边是药丸也并成一格。两条不同 chain id 的用户（即使都是「继续」）保持两格。`@updateURL` 仍是 `Bloom.update3.user.js`。
 
 **1.4.106：** 打开 `/c/{id}` 不要再 GET 会话详情。不要 `/f/conversation/{id}`、不要不带窗口的 `/conversations/{id}`、不要 `num_turns=480`、不要一打开就往回翻多页。只复用页面自己的窗口化 GET。`ensureConversationChain` 仅在悬停目录、或跳到尚未挂载的 id 时要 **一页** 更早的 `num_turns=10`；链还是空则不请求。这一页没有变长就停。HTTP 429 立刻停。没有 `data-message-id`、没有正文、不是出图、也不在生成中的空白 assistant 节不是刻度，不要标成 `Message 1`。正文相同只在同一气泡 / alias / 共享节点 id 时合并。两条不同 chain id 的用户（即使都是「继续」）保持两格。不要发明 assistant。不要砍 continue 轮。不要 Grok stores，不要 `html`/`body` MO。`@updateURL` 仍是 `Bloom.update3.user.js`。
