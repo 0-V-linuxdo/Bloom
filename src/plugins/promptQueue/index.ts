@@ -87,6 +87,9 @@ let bypassTimer: ReturnType<typeof setTimeout> | undefined;
 let chip: HTMLElement | null = null;
 let editingId: string | null = null;
 let dragId: string | null = null;
+/** Insertion index in the live row list, including the dragged row. */
+let dropAt: number | null = null;
+const DRAG_MIME = "application/x-bloom-pq";
 /** Still the open reply after Stop remounts as Send. Not cleared by deleting the chip. */
 let busyLatch = false;
 /** Head was just sent and the tail must wait until that new reply has been busy, then settled. */
@@ -319,17 +322,37 @@ function dropItem(key: string, id: string) {
     paintChip();
 }
 
-function moveItem(key: string, fromId: string, toId: string) {
-    if (!fromId || fromId === toId) return;
+function moveItemTo(key: string, fromId: string, index: number) {
     const slots = slotsOf(key).slice();
     const from = slots.findIndex(slot => slot.id === fromId);
-    const to = slots.findIndex(slot => slot.id === toId);
-    if (from < 0 || to < 0) return;
+    if (from < 0 || index < 0) return;
+    let to = index;
+    if (to > from) to -= 1;
+    if (to === from || to < 0 || to > slots.length - 1) return;
     const [item] = slots.splice(from, 1);
     if (!item) return;
     slots.splice(to, 0, item);
     writeSlots(key, slots);
     paintChip();
+}
+
+function clearDropMarks(list: HTMLElement | null) {
+    dropAt = null;
+    list?.querySelectorAll(".bloom-pq-drop-before, .bloom-pq-drop-after").forEach(node => {
+        node.classList.remove("bloom-pq-drop-before", "bloom-pq-drop-after");
+    });
+}
+
+function markDrop(list: HTMLElement, index: number) {
+    if (dropAt === index) return;
+    dropAt = index;
+    list.querySelectorAll(".bloom-pq-drop-before, .bloom-pq-drop-after").forEach(node => {
+        node.classList.remove("bloom-pq-drop-before", "bloom-pq-drop-after");
+    });
+    const rows = list.querySelectorAll<HTMLElement>(".bloom-pq-row");
+    if (!rows.length) return;
+    if (index >= rows.length) rows[rows.length - 1]!.classList.add("bloom-pq-drop-after");
+    else rows[index]!.classList.add("bloom-pq-drop-before");
 }
 
 function armBypass() {
@@ -417,19 +440,22 @@ function placeChip(el: HTMLElement) {
     // off-screen, so Enter cleared the draft and looked like a no-op.
     el.style.position = "fixed";
     el.style.zIndex = "9999";
-    el.style.transform = "translateX(-50%)";
+    // No translateX(-50%). A transformed ancestor offsets the HTML5 drag ghost.
+    el.style.transform = "none";
     const root = getComposerRoot();
     const box = root && root !== document.body ? root.getBoundingClientRect() : null;
     const onScreen = !!box && box.width >= 160 && box.bottom > 0 && box.top < window.innerHeight;
     if (!onScreen || !box) {
-        el.style.left = "50%";
-        el.style.width = "min(40rem, calc(100vw - 1rem))";
+        const width = Math.min(640, window.innerWidth - 16);
+        el.style.width = `${Math.round(width)}px`;
+        el.style.left = `${Math.round((window.innerWidth - width) / 2)}px`;
         el.style.bottom = "6.5rem";
         return;
     }
-    const width = Math.min(box.width, window.innerWidth - 16);
-    el.style.left = `${Math.round(box.left + box.width / 2)}px`;
-    el.style.width = `${Math.round(Math.max(240, width))}px`;
+    const width = Math.round(Math.max(240, Math.min(box.width, window.innerWidth - 16)));
+    const center = box.left + box.width / 2;
+    el.style.left = `${Math.round(center - width / 2)}px`;
+    el.style.width = `${width}px`;
     el.style.bottom = `${Math.round(Math.max(12, window.innerHeight - box.top + 8))}px`;
 }
 
@@ -438,6 +464,7 @@ function dropChip() {
     chip = null;
     editingId = null;
     dragId = null;
+    dropAt = null;
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -640,22 +667,21 @@ function paintChip() {
             bindHoverTip(grip, tip, "Drag to reorder");
             grip.addEventListener("dragstart", ev => {
                 dragId = slot.id;
-                ev.dataTransfer?.setData("text/plain", slot.id);
+                dropAt = null;
+                ev.dataTransfer?.setData(DRAG_MIME, slot.id);
                 if (ev.dataTransfer) ev.dataTransfer.effectAllowed = "move";
+                const box = row.getBoundingClientRect();
+                ev.dataTransfer?.setDragImage(row, Math.max(0, ev.clientX - box.left), Math.max(0, ev.clientY - box.top));
+                const dragged = row;
+                setTimeout(() => {
+                    if (dragId === slot.id && dragged.isConnected) dragged.classList.add("bloom-pq-dragging");
+                }, 0);
             });
             grip.addEventListener("dragend", () => {
                 dragId = null;
-            });
-            row.addEventListener("dragover", ev => {
-                if (!dragId || dragId === slot.id) return;
-                ev.preventDefault();
-                if (ev.dataTransfer) ev.dataTransfer.dropEffect = "move";
-            });
-            row.addEventListener("drop", ev => {
-                ev.preventDefault();
-                const from = ev.dataTransfer?.getData("text/plain") || dragId || "";
-                dragId = null;
-                moveItem(key, from, slot.id);
+                const host = chip?.querySelector<HTMLElement>(".bloom-pq-list") ?? null;
+                clearDropMarks(host);
+                chip?.querySelectorAll(".bloom-pq-dragging").forEach(node => node.classList.remove("bloom-pq-dragging"));
             });
             const dismiss = iconButton("Remove from queue", strokeGlyph([
                 "M10 11v6",
@@ -685,6 +711,35 @@ function paintChip() {
         row.append(actions);
         list.append(row);
     }
+    list.addEventListener("dragover", ev => {
+        if (!dragId) return;
+        ev.preventDefault();
+        if (ev.dataTransfer) ev.dataTransfer.dropEffect = "move";
+        const rows = [...list.querySelectorAll<HTMLElement>(".bloom-pq-row")];
+        let index = rows.length;
+        for (let i = 0; i < rows.length; i++) {
+            const box = rows[i]!.getBoundingClientRect();
+            if (ev.clientY < box.top + box.height / 2) {
+                index = i;
+                break;
+            }
+        }
+        markDrop(list, index);
+    });
+    list.addEventListener("drop", ev => {
+        ev.preventDefault();
+        const from = ev.dataTransfer?.getData(DRAG_MIME) || dragId || "";
+        const at = dropAt;
+        dragId = null;
+        clearDropMarks(list);
+        if (at === null || !from) return;
+        moveItemTo(key, from, at);
+    });
+    list.addEventListener("dragleave", ev => {
+        const next = ev.relatedTarget;
+        if (next instanceof Node && list.contains(next)) return;
+        clearDropMarks(list);
+    });
     el.append(head, list);
     placeChip(el);
     if (focusEdit) {
@@ -853,6 +908,7 @@ export default definePlugin({
         sawBusyAfterSend = false;
         editingId = null;
         dragId = null;
+        dropAt = null;
         registerStyle(STYLE_NAME, css);
         keys?.abort();
         keys = new AbortController();
@@ -969,6 +1025,7 @@ export default definePlugin({
         tailHold = false;
         sawBusyAfterSend = false;
         dragId = null;
+        dropAt = null;
         dropChip();
     },
 });

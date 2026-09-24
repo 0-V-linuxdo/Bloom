@@ -10,7 +10,6 @@
     background: #f4f4f4;
     color: var(--text-primary, #0d0d0d);
     font: 14px/1.35 ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
-    transform: translateX(-50%);
     pointer-events: auto;
 }
 
@@ -31,6 +30,7 @@ html.dark #bloom-pq-chip {
 }
 
 .bloom-pq-row {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -127,9 +127,33 @@ html.dark button.bloom-pq-ico-active:hover {
 .bloom-pq-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 2px;
     max-height: min(320px, 46vh);
     overflow: auto;
+}
+
+.bloom-pq-dragging {
+    opacity: 0.35;
+}
+
+.bloom-pq-row.bloom-pq-drop-before::before,
+.bloom-pq-row.bloom-pq-drop-after::after {
+    content: "";
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--text-primary, #0d0d0d);
+    pointer-events: none;
+}
+
+.bloom-pq-row.bloom-pq-drop-before::before {
+    top: -2px;
+}
+
+.bloom-pq-row.bloom-pq-drop-after::after {
+    bottom: -2px;
 }
 
 .bloom-pq-grip {
