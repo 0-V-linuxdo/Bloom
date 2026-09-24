@@ -13,6 +13,8 @@
  * viewport edge. Hover menu is Void-sized (min 18rem / 70vw).
  * Tick glyphs follow Notion-style-AI-Navigator (1.25/1.75rem × 2px,
  * 1rem gap, 0.125rem radius, current glow) — not Void mini-pills.
+ * Long outlines keep that 1rem slot and scroll the rail. Do not
+ * crush ticks to 0.375rem / 3px.
  * Live dash: the in-progress assistant tick only. Turn-level
  * aria-busy / .result-streaming (not a nested citation or filmstrip),
  * the last assistant still thinking with an empty markdown, or a
@@ -70,7 +72,6 @@ const logger = new Logger("BetterNavigator");
 const STYLE_NAME = "betterNavigator";
 const HOST_ID = "bloom-bn-host";
 const CLIP = 60;
-const DENSE_AT = 16;
 const LOCK_MS = 1000;
 const HYDRATE_MS = 2400;
 const HYDRATE_STEP = 80;
@@ -1140,6 +1141,17 @@ function setActive(index: number) {
         n.classList.toggle("bloom-bn-active", k === i);
     });
     if (metaEl) metaEl.textContent = `${i + 1} / ${lastNav.length}`;
+    alignTick(i);
+}
+
+function alignTick(index: number) {
+    const rail = ticksEl;
+    const tick = rail?.children[index];
+    if (!(rail instanceof HTMLElement) || !(tick instanceof HTMLElement)) return;
+    const r = rail.getBoundingClientRect();
+    const t = tick.getBoundingClientRect();
+    if (t.top < r.top) rail.scrollTop -= r.top - t.top;
+    else if (t.bottom > r.bottom) rail.scrollTop += t.bottom - r.bottom;
 }
 
 /** User-intent only. Paint / scroll-spy must not move the hover list. */
@@ -1391,8 +1403,8 @@ function renderNav(items: NavItem[]) {
     if (!ticks || !list) return;
     ticks.replaceChildren();
     list.replaceChildren();
-    ticks.classList.toggle("bloom-bn-dense", items.length > DENSE_AT);
-    ticks.classList.toggle("bloom-bn-fit", items.length > DENSE_AT);
+    const cap = Number.parseFloat(getComputedStyle(host ?? ticks).getPropertyValue("--bloom-bn-cap")) || 0;
+    ticks.style.justifyContent = cap && items.length * 18 + 16 > cap ? "flex-start" : "center";
     items.forEach((item, i) => {
         const tick = document.createElement("button");
         tick.type = "button";
