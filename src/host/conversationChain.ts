@@ -6,9 +6,11 @@
  * Pure conversation URL + mapping/window chain helpers. No fetch wrap.
  * Recents list GET is not a detail GET. Windowed
  * `/conversations/{id}?num_turns=` is a detail GET.
- * The chain is the full active branch, including turns ChatGPT has
- * not mounted yet. Skip tool calls and thoughts only — they stay
- * inside the assistant tick. Hidden system rows are not turns.
+ * The outline chain is the v1.4.97 mapping walk (`d4015b5`):
+ * singular GET `/backend-api/conversation/{id}` `mapping`, every
+ * user|assistant role, no tool filter, no adjacent-assistant collapse.
+ * A windowed `/conversations/{id}?num_turns=` body is not that chain.
+ * Its `messages` / `turns` / `items` array is not outline rows.
  */
 
 export type ChainTurn = {
@@ -117,60 +119,9 @@ function messageText(msg: Record<string, unknown>): string {
 function messageRole(msg: Record<string, unknown>): "user" | "assistant" | "" {
     const meta = asRecord(msg.metadata);
     if (meta?.is_visually_hidden_from_conversation === true) return "";
-    if (meta?.is_user_system_message === true || meta?.user_context_message === true) return "";
     const author = asRecord(msg.author);
     const role = author?.role ?? msg.role;
     return role === "user" || role === "assistant" ? role : "";
-}
-
-function isUserAuthor(msg: Record<string, unknown>): boolean {
-    const author = asRecord(msg.author);
-    const role = author?.role ?? msg.role;
-    return role === "user";
-}
-
-/** Tool call or thought — not its own outline row. Unmounted user/assistant turns stay. */
-function isToolOrThought(msg: Record<string, unknown>): boolean {
-    const recipient = typeof msg.recipient === "string" ? msg.recipient.toLowerCase() : "";
-    if (recipient && recipient !== "all") return true;
-    const author = asRecord(msg.author);
-    const role = author?.role ?? msg.role;
-    if (role === "tool") return true;
-    const content = asRecord(msg.content);
-    const kind = (typeof content?.content_type === "string" ? content.content_type : "").toLowerCase();
-    if (/thought|reasoning/.test(kind)) return true;
-    if (kind === "code" || kind === "execution_output") return true;
-    if (/^(?:tether_|computer_)/.test(kind)) return true;
-    const channel = typeof msg.channel === "string" ? msg.channel.toLowerCase() : "";
-    if (/^(?:commentary|thought|thoughts|reasoning|analysis)$/.test(channel) && msg.end_turn !== true) {
-        return true;
-    }
-    return false;
-}
-
-function isOutlineTurn(msg: Record<string, unknown>): boolean {
-    return !!messageRole(msg) && !isToolOrThought(msg);
-}
-
-function collapseOutlineTurns(turns: ChainTurn[]): ChainTurn[] {
-    const out: ChainTurn[] = [];
-    for (const turn of turns) {
-        const prev = out[out.length - 1];
-        if (prev && prev.role === "assistant" && turn.role === "assistant") {
-            const alias = turn.alias || prev.alias || (prev.id !== turn.id ? prev.id : undefined);
-            const at = turn.at ?? prev.at;
-            out[out.length - 1] = {
-                id: turn.id,
-                role: "assistant",
-                text: turn.text || prev.text,
-                ...(alias && alias !== turn.id ? { alias } : {}),
-                ...(at ? { at } : {}),
-            };
-            continue;
-        }
-        out.push(turn);
-    }
-    return out;
 }
 
 function mappingWalkTruncated(root: Record<string, unknown>, nodes: Record<string, unknown>): boolean {
@@ -280,25 +231,19 @@ function pathFromLeaf(nodes: Record<string, unknown>, leaf: string): ChainTurn[]
         const msg = rec.message && typeof rec.message === "object" && !Array.isArray(rec.message)
             ? rec.message as Record<string, unknown>
             : null;
-        if (msg && isOutlineTurn(msg)) {
-            const role = messageRole(msg);
-            const mid = typeof msg.id === "string" && msg.id ? msg.id : id;
-            if (role) {
-                const turn: ChainTurn = { id: mid, role, text: messageText(msg) };
-                if (mid !== id) turn.alias = id;
-                const at = toMs(msg.create_time ?? msg.createTime);
-                if (at) turn.at = at;
-                out.push(turn);
-            }
-        } else if (msg && isUserAuthor(msg)) {
-            // Hidden / system user rows stay off the outline, but they
-            // still split assistant bubbles so two replies do not merge.
-            out.push({ id: "", role: "user", text: "" });
+        const role = msg ? messageRole(msg) : "";
+        const mid = msg && typeof msg.id === "string" && msg.id ? msg.id : id;
+        if (role) {
+            const turn: ChainTurn = { id: mid, role, text: msg ? messageText(msg) : "" };
+            if (mid !== id) turn.alias = id;
+            const at = msg ? toMs(msg.create_time ?? msg.createTime) : null;
+            if (at) turn.at = at;
+            out.push(turn);
         }
         id = typeof rec.parent === "string" ? rec.parent : null;
     }
     out.reverse();
-    return collapseOutlineTurns(out).filter(t => t.id);
+    return out;
 }
 
 function capTail(turns: ChainTurn[]): ChainTurn[] {
@@ -324,15 +269,7 @@ export function mergeConversationChain(prev: ChainTurn[], next: ChainTurn[]): Ch
         const seen = new Set(prev.map(t => t.id));
         const lastInPrev = prevIdx.has(next[next.length - 1].id);
         const head = next.filter(t => !seen.has(t.id));
-        const nextLastAt = next[next.length - 1].at;
-        const nextFirstAt = next[0].at;
-        const prevFirstAt = prev[0].at;
-        const prevLastAt = prev[prev.length - 1].at;
-        const older = lastInPrev
-            || (!!nextLastAt && !!prevFirstAt && nextLastAt <= prevFirstAt);
-        const newer = !!nextFirstAt && !!prevLastAt && nextFirstAt >= prevLastAt;
-        if (older && !newer) return capTail([...head, ...prev]);
-        return capTail([...prev, ...head]);
+        return capTail(lastInPrev ? [...head, ...prev] : [...prev, ...head]);
     }
     let len = 0;
     while (a + len < prev.length && b + len < next.length && prev[a + len].id === next[b + len].id) len++;
@@ -352,32 +289,6 @@ export function mergeConversationChain(prev: ChainTurn[], next: ChainTurn[]): Ch
     return capTail([...head, ...overlap, ...tailNext, ...tailPrev]);
 }
 
-function chainFromTurns(turns: unknown[]): ChainTurn[] {
-    const out: ChainTurn[] = [];
-    const seen = new Set<string>();
-    for (const item of turns) {
-        const rec = asRecord(item);
-        if (!rec) continue;
-        const msg = asRecord(rec.message) ?? rec;
-        if (!isOutlineTurn(msg)) continue;
-        const role = messageRole(msg) || messageRole(rec);
-        if (!role) continue;
-        const mid = (typeof msg.id === "string" && msg.id)
-            || (typeof rec.message_id === "string" && rec.message_id)
-            || (typeof rec.id === "string" && rec.id)
-            || "";
-        if (!mid || seen.has(mid)) continue;
-        seen.add(mid);
-        const turn: ChainTurn = { id: mid, role, text: messageText(msg) || messageText(rec) };
-        const alias = typeof rec.id === "string" && rec.id && rec.id !== mid ? rec.id : "";
-        if (alias) turn.alias = alias;
-        const at = toMs(msg.create_time ?? msg.createTime ?? rec.create_time ?? rec.createTime);
-        if (at) turn.at = at;
-        out.push(turn);
-    }
-    return collapseOutlineTurns(out);
-}
-
 function chainFromMapping(root: Record<string, unknown>): ChainTurn[] {
     const mapping = root.mapping;
     if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) return [];
@@ -388,17 +299,17 @@ function chainFromMapping(root: Record<string, unknown>): ChainTurn[] {
     return pathFromLeaf(nodes, leaf);
 }
 
-/** Active-branch turns from a conversation GET body (`mapping` or `turns`). */
+/** Active-branch turns from a conversation GET `mapping` only. Not a `turns` window. */
 export function chainFromPayload(data: unknown): ChainTurn[] {
     const inner = innerPayload(data);
     if (!inner) return [];
-    const fromMap = chainFromMapping(inner);
-    if (fromMap.length) return fromMap;
-    const listed = Array.isArray(inner.turns) ? inner.turns
-        : Array.isArray(inner.messages) ? inner.messages
-        : Array.isArray(inner.items) ? inner.items
-        : [];
-    return listed.length ? chainFromTurns(listed) : [];
+    const mapping = inner.mapping;
+    if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) return [];
+    const hasLeaf = typeof inner.current_node === "string"
+        || typeof inner.current_node_id === "string"
+        || typeof inner.currentNode === "string";
+    if (!hasLeaf && typeof inner.title !== "string") return [];
+    return chainFromMapping(inner);
 }
 
 export function conversationIdFromPayload(data: unknown, fallback = ""): string {

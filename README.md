@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.108](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.108)** (`userscript/Bloom.update3.user.js`, `@version [20260924] v1.4.108`).
+Current release: **[v1.4.109](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.109)** (`userscript/Bloom.update3.user.js`, `@version [20260924] v1.4.109`).
 
 Plugins:
 
@@ -170,6 +170,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.109: **BetterNavigator's chain matches v1.4.97, not only its UI.** 1.4.108 restored the outline component but still listed the later `messages` / `turns` window, so the hover menu kept stacked continues and assistant rows that are not the thread. The outline is the singular `GET /backend-api/conversation/{id}` mapping walk again (every user|assistant, no tool filter, no collapse). A windowed `num_turns` GET still feeds timestamps and the title, not the menu. No older-page drip. Install URL stays `userscript/Bloom.update3.user.js`.
 
 v1.4.108: **BetterNavigator is restored to v1.4.97** ([d4015b5](https://github.com/0-V-linuxdo/Bloom/commit/d4015b53f11b7241cfd62f725b6150071c720cea)). The outline experiments from 1.4.98 through 1.4.107 are reverted. The host no longer requests older conversation pages. Install URL stays `userscript/Bloom.update3.user.js`.
 

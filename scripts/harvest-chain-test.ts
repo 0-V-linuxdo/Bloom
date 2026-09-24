@@ -3,7 +3,8 @@
  * Copyright (c) 2026 Bloom contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * URL + mapping/window chain checks for host harvest.
+ * URL + mapping chain checks for host harvest.
+ * A `turns` / `messages` window is not the outline (v1.4.97).
  * Run: node --experimental-strip-types scripts/harvest-chain-test.ts
  */
 
@@ -96,7 +97,17 @@ const windowTurns = chainFromPayload({
         { id: "a2", message: { id: "ma2", author: { role: "assistant" }, content: { parts: ["second answer"] } } },
     ],
 });
-assert.deepEqual(windowTurns.map(t => t.id), ["mu2", "ma2"]);
+assert.deepEqual(windowTurns.map(t => t.id), []);
+
+const windowMessages = chainFromPayload({
+    conversation_id: ID,
+    current_node: "a2",
+    messages: [
+        { id: "mu2", author: { role: "user" }, content: { parts: ["continue"] } },
+        { id: "ma2", author: { role: "assistant" }, content: { parts: ["已继续"] } },
+    ],
+});
+assert.deepEqual(windowMessages.map(t => t.id), []);
 
 const recent = path.slice(2);
 const early = path.slice(0, 3);
@@ -182,6 +193,8 @@ const noisy = {
 const visible = chainFromPayload(noisy);
 assert.deepEqual(visible.map(t => [t.id, t.role, t.text]), [
     ["mu1", "user", "ask"],
+    ["mthought", "assistant", "planning"],
+    ["mtool", "assistant", "print(1)"],
     ["mfinal", "assistant", "done"],
 ]);
 
@@ -232,7 +245,7 @@ const windowNoise = chainFromPayload({
         { id: "a1", message: { id: "ma1", author: { role: "assistant" }, recipient: "all", channel: "final", end_turn: true, content: { parts: ["done"] } } },
     ],
 });
-assert.deepEqual(windowNoise.map(t => t.id), ["mu1", "ma1"]);
+assert.deepEqual(windowNoise.map(t => t.id), []);
 
 const longMap: Record<string, unknown> = {
     root: { id: "root", parent: null, children: ["u0"], message: null },
@@ -317,6 +330,6 @@ const earlier = [
     { id: "a", role: "user" as const, text: "a", at: 100 },
     { id: "b", role: "assistant" as const, text: "b", at: 200 },
 ];
-assert.deepEqual(mergeConversationChain(later, earlier).map(t => t.id), ["a", "b", "c", "d"]);
+assert.deepEqual(mergeConversationChain(later, earlier).map(t => t.id), ["c", "d", "a", "b"]);
 
 console.log("harvest-chain-test: ok");

@@ -8,14 +8,12 @@
  * list GET `/backend-api/conversations?offset=`. Windowed detail
  * `GET /conversations/{id}?num_turns=` is not that list. Generate POST is
  * only `/backend-api/conversation` or `/f/conversation` (not init).
- * Active-branch turns (cap 480) come from `mapping` or a `turns`
- * window, including ids ChatGPT has not mounted yet. Tool / thought
- * nodes stay inside the assistant tick. Init pins the wrap so the
- * first GET is not missed.
- * Opening a chat does not GET conversation detail. The page's own
- * windowed GET is enough; cloning it must not add `/f/conversation/{id}`,
- * an unwindowed `/conversations/{id}`, or `num_turns=480`.
- * BetterNavigator is the v1.4.97 outline (d4015b5): no older-page drip.
+ * Active-branch turns (cap 480) are the v1.4.97 mapping walk
+ * (`d4015b5`): singular GET `/backend-api/conversation/{id}` only.
+ * A windowed GET `/conversations/{id}?num_turns=` is harvested for
+ * titles and message times, not for the outline. Its `messages` /
+ * `turns` array is not a chain. No older-page drip.
+ * Opening a chat does not GET conversation detail.
  * No BloomEventMap.streamEnd.
  */
 
@@ -26,7 +24,7 @@ import {
     idFromApiUrl,
     isConversationGet,
     isConversationList,
-    payloadCompletesChain,
+    isWindowedConversationGet,
     mergeConversationChain,
     sameChain,
     type ChainTurn,
@@ -65,16 +63,6 @@ const titles = new Map<string, string>();
 const times = new Map<string, number>();
 const chains = new Map<string, ChainTurn[]>();
 const EMPTY_CHAIN: readonly ChainTurn[] = [];
-const complete = new Set<string>();
-const backfilling = new Set<string>();
-const retryAt = new Map<string, number>();
-const followUps = new Map<string, ReturnType<typeof setTimeout>>();
-const lastDetailHeaders: Record<string, string> = { Accept: "application/json" };
-const HEADER_KEEP = /^(authorization|oai-|openai-|chatgpt-|x-authorization)/i;
-/** Pause between older windows. One page per cooldown, never a burst. */
-const PAGE_COOLDOWN_MS = 8_000;
-/** Back off hard when the conversation API is rate-limiting the page. */
-const RATE_LIMIT_MS = 60_000;
 
 let origFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
 let wrappedFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
@@ -164,36 +152,15 @@ function rememberTitle(conversationId: string, title: string) {
     emit({ type: "conversation-meta", conversationId, title: clean });
 }
 
-function stopOlderWindow(id: string) {
-    const timer = followUps.get(id);
-    if (timer === undefined) return;
-    clearTimeout(timer);
-    followUps.delete(id);
-}
-
-/** One older page after the cooldown. Does not run until a chain exists. */
-function scheduleOlderWindow(id: string) {
-    if (!id || complete.has(id) || followUps.has(id) || backfilling.has(id)) return;
-    retryAt.set(id, Date.now() + PAGE_COOLDOWN_MS);
-    const timer = setTimeout(() => {
-        followUps.delete(id);
-        retryAt.delete(id);
-        ensureConversationChain(id);
-    }, PAGE_COOLDOWN_MS);
-    followUps.set(id, timer);
-}
-
 function rememberChain(conversationId: string, data: unknown, url = "") {
+    // v1.4.97 never treated `/conversations/{id}?num_turns=` as the outline.
+    if (url && isWindowedConversationGet(url)) return;
     const cid = conversationIdFromPayload(data, conversationId);
     if (!cid) return;
     const path = chainFromPayload(data);
     if (!path.length) return;
     const prev = chains.get(cid) ?? [];
     const next = mergeConversationChain(prev, path);
-    if (payloadCompletesChain(data, url)) {
-        complete.add(cid);
-        stopOlderWindow(cid);
-    }
     if (!sameChain(prev, next)) {
         chains.set(cid, next);
         capMap(chains, CHAIN_CONVS);
@@ -246,20 +213,6 @@ function emit(event: HarvestEvent) {
     for (const listener of Array.from(listeners)) {
         try { listener(event); }
         catch { /* ignore */ }
-    }
-}
-
-function rememberDetailHeaders(input: RequestInfo | URL, init?: RequestInit) {
-    const raw = init?.headers
-        ?? (typeof Request !== "undefined" && input instanceof Request ? input.headers : null);
-    if (!raw) return;
-    const entries = raw instanceof Headers
-        ? raw.entries()
-        : Array.isArray(raw)
-            ? raw
-            : Object.entries(raw as Record<string, string>);
-    for (const [key, value] of entries) {
-        if (typeof value === "string" && HEADER_KEEP.test(key)) lastDetailHeaders[key] = value;
     }
 }
 
@@ -331,7 +284,6 @@ function intercept(orig: typeof fetch, input: RequestInfo | URL, init?: RequestI
         seedId = idFromBody(init?.body) || idFromApiUrl(url) || conversationIdFromHref(url) || currentConversationId();
         emit({ type: "post-start", conversationId: seedId, url });
     }
-    if (get) rememberDetailHeaders(input, init);
     return orig(input, init).then(res => {
         if (myEpoch !== epoch) return res;
         if (!get && !post) return res;
@@ -380,36 +332,6 @@ function releaseHarvest() {
 export function pinHarvest() {
     pinned = true;
     hookFetch();
-}
-
-type DetailResult = { status: number; data: unknown | null };
-
-/**
- * One older mapping window. Never the open-chat probe:
- * no `/f/conversation/{id}`, no unwindowed `/conversations/{id}`,
- * no `num_turns=480`. The page's own GET is harvested by the fetch wrap.
- */
-function olderWindowUrls(id: string, before: string): string[] {
-    const node = `include_has_versions=true&num_turns=10&before_node=${encodeURIComponent(before)}`;
-    const cursor = `include_has_versions=true&num_turns=10&before=${encodeURIComponent(before)}`;
-    return [
-        `/backend-api/conversations/${id}?${node}`,
-        `/backend-api/conversations/${id}?${cursor}`,
-    ];
-}
-
-async function fetchDetail(win: Window & { fetch: typeof fetch }, url: string, id: string): Promise<DetailResult> {
-    const res = await win.fetch(url, {
-        method: "GET",
-        credentials: "include",
-        headers: { ...lastDetailHeaders },
-    });
-    if (res.status === 429) return { status: 429, data: null };
-    if (!res.ok) return { status: res.status, data: null };
-    const data = await res.json();
-    harvestObject(data, id);
-    rememberChain(id, data, url);
-    return { status: res.status, data };
 }
 
 /** Kept for the host export. v1.4.97 navigator does not page older windows. */
