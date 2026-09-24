@@ -37,6 +37,8 @@ RN 订 `watchStreamingEdge(onFall)`，host 400ms `setInterval` 在后台仍跑�
 
 **1.4.78：** 忽略闩不能吃掉落地页自己的生成。宿主 `ignoreStreaming` 在当前对话的 harvest `post-start` 上清掉（残留 Stop 直接变成新回复的 Stop 时中间没有 false）。`streamingSuppressed()` / `stoppedByUser()` / `fallPending()` 是共享闩，插件不要再各写一份。CSF：本页点 Stop → wait，不是 done；`done` 只在宿主 `onFall` 确认后画，窗口 A 不先打完成。PQ：`streamingSuppressed()` 时不拦截 Enter/Send。CLS：`post-end` 的 id 不是当前对话 → idle，不当 error/done；离开的行不论 local/net 都收回 idle。不要加 `streamEnd`。
 
+**1.4.79：** `currentConversationId()` 只认 pathname `/c/{id}`。`/` 和 `/g/` 上的残留 `data-conversation-id` 不是当前对话。`isDraftMigrate` 只在目标 id 等于这场 harvest id（id 还没到时，仅草稿页的空 `post-start` / `pendingDraft`，第一个 `/c/{id}` 认领）时成立；点另一条 Recents 是真切会话。CSF 在宿主 `onFall` 之前保持 rotate，不要闪官方 wait。CLS / BN 的页级 Stop 还要看 `streamingSuppressed()`。RN 用 `currentConversationId() || inFlightConversationId()`。不要第二份 history wrap。
+
 **1.4.58：** BetterNavigator tick 字形对齐 Notion-style-AI-Navigator：闲置 `1.25rem × 2px`，当前 `1.75rem × 仍 2px` + `0 0 3px` 辉光，圆角 `0.125rem`，行距 `1rem`（密时 `0.375rem`），去掉 user/assistant 宽度差。色走 ChatGPT `--text-primary` 的 40%/83% `color-mix`，不灌 Notion `--nav-*`。列锚 / `2.5rem` 热区 / 中线短栈 / 虚线 live 不变。
 
 **1.4.57：** BetterNavigator 悬停目录贴消息列，不贴页面滚动条。`placeHost` 的 `right` 用 `--thread-content-max-width` / turn wrapper，沟槽够就外挂，不够则 Void 式叠在列右缘 `0.75rem`。菜单 `min(18rem, 70vw)`，单层 card padding；tick 热区 `2.5rem`；`YOU`/`GPT` 不再锁 `1.1rem`。仍 body-fixed，禁止 `#thread { position:relative }`。

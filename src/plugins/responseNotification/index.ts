@@ -12,7 +12,7 @@
 import { definePluginSettings } from "../../api/Settings";
 import { currentConversationId } from "../../host/conversation";
 import { conversationTitle } from "../../host/harvest";
-import { watchStreamingEdge } from "../../host/streaming";
+import { inFlightConversationId, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { Logger } from "../../utils/Logger";
 import definePlugin, { OptionType, StartAt } from "../../utils/types";
@@ -169,7 +169,7 @@ export default definePlugin({
         unsub = watchStreamingEdge(edge => {
             if (!started) return;
             if (edge.userStopped || edge.error) return;
-            const id = currentConversationId();
+            const id = currentConversationId() || inFlightConversationId();
             if (edge.conversationId && edge.conversationId !== id) return;
             notify();
         });

@@ -58,14 +58,7 @@ export function conversationIdFromHref(href: string): string {
     }
 }
 
+/** Path only. `/` and `/g/` must not inherit a leftover data-conversation-id. */
 export function currentConversationId(): string {
-    const fromPath = conversationIdFromHref(location.pathname);
-    if (fromPath) return fromPath;
-    const token = conversationToken();
-    const parts = token.split("|").filter(Boolean);
-    for (let i = parts.length - 1; i >= 0; i--) {
-        const part = parts[i];
-        if (/^[a-z0-9_-]{8,}$/i.test(part)) return part;
-    }
-    return "";
+    return conversationIdFromHref(location.pathname);
 }

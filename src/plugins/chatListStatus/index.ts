@@ -17,7 +17,7 @@
 import { getStopButton } from "../../host/composer";
 import { conversationIdFromHref, currentConversationId } from "../../host/conversation";
 import { subscribeHarvest, type HarvestEvent } from "../../host/harvest";
-import { getProStopButton, hasErrorToast, isDraftMigrate, watchStreamingEdge, type StreamingTick } from "../../host/streaming";
+import { getProStopButton, hasErrorToast, inFlightConversationId, isDraftMigrate, streamingSuppressed, watchStreamingEdge, type StreamingTick } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -229,7 +229,7 @@ function hasStop(): boolean {
 function isLiveGenerate(id: string): boolean {
     if (pendingNew) return true;
     if (id && armedIds.has(id)) return true;
-    if (!ignoreStop && hasStop()) return true;
+    if (!ignoreStop && !streamingSuppressed() && hasStop()) return true;
     return false;
 }
 
@@ -253,7 +253,9 @@ function onHarvest(ev: HarvestEvent) {
         if (ev.conversationId) {
             armedIds.delete(ev.conversationId);
             const current = currentConversationId();
-            if (ev.conversationId !== current) setStatus(ev.conversationId, "idle", "net");
+            const flight = inFlightConversationId();
+            const here = current ? ev.conversationId === current : ev.conversationId === flight;
+            if (!here) setStatus(ev.conversationId, "idle", "net");
             else setStatus(ev.conversationId, ev.error ? "error" : "done", "net");
         }
         if (!hasStop()) wasStreaming = false;
@@ -292,8 +294,8 @@ function localTick(state: StreamingTick) {
     }
     if (id) lastPathId = id;
 
-    if (ignoreStop) {
-        if (hasStop() || state.streaming) {
+    if (ignoreStop || streamingSuppressed()) {
+        if (streamingSuppressed() || hasStop() || state.streaming) {
             schedulePaint();
             return;
         }

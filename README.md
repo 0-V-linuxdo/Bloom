@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.78](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.78)** (`userscript/Bloom.update.user.js`, `@version [20260924] v1.4.78`).
+Current release: **[v1.4.79](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.79)** (`userscript/Bloom.update.user.js`, `@version [20260924] v1.4.79`).
 
 Plugins:
 
@@ -168,6 +168,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.79: **Home does not inherit the chat you just left, and a different Recents row is not the same reply.** The current conversation id comes only from `/c/{id}`. Draft → chat migrates only for this send's harvest id. The favicon stays on the blossom while a reply finishes, instead of flashing the official icon, then done.
 
 v1.4.78: **A leftover Stop must not eat the next reply, and Stop is not Done.** Host clears the leave latch on a new harvest `post-start`. ChatStateFavicons stays idle when you press Stop, and paints done only after the host confirms the fall. PromptQueue does not queue the first message on New chat just because the old Stop is still mounted. ChatListStatus does not mark a chat you left as an error.
 

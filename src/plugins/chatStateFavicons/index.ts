@@ -277,7 +277,8 @@ function evaluateState() {
             setKind("done");
             return;
         } else {
-            setKind("wait");
+            // Hold rotate until host onFall, including the fallPending poll.
+            setKind("rotate");
             return;
         }
     }

@@ -14,10 +14,12 @@
  * watchStreamingEdge is the shared falling-edge helper. One 400ms timer
  * (refcounted). 3 quiet ticks + contextKey lock + capture Stop + harvest
  * post-end *arm* (never a BloomEventMap.streamEnd). A real chat switch
- * (not `/` → `/c/{id}`) drops a pending fall and ignores leftover
+ * (not `/` → `/c/{id}` of *this* harvest id) drops a pending fall and ignores leftover
  * isStreaming() until it has been false once or a new harvest post-start
- * lands on this page. Leaving is not a completed reply. Stop click is
- * userStopped, not a successful fall. streamingSuppressed / stoppedByUser
+ * lands on this page. `/` does not inherit a leftover data-conversation-id.
+ * Opening a different Recents row is not the same reply. Leaving is not a
+ * completed reply. Stop click is userStopped, not a successful fall.
+ * streamingSuppressed / stoppedByUser
  * / fallPending are the shared latch — plugins must not each invent one.
  * ChatStateFavicons, ResponseNotification, PromptQueue, ChatListStatus,
  * BetterNavigator, and MessageTimestamps must subscribe instead of each
@@ -25,7 +27,7 @@
  */
 
 import { getStopButton, getSubmitButton, isStopControl, isVisible } from "./composer";
-import { contextKeyFromUrl, conversationToken, currentConversationId } from "./conversation";
+import { contextKeyFromUrl, conversationIdFromHref, conversationToken, currentConversationId } from "./conversation";
 import { subscribeHarvest, type HarvestEvent } from "./harvest";
 import { Logger } from "../utils/Logger";
 
@@ -126,6 +128,10 @@ let armed = false;
 let ignoreStreaming = false;
 /** Hold one poll so a switch in the next tick can cancel a false complete. */
 let pendingFall: StreamingEdge | null = null;
+/** Harvest id of the send in flight. Not a leftover data-* on `/`. */
+let inFlightId = "";
+/** Empty post-start on a draft page, waiting for the SSE id. Not "any /c/". */
+let pendingDraft = false;
 
 /** True while a leftover Stop after a real switch must not count as this page. */
 export function streamingSuppressed(): boolean {
@@ -142,26 +148,50 @@ export function fallPending(): boolean {
     return pendingFall !== null && !pendingFall.userStopped && !pendingFall.error;
 }
 
+/** Conversation id harvested for the send that started here. Empty after a real switch. */
+export function inFlightConversationId(): string {
+    return inFlightId;
+}
+
+function pageConversationId(): string {
+    return currentConversationId() || inFlightId;
+}
+
 function contextKey(): string {
     return contextKeyFromUrl(conversationToken());
 }
 
 function snapshot(streaming: boolean, key: string): StreamingTick {
-    return { streaming, contextKey: key, conversationId: currentConversationId() };
+    return { streaming, contextKey: key, conversationId: pageConversationId() };
 }
 
-/** First-message `/` or `|draft` → `/c/{id}` keeps the in-flight watch. */
+function pathOfKey(key: string): string {
+    try {
+        const base = key.split("|")[0] || "";
+        return new URL(base).pathname.replace(/\/$/, "") || "/";
+    } catch {
+        return "";
+    }
+}
+
+function isDraftPath(path: string): boolean {
+    return !path || path === "/" || path.startsWith("/g/");
+}
+
+/**
+ * `/` or `/g/` → `/c/{id}` only for this send.
+ * Known harvest id must match. Before the id arrives, only a draft-page
+ * post-start (`pendingDraft`) counts — and the first `/c/{id}` claims it.
+ * Opening some other Recents row after the id is known is a real switch.
+ */
 export function isDraftMigrate(from: string, to: string): boolean {
     if (!from || from === to) return false;
-    if (from.endsWith("|draft") && !to.endsWith("|draft")) return true;
-    try {
-        const a = from.split("|")[0];
-        const b = to.split("|")[0];
-        const pa = new URL(a).pathname.replace(/\/$/, "") || "/";
-        const pb = new URL(b).pathname.replace(/\/$/, "") || "/";
-        if ((pa === "/" || pa === "") && pb.startsWith("/c/")) return true;
-    } catch { /* ignore */ }
-    return false;
+    const toId = conversationIdFromHref(pathOfKey(to) || to);
+    if (!toId) return false;
+    const fromDraft = from.endsWith("|draft") || isDraftPath(pathOfKey(from));
+    if (!fromDraft) return false;
+    if (inFlightId) return toId === inFlightId;
+    return pendingDraft;
 }
 
 function resetWatch() {
@@ -171,6 +201,8 @@ function resetWatch() {
     userStopped = false;
     harvestError = false;
     armed = false;
+    inFlightId = "";
+    pendingDraft = false;
 }
 
 function emitFall(edge: StreamingEdge) {
@@ -211,16 +243,32 @@ function onStopClick(ev: Event) {
 function onHarvest(ev: HarvestEvent) {
     if (ev.type === "post-start") {
         const id = currentConversationId();
-        if (!ev.conversationId || !id || ev.conversationId === id) {
-            ignoreStreaming = false;
-            userStopped = false;
+        if (!ev.conversationId) {
+            if (!id) pendingDraft = true;
+            if (!id || id === inFlightId) {
+                ignoreStreaming = false;
+                userStopped = false;
+            }
+            return;
         }
+        const known = ev.conversationId === id || ev.conversationId === inFlightId;
+        const claiming = !id && pendingDraft;
+        if (!known && !claiming) return;
+        inFlightId = ev.conversationId;
+        pendingDraft = false;
+        ignoreStreaming = false;
+        userStopped = false;
         return;
     }
     if (ev.type !== "post-end") return;
     if (!wasStreaming && !pendingFall) return;
     const current = currentConversationId();
-    if (ev.conversationId && ev.conversationId !== current) return;
+    if (ev.conversationId) {
+        const same = current
+            ? ev.conversationId === current
+            : ev.conversationId === inFlightId;
+        if (!same) return;
+    }
     armed = true;
     if (ev.error) {
         harvestError = true;
@@ -239,10 +287,15 @@ function tick() {
             resetWatch();
             ignoreStreaming = streaming;
         } else {
+            const claimed = conversationIdFromHref(pathOfKey(key));
+            if (claimed && !inFlightId) {
+                inFlightId = claimed;
+                pendingDraft = false;
+            }
             if (streamContext === prev) streamContext = key;
             if (pendingFall && pendingFall.contextKey === prev) {
                 pendingFall.contextKey = key;
-                const id = currentConversationId();
+                const id = pageConversationId();
                 if (id) pendingFall.conversationId = id;
             }
             ignoreStreaming = false;
@@ -315,7 +368,7 @@ function tick() {
     }
     pendingFall = {
         contextKey: streamContext || key,
-        conversationId: currentConversationId(),
+        conversationId: pageConversationId(),
         userStopped,
         error: harvestError || hasErrorToast(),
     };
@@ -333,6 +386,8 @@ function startEngine() {
     armed = false;
     ignoreStreaming = false;
     pendingFall = null;
+    inFlightId = "";
+    pendingDraft = false;
     clicks?.abort();
     clicks = new AbortController();
     document.addEventListener("click", onStopClick, { capture: true, signal: clicks.signal });

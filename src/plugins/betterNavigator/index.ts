@@ -32,7 +32,7 @@ import { definePluginSettings } from "../../api/Settings";
 import { getStopButton } from "../../host/composer";
 import { currentConversationId } from "../../host/conversation";
 import { subscribeHarvest, type HarvestEvent } from "../../host/harvest";
-import { getProStopButton, isDraftMigrate, watchStreamingEdge } from "../../host/streaming";
+import { getProStopButton, isDraftMigrate, streamingSuppressed, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -393,7 +393,7 @@ function generationArmed(): boolean {
     if (pendingNew) return true;
     const id = currentConversationId();
     if (id && armedIds.has(id)) return true;
-    if (!ignoreStop && stopVisible()) return true;
+    if (!ignoreStop && !streamingSuppressed() && stopVisible()) return true;
     return false;
 }
 
@@ -983,6 +983,10 @@ export default definePlugin({
         unsubHarvest = subscribeHarvest(onHarvest);
         unsubStream = watchStreamingEdge({
             onTick() {
+                if (streamingSuppressed()) {
+                    schedulePaint();
+                    return;
+                }
                 if (ignoreStop && !stopVisible()) ignoreStop = false;
                 schedulePaint();
             },
