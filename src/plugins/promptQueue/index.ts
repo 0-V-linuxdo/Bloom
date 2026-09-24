@@ -412,7 +412,15 @@ export default definePlugin({
                 drainKey = edge.contextKey;
                 tryDrain(edge.contextKey);
             },
-            onContext(next) {
+            onContext(next, prev) {
+                if (prev && next && !isDraftMigrate(prev, next)) {
+                    drainKey = "";
+                    draining = false;
+                    if (drainTimer !== undefined) {
+                        clearTimeout(drainTimer);
+                        drainTimer = undefined;
+                    }
+                }
                 migrateIfNeeded(next);
                 lastKey = next;
                 paintChip();

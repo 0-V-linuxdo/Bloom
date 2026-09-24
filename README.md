@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.76](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.76)** (`userscript/Bloom.update.user.js`, `@version [20260924] v1.4.76`).
+Current release: **[v1.4.77](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.77)** (`userscript/Bloom.update.user.js`, `@version [20260924] v1.4.77`).
 
 Plugins:
 
@@ -168,6 +168,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.77: **Leaving a generating chat is not a finished reply.** Host `watchStreamingEdge` ignores a leftover Stop until `isStreaming()` has been false once, and holds the falling edge one poll so New chat / another `/c/{id}` cancels it. ResponseNotification does not chime when the finished id is no longer current. PromptQueue drops the drain instead of sending into the chat you left. ChatListStatus does not mark that row done or spin the page you landed on. BetterNavigator does not dash the new thread from the old Stop. MessageTimestamps does not stamp the new thread with "now".
 
 v1.4.76: **ChatStateFavicons stays idle when you leave a generating chat.** New chat (`/`) or any other real context switch paints wait (official icon), not done. A leftover page-global Stop / `aria-busy` after the URL flips does not arm a new stream until `isStreaming()` has gone false once. `sameStreamContext` is strict; `/` → `/c/{id}` is still a draft migrate, so the first message can still finish as done. Done is judged on the live key, not a lock held from the chat you left.
 

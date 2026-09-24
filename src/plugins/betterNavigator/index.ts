@@ -143,6 +143,7 @@ let armedAt = 0;
 
 let started = false;
 let pendingNew = false;
+let ignoreStop = false;
 let host: HTMLElement | null = null;
 let ticksEl: HTMLElement | null = null;
 let listEl: HTMLElement | null = null;
@@ -392,7 +393,7 @@ function generationArmed(): boolean {
     if (pendingNew) return true;
     const id = currentConversationId();
     if (id && armedIds.has(id)) return true;
-    if (stopVisible()) return true;
+    if (!ignoreStop && stopVisible()) return true;
     return false;
 }
 
@@ -890,6 +891,7 @@ function onHarvest(ev: HarvestEvent) {
     if (!started) return;
     if (ev.type === "post-start") {
         noteArm();
+        ignoreStop = false;
         if (ev.conversationId) {
             pendingNew = false;
             armedIds.add(ev.conversationId);
@@ -981,6 +983,7 @@ export default definePlugin({
         unsubHarvest = subscribeHarvest(onHarvest);
         unsubStream = watchStreamingEdge({
             onTick() {
+                if (ignoreStop && !stopVisible()) ignoreStop = false;
                 schedulePaint();
             },
             onFall(edge) {
@@ -993,6 +996,11 @@ export default definePlugin({
                     imageCounts.clear();
                     paintedKey = "";
                     pendingNew = false;
+                    const id = currentConversationId();
+                    for (const armed of [...armedIds]) {
+                        if (armed !== id) armedIds.delete(armed);
+                    }
+                    ignoreStop = true;
                 }
                 schedulePaint();
             },
@@ -1015,6 +1023,7 @@ export default definePlugin({
         unsubHarvest = null;
         armedIds.clear();
         pendingNew = false;
+        ignoreStop = false;
         armedAt = 0;
         unmount();
         labels.clear();

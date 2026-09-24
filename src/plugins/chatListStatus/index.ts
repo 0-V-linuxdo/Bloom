@@ -47,6 +47,7 @@ const rows = new Map<string, Row>();
 let started = false;
 let lastPathId = "";
 let wasStreaming = false;
+let ignoreStop = false;
 let raf = 0;
 let sidebarObs: MutationObserver | null = null;
 let watchedSidebar: HTMLElement | null = null;
@@ -228,13 +229,14 @@ function hasStop(): boolean {
 function isLiveGenerate(id: string): boolean {
     if (pendingNew) return true;
     if (id && armedIds.has(id)) return true;
-    if (hasStop()) return true;
+    if (!ignoreStop && hasStop()) return true;
     return false;
 }
 
 function onHarvest(ev: HarvestEvent) {
     if (!started) return;
     if (ev.type === "post-start") {
+        ignoreStop = false;
         if (ev.conversationId) {
             pendingNew = false;
             armedIds.add(ev.conversationId);
@@ -263,11 +265,18 @@ function onContext(next: string, prev: string) {
         return;
     }
     const id = currentConversationId();
-    if (pendingNew || (id && armedIds.has(id))) return;
+    if (lastPathId && lastPathId !== id) {
+        armedIds.delete(lastPathId);
+        const prevRow = rows.get(lastPathId);
+        if (prevRow?.kind === "streaming" && prevRow.source === "local") {
+            setStatus(lastPathId, "idle", "local");
+        }
+    }
+    pendingNew = false;
     wasStreaming = false;
-    if (id && rows.get(id)?.kind === "streaming" && rows.get(id)?.source === "local") {
+    ignoreStop = true;
+    if (id && rows.get(id)?.kind === "streaming" && rows.get(id)?.source === "local" && !armedIds.has(id)) {
         setStatus(id, "idle", "local");
-        return;
     }
     schedulePaint();
 }
@@ -276,13 +285,22 @@ function localTick(state: StreamingTick) {
     if (!started) return;
     const id = state.conversationId || currentConversationId();
     if (lastPathId && id && lastPathId !== id) {
+        armedIds.delete(lastPathId);
         const prev = rows.get(lastPathId);
         if (prev?.kind === "streaming" && prev.source === "local") {
-            setStatus(lastPathId, hasErrorToast() ? "error" : "done", "local");
+            setStatus(lastPathId, "idle", "local");
         }
         wasStreaming = !!(id && armedIds.has(id));
     }
-    lastPathId = id;
+    if (id) lastPathId = id;
+
+    if (ignoreStop) {
+        if (hasStop() || state.streaming) {
+            schedulePaint();
+            return;
+        }
+        ignoreStop = false;
+    }
 
     const live = isLiveGenerate(id);
     if (live && (state.streaming || hasStop())) {
@@ -348,6 +366,7 @@ export default definePlugin({
         armedIds.clear();
         pendingNew = false;
         wasStreaming = false;
+        ignoreStop = false;
         lastPathId = "";
         document.querySelectorAll(`.${MARK}`).forEach(n => n.remove());
         removeStyle(STYLE_NAME);

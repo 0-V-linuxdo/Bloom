@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.76](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.76)**（`userscript/Bloom.update.user.js`，`@version [20260924] v1.4.76`）。
+当前版本：**[v1.4.77](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.77)**（`userscript/Bloom.update.user.js`，`@version [20260924] v1.4.77`）。
 
 插件：
 
@@ -165,6 +165,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.77：**离开正在生成的对话，不是回复完成。** 宿主 `watchStreamingEdge` 在残留 Stop 先变 false 之前不把它当成新的一场，下降沿多等一拍，New chat 或切到别的 `/c/{id}` 会取消这次完成。ResponseNotification 在完成的 id 已不是当前对话时不响。PromptQueue 清掉 drain，不把队列发进正在离开的对话。ChatListStatus 不把那一行标完成，也不让落地页空转。BetterNavigator 不用旧 Stop 给新线程打虚线。MessageTimestamps 不把新线程最后几条盖成「刚刚」。
 
 v1.4.76：**生成中切到 New chat，favicon 回到空闲，不是完成。** `/` 或其他真切会话画 wait（官方图标），不画 done。URL 已经翻走之后，页上还留着的 Stop / `aria-busy` 不能把新页面武装成一场新回复，要等 `isStreaming()` 先变 false。`sameStreamContext` 严格相等；`/` → `/c/{id}` 仍是 draft migrate，首条消息仍可以完成成 done。done 看当前 live key，不看离开前锁住的旧 token。
 

@@ -169,6 +169,8 @@ export default definePlugin({
         unsub = watchStreamingEdge(edge => {
             if (!started) return;
             if (edge.userStopped || edge.error) return;
+            const id = currentConversationId();
+            if (edge.conversationId && edge.conversationId !== id) return;
             notify();
         });
         perm?.abort();

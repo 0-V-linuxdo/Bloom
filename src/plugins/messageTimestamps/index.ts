@@ -14,7 +14,7 @@
 
 import { definePluginSettings } from "../../api/Settings";
 import { messageCreateTime, subscribeHarvest, type HarvestEvent } from "../../host/harvest";
-import { isStreaming, watchStreamingEdge } from "../../host/streaming";
+import { isDraftMigrate, isStreaming, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
 import { debounce } from "../../utils/misc";
@@ -57,6 +57,7 @@ let unsubHarvest: (() => void) | null = null;
 let unsubEdge: (() => void) | null = null;
 let vis: AbortController | null = null;
 let wasStreaming = false;
+let ignoreStreaming = false;
 
 function threadRoot(): HTMLElement | null {
     return (document.getElementById("thread")
@@ -135,7 +136,15 @@ function paint() {
     if (!started) return;
     const hideOwn = settings.store.hideOwnMessages === true;
     const showDate = settings.store.showDate !== false;
-    const streaming = isStreaming();
+    const rawStreaming = isStreaming();
+    if (ignoreStreaming) {
+        if (rawStreaming) {
+            wasStreaming = false;
+        } else {
+            ignoreStreaming = false;
+        }
+    }
+    const streaming = ignoreStreaming ? false : rawStreaming;
     const nodes = messageNodes();
     threadObs?.disconnect();
     try {
@@ -235,7 +244,13 @@ export default definePlugin({
         unsubEdge = watchStreamingEdge({
             onTick: schedulePaint,
             onFall: schedulePaint,
-            onContext: schedulePaint,
+            onContext(next, prev) {
+                if (!isDraftMigrate(prev, next)) {
+                    ignoreStreaming = true;
+                    wasStreaming = false;
+                }
+                schedulePaint();
+            },
         });
         vis?.abort();
         vis = new AbortController();
@@ -264,6 +279,8 @@ export default definePlugin({
         unsubEdge = null;
         unsubHarvest?.();
         unsubHarvest = null;
+        ignoreStreaming = false;
+        wasStreaming = false;
         persistNow();
         live.clear();
         document.querySelectorAll(`.${MARK}`).forEach(n => n.remove());

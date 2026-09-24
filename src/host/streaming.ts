@@ -13,9 +13,12 @@
  *
  * watchStreamingEdge is the shared falling-edge helper. One 400ms timer
  * (refcounted). 3 quiet ticks + contextKey lock + capture Stop + harvest
- * post-end *arm* (never a BloomEventMap.streamEnd). ChatStateFavicons,
- * ResponseNotification, PromptQueue, ChatListStatus, BetterNavigator,
- * and MessageTimestamps must subscribe instead of each polling isStreaming().
+ * post-end *arm* (never a BloomEventMap.streamEnd). A real chat switch
+ * (not `/` → `/c/{id}`) drops a pending fall and ignores leftover
+ * isStreaming() until it has been false once — leaving is not a completed
+ * reply. ChatStateFavicons, ResponseNotification, PromptQueue,
+ * ChatListStatus, BetterNavigator, and MessageTimestamps must subscribe
+ * instead of each polling isStreaming().
  */
 
 import { getStopButton, getSubmitButton, isStopControl, isVisible } from "./composer";
@@ -116,6 +119,10 @@ let lastKey = "";
 let userStopped = false;
 let harvestError = false;
 let armed = false;
+/** Leftover Stop / aria-busy after a real switch is not a new reply. */
+let ignoreStreaming = false;
+/** Hold one poll so a switch in the next tick can cancel a false complete. */
+let pendingFall: StreamingEdge | null = null;
 
 function contextKey(): string {
     return contextKeyFromUrl(conversationToken());
@@ -185,9 +192,12 @@ function onStopClick(ev: Event) {
 
 function onHarvest(ev: HarvestEvent) {
     if (ev.type !== "post-end") return;
-    if (!wasStreaming) return;
+    if (!wasStreaming && !pendingFall) return;
     armed = true;
-    if (ev.error) harvestError = true;
+    if (ev.error) {
+        harvestError = true;
+        if (pendingFall) pendingFall.error = true;
+    }
 }
 
 function tick() {
@@ -197,14 +207,49 @@ function tick() {
     if (lastKey && key && lastKey !== key) {
         emitContext(key, lastKey);
         if (!isDraftMigrate(lastKey, key)) {
+            pendingFall = null;
             resetWatch();
+            ignoreStreaming = streaming;
             lastKey = key;
-            emitTick(snapshot(streaming, key));
+            if (ignoreStreaming) {
+                emitTick(snapshot(false, key));
+                return;
+            }
+        } else {
+            if (streamContext === lastKey) streamContext = key;
+            if (pendingFall && pendingFall.contextKey === lastKey) {
+                pendingFall.contextKey = key;
+                const id = currentConversationId();
+                if (id) pendingFall.conversationId = id;
+            }
+            // `/` → `/c/{id}` is the same send, or a new one after we landed.
+            ignoreStreaming = false;
+            lastKey = key;
+        }
+    } else if (key) {
+        lastKey = key;
+    }
+
+    if (ignoreStreaming) {
+        if (streaming) {
+            emitTick(snapshot(false, key));
             return;
         }
-        if (streamContext === lastKey) streamContext = key;
+        ignoreStreaming = false;
     }
-    lastKey = key;
+
+    if (pendingFall) {
+        if (streaming || pendingFall.contextKey !== key) {
+            pendingFall = null;
+        } else {
+            const edge = pendingFall;
+            pendingFall = null;
+            resetWatch();
+            emitFall(edge);
+            emitTick(snapshot(false, key));
+            return;
+        }
+    }
 
     const state = snapshot(streaming, key);
 
@@ -236,14 +281,17 @@ function tick() {
     }
 
     const same = !!streamContext && streamContext === key;
-    const edge: StreamingEdge = {
+    if (!same) {
+        resetWatch();
+        emitTick(state);
+        return;
+    }
+    pendingFall = {
         contextKey: streamContext || key,
         conversationId: currentConversationId(),
         userStopped,
         error: harvestError || hasErrorToast(),
     };
-    resetWatch();
-    if (same) emitFall(edge);
     emitTick(state);
 }
 
@@ -256,6 +304,8 @@ function startEngine() {
     userStopped = false;
     harvestError = false;
     armed = false;
+    ignoreStreaming = false;
+    pendingFall = null;
     clicks?.abort();
     clicks = new AbortController();
     document.addEventListener("click", onStopClick, { capture: true, signal: clicks.signal });
@@ -276,6 +326,8 @@ function stopEngine() {
     unsubHarvest = null;
     resetWatch();
     lastKey = "";
+    ignoreStreaming = false;
+    pendingFall = null;
     logger.debug("watchStreamingEdge stopped");
 }
 
