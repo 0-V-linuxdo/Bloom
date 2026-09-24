@@ -106,4 +106,129 @@ assert.deepEqual(fromFull.map(t => t.id), path.map(t => t.id));
 const same = mergeConversationChain(path, path.slice(-2));
 assert.deepEqual(same.map(t => t.id), path.map(t => t.id));
 
+const noisy = {
+    conversation_id: ID,
+    current_node: "final",
+    mapping: {
+        root: { id: "root", parent: null, children: ["sys"], message: null },
+        sys: {
+            id: "sys",
+            parent: "root",
+            children: ["u1"],
+            message: {
+                id: "msys",
+                author: { role: "user" },
+                metadata: { is_visually_hidden_from_conversation: true, is_user_system_message: true },
+                content: { content_type: "text", parts: ["hidden context"] },
+            },
+        },
+        u1: {
+            id: "u1",
+            parent: "sys",
+            children: ["thought"],
+            message: { id: "mu1", author: { role: "user" }, content: { content_type: "text", parts: ["ask"] } },
+        },
+        thought: {
+            id: "thought",
+            parent: "u1",
+            children: ["tool"],
+            message: {
+                id: "mthought",
+                author: { role: "assistant" },
+                channel: "commentary",
+                content: { content_type: "thoughts", parts: ["planning"] },
+            },
+        },
+        tool: {
+            id: "tool",
+            parent: "thought",
+            children: ["tout"],
+            message: {
+                id: "mtool",
+                author: { role: "assistant" },
+                recipient: "python",
+                content: { content_type: "code", parts: ["print(1)"] },
+            },
+        },
+        tout: {
+            id: "tout",
+            parent: "tool",
+            children: ["final"],
+            message: {
+                id: "mtout",
+                author: { role: "tool" },
+                content: { content_type: "execution_output", parts: ["1"] },
+            },
+        },
+        final: {
+            id: "final",
+            parent: "tout",
+            children: [],
+            message: {
+                id: "mfinal",
+                author: { role: "assistant" },
+                recipient: "all",
+                channel: "final",
+                end_turn: true,
+                content: { content_type: "text", parts: ["done"] },
+            },
+        },
+    },
+};
+
+const visible = chainFromPayload(noisy);
+assert.deepEqual(visible.map(t => [t.id, t.role, t.text]), [
+    ["mu1", "user", "ask"],
+    ["mfinal", "assistant", "done"],
+]);
+
+const twoReplies = {
+    conversation_id: ID,
+    current_node: "a2",
+    mapping: {
+        root: { id: "root", parent: null, children: ["u1"], message: null },
+        u1: {
+            id: "u1",
+            parent: "root",
+            children: ["a1"],
+            message: { id: "mu1", author: { role: "user" }, content: { parts: ["one"] } },
+        },
+        a1: {
+            id: "a1",
+            parent: "u1",
+            children: ["hidden"],
+            message: { id: "ma1", author: { role: "assistant" }, content: { parts: ["first"] } },
+        },
+        hidden: {
+            id: "hidden",
+            parent: "a1",
+            children: ["a2"],
+            message: {
+                id: "mhid",
+                author: { role: "user" },
+                metadata: { is_visually_hidden_from_conversation: true },
+                content: { parts: ["bridge"] },
+            },
+        },
+        a2: {
+            id: "a2",
+            parent: "hidden",
+            children: [],
+            message: { id: "ma2", author: { role: "assistant" }, content: { parts: ["second"] } },
+        },
+    },
+};
+const split = chainFromPayload(twoReplies);
+assert.deepEqual(split.map(t => t.id), ["mu1", "ma1", "ma2"]);
+
+const windowNoise = chainFromPayload({
+    conversation_id: ID,
+    turns: [
+        { id: "u1", message: { id: "mu1", author: { role: "user" }, content: { parts: ["ask"] } } },
+        { id: "th", message: { id: "mth", author: { role: "assistant" }, channel: "commentary", content: { content_type: "thoughts", parts: ["plan"] } } },
+        { id: "a1", message: { id: "ma1", author: { role: "assistant" }, recipient: "all", channel: "final", end_turn: true, content: { parts: ["done"] } } },
+    ],
+});
+assert.deepEqual(windowNoise.map(t => t.id), ["mu1", "ma1"]);
+
 console.log("harvest-chain-test: ok");

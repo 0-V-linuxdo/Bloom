@@ -8,8 +8,9 @@
  * list GET `/backend-api/conversations?offset=`. Windowed detail
  * `GET /conversations/{id}?num_turns=` is not that list. Generate POST is
  * only `/backend-api/conversation` or `/f/conversation` (not init).
- * Active-branch user|assistant chain (cap 480) comes from `mapping` or a
- * `turns` window. Init pins the wrap so the first GET is not missed.
+ * Active-branch visible bubbles (cap 480) come from `mapping` or a
+ * `turns` window. Tool / thought / hidden system nodes stay inside
+ * the assistant tick. Init pins the wrap so the first GET is not missed.
  * Opening a long chat may one-shot the singular `{id}` if the chain is
  * still a window. No BloomEventMap.streamEnd.
  */

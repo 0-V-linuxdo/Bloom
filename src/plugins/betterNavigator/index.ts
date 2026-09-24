@@ -30,10 +30,12 @@
  * Collect the active branch, not only the turns ChatGPT has mounted.
  * Host harvest of GET `/conversation/{id}` and windowed
  * `/conversations/{id}?num_turns=` (not the Recents list) supplies
- * user|assistant ids. A one-shot host backfill covers the first GET
- * missed at document-idle. Native `#prompt-nav-container` is read-only
- * when the chain is still short. Mounted nodes fill the label and the
- * live dash. A virtualized turn stays in the outline with no element.
+ * visible user|assistant bubble ids (tools / thoughts / hidden
+ * system rows stay inside the assistant tick). A one-shot host
+ * backfill covers the first GET missed at document-idle. Native
+ * `#prompt-nav-container` is read-only labels only — never splice
+ * chrome rows. Mounted nodes fill the label and the live dash.
+ * A virtualized turn stays in the outline with no element.
  * Jump nudges the thread until that id mounts; opening the chat does
  * not scroll it.
  * Image-gen assistant turns have no data-message-id / author-role; one
@@ -966,6 +968,10 @@ function nativeTextOf(node: HTMLElement): string {
     return clipText(normSpace(raw));
 }
 
+function isRealNativeId(id: string): boolean {
+    return !!id && !id.startsWith("native:") && !id.startsWith("anon:") && !id.startsWith("mid:");
+}
+
 /** Official Prompt Navigator only. Do not mount into it. */
 function collectNative(): NavItem[] {
     const out: NavItem[] = [];
@@ -976,14 +982,12 @@ function collectNative(): NavItem[] {
             for (const node of host.querySelectorAll<HTMLElement>("button, a, [role='button']")) {
                 if (skipNode(node)) continue;
                 const id = nativeIdOf(node);
+                if (!isRealNativeId(id) || seen.has(id)) continue;
+                seen.add(id);
                 const text = nativeTextOf(node);
-                if (!id && !text) continue;
-                const key = id || `native:${text}`;
-                if (seen.has(key)) continue;
-                seen.add(key);
-                const el = id ? findTurn(id) : null;
+                const el = findTurn(id);
                 out.push({
-                    id: id || key,
+                    id,
                     el: el?.isConnected ? el : null,
                     role: "user",
                     text: text || "Message",
@@ -994,7 +998,7 @@ function collectNative(): NavItem[] {
     return out;
 }
 
-/** Fill labels / missing user rows from the official rail. Chain stays primary. */
+/** Labels only. Never insert "Go to message N" chrome as outline rows. */
 function mergeNative(items: NavItem[], native: NavItem[]): NavItem[] {
     if (!native.length) return items;
     const index = new Map<string, NavItem>();
@@ -1004,35 +1008,17 @@ function mergeNative(items: NavItem[], native: NavItem[]): NavItem[] {
             for (const id of nodeIds(item.el)) index.set(id, item);
         }
     }
-    const out = items.slice();
-    let userCursor = 0;
-    const nextUserSlot = () => {
-        while (userCursor < out.length && out[userCursor].role !== "user") userCursor++;
-        return userCursor;
-    };
     for (const row of native) {
-        const hit = index.get(row.id)
-            || (row.text ? out.find(it => it.role === "user" && it.text === row.text) : undefined);
-        if (hit) {
-            if (row.text && (!hit.text || isWeakLabel(hit.text))) {
-                hit.text = row.text;
-                labels.set(hit.id, row.text);
-            }
-            if (!hit.el && row.el?.isConnected) hit.el = row.el;
-            continue;
+        if (!isRealNativeId(row.id)) continue;
+        const hit = index.get(row.id);
+        if (!hit) continue;
+        if (row.text && (!hit.text || isWeakLabel(hit.text))) {
+            hit.text = row.text;
+            labels.set(hit.id, row.text);
         }
-        const at = nextUserSlot();
-        const added: NavItem = {
-            id: row.id,
-            el: row.el,
-            role: "user",
-            text: row.text || "Message",
-        };
-        out.splice(at, 0, added);
-        index.set(added.id, added);
-        userCursor = at + 1;
+        if (!hit.el && row.el?.isConnected) hit.el = row.el;
     }
-    return out;
+    return items;
 }
 
 function collect(): NavItem[] {

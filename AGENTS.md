@@ -39,6 +39,8 @@ RN 订 `watchStreamingEdge(onFall)`，host 400ms `setInterval` 在后台仍跑�
 
 **1.4.79：** `currentConversationId()` 只认 pathname `/c/{id}`。`/` 和 `/g/` 上的残留 `data-conversation-id` 不是当前对话。`isDraftMigrate` 只在目标 id 等于这场 harvest id（id 还没到时，仅草稿页的空 `post-start` / `pendingDraft`，第一个 `/c/{id}` 认领）时成立；点另一条 Recents 是真切会话。CSF 在宿主 `onFall` 之前保持 rotate，不要闪官方 wait。CLS / BN 的页级 Stop 还要看 `streamingSuppressed()`。RN 用 `currentConversationId() || inFlightConversationId()`。不要第二份 history wrap。
 
+**1.4.99：** BetterNavigator / harvest 主链只留页面上真正可见的 user/assistant 气泡。mapping 里 `recipient` 不是 `all`、`content_type` 为 thought/reasoning/code/execution_output、`channel` 不是 final（且没有 `end_turn`）、以及 `is_visually_hidden_from_conversation` 的节点不算独立刻度；连续 assistant 收成一条。隐藏的 user 行仍隔开两轮回复。官方 `#prompt-nav-container` 只补已有行的标题，不把无 id 的「Go to message N」插进目录。不要 `/conversations` 列表轮询，不要 Grok stores，不要 `html`/`body` MO。
+
 **1.4.98：** BetterNavigator 打开长对话立刻列出主链，不跟 `#thread` 懒加载窗口走。宿主认窗口化 `GET /backend-api/conversations/{id}?num_turns=`（不是 Recents `GET /conversations?offset=`）。Init 就 pin `fetch` wrap。`document-idle` 错过首包时，宿主一次回填单数 `GET /conversation/{id}`（失败再试不带 `num_turns` 的复数详情），不改页面自己的 `num_turns`，不整段滚线程。官方 `#prompt-nav-container` 只读补用户行，不往里插节点。不要 `/conversations` 列表轮询，不要 Grok stores，不要 `html`/`body` MO。
 
 **1.4.97：** BetterNavigator 目录跟会话主链走，不跟当前挂载窗口。宿主 GET `/backend-api/conversation/{id}` 的 `mapping` 按 `current_node`（否则叶子）走出 user|assistant，session 缓存，后到的窗口按 id 缝上，最多留最新 480 条。已挂载的轮补标签和虚线；被虚拟化卸掉的轮留在目录里，`el` 为空。点未挂载行才把线程滚动条往缺口推，大约 2.4s，挂上再 `scrollIntoView`。打开会话不要整段滚完。不要第二份 `fetch`，不要 `/conversations` 列表，不要 Grok stores，不要 `html`/`body` MO。
