@@ -14,18 +14,24 @@
  * Tick glyphs follow Notion-style-AI-Navigator (1.25/1.75rem × 2px,
  * 1rem gap, 0.125rem radius, current glow) — not Void mini-pills.
  * Live dash: the in-progress assistant tick only. Turn-level
- * aria-busy / .result-streaming (not a nested citation or filmstrip) or
- * the last assistant still thinking with an empty markdown, AND harvest
- * generate-arm or a visible Stop. lookSettled (Void++ c91c194) forces
- * the dash off once Stop is gone and the turn has copy/good/bad, markdown
- * text, or a generated image — leftover <details> / descendant aria-busy
- * do not keep it. Never raw isStreaming(), never the previous finished
- * reply, no streamEnd, no Grok stores.
+ * aria-busy / .result-streaming (not a nested citation or filmstrip),
+ * the last assistant still thinking with an empty markdown, or a
+ * visible "Pro thinking" status (agent tool gaps drop Stop). Harvest
+ * generate-arm or a visible Stop still arm the dash; Pro thinking
+ * alone is enough because that footer only shows while the reply runs.
+ * lookSettled (Void++ c91c194) forces the dash off once Stop is gone
+ * and the turn has copy/good/bad, markdown/prose, or a generated image
+ * — unless Pro thinking is still on screen. Leftover <details> /
+ * descendant aria-busy do not keep it. Never raw isStreaming(), never
+ * the previous finished reply, no streamEnd, no Grok stores.
  * Collect mounted conversation-turn sections (data-turn user|assistant).
  * Image-gen assistant turns have no data-message-id / author-role; one
  * tick per data-turn-id (filmstrip thumbs are not extra ticks).
  * Hover marks follow Void++ ❓/🤖 — never You/GPT text. Empty image-gen
  * labels are `Image xN` (unique estuary file_* in the turn; n<2 stays Image).
+ * File-only turns use the chip filename (else File), not Message N.
+ * Decorative imgs (favicon, ≤48px, citation/tool) are not Image.
+ * Tool rows stay inside the assistant tick — never one tick per tool.
  */
 
 import { definePluginSettings } from "../../api/Settings";
@@ -52,6 +58,25 @@ const IMAGE_LABEL = "Image";
 const USER_MARK = "❓";
 const ASST_MARK = "🤖";
 const FILE_ID_RE = /file_[0-9a-f]+/gi;
+const FILE_LABEL = "File";
+const CODE_LABEL = "Code";
+const CONTENT_SEL = ".markdown, .whitespace-pre-wrap";
+const FILE_CHIP_SEL = [
+    "a[download]",
+    "[class*='attachment']",
+    "[data-testid*='file' i]",
+    "[data-testid*='attachment' i]",
+].join(", ");
+const MEDIA_SEL = "img, picture, video, canvas";
+const FILE_EXT = /\.(?:epub|pdf|docx?|xlsx?|pptx?|txt|md|csv|json|zip|rar|7z|png|jpe?g|gif|webp|svg|mp3|mp4|wav|m4a|html?|py|js|ts|tsx|css|c|cpp|java|go|rs|rb|xml|ya?ml)$/i;
+const FILE_TRUNC = /\.[A-Za-z0-9]{1,8}(?:…|\.\.\.)?$/;
+const TYPE_WORD = /^(?:file|image|pdf|epub|document|attachment|video|audio|code|zip|png|jpe?g|gif|webp|txt|markdown|文件|图片|附件|文档)$/i;
+const DECORATIVE_SRC = /favicon|iconify|shields\.io|badgen\.net|google\.com\/s2\/favicons|gstatic\.com\/favicon/i;
+const PRO_LIVE_RE = /^(?:pro thinking|thinking(?:…|\.\.\.)?|正在思考|思考中)$/i;
+const SKIP_STATUS_RE = /^(?:pro thinking|thinking(?:…|\.\.\.)?|reasoning|thoughts?|正在思考|思考中|已思考.*|thought for\b.*|worked for\b.*|思考了.*|思考用时.*)$/i;
+const TOOL_LINE_RE = /^(?:inspected|analyzed|translated|validated|searched|reviewed|extracted|packaged|已检查|已分析|已翻译|已验证|搜索了|已搜索)\b/i;
+const CHIP_LINE_RE = /^(?:\d+\s+)?(?:sources?|websites?)$|^web search$|^zh-cn$|^zh$|^en(?:-[a-z]{2})?$/i;
+const WEAK_LABEL_RE = /^(?:Image(?: x\d+)?|File|Code|Message \d+)$/;
 /** Footer controls that appear only after ChatGPT finishes the turn. Not code-block Copy. */
 const DONE_ACTION_SEL = [
     'button[data-testid="copy-turn-action-button"]',
@@ -96,8 +121,6 @@ const NOISE = [
     "[data-testid*='action-button']",
     "[data-testid*='citation']",
     "[data-testid*='copy']",
-    "[class*='thinking']",
-    "[class*='reasoning']",
     "[class*='footnote']",
     ".sr-only",
 ].join(", ");
@@ -336,6 +359,20 @@ function imageLabelOf(el: HTMLElement, id: string): string {
     return max >= 2 ? `${IMAGE_LABEL} x${max}` : IMAGE_LABEL;
 }
 
+function normSpace(raw: string): string {
+    return raw.replace(/\s+/g, " ").trim();
+}
+
+/** Noise inside `root` only. A thinking wrapper *around* the root must not blank it. */
+function noiseInside(start: Element, root: HTMLElement): boolean {
+    let n: Element | null = start;
+    while (n && n !== root) {
+        if (n.matches(NOISE)) return true;
+        n = n.parentElement;
+    }
+    return false;
+}
+
 function extractText(root: HTMLElement): string {
     const parts: string[] = [];
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
@@ -343,49 +380,190 @@ function extractText(root: HTMLElement): string {
             const parent = node.parentElement;
             if (!parent) return NodeFilter.FILTER_REJECT;
             try {
-                if (parent.closest(NOISE)) return NodeFilter.FILTER_REJECT;
+                if (noiseInside(parent, root)) return NodeFilter.FILTER_REJECT;
             } catch {
                 return NodeFilter.FILTER_REJECT;
             }
-            const t = (node.textContent || "").replace(/\s+/g, " ").trim();
+            const t = normSpace(node.textContent || "");
             return t ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
         },
     });
     let node: Node | null;
     while ((node = walker.nextNode()) && parts.join(" ").length < CLIP + 20) {
-        parts.push((node.textContent || "").replace(/\s+/g, " ").trim());
+        parts.push(normSpace(node.textContent || ""));
     }
-    return parts.join(" ").replace(/\s+/g, " ").trim();
+    return normSpace(parts.join(" "));
 }
 
-function fallbackLabel(el: HTMLElement, index: number): string {
+function isFileName(raw: string): boolean {
+    const t = normSpace(raw);
+    if (t.length < 3 || t.length > 180 || /\s/.test(t)) return false;
+    if (TYPE_WORD.test(t)) return false;
+    if (FILE_EXT.test(t)) return true;
+    return FILE_TRUNC.test(t) && /[_\-.]/.test(t);
+}
+
+function rememberName(raw: string, into: string[]) {
+    const t = normSpace(raw);
+    if (!t) return;
+    const base = t.split(/[/\\]/).pop() || t;
+    if (isFileName(base) && !into.includes(base)) into.push(base);
+}
+
+function chipLines(node: HTMLElement): string[] {
+    const lines: string[] = [];
+    const push = (raw: string) => {
+        const t = normSpace(raw);
+        if (!t) return;
+        const split = t.match(/^(.*\S)\s+(file|image|pdf|epub|document|attachment|文件|图片|附件|文档)$/i);
+        if (split) {
+            lines.push(normSpace(split[1]));
+            lines.push(normSpace(split[2]));
+            return;
+        }
+        lines.push(t);
+    };
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    let n: Node | null;
+    while ((n = walker.nextNode())) push(n.textContent || "");
+    return lines;
+}
+
+/** Filename on a file chip, else "File" when a chip exists with no name. */
+function fileLabelOf(el: HTMLElement): string {
+    const names: string[] = [];
     try {
-        if (isImageGen(el) || el.querySelector("img, picture, video, canvas")) return IMAGE_LABEL;
-        if (el.querySelector("a[download], [class*='attachment']")) return "File";
-        if (el.querySelector("pre, code")) return "Code";
+        for (const node of el.querySelectorAll<HTMLElement>(FILE_CHIP_SEL)) {
+            const dl = node.getAttribute("download");
+            if (dl) rememberName(dl, names);
+            rememberName(node.getAttribute("title") || "", names);
+            rememberName(node.getAttribute("aria-label") || "", names);
+            for (const line of chipLines(node)) rememberName(line, names);
+        }
+        if (!names.length) {
+            for (const node of el.querySelectorAll<HTMLElement>("button, a, [role='button']")) {
+                if (node.closest("[data-testid*='action-button'], [role='toolbar']")) continue;
+                const lines = chipLines(node);
+                const fileLine = lines.find(isFileName);
+                if (!fileLine) continue;
+                if (lines.some(line => TYPE_WORD.test(line)) || lines.length <= 3) names.push(fileLine);
+            }
+        }
     } catch { /* ignore */ }
-    return `Message ${index + 1}`;
+    if (names.length) return clipText(names[0]);
+    try {
+        if (el.querySelector(FILE_CHIP_SEL)) return FILE_LABEL;
+    } catch { /* ignore */ }
+    return "";
+}
+
+function isDecorativeMedia(node: Element): boolean {
+    try {
+        if (node.closest("[class*='imagegen-image'], [class*='message-image']")) return false;
+        const img = node instanceof HTMLImageElement ? node : node.querySelector("img");
+        if (img instanceof HTMLImageElement) {
+            const alt = img.getAttribute("alt") || "";
+            if (/^Generated image/i.test(alt)) return false;
+            const src = `${img.getAttribute("src") || ""} ${img.getAttribute("srcset") || ""}`;
+            if (DECORATIVE_SRC.test(src)) return true;
+        }
+        if (node.closest("[data-testid*='citation'], [class*='citation'], [class*='tool-message'], [data-testid*='tool']")) {
+            return true;
+        }
+        const rect = node.getBoundingClientRect();
+        const w = rect.width || Number(img?.getAttribute("width")) || 0;
+        const h = rect.height || Number(img?.getAttribute("height")) || 0;
+        if ((w > 0 && w <= 48) || (h > 0 && h <= 48)) return true;
+        if (w > 48 || h > 48) return false;
+    } catch { /* ignore */ }
+    return true;
+}
+
+function hasContentImage(el: HTMLElement): boolean {
+    try {
+        for (const node of el.querySelectorAll(MEDIA_SEL)) {
+            if (!isDecorativeMedia(node)) return true;
+        }
+    } catch { /* ignore */ }
+    return false;
+}
+
+function isSkipLine(raw: string): boolean {
+    const t = normSpace(raw).replace(/^[^a-zA-Z\u4e00-\u9fff]+/, "");
+    if (!t) return true;
+    if (TOOL_LINE_RE.test(t) || SKIP_STATUS_RE.test(t)) return true;
+    return t.length <= 24 && (CHIP_LINE_RE.test(t) || TYPE_WORD.test(t));
+}
+
+/** Agent/tool prose that is not in `.markdown` — not tool rows, not the Pro thinking footer. */
+function looseProse(root: HTMLElement): string {
+    const blocks: string[] = [];
+    const seen = new Set<string>();
+    const take = (node: HTMLElement) => {
+        try {
+            if (noiseInside(node, root)) return;
+            if (node.closest(FILE_CHIP_SEL)) return;
+        } catch {
+            return;
+        }
+        const t = extractText(node);
+        if (!t || seen.has(t) || isSkipLine(t)) return;
+        seen.add(t);
+        blocks.push(t);
+    };
+    try {
+        for (const node of root.querySelectorAll<HTMLElement>("p, li, h1, h2, h3, blockquote")) {
+            take(node);
+            if (blocks.join(" ").length > CLIP + 20) break;
+        }
+        if (!blocks.length) {
+            for (const node of root.querySelectorAll<HTMLElement>("div, span")) {
+                if (node.querySelector("div, p, li")) continue;
+                if (extractText(node).length < 24) continue;
+                take(node);
+                if (blocks.join(" ").length > CLIP + 20) break;
+            }
+        }
+    } catch { /* ignore */ }
+    return normSpace(blocks.join(" "));
 }
 
 function bodyText(el: HTMLElement, role: Role): string {
-    if (role === "user") {
-        const root = el.querySelector<HTMLElement>(".whitespace-pre-wrap") ?? el;
-        return extractText(root);
-    }
-    const md = el.querySelector<HTMLElement>(".markdown");
-    return md ? extractText(md) : "";
+    const chunks: string[] = [];
+    try {
+        for (const node of el.querySelectorAll<HTMLElement>(CONTENT_SEL)) {
+            if (skipNode(node)) continue;
+            const t = extractText(node);
+            if (!t || isSkipLine(t)) continue;
+            chunks.push(t);
+            if (chunks.join(" ").length > CLIP + 20) break;
+        }
+    } catch { /* ignore */ }
+    const joined = normSpace(chunks.join(" "));
+    if (joined) return joined;
+    return role === "assistant" ? looseProse(el) : "";
 }
 
 function clipText(raw: string): string {
     return raw.length > CLIP ? `${raw.slice(0, CLIP).trimEnd()}…` : raw;
 }
 
+function isWeakLabel(raw: string): boolean {
+    return WEAK_LABEL_RE.test(raw);
+}
+
 function itemText(el: HTMLElement, role: Role, index: number, live: boolean): string {
     const raw = bodyText(el, role);
     if (raw) return clipText(raw);
     if (live) return LIVE_LABEL;
+    const file = fileLabelOf(el);
+    if (file) return file;
     if (isImageGen(el)) return imageLabelOf(el, turnIdOf(el));
-    return fallbackLabel(el, index);
+    try {
+        if (hasContentImage(el)) return IMAGE_LABEL;
+        if (el.querySelector("pre, code")) return CODE_LABEL;
+    } catch { /* ignore */ }
+    return `Message ${index + 1}`;
 }
 
 /** True generate — harvest SSE arm or a real Stop. Not hydrate aria-busy. */
@@ -444,27 +622,54 @@ function thinkingActive(el: HTMLElement): boolean {
     return details instanceof HTMLDetailsElement && details.open;
 }
 
+/** "Pro thinking" footer. Short label only — a paragraph that mentions the words does not count. */
+function proThinkingLive(el: HTMLElement): boolean {
+    try {
+        for (const node of el.querySelectorAll<HTMLElement>("span, div, p, button")) {
+            if (node.childElementCount > 2) continue;
+            const t = normSpace(node.textContent || "");
+            if (t.length > 32) continue;
+            if (PRO_LIVE_RE.test(t)) return true;
+        }
+    } catch { /* ignore */ }
+    return false;
+}
+
+/** Spinner inside this turn, not the header options button (hydrate false positive). */
+function turnSpinner(el: HTMLElement): boolean {
+    try {
+        for (const spin of el.querySelectorAll<HTMLElement>("svg.animate-spin, .animate-spin")) {
+            if (spin.closest('button[data-testid="conversation-options-button"], #page-header, nav, [data-testid*="citation"]')) continue;
+            return true;
+        }
+    } catch { /* ignore */ }
+    return false;
+}
+
 /** This assistant node itself looks in-progress. Never pick a victim by "last" for aria-busy. */
 function nodeInProgress(el: HTMLElement, lastAssistant: boolean): boolean {
     try {
         if (turnBusy(el)) return true;
-        if (lastAssistant && thinkingActive(el)) return true;
+        if (!lastAssistant) return false;
+        if (thinkingActive(el)) return true;
+        if (proThinkingLive(el)) return true;
     } catch { /* ignore */ }
     return false;
 }
 
 /**
  * Void++ lookSettled: Stop gone and the turn already shows a finished reply.
- * Done-action buttons, generated images, and markdown text all win even if
- * aria-busy was left on. Copy inside a code block is not a done action.
+ * Done-action buttons, generated images, and prose all win even if aria-busy
+ * was left on. Pro thinking still on screen is not finished. Copy inside a
+ * code block is not a done action.
  */
 function lookSettled(el: HTMLElement | null): boolean {
     if (!el || stopVisible()) return false;
     try {
+        if (proThinkingLive(el)) return false;
         if (el.querySelector(DONE_ACTION_SEL)) return true;
         if (isImageGen(el)) return true;
-        const md = el.querySelector(".markdown");
-        if (md instanceof HTMLElement && extractText(md)) return true;
+        if (bodyText(el, "assistant")) return true;
     } catch { /* ignore */ }
     return false;
 }
@@ -525,12 +730,20 @@ function collect(): NavItem[] {
             const role = roleOf(node);
             if (role !== "user" && role !== "assistant") continue;
             if (role === "assistant" && !showAsst) continue;
+            const last = node === lastAsst;
+            const marker = last && proThinkingLive(node);
+            const spinning = last && armed && turnSpinner(node);
             const live = role === "assistant"
-                && armed
-                && nodeInProgress(node, node === lastAsst)
-                && !lookSettled(node);
+                && (nodeInProgress(node, last) || spinning)
+                && !lookSettled(node)
+                && (armed || marker);
             const fresh = itemText(node, role, out.length, live);
-            if (fresh && fresh !== LIVE_LABEL && fresh !== labels.get(id)) labels.set(id, fresh);
+            if (fresh && fresh !== LIVE_LABEL) {
+                const prev = labels.get(id);
+                if (!prev || !isWeakLabel(fresh) || isWeakLabel(prev)) {
+                    if (fresh !== prev) labels.set(id, fresh);
+                }
+            }
             const text = live && fresh === LIVE_LABEL ? LIVE_LABEL : (labels.get(id) || fresh);
             out.push({ id, el: node, role, text, live });
         }
