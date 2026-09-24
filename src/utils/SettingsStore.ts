@@ -49,6 +49,129 @@ export function settingsBagFrom(raw: unknown): Record<string, unknown> | null {
     return parsed;
 }
 
+function rowRecord(row: unknown): Record<string, unknown> | null {
+    return isObject(row) ? row : null;
+}
+
+function isBlank(value: unknown): boolean {
+    if (value == null || value === "") return true;
+    if (Array.isArray(value)) return value.length === 0;
+    if (isObject(value)) return Object.keys(value).length === 0;
+    return false;
+}
+
+function valueWeight(value: unknown): number {
+    if (isBlank(value)) return 0;
+    if (Array.isArray(value)) return 12 + Math.min(value.length, 40);
+    if (isObject(value)) return 12 + Math.min(Object.keys(value).length, 40);
+    return 3;
+}
+
+/**
+ * Payload only. `enabled` and `defaultsRev` do not count — a factory
+ * `enabled: false` must not outrank a shorter real history, and a
+ * deliberate off must not lose to a stale `true` of the same size.
+ */
+export function bagRichness(bag: Record<string, unknown> | null): number {
+    if (!bag) return -1;
+    const plugins = bag.plugins;
+    if (!isObject(plugins)) return -1;
+    let score = 0;
+    for (const row of Object.values(plugins)) {
+        const rec = rowRecord(row);
+        if (!rec) continue;
+        for (const [key, value] of Object.entries(rec)) {
+            if (key === "defaultsRev" || key === "enabled") continue;
+            score += valueWeight(value);
+        }
+    }
+    return score;
+}
+
+function enabledTrueCount(bag: Record<string, unknown>): number {
+    const plugins = bag.plugins;
+    if (!isObject(plugins)) return 0;
+    let n = 0;
+    for (const row of Object.values(plugins)) {
+        const rec = rowRecord(row);
+        if (rec?.enabled === true) n++;
+    }
+    return n;
+}
+
+export interface PickedSettingsBag {
+    bag: Record<string, unknown>;
+    /** Index into the candidate list (GM, IDB, localStorage). */
+    index: number;
+    score: number;
+}
+
+/**
+ * Keep the richest bag. Fill only keys it is missing from the others.
+ * Never let a thin GM bag replace a fuller IDB / localStorage copy, and
+ * never let a loser's `enabled` override the winner.
+ */
+export function pickSettingsBag(
+    candidates: Array<Record<string, unknown> | null>,
+): PickedSettingsBag | null {
+    const ranked = candidates
+        .map((bag, index) => ({ bag, index, score: bagRichness(bag) }))
+        .filter((item): item is { bag: Record<string, unknown>; index: number; score: number } =>
+            item.bag != null && item.score >= 0)
+        .sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            // No payload: prefer a stored "on" over a factory "off".
+            // Once there is payload, the earlier source wins so a real
+            // toggle in GM is not undone by a stale IDB copy.
+            if (a.score === 0 && b.score === 0) {
+                const delta = enabledTrueCount(b.bag) - enabledTrueCount(a.bag);
+                if (delta) return delta;
+            }
+            return a.index - b.index;
+        });
+    if (!ranked.length) return null;
+
+    const base = structuredClone(ranked[0].bag);
+    const plugins = base.plugins;
+    if (!isObject(plugins)) return null;
+
+    for (const other of ranked.slice(1)) {
+        const op = other.bag.plugins;
+        if (!isObject(op)) continue;
+        for (const [name, row] of Object.entries(op)) {
+            const src = rowRecord(row);
+            if (!src) continue;
+            if (!isObject(plugins[name])) {
+                const copy = structuredClone(src);
+                delete copy.defaultsRev;
+                if (copy.enabled !== true) delete copy.enabled;
+                if (Object.keys(copy).length) plugins[name] = copy;
+                continue;
+            }
+            const dst = plugins[name] as Record<string, unknown>;
+            for (const [key, value] of Object.entries(src)) {
+                if (key === "defaultsRev") continue;
+                // A thinner bag's `enabled: false` is how defaultsRev / a
+                // factory boot cemented NoShareLink and NoDictation off.
+                // Missing stays missing (enabledByDefault). An explicit
+                // `true` still fills a hole so a GM-only "on" is not dropped.
+                if (key === "enabled") {
+                    if (!("enabled" in dst) && value === true) dst.enabled = true;
+                    continue;
+                }
+                if (isBlank(dst[key]) && !isBlank(value)) {
+                    dst[key] = structuredClone(value);
+                }
+            }
+        }
+    }
+
+    const settingsRow = plugins.Settings;
+    if (isObject(settingsRow)) delete settingsRow.defaultsRev;
+
+    return { bag: base, index: ranked[0].index, score: bagRichness(base) };
+}
+
 export class SettingsStore<T extends object> {
     private globalListeners = new Set<Listener>();
     private pathListeners = new Map<string, Set<Listener>>();
@@ -56,6 +179,10 @@ export class SettingsStore<T extends object> {
     private defaultGetters = new Map<string, (key: string) => unknown>();
     private saveTimer: ReturnType<typeof setTimeout> | null = null;
     private proxyCache = new WeakMap<object, T>();
+    /** Boot writes must not hit disk until `initSettings` has chosen a bag. */
+    private persist = false;
+    /** Set only by a proxy write after persist is armed, or by `persistLoadedBag`. */
+    private dirty = false;
 
     public declare store: T;
     public declare plain: T;
@@ -72,6 +199,23 @@ export class SettingsStore<T extends object> {
             this.saveTimer = null;
         }
         this.save();
+    }
+
+    /** Drop boot noise. Call after the bag has been chosen. */
+    public releasePersist() {
+        this.dirty = false;
+        if (this.saveTimer) {
+            clearTimeout(this.saveTimer);
+            this.saveTimer = null;
+        }
+        this.persist = true;
+    }
+
+    /** Write the chosen bag back when GM was the thinner copy. */
+    public persistLoadedBag() {
+        if (!this.persist) return;
+        this.dirty = true;
+        this.flush();
     }
 
     public setDefaultGetter(prefix: string, getter: (key: string) => unknown): void {
@@ -110,6 +254,7 @@ export class SettingsStore<T extends object> {
                 if (t[key] === value) return true;
                 t[key] = value;
                 const fullPath = path ? `${path}.${key}` : key;
+                this.dirty = true;
                 this.notifyListeners(fullPath);
                 return true;
             },
@@ -117,6 +262,7 @@ export class SettingsStore<T extends object> {
                 if (!(key in t)) return true;
                 delete t[key];
                 const fullPath = path ? `${path}.${key}` : key;
+                this.dirty = true;
                 this.notifyListeners(fullPath);
                 return true;
             },
@@ -143,6 +289,7 @@ export class SettingsStore<T extends object> {
     }
 
     private scheduleSave() {
+        if (!this.persist || !this.dirty) return;
         if (this.saveTimer) return;
         this.saveTimer = setTimeout(() => {
             this.saveTimer = null;
@@ -151,6 +298,7 @@ export class SettingsStore<T extends object> {
     }
 
     private save() {
+        if (!this.persist || !this.dirty) return;
         try {
             const json = JSON.stringify(this.plain);
             if (typeof GM_setValue === "function") {
@@ -162,6 +310,7 @@ export class SettingsStore<T extends object> {
             }
             try { localStorage.setItem(STORAGE_KEY, json); } catch { /* ignore */ }
             idbSet(STORAGE_KEY, json).catch(e => logger.warn("Failed to save settings to IndexedDB:", e));
+            this.dirty = false;
         } catch (e) {
             logger.error("Failed to save settings:", e);
         }
@@ -193,3 +342,4 @@ export class SettingsStore<T extends object> {
         }
     }
 }
+  

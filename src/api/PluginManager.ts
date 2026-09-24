@@ -10,7 +10,7 @@ import { disableStyle, enableStyle, removeStyle } from "../utils/css";
 import { Logger } from "../utils/Logger";
 import { StartAt, type Plugin } from "../utils/types";
 import { emitBloomEvent } from "./Events";
-import { bindPluginSettings, Settings } from "./Settings";
+import { bindPluginSettings, ensurePluginRow, Settings } from "./Settings";
 
 const logger = new Logger("PluginManager");
 
@@ -39,7 +39,7 @@ export function togglePlugin(name: string) {
     const plugin = plugins[name];
     if (!plugin || plugin.required) return;
     const next = !isPluginEnabled(name);
-    if (!Settings.plain.plugins[name]) Settings.store.plugins[name] = {};
+    ensurePluginRow(name);
     Settings.store.plugins[name].enabled = next;
     if (next) startPlugin(plugin);
     else stopPlugin(plugin);
@@ -91,23 +91,9 @@ export function startAllPlugins(target: StartAt) {
     }
 }
 
-const DEFAULTS_REV = 2;
-const DEFAULTS_REV_KEY = "defaultsRev";
-
 export function initPluginManager() {
-    // Do not Proxy-set missing plugin rows on boot. That scheduleSave()'s
-    // factory {enabled} over IDB after a GM miss. isPluginEnabled already
-    // uses stored ?? enabledByDefault (Void++).
-    const meta = Settings.plain.plugins.Settings as Record<string, unknown> | undefined;
-    if (!meta || meta[DEFAULTS_REV_KEY] === DEFAULTS_REV) return;
-
-    // v1.1.6 one-shot: NoShareLink / NoDictation ship off. Skip any row
-    // that already has an explicit enabled boolean (user choice wins if
-    // the Settings.defaultsRev marker was lost). Plain-only — no save().
-    for (const name of ["NoShareLink", "NoDictation"]) {
-        const row = Settings.plain.plugins[name];
-        if (!row || typeof row.enabled === "boolean") continue;
-        row.enabled = false;
-    }
-    meta[DEFAULTS_REV_KEY] = DEFAULTS_REV;
+    // Do not write `enabled` on boot. A missing flag stays missing so
+    // isPluginEnabled uses enabledByDefault. defaultsRev must not force
+    // NoShareLink / NoDictation off — that one-shot re-ran whenever the
+    // marker was missing and plain-wrote `enabled: false` over a user on.
 }

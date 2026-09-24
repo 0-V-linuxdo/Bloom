@@ -9,6 +9,8 @@
 import { idbGet } from "../utils/idb";
 import { Logger } from "../utils/Logger";
 import {
+    bagRichness,
+    pickSettingsBag,
     settingsBagFrom,
     SettingsStore,
     STORAGE_KEY,
@@ -52,8 +54,7 @@ export function definePluginSettings(def: SettingsDefinition): DefinedSettings {
         get store() {
             const name = api.pluginName;
             if (!name) return {};
-            if (!Settings.store.plugins[name]) Settings.store.plugins[name] = {};
-            return Settings.store.plugins[name];
+            return ensurePluginRow(name);
         },
         get plain() {
             const name = api.pluginName;
@@ -78,23 +79,44 @@ async function readGmValue(key: string): Promise<unknown> {
 }
 
 export async function initSettings(): Promise<void> {
-    let stored = settingsBagFrom(await readGmValue(STORAGE_KEY));
-    if (!stored) stored = settingsBagFrom(await idbGet(STORAGE_KEY));
-    if (!stored) {
-        try { stored = settingsBagFrom(localStorage.getItem(STORAGE_KEY)); }
-        catch { stored = null; }
+    const gm = settingsBagFrom(await readGmValue(STORAGE_KEY));
+    const idb = settingsBagFrom(await idbGet(STORAGE_KEY));
+    let ls: ReturnType<typeof settingsBagFrom> = null;
+    try { ls = settingsBagFrom(localStorage.getItem(STORAGE_KEY)); }
+    catch { ls = null; }
+
+    const picked = pickSettingsBag([gm, idb, ls]);
+    if (picked) {
+        const plugins = (picked.bag as { plugins?: BloomSettingsShape["plugins"] }).plugins;
+        if (plugins) Settings.plain.plugins = plugins;
+        const via = (["gm", "idb", "localStorage"] as const)[picked.index] ?? String(picked.index);
+        logger.info(
+            "Loaded settings from",
+            via,
+            "richness",
+            picked.score,
+            "gm",
+            bagRichness(gm),
+            "idb",
+            bagRichness(idb),
+            "ls",
+            bagRichness(ls),
+        );
     }
-    if (!stored) return;
-    const plugins = (stored as { plugins?: BloomSettingsShape["plugins"] }).plugins;
-    if (!plugins) return;
-    Settings.plain.plugins = plugins;
-    logger.debug("Loaded settings");
+    Settings.releasePersist();
+    // Heal GM when a fuller copy won, or when a payload-free "on" beat a factory off.
+    if (picked && (picked.index !== 0 || picked.score > bagRichness(gm))) Settings.persistLoadedBag();
+}
+
+export function ensurePluginRow(name: string) {
+    if (!Settings.plain.plugins[name]) Settings.plain.plugins[name] = {};
+    return Settings.store.plugins[name];
 }
 
 export function bindPluginSettings(name: string, settings: DefinedSettings | undefined) {
     if (!settings) return;
     settings.pluginName = name;
-    if (!Settings.plain.plugins[name]) Settings.plain.plugins[name] = {};
+    ensurePluginRow(name);
     Settings.setDefaultGetter(pluginPath(name), key => {
         if (key === "enabled") return undefined;
         return defaultFor(settings.def, key);
@@ -108,8 +130,7 @@ export interface SettingsPluginData {
 }
 
 function settingsRow(): SettingsPluginData {
-    if (!Settings.plain.plugins.Settings) Settings.store.plugins.Settings = {};
-    return Settings.store.plugins.Settings as SettingsPluginData;
+    return ensurePluginRow("Settings") as SettingsPluginData;
 }
 
 export function getPinnedPlugins(): string[] {

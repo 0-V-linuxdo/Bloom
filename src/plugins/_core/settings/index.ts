@@ -12,11 +12,11 @@
 
 import { emitBloomEvent, onBloomEvent } from "../../../api/Events";
 import {
+    ensurePluginRow,
     getPinnedPlugins,
     getStarredPlugins,
     isPluginPinned,
     isPluginStarred,
-    Settings,
     togglePluginPinned,
     togglePluginStarred,
 } from "../../../api/Settings";
@@ -314,7 +314,7 @@ function fieldControl(pluginName: string, key: string, spec: SettingDef): HTMLEl
     const wrap = document.createElement("div");
     wrap.className = stacked ? "bloom-field bloom-field-stack" : "bloom-field";
     wrap.appendChild(settingLabel(key, spec));
-    const store = Settings.store.plugins[pluginName] ?? (Settings.store.plugins[pluginName] = {});
+    const store = ensurePluginRow(pluginName);
 
     if (spec.type === OptionType.COMPONENT) {
         if (!spec.render) return null;
@@ -395,7 +395,7 @@ function dialogField(label: string, className?: string): HTMLDivElement {
 
 function resetPluginSettings(plugin: Plugin) {
     if (!window.confirm("Reset this plugin's settings to defaults? This cannot be undone.")) return;
-    const store = Settings.store.plugins[plugin.name] ?? (Settings.store.plugins[plugin.name] = {});
+    const store = ensurePluginRow(plugin.name);
     for (const [key, spec] of visibleEntries(plugin)) {
         if (key === "enabled" || spec.type === OptionType.COMPONENT) continue;
         const next = defaultForSetting(spec);
