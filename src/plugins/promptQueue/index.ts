@@ -7,6 +7,9 @@
  * interrupts the current reply and POSTs immediately — this plugin
  * intercepts that path, queues the draft, and sends after host
  * watchStreamingEdge. Stop stays native and does not drain.
+ * isStreaming() goes false when the trailing control remounts as Send
+ * (the interrupt button). Steal also while this page's harvest id is
+ * still held, or the last assistant turn is still busy / Pro thinking.
  * No streamEnd, no fetch wrap, no InputHistory / ResponseNotification import.
  */
 
@@ -25,8 +28,8 @@ import {
     isUserDraftEmpty,
     setEditorText,
 } from "../../host/composer";
-import { contextKeyFromUrl, conversationToken } from "../../host/conversation";
-import { hasErrorToast, isDraftMigrate, isStreaming, streamingSuppressed, watchStreamingEdge } from "../../host/streaming";
+import { contextKeyFromUrl, conversationToken, currentConversationId } from "../../host/conversation";
+import { hasErrorToast, inFlightConversationId, isDraftMigrate, isStreaming, stoppedByUser, streamingSuppressed, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -39,6 +42,8 @@ const STYLE_NAME = "promptQueue";
 const CLIP = 80;
 const DRAIN_PAUSE_MS = 50;
 const BYPASS_MS = 2000;
+const ASSISTANT_TURN_SEL = '#thread section[data-testid^="conversation-turn-"][data-turn="assistant"], #thread article[data-testid^="conversation-turn-"][data-turn="assistant"]';
+const PRO_LIVE_RE = /^(?:pro thinking|thinking(?:…|\.\.\.)?|正在思考|思考中)$/i;
 
 const settings = definePluginSettings({
     replacePending: {
@@ -58,6 +63,7 @@ let lastKey = "";
 let drainKey = "";
 let draining = false;
 let bypassIntercept = false;
+let passNative = false;
 let leak: Leak | null = null;
 let keys: AbortController | null = null;
 let unsub: (() => void) | null = null;
@@ -73,11 +79,86 @@ function normalize(text: string): string {
     return text.replaceAll("\u200B", "").replace(/\n$/, "").trim();
 }
 
-function chatEditor(t: EventTarget | null): HTMLElement | null {
+function queuedText(editor: HTMLElement): string {
+    const blocks = normalize(editorText(editor));
+    if (blocks) return blocks;
+    if (!hasDraftText(editor)) return "";
+    // editorText joins only <p>. A placeholder <p> hides a draft that lives elsewhere.
+    try {
+        const clone = editor.cloneNode(true) as HTMLElement;
+        clone.querySelectorAll('[contenteditable="false"], button, [role="button"]').forEach(node => node.remove());
+        return normalize(clone.innerText || clone.textContent || "");
+    } catch {
+        return "";
+    }
+}
+
+function lastAssistantTurn(): HTMLElement | null {
+    try {
+        const nodes = document.querySelectorAll(ASSISTANT_TURN_SEL);
+        const last = nodes[nodes.length - 1];
+        return last instanceof HTMLElement ? last : null;
+    } catch {
+        return null;
+    }
+}
+
+function turnBusy(el: HTMLElement): boolean {
+    if (el.getAttribute("aria-busy") === "true") return true;
+    if (el.classList.contains("result-streaming")) return true;
+    const msg = el.querySelector<HTMLElement>('[data-message-author-role="assistant"]');
+    if (msg && msg !== el) {
+        if (msg.getAttribute("aria-busy") === "true") return true;
+        if (msg.classList.contains("result-streaming")) return true;
+    }
+    return false;
+}
+
+function proThinkingLive(el: HTMLElement): boolean {
+    try {
+        for (const node of el.querySelectorAll<HTMLElement>("span, div, p, button")) {
+            if (node.childElementCount > 2) continue;
+            const text = (node.textContent || "").replace(/\s+/g, " ").trim();
+            if (!text || text.length > 32) continue;
+            if (PRO_LIVE_RE.test(text)) return true;
+        }
+    } catch { /* ignore */ }
+    return false;
+}
+
+/** This page's generate POST is still held. Cleared on host onFall, not when Send replaces Stop. */
+function generateHeld(): boolean {
+    const flight = inFlightConversationId();
+    if (!flight) return false;
+    const id = currentConversationId();
+    return !id || id === flight;
+}
+
+/**
+ * Enter/Send would interrupt the open reply.
+ * Do not use raw isStreaming() alone: a visible non-Stop Send short-circuits it
+ * exactly when the user types the follow-up.
+ */
+function interruptWindow(): boolean {
+    if (streamingSuppressed()) return false;
+    if (stoppedByUser()) return false;
+    if (isStreaming()) return true;
+    if (generateHeld()) return true;
+    const last = lastAssistantTurn();
+    if (!last) return false;
+    if (turnBusy(last)) return true;
+    if (proThinkingLive(last)) return true;
+    return false;
+}
+
+function editorFromEvent(t: EventTarget | null): HTMLElement | null {
     const el = t instanceof Element ? t : t instanceof Node ? t.parentElement : null;
     const hit = el?.closest?.(EDITOR_SEL);
-    if (hit instanceof HTMLElement) return hit;
-    return getActiveEditor();
+    return hit instanceof HTMLElement ? hit : null;
+}
+
+function chatEditor(t: EventTarget | null): HTMLElement | null {
+    return editorFromEvent(t) ?? getActiveEditor();
 }
 
 function steal(e: Event) {
@@ -303,9 +384,10 @@ function watchLeak() {
     if (leak.ticks <= 0) leak = null;
 }
 
-function thisChatStreaming(): boolean {
-    if (streamingSuppressed()) return false;
-    return isStreaming();
+function takeDraft(editor: HTMLElement): string {
+    if (!interruptWindow()) return "";
+    if (!hasDraftText(editor)) return "";
+    return queuedText(editor);
 }
 
 function onKeyDown(e: KeyboardEvent) {
@@ -316,13 +398,32 @@ function onKeyDown(e: KeyboardEvent) {
     if (draining) return;
     const editor = chatEditor(e.target) ?? chatEditor(document.activeElement);
     if (!editor) return;
-    if (!thisChatStreaming()) return;
     if (e.altKey || bypassIntercept) {
+        bypassIntercept = false;
+        passNative = true;
+        queueMicrotask(() => { passNative = false; });
+        return;
+    }
+    const text = takeDraft(editor);
+    if (!text) return;
+    steal(e);
+    enqueue(text);
+}
+
+function onBeforeInput(e: Event) {
+    if (!started || draining) return;
+    if (!(e instanceof InputEvent) || e.inputType !== "insertParagraph") return;
+    if (passNative) {
+        passNative = false;
+        return;
+    }
+    if (bypassIntercept) {
         bypassIntercept = false;
         return;
     }
-    if (!hasDraftText(editor)) return;
-    const text = normalize(editorText(editor));
+    const editor = editorFromEvent(e.target);
+    if (!editor) return;
+    const text = takeDraft(editor);
     if (!text) return;
     steal(e);
     enqueue(text);
@@ -339,7 +440,7 @@ function sendFromEvent(node: Element): HTMLElement | null {
     return null;
 }
 
-function onClick(e: Event) {
+function onActivate(e: Event) {
     if (!started) return;
     const node = e.target;
     if (!(node instanceof Element)) return;
@@ -347,15 +448,14 @@ function onClick(e: Event) {
     const btn = node.closest("button");
     if (btn instanceof HTMLElement && isStopControl(btn)) return;
     if (draining) return;
-    if (!thisChatStreaming()) return;
     if (!sendFromEvent(node)) return;
     if (bypassIntercept) {
         bypassIntercept = false;
         return;
     }
     const editor = getActiveEditor();
-    if (!editor || !hasDraftText(editor)) return;
-    const text = normalize(editorText(editor));
+    if (!editor) return;
+    const text = takeDraft(editor);
     if (!text) return;
     steal(e);
     enqueue(text);
@@ -367,14 +467,17 @@ function onSubmit(e: Event) {
     if (!(form instanceof HTMLFormElement)) return;
     if (!form.matches(COMPOSER_SEL) && !form.querySelector(EDITOR_SEL)) return;
     if (draining) return;
-    if (!thisChatStreaming()) return;
+    if (passNative) {
+        passNative = false;
+        return;
+    }
     if (bypassIntercept) {
         bypassIntercept = false;
         return;
     }
     const editor = getActiveEditor() ?? form.querySelector<HTMLElement>(EDITOR_SEL);
-    if (!editor || !hasDraftText(editor)) return;
-    const text = normalize(editorText(editor));
+    if (!editor) return;
+    const text = takeDraft(editor);
     if (!text) return;
     steal(e);
     enqueue(text);
@@ -397,14 +500,18 @@ export default definePlugin({
         drainKey = "";
         draining = false;
         bypassIntercept = false;
+        passNative = false;
         leak = null;
         registerStyle(STYLE_NAME, css);
         keys?.abort();
         keys = new AbortController();
         const { signal } = keys;
-        window.addEventListener("keydown", onKeyDown, { capture: true, signal });
-        document.addEventListener("click", onClick, { capture: true, signal });
-        document.addEventListener("submit", onSubmit, { capture: true, signal });
+        const capture: AddEventListenerOptions = { capture: true, signal };
+        window.addEventListener("keydown", onKeyDown, capture);
+        document.addEventListener("beforeinput", onBeforeInput, capture);
+        document.addEventListener("pointerdown", onActivate, capture);
+        document.addEventListener("click", onActivate, capture);
+        document.addEventListener("submit", onSubmit, capture);
         unsub?.();
         unsub = watchStreamingEdge({
             onFall(edge) {
@@ -456,6 +563,8 @@ export default definePlugin({
         drainKey = "";
         draining = false;
         bypassIntercept = false;
+        passNative = false;
         dropChip();
     },
 });
+
