@@ -30,6 +30,9 @@
  * Hover marks follow Void++ ❓/🤖 — never You/GPT text. Empty image-gen
  * labels are `Image xN` (unique estuary file_* in the turn; n<2 stays Image).
  * File-only turns use the chip filename (else File), not Message N.
+ * The name may be a plain div beside a "File" subtitle — not only
+ * a[download] / button / data-testid. An inner type-only node must
+ * not win. Spaced names with a real extension count.
  * Decorative imgs (favicon, ≤48px, citation/tool) are not Image.
  * Tool rows stay inside the assistant tick — never one tick per tool.
  */
@@ -69,7 +72,7 @@ const FILE_CHIP_SEL = [
 ].join(", ");
 const MEDIA_SEL = "img, picture, video, canvas";
 const FILE_EXT = /\.(?:epub|pdf|docx?|xlsx?|pptx?|txt|md|csv|json|zip|rar|7z|png|jpe?g|gif|webp|svg|mp3|mp4|wav|m4a|html?|py|js|ts|tsx|css|c|cpp|java|go|rs|rb|xml|ya?ml)$/i;
-const FILE_TRUNC = /\.[A-Za-z0-9]{1,8}(?:…|\.\.\.)?$/;
+const FILE_TRUNC = /\.[A-Za-z0-9]{1,8}(?:…|\.\.\.)$/;
 const TYPE_WORD = /^(?:file|image|pdf|epub|document|attachment|video|audio|code|zip|png|jpe?g|gif|webp|txt|markdown|文件|图片|附件|文档)$/i;
 const DECORATIVE_SRC = /favicon|iconify|shields\.io|badgen\.net|google\.com\/s2\/favicons|gstatic\.com\/favicon/i;
 const PRO_LIVE_RE = /^(?:pro thinking|thinking(?:…|\.\.\.)?|正在思考|思考中)$/i;
@@ -395,19 +398,64 @@ function extractText(root: HTMLElement): string {
     return normSpace(parts.join(" "));
 }
 
-function isFileName(raw: string): boolean {
-    const t = normSpace(raw);
-    if (t.length < 3 || t.length > 180 || /\s/.test(t)) return false;
-    if (TYPE_WORD.test(t)) return false;
-    if (FILE_EXT.test(t)) return true;
-    return FILE_TRUNC.test(t) && /[_\-.]/.test(t);
+function basenameOf(raw: string): string {
+    const t = normSpace(raw).replace(/^(?:download|open|view|save|attachment|附件|下载|打开|查看)\s+/i, "");
+    return (t.split(/[/\\]/).pop() || t).trim();
 }
 
-function rememberName(raw: string, into: string[]) {
+function isFileName(raw: string): boolean {
     const t = normSpace(raw);
-    if (!t) return;
-    const base = t.split(/[/\\]/).pop() || t;
-    if (isFileName(base) && !into.includes(base)) into.push(base);
+    if (t.length < 3 || t.length > 180) return false;
+    if (TYPE_WORD.test(t)) return false;
+    if (FILE_EXT.test(t)) return true;
+    // Truncated chip only: "Name_2014(1).e…" / "My report.p...". A bare ".com" is not a file.
+    return FILE_TRUNC.test(t);
+}
+
+/** Extension clipped out of the text node: Voices_from_the_Street_2014(1). */
+function isFileStem(raw: string): boolean {
+    const t = normSpace(raw);
+    if (t.length < 8 || t.length > 120 || /\s/.test(t)) return false;
+    if (TYPE_WORD.test(t) || isFileName(t) || /^https?:/i.test(t)) return false;
+    if (/^file_[0-9a-f]{6,}$/i.test(t)) return false;
+    if (!/[_\-.]/.test(t) && !/\(\d+\)/.test(t)) return false;
+    return /^[\w.\-()[\]+@#]+$/.test(t);
+}
+
+function nameRank(raw: string): number {
+    if (FILE_EXT.test(raw)) return 3;
+    if (FILE_TRUNC.test(raw)) return 2;
+    return 1;
+}
+
+type NameHit = { name: string; rank: number };
+
+function rememberName(raw: string, into: NameHit[]) {
+    const base = basenameOf(raw);
+    if (!isFileName(base)) return;
+    const rank = nameRank(base);
+    const prev = into.find(hit => hit.name === base);
+    if (prev) {
+        if (rank > prev.rank) prev.rank = rank;
+        return;
+    }
+    into.push({ name: base, rank });
+}
+
+function rememberStem(raw: string, into: NameHit[]) {
+    const base = basenameOf(raw);
+    if (!isFileStem(base) || into.some(hit => hit.name === base)) return;
+    into.push({ name: base, rank: 1 });
+}
+
+function bestName(into: NameHit[]): string {
+    let best: NameHit | null = null;
+    for (const hit of into) {
+        if (!best || hit.rank > best.rank || (hit.rank === best.rank && hit.name.length > best.name.length)) {
+            best = hit;
+        }
+    }
+    return best?.name ?? "";
 }
 
 function chipLines(node: HTMLElement): string[] {
@@ -429,32 +477,80 @@ function chipLines(node: HTMLElement): string[] {
     return lines;
 }
 
+function harvestAttrs(node: HTMLElement, into: NameHit[]) {
+    rememberName(node.getAttribute("download") || "", into);
+    rememberName(node.getAttribute("title") || "", into);
+    rememberName(node.getAttribute("aria-label") || "", into);
+    rememberName(node.getAttribute("alt") || "", into);
+}
+
+function skipChrome(node: HTMLElement): boolean {
+    try {
+        if (skipNode(node)) return true;
+        return !!node.closest("[data-testid*='action-button'], [role='toolbar'], [role='menu']");
+    } catch {
+        return true;
+    }
+}
+
+/** Parent cluster is the chip (filename + "File"), not a tool-icon row. */
+function nearFileMark(node: HTMLElement): boolean {
+    const hosts = [node.parentElement, node.parentElement?.parentElement];
+    for (const host of hosts) {
+        if (!host) continue;
+        const lines = chipLines(host);
+        const joined = lines.join(" ");
+        if (!lines.length || lines.length > 8 || joined.length > 240) continue;
+        if (lines.some(line => TYPE_WORD.test(normSpace(line)))) return true;
+    }
+    return false;
+}
+
+function takeFileLines(lines: string[], into: NameHit[], allowStem: boolean) {
+    for (const line of lines) {
+        if (isFileName(line)) rememberName(line, into);
+        else if (allowStem) rememberStem(line, into);
+    }
+}
+
 /** Filename on a file chip, else "File" when a chip exists with no name. */
 function fileLabelOf(el: HTMLElement): string {
-    const names: string[] = [];
+    const names: NameHit[] = [];
+    let sawChip = false;
     try {
-        for (const node of el.querySelectorAll<HTMLElement>(FILE_CHIP_SEL)) {
-            const dl = node.getAttribute("download");
-            if (dl) rememberName(dl, names);
-            rememberName(node.getAttribute("title") || "", names);
-            rememberName(node.getAttribute("aria-label") || "", names);
-            for (const line of chipLines(node)) rememberName(line, names);
+        const chips = el.querySelectorAll<HTMLElement>(FILE_CHIP_SEL);
+        if (chips.length) sawChip = true;
+        for (const node of chips) {
+            if (skipChrome(node)) continue;
+            harvestAttrs(node, names);
+            takeFileLines(chipLines(node), names, true);
         }
-        if (!names.length) {
-            for (const node of el.querySelectorAll<HTMLElement>("button, a, [role='button']")) {
-                if (node.closest("[data-testid*='action-button'], [role='toolbar']")) continue;
-                const lines = chipLines(node);
-                const fileLine = lines.find(isFileName);
-                if (!fileLine) continue;
-                if (lines.some(line => TYPE_WORD.test(line)) || lines.length <= 3) names.push(fileLine);
-            }
+        for (const node of el.querySelectorAll<HTMLElement>("button, a, [role='button']")) {
+            if (skipChrome(node)) continue;
+            harvestAttrs(node, names);
+            const lines = chipLines(node);
+            const typed = lines.some(line => TYPE_WORD.test(normSpace(line)));
+            if (typed) sawChip = true;
+            if (typed || lines.length <= 4) takeFileLines(lines, names, typed || lines.length <= 3);
+        }
+        for (const node of el.querySelectorAll<HTMLElement>("[title], [aria-label], [download], img[alt], [alt]")) {
+            if (skipChrome(node)) continue;
+            harvestAttrs(node, names);
+        }
+        for (const node of el.querySelectorAll<HTMLElement>("div, span, p")) {
+            if (skipChrome(node)) continue;
+            const lines = chipLines(node);
+            if (!lines.length || lines.length > 6 || lines.join(" ").length > 240) continue;
+            const selfTyped = lines.some(line => TYPE_WORD.test(normSpace(line)));
+            const strong = lines.some(line => isFileName(line));
+            if (selfTyped) sawChip = true;
+            if (!selfTyped && !strong && !nearFileMark(node)) continue;
+            takeFileLines(lines, names, selfTyped || nearFileMark(node));
         }
     } catch { /* ignore */ }
-    if (names.length) return clipText(names[0]);
-    try {
-        if (el.querySelector(FILE_CHIP_SEL)) return FILE_LABEL;
-    } catch { /* ignore */ }
-    return "";
+    const best = bestName(names);
+    if (best) return clipText(best);
+    return sawChip ? FILE_LABEL : "";
 }
 
 function isDecorativeMedia(node: Element): boolean {
