@@ -34,13 +34,15 @@
  * `/conversations/{id}?num_turns=` (not the Recents list) supplies
  * user|assistant ids for the whole branch, mounted or not. Tools
  * and thoughts stay inside the assistant tick — they are not rows.
- * Host pages older mapping windows until the branch is whole.
- * Native `#prompt-nav-container` rows with a real message id fill
- * missing user turns (no "Go to message N" chrome). Same-text user
- * rows are not inserted twice — consecutive user ticks without a
- * reply were duplicate ids, not two prompts. Mounted nodes fill
- * the label and the live dash. A virtualized turn stays in the
- * outline with no element.
+ * Host harvest listens to the page's own windowed conversation GET.
+ * It does not GET detail on open (`/f/conversation/{id}`, unwindowed
+ * `/conversations/{id}`, or `num_turns=480` stalled hydrate). One older
+ * window is requested only when the outline is hovered or a jump targets
+ * an unmounted id, and a 429 stops. Native `#prompt-nav-container` rows
+ * with a real message id fill missing user turns (no "Go to message N"
+ * chrome). Two chain user ids stay two ticks even when the text matches.
+ * Same-bubble id/alias mismatch still absorbs. A blank assistant section
+ * (no message id, no prose, not image-gen, not in progress) is not a tick.
  * Jump nudges the thread until that id mounts; opening the chat does
  * not scroll it.
  * Image-gen assistant turns have no data-message-id / author-role; one
@@ -828,6 +830,16 @@ function nodeIds(el: HTMLElement): string[] {
     return out;
 }
 
+function isBlankAssistant(el: HTMLElement, last: boolean, armed: boolean): boolean {
+    if (isImageGen(el)) return false;
+    if (el.getAttribute("data-message-id") || el.querySelector("[data-message-id]")) return false;
+    if (turnBusy(el) || turnSpinner(el) || proThinkingLive(el)) return false;
+    if (last && armed) return false;
+    if (bodyText(el, "assistant")) return false;
+    if (fileLabelOf(el)) return false;
+    return true;
+}
+
 function collectMounted(root: HTMLElement): NavItem[] {
     const showAsst = settings.store.showAssistant !== false;
     const armed = showAsst && generationArmed();
@@ -847,6 +859,7 @@ function collectMounted(root: HTMLElement): NavItem[] {
             if (role !== "user" && role !== "assistant") continue;
             if (role === "assistant" && !showAsst) continue;
             const last = node === lastAsst;
+            if (role === "assistant" && isBlankAssistant(node, last, armed)) continue;
             const marker = last && proThinkingLive(node);
             const spinning = last && turnSpinner(node);
             const live = role === "assistant"
@@ -924,11 +937,23 @@ function chainItem(turn: ChainTurn, dom: NavItem | undefined): NavItem {
     };
 }
 
+function sharesBubble(a: NavItem, b: NavItem): boolean {
+    if (a.el && b.el && a.el === b.el) return true;
+    const ids = new Set<string>();
+    if (a.id) ids.add(a.id);
+    if (a.alias) ids.add(a.alias);
+    if (a.el) for (const id of nodeIds(a.el)) ids.add(id);
+    if (b.id && ids.has(b.id)) return true;
+    if (b.alias && ids.has(b.alias)) return true;
+    if (b.el) for (const id of nodeIds(b.el)) if (ids.has(id)) return true;
+    return false;
+}
+
 function collapseAdjacentUsers(items: NavItem[]): NavItem[] {
     const out: NavItem[] = [];
     for (const item of items) {
         const prev = out[out.length - 1];
-        if (prev && prev.role === "user" && item.role === "user" && outlineKey(prev.text) && outlineKey(prev.text) === outlineKey(item.text)) {
+        if (prev && prev.role === "user" && item.role === "user" && sharesBubble(prev, item)) {
             absorbRow(prev, item);
             continue;
         }
@@ -941,6 +966,11 @@ function collapseAdjacentUsers(items: NavItem[]): NavItem[] {
 function mergeOutline(chain: readonly ChainTurn[], mounted: NavItem[]): NavItem[] {
     const showAsst = settings.store.showAssistant !== false;
     const byId = indexMounted(mounted);
+    const chainIds = new Set<string>();
+    for (const turn of chain) {
+        if (turn.id) chainIds.add(turn.id);
+        if (turn.alias) chainIds.add(turn.alias);
+    }
     const used = new Set<HTMLElement>();
     const out: NavItem[] = [];
     for (const turn of chain) {
@@ -952,6 +982,7 @@ function mergeOutline(chain: readonly ChainTurn[], mounted: NavItem[]): NavItem[
                 && !!m.el
                 && !used.has(m.el)
                 && outlineKey(m.text) === outlineKey(turn.text || "")
+                && !(m.id && chainIds.has(m.id) && m.id !== turn.id && m.id !== turn.alias)
             ));
         const item = chainItem(turn, dom);
         if (item.el) used.add(item.el);
@@ -982,7 +1013,12 @@ function mergeOutline(chain: readonly ChainTurn[], mounted: NavItem[]): NavItem[
             }
         }
         const twin = findSameText(out, item.role, item.text, at);
-        if (twin) {
+        const otherChain = !!twin
+            && !!item.id
+            && chainIds.has(item.id)
+            && item.id !== twin.id
+            && item.id !== twin.alias;
+        if (twin && !otherChain) {
             absorbRow(twin, item);
             used.add(item.el);
             continue;
@@ -1099,12 +1135,20 @@ function mergeNative(items: NavItem[], native: NavItem[]): NavItem[] {
                 break;
             }
         }
-        const hit = index.get(row.id) || findSameText(out, "user", row.text, at);
+        const hit = index.get(row.id);
         if (hit) {
             absorbRow(hit, row);
             indexIds(index, hit);
             continue;
         }
+        const key = outlineKey(row.text);
+        const hits = key ? out.filter(it => it.role === "user" && outlineKey(it.text) === key) : [];
+        if (hits.length === 1) {
+            absorbRow(hits[0], row);
+            indexIds(index, hits[0]);
+            continue;
+        }
+        if (hits.length > 1) continue;
         const added: NavItem = {
             id: row.id,
             el: row.el,
@@ -1123,7 +1167,6 @@ function collect(): NavItem[] {
     if (!root || root === document.body) return [];
     const mounted = collectMounted(root);
     const cid = currentConversationId();
-    if (cid) ensureConversationChain(cid);
     const chain = cid ? conversationChain(cid) : [];
     const merged = chain.length ? mergeOutline(chain, mounted) : mounted;
     const out = collapseAdjacentUsers(mergeNative(merged, collectNative()));
@@ -1284,6 +1327,10 @@ async function hydrateJump(index: number) {
     const gen = ++hydrateGen;
     const item = lastNav[index];
     if (!item) return;
+    if (!item.el) {
+        const id = currentConversationId();
+        if (id) ensureConversationChain(id);
+    }
     lockIdx = index;
     lockUntil = Date.now() + HYDRATE_MS + LOCK_MS;
     setActive(index);
@@ -1374,6 +1421,10 @@ function ensureHost(): HTMLElement | null {
     el.setAttribute("role", "navigation");
     el.setAttribute("aria-label", "Conversation outline");
     el.hidden = true;
+    el.addEventListener("pointerenter", () => {
+        const id = currentConversationId();
+        if (id) ensureConversationChain(id);
+    });
     const ticks = document.createElement("div");
     ticks.className = "bloom-bn-ticks";
     const menu = document.createElement("div");
@@ -1516,7 +1567,6 @@ function checkCid() {
         armedIds.add(id);
         pendingNew = false;
     }
-    if (id) ensureConversationChain(id);
     return true;
 }
 
@@ -1669,7 +1719,6 @@ export default definePlugin({
     start() {
         started = true;
         lastCid = currentConversationId();
-        if (lastCid) ensureConversationChain(lastCid);
         registerStyle(STYLE_NAME, css);
         keys = new AbortController();
         const { signal } = keys;
@@ -1714,8 +1763,6 @@ export default definePlugin({
                     }
                     ignoreStop = true;
                 }
-                const id = currentConversationId();
-                if (id) ensureConversationChain(id);
                 schedulePaint();
             },
         });

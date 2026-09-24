@@ -6,8 +6,7 @@
 
 import { initPluginManager, registerPlugin, startAllPlugins } from "./api/PluginManager";
 import { initSettings as loadSettings } from "./api/Settings";
-import { currentConversationId } from "./host/conversation";
-import { ensureConversationChain, pinHarvest } from "./host/harvest";
+import { pinHarvest } from "./host/harvest";
 import { requestChromeReady, requestIdleReady, requestShellReady, runIdleSequence, whenChromeReady, whenIdleReady, whenShellReady } from "./host/idleReady";
 import { Logger } from "./utils/Logger";
 import { VERSION } from "./utils/constants";
@@ -174,8 +173,6 @@ export async function init() {
     initialized = true;
 
     pinHarvest();
-    const bootId = currentConversationId();
-    if (bootId) ensureConversationChain(bootId);
 
     for (const plugin of pluginList) {
         try {

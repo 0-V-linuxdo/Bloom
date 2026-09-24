@@ -12,8 +12,12 @@
  * window, including ids ChatGPT has not mounted yet. Tool / thought
  * nodes stay inside the assistant tick. Init pins the wrap so the
  * first GET is not missed.
- * Opening a long chat pages older windows until the branch is whole.
- * Does not rewrite ChatGPT's own `num_turns`. No BloomEventMap.streamEnd.
+ * Opening a chat does not GET conversation detail. The page's own
+ * windowed GET is enough; cloning it must not add `/f/conversation/{id}`,
+ * an unwindowed `/conversations/{id}`, or `num_turns=480`.
+ * `ensureConversationChain` asks for one older window only, and only when
+ * a caller already has a chain (BetterNavigator hover / unmounted jump).
+ * HTTP 429 stops. No BloomEventMap.streamEnd.
  */
 
 import { conversationIdFromHref, currentConversationId } from "./conversation";
@@ -23,7 +27,6 @@ import {
     idFromApiUrl,
     isConversationGet,
     isConversationList,
-    oldestNodeId,
     payloadCompletesChain,
     mergeConversationChain,
     sameChain,
@@ -68,8 +71,10 @@ const backfilling = new Set<string>();
 const retryAt = new Map<string, number>();
 const lastDetailHeaders: Record<string, string> = { Accept: "application/json" };
 const HEADER_KEEP = /^(authorization|oai-|openai-|chatgpt-|x-authorization)/i;
-const BACKFILL_PAGES = 16;
-const RETRY_MS = 10_000;
+/** Pause between on-demand older windows so a hover does not walk the branch. */
+const PAGE_COOLDOWN_MS = 8_000;
+/** Back off hard when the conversation API is rate-limiting the page. */
+const RATE_LIMIT_MS = 60_000;
 
 let origFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
 let wrappedFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
@@ -354,89 +359,79 @@ export function pinHarvest() {
     hookFetch();
 }
 
-function backfillUrls(id: string, before = ""): string[] {
-    if (before) {
-        const q = `include_has_versions=true&num_turns=80&before_node=${encodeURIComponent(before)}`;
-        const alt = `include_has_versions=true&num_turns=80&before=${encodeURIComponent(before)}`;
-        return [
-            `/backend-api/conversations/${id}?${q}`,
-            `/backend-api/conversations/${id}?${alt}`,
-        ];
-    }
+type DetailResult = { status: number; data: unknown | null };
+
+/**
+ * One older mapping window. Never the open-chat probe:
+ * no `/f/conversation/{id}`, no unwindowed `/conversations/{id}`,
+ * no `num_turns=480`. The page's own GET is harvested by the fetch wrap.
+ */
+function olderWindowUrls(id: string, before: string): string[] {
+    const node = `include_has_versions=true&num_turns=10&before_node=${encodeURIComponent(before)}`;
+    const cursor = `include_has_versions=true&num_turns=10&before=${encodeURIComponent(before)}`;
     return [
-        `/backend-api/conversation/${id}`,
-        `/backend-api/f/conversation/${id}`,
-        `/backend-api/conversations/${id}`,
-        `/backend-api/conversations/${id}?include_has_versions=true`,
-        `/backend-api/conversations/${id}?include_has_versions=true&num_turns=480`,
+        `/backend-api/conversations/${id}?${node}`,
+        `/backend-api/conversations/${id}?${cursor}`,
     ];
 }
 
-async function fetchDetail(win: Window & { fetch: typeof fetch }, url: string, id: string): Promise<unknown> {
+async function fetchDetail(win: Window & { fetch: typeof fetch }, url: string, id: string): Promise<DetailResult> {
     const res = await win.fetch(url, {
         method: "GET",
         credentials: "include",
         headers: { ...lastDetailHeaders },
     });
-    if (!res.ok) return null;
+    if (res.status === 429) return { status: 429, data: null };
+    if (!res.ok) return { status: res.status, data: null };
     const data = await res.json();
     harvestObject(data, id);
     rememberChain(id, data, url);
-    return data;
+    return { status: res.status, data };
 }
 
 /**
- * Host GETs of the open chat until the active branch is whole.
- * Does not rewrite ChatGPT's `num_turns`. Not a Recents list poll.
+ * One older window for a chain the page GET already started.
+ * No-op until that chain exists — do not probe detail URLs on open.
+ * 429 backs off. A window that does not grow marks the chain complete.
  */
 export function ensureConversationChain(id: string) {
     if (!id || complete.has(id) || backfilling.has(id)) return;
     const wait = retryAt.get(id) ?? 0;
     if (Date.now() < wait) return;
+    const chain = chains.get(id);
+    const before = chain?.[0]?.alias || chain?.[0]?.id || "";
+    if (!before) return;
     backfilling.add(id);
     hookFetch();
     const win = pageWindow();
     void (async () => {
+        let limited = false;
         try {
-            let lastData: unknown = null;
-            let fetched = false;
-            for (const url of backfillUrls(id)) {
+            const size = chains.get(id)?.length ?? 0;
+            for (const url of olderWindowUrls(id, before)) {
+                let result: DetailResult;
                 try {
-                    const data = await fetchDetail(win, url, id);
-                    if (!data) continue;
-                    lastData = data;
-                    fetched = true;
-                    if (complete.has(id)) {
-                        logger.debug("conversation chain complete", id, chains.get(id)?.length ?? 0);
-                        return;
-                    }
-                } catch { /* try the next shape */ }
-            }
-            let before = lastData ? oldestNodeId(lastData) : (chains.get(id)?.[0]?.alias || chains.get(id)?.[0]?.id || "");
-            let pages = 0;
-            let grew = true;
-            while (before && grew && pages++ < BACKFILL_PAGES && !complete.has(id)) {
-                grew = false;
-                const size = chains.get(id)?.length ?? 0;
-                for (const url of backfillUrls(id, before)) {
-                    try {
-                        const data = await fetchDetail(win, url, id);
-                        if (!data) continue;
-                        lastData = data;
-                        fetched = true;
-                        const next = oldestNodeId(data);
-                        if (next && next !== before) before = next;
-                        if ((chains.get(id)?.length ?? 0) > size) grew = true;
-                        if (complete.has(id)) return;
-                        if (grew) break;
-                    } catch { /* try the other cursor name */ }
+                    result = await fetchDetail(win, url, id);
+                } catch {
+                    continue;
                 }
+                if (result.status === 429) {
+                    limited = true;
+                    retryAt.set(id, Date.now() + RATE_LIMIT_MS);
+                    logger.debug("conversation chain rate-limited", id);
+                    return;
+                }
+                if (!result.data) continue;
+                const grew = (chains.get(id)?.length ?? 0) > size;
+                if (complete.has(id)) return;
+                if (!grew) complete.add(id);
+                return;
             }
-            if (complete.has(id)) return;
-            if (fetched && !grew) complete.add(id);
         } finally {
             backfilling.delete(id);
-            if (!complete.has(id)) retryAt.set(id, Date.now() + RETRY_MS);
+            if (!limited && !complete.has(id) && (retryAt.get(id) ?? 0) <= Date.now()) {
+                retryAt.set(id, Date.now() + PAGE_COOLDOWN_MS);
+            }
         }
     })();
 }
