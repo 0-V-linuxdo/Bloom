@@ -252,7 +252,9 @@ function onHarvest(ev: HarvestEvent) {
         pendingNew = false;
         if (ev.conversationId) {
             armedIds.delete(ev.conversationId);
-            setStatus(ev.conversationId, ev.error ? "error" : "done", "net");
+            const current = currentConversationId();
+            if (ev.conversationId !== current) setStatus(ev.conversationId, "idle", "net");
+            else setStatus(ev.conversationId, ev.error ? "error" : "done", "net");
         }
         if (!hasStop()) wasStreaming = false;
     }
@@ -268,9 +270,7 @@ function onContext(next: string, prev: string) {
     if (lastPathId && lastPathId !== id) {
         armedIds.delete(lastPathId);
         const prevRow = rows.get(lastPathId);
-        if (prevRow?.kind === "streaming" && prevRow.source === "local") {
-            setStatus(lastPathId, "idle", "local");
-        }
+        if (prevRow && prevRow.kind !== "idle") setStatus(lastPathId, "idle", "local");
     }
     pendingNew = false;
     wasStreaming = false;
@@ -287,9 +287,7 @@ function localTick(state: StreamingTick) {
     if (lastPathId && id && lastPathId !== id) {
         armedIds.delete(lastPathId);
         const prev = rows.get(lastPathId);
-        if (prev?.kind === "streaming" && prev.source === "local") {
-            setStatus(lastPathId, "idle", "local");
-        }
+        if (prev && prev.kind !== "idle") setStatus(lastPathId, "idle", "local");
         wasStreaming = !!(id && armedIds.has(id));
     }
     if (id) lastPathId = id;

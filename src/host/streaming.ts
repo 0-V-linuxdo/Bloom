@@ -15,10 +15,13 @@
  * (refcounted). 3 quiet ticks + contextKey lock + capture Stop + harvest
  * post-end *arm* (never a BloomEventMap.streamEnd). A real chat switch
  * (not `/` → `/c/{id}`) drops a pending fall and ignores leftover
- * isStreaming() until it has been false once — leaving is not a completed
- * reply. ChatStateFavicons, ResponseNotification, PromptQueue,
- * ChatListStatus, BetterNavigator, and MessageTimestamps must subscribe
- * instead of each polling isStreaming().
+ * isStreaming() until it has been false once or a new harvest post-start
+ * lands on this page. Leaving is not a completed reply. Stop click is
+ * userStopped, not a successful fall. streamingSuppressed / stoppedByUser
+ * / fallPending are the shared latch — plugins must not each invent one.
+ * ChatStateFavicons, ResponseNotification, PromptQueue, ChatListStatus,
+ * BetterNavigator, and MessageTimestamps must subscribe instead of each
+ * polling isStreaming().
  */
 
 import { getStopButton, getSubmitButton, isStopControl, isVisible } from "./composer";
@@ -124,6 +127,21 @@ let ignoreStreaming = false;
 /** Hold one poll so a switch in the next tick can cancel a false complete. */
 let pendingFall: StreamingEdge | null = null;
 
+/** True while a leftover Stop after a real switch must not count as this page. */
+export function streamingSuppressed(): boolean {
+    return ignoreStreaming;
+}
+
+/** True after a Stop click until the next real rising edge. */
+export function stoppedByUser(): boolean {
+    return userStopped;
+}
+
+/** True for the one poll between a confirmed fall and emit. Switch cancels it. */
+export function fallPending(): boolean {
+    return pendingFall !== null && !pendingFall.userStopped && !pendingFall.error;
+}
+
 function contextKey(): string {
     return contextKeyFromUrl(conversationToken());
 }
@@ -191,8 +209,18 @@ function onStopClick(ev: Event) {
 }
 
 function onHarvest(ev: HarvestEvent) {
+    if (ev.type === "post-start") {
+        const id = currentConversationId();
+        if (!ev.conversationId || !id || ev.conversationId === id) {
+            ignoreStreaming = false;
+            userStopped = false;
+        }
+        return;
+    }
     if (ev.type !== "post-end") return;
     if (!wasStreaming && !pendingFall) return;
+    const current = currentConversationId();
+    if (ev.conversationId && ev.conversationId !== current) return;
     armed = true;
     if (ev.error) {
         harvestError = true;
@@ -205,26 +233,25 @@ function tick() {
     const streaming = isStreaming();
 
     if (lastKey && key && lastKey !== key) {
-        emitContext(key, lastKey);
-        if (!isDraftMigrate(lastKey, key)) {
+        const prev = lastKey;
+        if (!isDraftMigrate(prev, key)) {
             pendingFall = null;
             resetWatch();
             ignoreStreaming = streaming;
-            lastKey = key;
-            if (ignoreStreaming) {
-                emitTick(snapshot(false, key));
-                return;
-            }
         } else {
-            if (streamContext === lastKey) streamContext = key;
-            if (pendingFall && pendingFall.contextKey === lastKey) {
+            if (streamContext === prev) streamContext = key;
+            if (pendingFall && pendingFall.contextKey === prev) {
                 pendingFall.contextKey = key;
                 const id = currentConversationId();
                 if (id) pendingFall.conversationId = id;
             }
-            // `/` → `/c/{id}` is the same send, or a new one after we landed.
             ignoreStreaming = false;
-            lastKey = key;
+        }
+        lastKey = key;
+        emitContext(key, prev);
+        if (ignoreStreaming) {
+            emitTick(snapshot(false, key));
+            return;
         }
     } else if (key) {
         lastKey = key;

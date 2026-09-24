@@ -14,7 +14,7 @@
 
 import { definePluginSettings } from "../../api/Settings";
 import { messageCreateTime, subscribeHarvest, type HarvestEvent } from "../../host/harvest";
-import { isDraftMigrate, isStreaming, watchStreamingEdge } from "../../host/streaming";
+import { isDraftMigrate, isStreaming, streamingSuppressed, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
 import { debounce } from "../../utils/misc";
@@ -137,12 +137,10 @@ function paint() {
     const hideOwn = settings.store.hideOwnMessages === true;
     const showDate = settings.store.showDate !== false;
     const rawStreaming = isStreaming();
+    if (ignoreStreaming && !streamingSuppressed()) ignoreStreaming = false;
     if (ignoreStreaming) {
-        if (rawStreaming) {
-            wasStreaming = false;
-        } else {
-            ignoreStreaming = false;
-        }
+        if (rawStreaming) wasStreaming = false;
+        else ignoreStreaming = false;
     }
     const streaming = ignoreStreaming ? false : rawStreaming;
     const nodes = messageNodes();

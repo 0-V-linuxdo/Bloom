@@ -26,7 +26,7 @@ import {
     setEditorText,
 } from "../../host/composer";
 import { contextKeyFromUrl, conversationToken } from "../../host/conversation";
-import { hasErrorToast, isDraftMigrate, isStreaming, watchStreamingEdge } from "../../host/streaming";
+import { hasErrorToast, isDraftMigrate, isStreaming, streamingSuppressed, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -303,6 +303,11 @@ function watchLeak() {
     if (leak.ticks <= 0) leak = null;
 }
 
+function thisChatStreaming(): boolean {
+    if (streamingSuppressed()) return false;
+    return isStreaming();
+}
+
 function onKeyDown(e: KeyboardEvent) {
     if (!started) return;
     if (e.isComposing || e.keyCode === 229) return;
@@ -311,7 +316,7 @@ function onKeyDown(e: KeyboardEvent) {
     if (draining) return;
     const editor = chatEditor(e.target) ?? chatEditor(document.activeElement);
     if (!editor) return;
-    if (!isStreaming()) return;
+    if (!thisChatStreaming()) return;
     if (e.altKey || bypassIntercept) {
         bypassIntercept = false;
         return;
@@ -342,7 +347,7 @@ function onClick(e: Event) {
     const btn = node.closest("button");
     if (btn instanceof HTMLElement && isStopControl(btn)) return;
     if (draining) return;
-    if (!isStreaming()) return;
+    if (!thisChatStreaming()) return;
     if (!sendFromEvent(node)) return;
     if (bypassIntercept) {
         bypassIntercept = false;
@@ -362,7 +367,7 @@ function onSubmit(e: Event) {
     if (!(form instanceof HTMLFormElement)) return;
     if (!form.matches(COMPOSER_SEL) && !form.querySelector(EDITOR_SEL)) return;
     if (draining) return;
-    if (!isStreaming()) return;
+    if (!thisChatStreaming()) return;
     if (bypassIntercept) {
         bypassIntercept = false;
         return;

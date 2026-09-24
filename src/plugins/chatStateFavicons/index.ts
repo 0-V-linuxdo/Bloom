@@ -37,7 +37,7 @@
 
 import { definePluginSettings } from "../../api/Settings";
 import { getComposerRoot } from "../../host/composer";
-import { isDraftMigrate, watchStreamingEdge } from "../../host/streaming";
+import { isDraftMigrate, stoppedByUser, streamingSuppressed, watchStreamingEdge, type StreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import {
     applyFavicon,
@@ -221,20 +221,32 @@ function evaluateState() {
     if (lastContext && live && isDraftMigrate(lastContext, live)) adoptContext(lastContext, live);
     if (live) lastContext = live;
 
-    const streaming = isStreaming();
-    // Leftover Stop / aria-busy from the chat we just left is not this page's reply.
+    const rawStreaming = isStreaming();
+    const streaming = rawStreaming && !streamingSuppressed();
     if (ignoreStreaming) {
-        if (streaming) {
+        if (streamingSuppressed()) {
             setKind("wait");
             return;
         }
         ignoreStreaming = false;
     }
+    if (streamingSuppressed()) {
+        setKind("wait");
+        return;
+    }
 
     const contextKey = getContextKey();
     const empty = isUserDraftEmpty();
 
-    if (hasErrorToast() && !streaming) {
+    if (stoppedByUser() && !rawStreaming) {
+        wasStreaming = false;
+        justFinished = false;
+        streamContext = null;
+        setKind(empty ? "wait" : canReady(empty) ? "ready" : "wait");
+        return;
+    }
+
+    if (hasErrorToast() && !rawStreaming && wasStreaming) {
         setKind("error");
         wasStreaming = false;
         justFinished = false;
@@ -254,15 +266,20 @@ function evaluateState() {
 
     if (wasStreaming) {
         const sameContext = sameStreamContext(live);
-        wasStreaming = false;
-        if (sameContext) {
+        if (!sameContext) {
+            wasStreaming = false;
+            justFinished = false;
+            streamContext = null;
+        } else if (justFinished) {
+            wasStreaming = false;
             justFinished = true;
             streamContext = live || contextKey;
             setKind("done");
             return;
+        } else {
+            setKind("wait");
+            return;
         }
-        justFinished = false;
-        streamContext = null;
     }
 
     if (justFinished) {
@@ -380,9 +397,34 @@ function onHostRise() {
     flushEvaluate();
 }
 
-function onHostFall() {
+function onHostFall(edge: StreamingEdge) {
     if (!started) return;
-    flushEvaluate();
+    if (edge.userStopped) {
+        wasStreaming = false;
+        justFinished = false;
+        streamContext = null;
+        setKind("wait");
+        return;
+    }
+    if (edge.error) {
+        wasStreaming = false;
+        justFinished = false;
+        streamContext = null;
+        setKind("error");
+        return;
+    }
+    const live = liveContextKey();
+    if (edge.contextKey && live && edge.contextKey !== live && !isDraftMigrate(edge.contextKey, live)) {
+        wasStreaming = false;
+        justFinished = false;
+        streamContext = null;
+        setKind("wait");
+        return;
+    }
+    wasStreaming = false;
+    justFinished = true;
+    streamContext = live || edge.contextKey;
+    setKind("done");
 }
 
 function onHostTick() {
