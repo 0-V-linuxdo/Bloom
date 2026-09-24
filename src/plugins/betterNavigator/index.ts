@@ -32,10 +32,11 @@
  * tick per data-turn-id (filmstrip thumbs are not extra ticks).
  * Hover marks follow Void++ ❓/🤖 — never You/GPT text. Empty image-gen
  * labels are `Image xN` (unique estuary file_* in the turn; n<2 stays Image).
- * File turns use the caption under the chip, not the filename.
- * No caption falls back to File, not Message N. Short user text
- * such as continue stays. Decorative imgs (favicon, ≤48px,
- * citation/tool) are not Image.
+ * File turns use the text under the chip (including a short pill
+ * such as zh-cn), not the filename and not the File subtitle.
+ * No leftover text falls back to File. Short user text such as
+ * continue stays. Decorative imgs (favicon, ≤48px, citation/tool)
+ * are not Image.
  * Tool rows stay inside the assistant tick — never one tick per tool.
  */
 
@@ -80,7 +81,7 @@ const DECORATIVE_SRC = /favicon|iconify|shields\.io|badgen\.net|google\.com\/s2\
 const PRO_LIVE_RE = /^(?:pro[\s-]*thinking|thinking|working|正在思考|思考中|正在工作)(?:\s*\d+\s*[sm])?(?:…|\.{3})?$/i;
 const SKIP_STATUS_RE = /^(?:pro thinking|thinking(?:…|\.\.\.)?|reasoning|thoughts?|正在思考|思考中|已思考.*|thought for\b.*|worked for\b.*|思考了.*|思考用时.*)$/i;
 const TOOL_LINE_RE = /^(?:inspected|analyzed|translated|validated|searched|reviewed|extracted|packaged|已检查|已分析|已翻译|已验证|搜索了|已搜索)\b/i;
-const CHIP_LINE_RE = /^(?:\d+\s+)?(?:sources?|websites?)$|^web search$|^zh-cn$|^zh$|^en(?:-[a-z]{2})?$/i;
+const CHIP_LINE_RE = /^(?:\d+\s+)?(?:sources?|websites?)$|^web search$/i;
 const WEAK_LABEL_RE = /^(?:Image(?: x\d+)?|File|Code|Message \d+)$/;
 /** Footer controls that appear only after ChatGPT finishes the turn. Not code-block Copy. */
 const DONE_ACTION_SEL = [
@@ -463,20 +464,27 @@ function looksLikeFileCluster(lines: string[]): boolean {
     return lines.some(line => TYPE_WORD.test(normSpace(line)) || isFileName(line) || isFileStem(line));
 }
 
-/** File chip, including a plain div of filename + "File" with no testid. */
+/** Tight filename + type cluster. An ancestor that also holds the caption is not the chip. */
 function fileChipOf(el: HTMLElement): HTMLElement | null {
     try {
-        const marked = el.querySelectorAll<HTMLElement>(FILE_CHIP_SEL);
-        const last = marked[marked.length - 1];
-        if (last) return last;
-        let found: HTMLElement | null = null;
-        for (const node of el.querySelectorAll<HTMLElement>("button, a, [role='button'], div")) {
+        let best: HTMLElement | null = null;
+        let bestScore = 0;
+        const sel = `${FILE_CHIP_SEL}, button, a, [role='button'], div`;
+        for (const node of el.querySelectorAll<HTMLElement>(sel)) {
             if (skipChrome(node)) continue;
-            if (node.querySelector("p, li, blockquote")) continue;
-            if (!looksLikeFileCluster(chipLines(node))) continue;
-            found = node;
+            if (node.querySelector("p, li, blockquote, .whitespace-pre-wrap, .markdown")) continue;
+            const lines = chipLines(node);
+            if (!lines.length || lines.length > 4 || lines.join(" ").length > 240) continue;
+            if (!looksLikeFileCluster(lines)) continue;
+            const typed = lines.some(line => TYPE_WORD.test(normSpace(line)));
+            const named = lines.some(line => isFileName(line) || isFileStem(line));
+            const score = typed && named ? 3 : named ? 2 : 1;
+            if (score >= bestScore) {
+                best = node;
+                bestScore = score;
+            }
         }
-        return found;
+        return best;
     } catch {
         return null;
     }
@@ -558,7 +566,7 @@ function looseProse(root: HTMLElement): string {
     return normSpace(blocks.join(" "));
 }
 
-/** Caption under the file chip. Filename, "File", and zh-cn are not the caption. */
+/** Text under the file chip. Filename and "File" are not the caption; zh-cn is. */
 function textBelowFile(el: HTMLElement): string {
     const chip = fileChipOf(el);
     if (!chip) return "";
@@ -568,26 +576,22 @@ function textBelowFile(el: HTMLElement): string {
         try {
             if (chip.contains(node) || node.contains(chip)) return;
             if (!(chip.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING)) return;
-            if (noiseInside(node, el) || node.closest(FILE_CHIP_SEL)) return;
+            if (node.closest("[data-testid*='action-button'], [role='toolbar'], [role='menu']")) return;
         } catch {
             return;
         }
-        const t = extractText(node);
-        if (!t || seen.has(t) || isChipLine(t)) return;
+        // A locale pill is often a button. noiseInside would drop it.
+        const t = normSpace(node.innerText || node.textContent || "");
+        if (!t || t.length > CLIP + 20 || seen.has(t) || isChipLine(t)) return;
         seen.add(t);
         blocks.push(t);
     };
     try {
-        for (const node of el.querySelectorAll<HTMLElement>("p, li, h1, h2, h3, blockquote, .whitespace-pre-wrap, .markdown")) {
+        const sel = "button, [role='button'], p, li, h1, h2, h3, blockquote, .whitespace-pre-wrap, .markdown, div, span";
+        for (const node of el.querySelectorAll<HTMLElement>(sel)) {
+            if (node.matches("div, span") && node.querySelector("div, p, li, button")) continue;
             take(node);
-            if (blocks.join(" ").length > CLIP + 20) break;
-        }
-        if (!blocks.length) {
-            for (const node of el.querySelectorAll<HTMLElement>("div, span")) {
-                if (node.querySelector("div, p, li")) continue;
-                take(node);
-                if (blocks.join(" ").length > CLIP + 20) break;
-            }
+            if (blocks.length) break;
         }
     } catch { /* ignore */ }
     return normSpace(blocks.join(" "));
@@ -599,7 +603,7 @@ function bodyText(el: HTMLElement, role: Role): string {
         for (const node of el.querySelectorAll<HTMLElement>(CONTENT_SEL)) {
             if (skipNode(node)) continue;
             const t = extractText(node);
-            if (!t || isSkipLine(t) || isChipLine(t)) continue;
+            if (!t || (role === "assistant" && isSkipLine(t)) || isChipLine(t)) continue;
             chunks.push(t);
             if (chunks.join(" ").length > CLIP + 20) break;
         }
