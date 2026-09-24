@@ -371,32 +371,36 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 
 function svgIcon(): SVGSVGElement {
     const svg = document.createElementNS(SVG_NS, "svg");
-    svg.setAttribute("viewBox", "0 0 16 16");
+    svg.setAttribute("viewBox", "0 0 24 24");
     svg.setAttribute("aria-hidden", "true");
     return svg;
 }
 
-function strokeIcon(d: string): SVGSVGElement {
+/** Lucide 24×24 stroke-2. ChatGPT edit/delete are these glyphs, not a 16-box sketch. */
+function strokeGlyph(ds: string[]): SVGSVGElement {
     const svg = svgIcon();
-    const path = document.createElementNS(SVG_NS, "path");
-    path.setAttribute("d", d);
-    path.setAttribute("fill", "none");
-    path.setAttribute("stroke", "currentColor");
-    path.setAttribute("stroke-width", "1.35");
-    path.setAttribute("stroke-linecap", "round");
-    path.setAttribute("stroke-linejoin", "round");
-    svg.append(path);
+    for (const d of ds) {
+        const path = document.createElementNS(SVG_NS, "path");
+        path.setAttribute("d", d);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", "currentColor");
+        path.setAttribute("stroke-width", "2");
+        path.setAttribute("stroke-linecap", "round");
+        path.setAttribute("stroke-linejoin", "round");
+        svg.append(path);
+    }
     return svg;
 }
 
+/** Lucide grip-vertical. Depth-1, inert. */
 function gripIcon(): SVGSVGElement {
     const svg = svgIcon();
-    const dots: Array<[number, number]> = [[5.5, 4], [10.5, 4], [5.5, 8], [10.5, 8], [5.5, 12], [10.5, 12]];
+    const dots: Array<[number, number]> = [[9, 5], [15, 5], [9, 12], [15, 12], [9, 19], [15, 19]];
     for (const [cx, cy] of dots) {
         const dot = document.createElementNS(SVG_NS, "circle");
         dot.setAttribute("cx", String(cx));
         dot.setAttribute("cy", String(cy));
-        dot.setAttribute("r", "1.05");
+        dot.setAttribute("r", "1");
         dot.setAttribute("fill", "currentColor");
         svg.append(dot);
     }
@@ -514,11 +518,22 @@ function paintChip() {
     grip.className = "bloom-pq-ico bloom-pq-grip";
     grip.title = "Only one prompt can wait";
     grip.append(gripIcon());
-    const dismiss = iconButton("Dismiss queued prompt", strokeIcon("M3.2 4.2h9.6M6.2 4.2V3.2h3.6v1M4.6 4.2l.6 8.4h5.6l.6-8.4"), () => {
+    const dismiss = iconButton("Dismiss queued prompt", strokeGlyph([
+        "M10 11v6",
+        "M14 11v6",
+        "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6",
+        "M3 6h18",
+        "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
+    ]), () => {
         editingKey = null;
         dropPending(key);
     });
-    const edit = iconButton("Edit queued prompt", strokeIcon("M9.4 3.2l3.4 3.4M3.2 12.8l.7-3.2L10.6 3l3.4 3.4-6.7 6.6z"), () => {
+    dismiss.classList.add("bloom-pq-ico-danger");
+    dismiss.title = "Delete";
+    const edit = iconButton("Edit queued prompt", strokeGlyph([
+        "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z",
+        "m15 5 4 4",
+    ]), () => {
         if (editingKey === key) {
             endEdit(key, liveEditValue());
             return;
@@ -527,7 +542,11 @@ function paintChip() {
         editingKey = key;
         paintChip();
     });
-    const send = iconButton("Send now", strokeIcon("M8 12.4V3.8M4.6 7.1 8 3.7l3.4 3.4"), () => {
+    if (editing) edit.classList.add("bloom-pq-ico-active");
+    const send = iconButton("Send now", strokeGlyph([
+        "M12 19V5",
+        "M6 11 12 5l6 6",
+    ]), () => {
         const live = liveEditValue();
         if (live !== null) {
             const next = normalize(live);

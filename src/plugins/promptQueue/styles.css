@@ -84,8 +84,8 @@ html.dark .bloom-pq-row {
 }
 
 .bloom-pq-ico svg {
-    width: 15px;
-    height: 15px;
+    width: 16px;
+    height: 16px;
     display: block;
 }
 
@@ -99,6 +99,24 @@ button.bloom-pq-ico:hover {
 
 html.dark button.bloom-pq-ico:hover {
     background: rgba(255, 255, 255, 0.08);
+}
+
+button.bloom-pq-ico-danger:hover,
+button.bloom-pq-ico-danger:focus-visible {
+    color: var(--text-error, var(--text-token-text-error, #f93a37));
+    background: color-mix(in srgb, var(--text-error, #f93a37) 12%, transparent);
+}
+
+button.bloom-pq-ico-active,
+button.bloom-pq-ico-active:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--text-primary, #0d0d0d);
+}
+
+html.dark button.bloom-pq-ico-active,
+html.dark button.bloom-pq-ico-active:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ececec;
 }
 
 .bloom-pq-grip {
