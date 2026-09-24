@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.97](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.97)** (`userscript/Bloom.update.user.js`, `@version [20260924] v1.4.97`).
+Current release: **[v1.4.98](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.98)** (`userscript/Bloom.update.user.js`, `@version [20260924] v1.4.98`).
 
 Plugins:
 
@@ -23,7 +23,7 @@ Plugins:
 | ChatListStatus | On | Spinner on the **open** Recents row while this chat is answering. Other rows keep ChatGPT’s own status. |
 | WiderChat | On | Widen the thread and composer (slider 40–96 rem, default 64). CSS-only. |
 | ComposerOpacity | On | Composer background opacity and blur, so the thread can show through the input bar. CSS-only. |
-| BetterNavigator | On | Notion-style outline on the open chat. Hover the ticks, click or ↑/↓ to jump. A dashed tick marks the reply still streaming. |
+| BetterNavigator | On | Notion-style outline of the open chat, including turns ChatGPT has not mounted yet. Hover the ticks, click or ↑/↓ to jump. A dashed tick marks the reply still streaming. |
 | MessageTimestamps | On | Show when each turn was sent, from the conversation JSON ChatGPT already loads. |
 | StreamerMode | Off | Blur Recents titles, the header chat name, project names, and the account chip. CSS-only. Hover a Recents / switcher row to peek. |
 | GreetingCustomizer | Off | Replace the home greeting with your own texts. Rotate on each visit, a timer, or a click. |
@@ -170,6 +170,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.98: **BetterNavigator lists the full chat as soon as it opens.** Long threads lazy-load bubbles; the outline follows the harvested mapping (including the windowed `conversations/{id}` GET) instead of the mounted window. A host backfill covers the first GET missed at document-idle. The official Prompt Navigator is read-only. Opening a chat still does not scroll the thread.
 
 v1.4.97: **BetterNavigator lists turns ChatGPT has not mounted.** The outline follows the conversation mapping, not only the bubbles on screen. Clicking a missing row scrolls until that turn loads. Opening a chat does not scroll the thread.
 

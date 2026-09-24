@@ -28,11 +28,14 @@
  * isStreaming(), never the previous finished reply, no streamEnd, no
  * Grok stores.
  * Collect the active branch, not only the turns ChatGPT has mounted.
- * GET `/backend-api/conversation/{id}` mapping (via host harvest, no
- * second fetch, no `/conversations` poll, no Grok store) supplies
- * user|assistant ids. Mounted nodes fill the label and the live dash.
- * A virtualized turn stays in the outline with no element. Jump nudges
- * the thread until that id mounts; opening the chat does not scroll it.
+ * Host harvest of GET `/conversation/{id}` and windowed
+ * `/conversations/{id}?num_turns=` (not the Recents list) supplies
+ * user|assistant ids. A one-shot host backfill covers the first GET
+ * missed at document-idle. Native `#prompt-nav-container` is read-only
+ * when the chain is still short. Mounted nodes fill the label and the
+ * live dash. A virtualized turn stays in the outline with no element.
+ * Jump nudges the thread until that id mounts; opening the chat does
+ * not scroll it.
  * Image-gen assistant turns have no data-message-id / author-role; one
  * tick per data-turn-id (filmstrip thumbs are not extra ticks).
  * Hover marks follow Void++ ❓/🤖 — never You/GPT text. Empty image-gen
@@ -52,7 +55,7 @@
 import { definePluginSettings } from "../../api/Settings";
 import { getStopButton } from "../../host/composer";
 import { currentConversationId } from "../../host/conversation";
-import { conversationChain, subscribeHarvest, type ChainTurn, type HarvestEvent } from "../../host/harvest";
+import { conversationChain, ensureConversationChain, subscribeHarvest, type ChainTurn, type HarvestEvent } from "../../host/harvest";
 import { getProStopButton, isDraftMigrate, streamingSuppressed, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
@@ -114,6 +117,16 @@ const TURN_SEL = [
     'section[data-testid^="conversation-turn-"][data-turn="assistant"]',
     'article[data-testid^="conversation-turn-"][data-turn="user"]',
     'article[data-testid^="conversation-turn-"][data-turn="assistant"]',
+].join(", ");
+
+const NATIVE_HOST_SEL = [
+    "#prompt-nav-container",
+    "[id*='prompt-nav' i]",
+    "[data-testid*='prompt-nav' i]",
+    "[aria-label='Prompt navigator' i]",
+    "[aria-label='Conversation navigator' i]",
+    "nav[aria-label*='prompt navigator' i]",
+    "nav[aria-label*='conversation navigator' i]",
 ].join(", ");
 
 const SKIP = [
@@ -923,13 +936,114 @@ function mergeOutline(chain: readonly ChainTurn[], mounted: NavItem[]): NavItem[
     return out;
 }
 
+function nativeHostOk(host: HTMLElement): boolean {
+    if (skipNode(host)) return false;
+    try {
+        if (host.closest("#bloom-bn-host, #bloom-root, #bloom-sidebar-panel, #bloom-plugin-layer")) {
+            return false;
+        }
+    } catch {
+        return false;
+    }
+    const mark = `${host.id} ${host.getAttribute("data-testid") || ""} ${host.getAttribute("aria-label") || ""}`;
+    return /prompt-nav|promptnav|conversation-nav|prompt navigator|conversation navigator/i.test(mark);
+}
+
+function nativeIdOf(node: HTMLElement): string {
+    return node.getAttribute("data-turn-id")
+        || node.getAttribute("data-message-id")
+        || node.getAttribute("data-goto-message-id")
+        || node.getAttribute("data-messageid")
+        || "";
+}
+
+function nativeTextOf(node: HTMLElement): string {
+    const raw = node.getAttribute("aria-label")
+        || node.getAttribute("title")
+        || node.getAttribute("data-preview")
+        || node.textContent
+        || "";
+    return clipText(normSpace(raw));
+}
+
+/** Official Prompt Navigator only. Do not mount into it. */
+function collectNative(): NavItem[] {
+    const out: NavItem[] = [];
+    const seen = new Set<string>();
+    try {
+        for (const host of document.querySelectorAll<HTMLElement>(NATIVE_HOST_SEL)) {
+            if (!nativeHostOk(host)) continue;
+            for (const node of host.querySelectorAll<HTMLElement>("button, a, [role='button']")) {
+                if (skipNode(node)) continue;
+                const id = nativeIdOf(node);
+                const text = nativeTextOf(node);
+                if (!id && !text) continue;
+                const key = id || `native:${text}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                const el = id ? findTurn(id) : null;
+                out.push({
+                    id: id || key,
+                    el: el?.isConnected ? el : null,
+                    role: "user",
+                    text: text || "Message",
+                });
+            }
+        }
+    } catch { /* ignore */ }
+    return out;
+}
+
+/** Fill labels / missing user rows from the official rail. Chain stays primary. */
+function mergeNative(items: NavItem[], native: NavItem[]): NavItem[] {
+    if (!native.length) return items;
+    const index = new Map<string, NavItem>();
+    for (const item of items) {
+        index.set(item.id, item);
+        if (item.el) {
+            for (const id of nodeIds(item.el)) index.set(id, item);
+        }
+    }
+    const out = items.slice();
+    let userCursor = 0;
+    const nextUserSlot = () => {
+        while (userCursor < out.length && out[userCursor].role !== "user") userCursor++;
+        return userCursor;
+    };
+    for (const row of native) {
+        const hit = index.get(row.id)
+            || (row.text ? out.find(it => it.role === "user" && it.text === row.text) : undefined);
+        if (hit) {
+            if (row.text && (!hit.text || isWeakLabel(hit.text))) {
+                hit.text = row.text;
+                labels.set(hit.id, row.text);
+            }
+            if (!hit.el && row.el?.isConnected) hit.el = row.el;
+            continue;
+        }
+        const at = nextUserSlot();
+        const added: NavItem = {
+            id: row.id,
+            el: row.el,
+            role: "user",
+            text: row.text || "Message",
+        };
+        out.splice(at, 0, added);
+        index.set(added.id, added);
+        userCursor = at + 1;
+    }
+    return out;
+}
+
 function collect(): NavItem[] {
     const root = threadRoot();
     if (!root || root === document.body) return [];
     const mounted = collectMounted(root);
     const cid = currentConversationId();
+    if (cid) ensureConversationChain(cid);
     const chain = cid ? conversationChain(cid) : [];
-    const out = chain.length ? mergeOutline(chain, mounted) : mounted;
+    const merged = chain.length ? mergeOutline(chain, mounted) : mounted;
+    const out = mergeNative(merged, collectNative());
     releaseArmIfSettled(out);
     return out;
 }
@@ -1308,6 +1422,7 @@ function checkCid() {
         armedIds.add(id);
         pendingNew = false;
     }
+    if (id) ensureConversationChain(id);
     return true;
 }
 
@@ -1448,7 +1563,7 @@ function unmount() {
 
 export default definePlugin({
     name: "BetterNavigator",
-    description: "Notion-style outline of the open chat, including turns ChatGPT has not mounted. Hover the ticks, click or use ↑/↓ to jump. A dashed tick marks the reply still streaming.",
+    description: "Notion-style outline of the open chat, including turns ChatGPT has not mounted yet. Hover the ticks, click or use ↑/↓ to jump. A dashed tick marks the reply still streaming.",
     authors: [Devs.p],
     tags: ["chat", "ui"],
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5v14"/><path d="M14 7h5M12 12h7M14 17h5"/></svg>`,
@@ -1460,6 +1575,7 @@ export default definePlugin({
     start() {
         started = true;
         lastCid = currentConversationId();
+        if (lastCid) ensureConversationChain(lastCid);
         registerStyle(STYLE_NAME, css);
         keys = new AbortController();
         const { signal } = keys;
@@ -1504,6 +1620,8 @@ export default definePlugin({
                     }
                     ignoreStop = true;
                 }
+                const id = currentConversationId();
+                if (id) ensureConversationChain(id);
                 schedulePaint();
             },
         });

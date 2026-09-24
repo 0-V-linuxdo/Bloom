@@ -4,22 +4,43 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * One fetch wrap for conversation GET + generate POST/SSE. Plugins subscribe;
- * they must not wrap window.fetch themselves. Never intercept
- * /backend-api/conversations (list). Generate POST is only
- * /backend-api/conversation or /f/conversation (not /conversation/init).
- * GET `{id}` also keeps the active-branch user|assistant chain from
- * `mapping` for BetterNavigator (cap 480). No BloomEventMap.streamEnd.
+ * they must not wrap window.fetch themselves. Never intercept the Recents
+ * list GET `/backend-api/conversations?offset=`. Windowed detail
+ * `GET /conversations/{id}?num_turns=` is not that list. Generate POST is
+ * only `/backend-api/conversation` or `/f/conversation` (not init).
+ * Active-branch user|assistant chain (cap 480) comes from `mapping` or a
+ * `turns` window. Init pins the wrap so the first GET is not missed.
+ * Opening a long chat may one-shot the singular `{id}` if the chain is
+ * still a window. No BloomEventMap.streamEnd.
  */
 
 import { conversationIdFromHref, currentConversationId } from "./conversation";
+import {
+    chainFromPayload,
+    conversationIdFromPayload,
+    idFromApiUrl,
+    isConversationGet,
+    isConversationList,
+    mergeConversationChain,
+    sameChain,
+    type ChainTurn,
+} from "./conversationChain";
 import { Logger } from "../utils/Logger";
+
+export {
+    chainFromPayload,
+    idFromApiUrl,
+    isConversationGet,
+    isConversationList,
+    isWindowedConversationGet,
+    mergeConversationChain,
+} from "./conversationChain";
+export type { ChainTurn } from "./conversationChain";
 
 const logger = new Logger("Harvest");
 const TIME_MAX = 1500;
 const TITLE_MAX = 200;
-const CHAIN_MAX = 480;
 const CHAIN_CONVS = 8;
-const CHAIN_TEXT = 80;
 
 export type HarvestEvent =
     | { type: "post-start"; conversationId: string; url: string }
@@ -28,14 +49,6 @@ export type HarvestEvent =
     | { type: "conversation-meta"; conversationId: string; title: string }
     | { type: "conversation-chain"; conversationId: string };
 
-export type ChainTurn = {
-    id: string;
-    /** Mapping node id when it differs from the message id. */
-    alias?: string;
-    role: "user" | "assistant";
-    text: string;
-};
-
 export type HarvestListener = (event: HarvestEvent) => void;
 
 const listeners = new Set<HarvestListener>();
@@ -43,11 +56,14 @@ const titles = new Map<string, string>();
 const times = new Map<string, number>();
 const chains = new Map<string, ChainTurn[]>();
 const EMPTY_CHAIN: readonly ChainTurn[] = [];
+const backfilled = new Set<string>();
+const backfilling = new Set<string>();
 
 let origFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
 let wrappedFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
 let fetchTarget: (Window & { fetch: typeof fetch }) | null = null;
 let epoch = 0;
+let pinned = false;
 
 function pageWindow(): Window & { fetch: typeof fetch } {
     return (typeof unsafeWindow !== "undefined" ? unsafeWindow : window) as Window & { fetch: typeof fetch };
@@ -68,10 +84,6 @@ function methodOf(input: RequestInfo | URL, init?: RequestInit): string {
     return (fromInit || fromReq || "GET").toUpperCase();
 }
 
-function isConversationList(url: string): boolean {
-    return /\/backend-api\/conversations(?:\/|\?|$)/i.test(url);
-}
-
 const GENERATE_ACTION = /"action"\s*:\s*"(next|continue|variant)"/i;
 
 /** POST generate stream only — not /conversation/init or /conversation/{id}. */
@@ -81,16 +93,6 @@ function isConversationPost(url: string, method: string, body?: BodyInit | null)
     if (!/\/backend-api\/(?:f\/)?conversation\/?(?:[?#]|$)/i.test(url)) return false;
     if (typeof body === "string" && /"action"\s*:/.test(body) && !GENERATE_ACTION.test(body)) return false;
     return true;
-}
-
-function isConversationGet(url: string, method: string): boolean {
-    if (method !== "GET") return false;
-    if (isConversationList(url)) return false;
-    return /\/backend-api\/(?:f\/)?conversation\/[a-zA-Z0-9_-]+/i.test(url);
-}
-
-function idFromApiUrl(url: string): string {
-    return url.match(/\/backend-api\/(?:f\/)?conversation\/([a-zA-Z0-9_-]{8,})/i)?.[1] ?? "";
 }
 
 function idFromJsonish(text: string): string {
@@ -145,178 +147,13 @@ function rememberTitle(conversationId: string, title: string) {
     emit({ type: "conversation-meta", conversationId, title: clean });
 }
 
-function clipChainText(raw: string): string {
-    const t = raw.replace(/\s+/g, " ").trim();
-    if (!t) return "";
-    return t.length > CHAIN_TEXT ? `${t.slice(0, CHAIN_TEXT - 1)}…` : t;
-}
-
-function messageText(msg: Record<string, unknown>): string {
-    const content = msg.content;
-    if (!content || typeof content !== "object" || Array.isArray(content)) return "";
-    const c = content as Record<string, unknown>;
-    const parts = Array.isArray(c.parts) ? c.parts : [];
-    const bits: string[] = [];
-    let image = false;
-    let file = false;
-    for (const part of parts) {
-        if (typeof part === "string") {
-            if (part.trim()) bits.push(part);
-            continue;
-        }
-        if (!part || typeof part !== "object") continue;
-        const p = part as Record<string, unknown>;
-        const kind = typeof p.content_type === "string" ? p.content_type : "";
-        if (/image/i.test(kind)) image = true;
-        else if (/file|document|attachment/i.test(kind)) file = true;
-        else if (typeof p.text === "string" && p.text.trim()) bits.push(p.text);
-    }
-    const joined = clipChainText(bits.join(" "));
-    if (joined) return joined;
-    const kind = typeof c.content_type === "string" ? c.content_type : "";
-    if (image || /image/i.test(kind)) return "Image";
-    if (file) return "File";
-    if (typeof c.text === "string") return clipChainText(c.text);
-    return "";
-}
-
-function messageRole(msg: Record<string, unknown>): "user" | "assistant" | "" {
-    const meta = msg.metadata;
-    if (meta && typeof meta === "object" && !Array.isArray(meta)) {
-        if ((meta as Record<string, unknown>).is_visually_hidden_from_conversation === true) return "";
-    }
-    const author = msg.author;
-    const role = author && typeof author === "object" && !Array.isArray(author)
-        ? (author as Record<string, unknown>).role
-        : msg.role;
-    return role === "user" || role === "assistant" ? role : "";
-}
-
-function leafIdOf(root: Record<string, unknown>, nodes: Record<string, unknown>): string {
-    for (const key of ["current_node", "current_node_id", "currentNode"]) {
-        const v = root[key];
-        if (typeof v === "string" && nodes[v]) return v;
-    }
-    let best = "";
-    let bestMs = -1;
-    for (const [id, node] of Object.entries(nodes)) {
-        if (!node || typeof node !== "object" || Array.isArray(node)) continue;
-        const rec = node as Record<string, unknown>;
-        const children = Array.isArray(rec.children) ? rec.children : [];
-        if (children.length) continue;
-        const msg = rec.message;
-        const ms = msg && typeof msg === "object" && !Array.isArray(msg)
-            ? toMs((msg as Record<string, unknown>).create_time ?? (msg as Record<string, unknown>).createTime) ?? 0
-            : 0;
-        if (!best || ms >= bestMs) {
-            best = id;
-            bestMs = ms;
-        }
-    }
-    return best;
-}
-
-function pathFromLeaf(nodes: Record<string, unknown>, leaf: string): ChainTurn[] {
-    const out: ChainTurn[] = [];
-    const seen = new Set<string>();
-    let id: string | null = leaf;
-    let guard = 0;
-    while (id && nodes[id] && guard++ < 800) {
-        if (seen.has(id)) break;
-        seen.add(id);
-        const node = nodes[id];
-        if (!node || typeof node !== "object" || Array.isArray(node)) break;
-        const rec = node as Record<string, unknown>;
-        const msg = rec.message && typeof rec.message === "object" && !Array.isArray(rec.message)
-            ? rec.message as Record<string, unknown>
-            : null;
-        const role = msg ? messageRole(msg) : "";
-        const mid = msg && typeof msg.id === "string" && msg.id ? msg.id : id;
-        if (role) {
-            const turn: ChainTurn = { id: mid, role, text: msg ? messageText(msg) : "" };
-            if (mid !== id) turn.alias = id;
-            out.push(turn);
-        }
-        id = typeof rec.parent === "string" ? rec.parent : null;
-    }
-    out.reverse();
-    return out;
-}
-
-function capTail(turns: ChainTurn[]): ChainTurn[] {
-    if (turns.length <= CHAIN_MAX) return turns;
-    return turns.slice(turns.length - CHAIN_MAX);
-}
-
-function mergeChain(prev: ChainTurn[], next: ChainTurn[]): ChainTurn[] {
-    if (!next.length) return prev;
-    if (!prev.length) return capTail(next);
-    const prevIdx = new Map(prev.map((t, i) => [t.id, i]));
-    let a = -1;
-    let b = -1;
-    for (let j = 0; j < next.length; j++) {
-        const i = prevIdx.get(next[j].id);
-        if (i === undefined) continue;
-        a = i;
-        b = j;
-        break;
-    }
-    if (a < 0) {
-        if (next.length < 3 && prev.length > next.length) return prev;
-        const seen = new Set(prev.map(t => t.id));
-        const lastInPrev = prevIdx.has(next[next.length - 1].id);
-        const head = next.filter(t => !seen.has(t.id));
-        return capTail(lastInPrev ? [...head, ...prev] : [...prev, ...head]);
-    }
-    let len = 0;
-    while (a + len < prev.length && b + len < next.length && prev[a + len].id === next[b + len].id) len++;
-    const headIds = new Set(prev.slice(0, a).map(t => t.id));
-    const head = [...prev.slice(0, a)];
-    for (const t of next.slice(0, b)) {
-        if (!headIds.has(t.id)) {
-            head.push(t);
-            headIds.add(t.id);
-        }
-    }
-    const overlap = next.slice(b, b + len).map((t, k) => (t.text ? t : prev[a + k]));
-    const seen = new Set([...head, ...overlap].map(t => t.id));
-    const tailNext = next.slice(b + len).filter(t => !seen.has(t.id));
-    for (const t of tailNext) seen.add(t.id);
-    const tailPrev = prev.slice(a + len).filter(t => !seen.has(t.id));
-    return capTail([...head, ...overlap, ...tailNext, ...tailPrev]);
-}
-
-function sameChain(a: ChainTurn[], b: ChainTurn[]): boolean {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-        if (a[i].id !== b[i].id || a[i].role !== b[i].role || a[i].text !== b[i].text || a[i].alias !== b[i].alias) return false;
-    }
-    return true;
-}
-
 function rememberChain(conversationId: string, data: unknown) {
-    if (!data || typeof data !== "object" || Array.isArray(data)) return;
-    let root = data as Record<string, unknown>;
-    if (!root.mapping && root.conversation && typeof root.conversation === "object" && !Array.isArray(root.conversation)) {
-        root = root.conversation as Record<string, unknown>;
-    }
-    const mapping = root.mapping;
-    if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) return;
-    const hasLeaf = typeof root.current_node === "string"
-        || typeof root.current_node_id === "string"
-        || typeof root.currentNode === "string";
-    if (!hasLeaf && typeof root.title !== "string") return;
-    const cid = conversationId
-        || (typeof root.conversation_id === "string" ? root.conversation_id : "")
-        || (typeof root.conversationId === "string" ? root.conversationId : "");
+    const cid = conversationIdFromPayload(data, conversationId);
     if (!cid) return;
-    const nodes = mapping as Record<string, unknown>;
-    const leaf = leafIdOf(root, nodes);
-    if (!leaf) return;
-    const path = pathFromLeaf(nodes, leaf);
+    const path = chainFromPayload(data);
     if (!path.length) return;
     const prev = chains.get(cid) ?? [];
-    const next = mergeChain(prev, path);
+    const next = mergeConversationChain(prev, path);
     if (sameChain(prev, next)) return;
     chains.set(cid, next);
     capMap(chains, CHAIN_CONVS);
@@ -477,12 +314,69 @@ function unhookFetch() {
     logger.debug("conversation fetch harvest unhooked");
 }
 
+function releaseHarvest() {
+    epoch += 1;
+    if (pinned) return;
+    unhookFetch();
+}
+
+/** Hook fetch at Init so the first conversation GET is not missed. */
+export function pinHarvest() {
+    pinned = true;
+    hookFetch();
+}
+
+function backfillUrl(id: string, kind: "singular" | "plural"): string {
+    return kind === "singular"
+        ? `/backend-api/conversation/${id}`
+        : `/backend-api/conversations/${id}`;
+}
+
+/**
+ * One host GET of the singular (then plural) detail if this chat has not
+ * been backfilled. Does not rewrite ChatGPT's `num_turns`. Not a list poll.
+ */
+export function ensureConversationChain(id: string) {
+    if (!id || backfilled.has(id) || backfilling.has(id)) return;
+    backfilling.add(id);
+    hookFetch();
+    const win = pageWindow();
+    const before = chains.get(id)?.length ?? 0;
+    void (async () => {
+        try {
+            for (const kind of ["singular", "plural"] as const) {
+                try {
+                    const res = await win.fetch(backfillUrl(id, kind), {
+                        method: "GET",
+                        credentials: "include",
+                        headers: { Accept: "application/json" },
+                    });
+                    if (!res.ok) continue;
+                    try {
+                        const data = await res.json();
+                        harvestObject(data, id);
+                        rememberChain(id, data);
+                    } catch { /* empty or non-JSON */ }
+                    const after = chains.get(id)?.length ?? 0;
+                    if (after > 0) {
+                        backfilled.add(id);
+                        if (after !== before) logger.debug("conversation chain backfill", id, after);
+                        return;
+                    }
+                } catch { /* try the other shape */ }
+            }
+        } finally {
+            backfilling.delete(id);
+        }
+    })();
+}
+
 export function subscribeHarvest(listener: HarvestListener): () => void {
     listeners.add(listener);
     hookFetch();
     return () => {
         listeners.delete(listener);
-        if (listeners.size === 0) unhookFetch();
+        if (listeners.size === 0) releaseHarvest();
     };
 }
 
