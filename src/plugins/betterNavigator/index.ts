@@ -20,20 +20,22 @@
  * generate-arm or a visible Stop still arm the dash; Pro thinking
  * alone is enough because that footer only shows while the reply runs.
  * lookSettled (Void++ c91c194) forces the dash off once Stop is gone
- * and the turn has copy/good/bad, markdown/prose, or a generated image
- * — unless Pro thinking is still on screen. Leftover <details> /
- * descendant aria-busy do not keep it. Never raw isStreaming(), never
- * the previous finished reply, no streamEnd, no Grok stores.
+ * and the turn has copy/good/bad or a generated image — unless Pro
+ * thinking or a turn spinner is still on screen. A plan sentence is
+ * not finished: agent turns write prose before tools end. Harvest
+ * arm keeps the last unsettled assistant dashed after Stop drops.
+ * Leftover <details> / descendant aria-busy do not keep it. Never raw
+ * isStreaming(), never the previous finished reply, no streamEnd, no
+ * Grok stores.
  * Collect mounted conversation-turn sections (data-turn user|assistant).
  * Image-gen assistant turns have no data-message-id / author-role; one
  * tick per data-turn-id (filmstrip thumbs are not extra ticks).
  * Hover marks follow Void++ ❓/🤖 — never You/GPT text. Empty image-gen
  * labels are `Image xN` (unique estuary file_* in the turn; n<2 stays Image).
- * File-only turns use the chip filename (else File), not Message N.
- * The name may be a plain div beside a "File" subtitle — not only
- * a[download] / button / data-testid. An inner type-only node must
- * not win. Spaced names with a real extension count.
- * Decorative imgs (favicon, ≤48px, citation/tool) are not Image.
+ * File turns use the caption under the chip, not the filename.
+ * No caption falls back to File, not Message N. Short user text
+ * such as continue stays. Decorative imgs (favicon, ≤48px,
+ * citation/tool) are not Image.
  * Tool rows stay inside the assistant tick — never one tick per tool.
  */
 
@@ -75,7 +77,7 @@ const FILE_EXT = /\.(?:epub|pdf|docx?|xlsx?|pptx?|txt|md|csv|json|zip|rar|7z|png
 const FILE_TRUNC = /\.[A-Za-z0-9]{1,8}(?:…|\.\.\.)$/;
 const TYPE_WORD = /^(?:file|image|pdf|epub|document|attachment|video|audio|code|zip|png|jpe?g|gif|webp|txt|markdown|文件|图片|附件|文档)$/i;
 const DECORATIVE_SRC = /favicon|iconify|shields\.io|badgen\.net|google\.com\/s2\/favicons|gstatic\.com\/favicon/i;
-const PRO_LIVE_RE = /^(?:pro thinking|thinking(?:…|\.\.\.)?|正在思考|思考中)$/i;
+const PRO_LIVE_RE = /^(?:pro[\s-]*thinking|thinking|working|正在思考|思考中|正在工作)(?:\s*\d+\s*[sm])?(?:…|\.{3})?$/i;
 const SKIP_STATUS_RE = /^(?:pro thinking|thinking(?:…|\.\.\.)?|reasoning|thoughts?|正在思考|思考中|已思考.*|thought for\b.*|worked for\b.*|思考了.*|思考用时.*)$/i;
 const TOOL_LINE_RE = /^(?:inspected|analyzed|translated|validated|searched|reviewed|extracted|packaged|已检查|已分析|已翻译|已验证|搜索了|已搜索)\b/i;
 const CHIP_LINE_RE = /^(?:\d+\s+)?(?:sources?|websites?)$|^web search$|^zh-cn$|^zh$|^en(?:-[a-z]{2})?$/i;
@@ -384,6 +386,8 @@ function extractText(root: HTMLElement): string {
             if (!parent) return NodeFilter.FILTER_REJECT;
             try {
                 if (noiseInside(parent, root)) return NodeFilter.FILTER_REJECT;
+                const chip = parent.closest(FILE_CHIP_SEL);
+                if (chip && (chip === root || root.contains(chip))) return NodeFilter.FILTER_REJECT;
             } catch {
                 return NodeFilter.FILTER_REJECT;
             }
@@ -396,11 +400,6 @@ function extractText(root: HTMLElement): string {
         parts.push(normSpace(node.textContent || ""));
     }
     return normSpace(parts.join(" "));
-}
-
-function basenameOf(raw: string): string {
-    const t = normSpace(raw).replace(/^(?:download|open|view|save|attachment|附件|下载|打开|查看)\s+/i, "");
-    return (t.split(/[/\\]/).pop() || t).trim();
 }
 
 function isFileName(raw: string): boolean {
@@ -422,42 +421,6 @@ function isFileStem(raw: string): boolean {
     return /^[\w.\-()[\]+@#]+$/.test(t);
 }
 
-function nameRank(raw: string): number {
-    if (FILE_EXT.test(raw)) return 3;
-    if (FILE_TRUNC.test(raw)) return 2;
-    return 1;
-}
-
-type NameHit = { name: string; rank: number };
-
-function rememberName(raw: string, into: NameHit[]) {
-    const base = basenameOf(raw);
-    if (!isFileName(base)) return;
-    const rank = nameRank(base);
-    const prev = into.find(hit => hit.name === base);
-    if (prev) {
-        if (rank > prev.rank) prev.rank = rank;
-        return;
-    }
-    into.push({ name: base, rank });
-}
-
-function rememberStem(raw: string, into: NameHit[]) {
-    const base = basenameOf(raw);
-    if (!isFileStem(base) || into.some(hit => hit.name === base)) return;
-    into.push({ name: base, rank: 1 });
-}
-
-function bestName(into: NameHit[]): string {
-    let best: NameHit | null = null;
-    for (const hit of into) {
-        if (!best || hit.rank > best.rank || (hit.rank === best.rank && hit.name.length > best.name.length)) {
-            best = hit;
-        }
-    }
-    return best?.name ?? "";
-}
-
 function chipLines(node: HTMLElement): string[] {
     const lines: string[] = [];
     const push = (raw: string) => {
@@ -477,13 +440,6 @@ function chipLines(node: HTMLElement): string[] {
     return lines;
 }
 
-function harvestAttrs(node: HTMLElement, into: NameHit[]) {
-    rememberName(node.getAttribute("download") || "", into);
-    rememberName(node.getAttribute("title") || "", into);
-    rememberName(node.getAttribute("aria-label") || "", into);
-    rememberName(node.getAttribute("alt") || "", into);
-}
-
 function skipChrome(node: HTMLElement): boolean {
     try {
         if (skipNode(node)) return true;
@@ -493,64 +449,42 @@ function skipChrome(node: HTMLElement): boolean {
     }
 }
 
-/** Parent cluster is the chip (filename + "File"), not a tool-icon row. */
-function nearFileMark(node: HTMLElement): boolean {
-    const hosts = [node.parentElement, node.parentElement?.parentElement];
-    for (const host of hosts) {
-        if (!host) continue;
-        const lines = chipLines(host);
-        const joined = lines.join(" ");
-        if (!lines.length || lines.length > 8 || joined.length > 240) continue;
-        if (lines.some(line => TYPE_WORD.test(normSpace(line)))) return true;
-    }
-    return false;
+/** Chip filename / type word. A real caption ("translate this") is not a chip line. */
+function isChipLine(raw: string): boolean {
+    const t = normSpace(raw);
+    if (!t || isSkipLine(t) || isFileStem(t)) return true;
+    if (!isFileName(t)) return false;
+    return t.split(/\s+/).length <= 8 && !/[。！？!?]/.test(t);
 }
 
-function takeFileLines(lines: string[], into: NameHit[], allowStem: boolean) {
-    for (const line of lines) {
-        if (isFileName(line)) rememberName(line, into);
-        else if (allowStem) rememberStem(line, into);
-    }
+function looksLikeFileCluster(lines: string[]): boolean {
+    if (!lines.length || lines.length > 4) return false;
+    if (!lines.every(line => isChipLine(line))) return false;
+    return lines.some(line => TYPE_WORD.test(normSpace(line)) || isFileName(line) || isFileStem(line));
 }
 
-/** Filename on a file chip, else "File" when a chip exists with no name. */
-function fileLabelOf(el: HTMLElement): string {
-    const names: NameHit[] = [];
-    let sawChip = false;
+/** File chip, including a plain div of filename + "File" with no testid. */
+function fileChipOf(el: HTMLElement): HTMLElement | null {
     try {
-        const chips = el.querySelectorAll<HTMLElement>(FILE_CHIP_SEL);
-        if (chips.length) sawChip = true;
-        for (const node of chips) {
+        const marked = el.querySelectorAll<HTMLElement>(FILE_CHIP_SEL);
+        const last = marked[marked.length - 1];
+        if (last) return last;
+        let found: HTMLElement | null = null;
+        for (const node of el.querySelectorAll<HTMLElement>("button, a, [role='button'], div")) {
             if (skipChrome(node)) continue;
-            harvestAttrs(node, names);
-            takeFileLines(chipLines(node), names, true);
+            if (node.querySelector("p, li, blockquote")) continue;
+            if (!looksLikeFileCluster(chipLines(node))) continue;
+            found = node;
         }
-        for (const node of el.querySelectorAll<HTMLElement>("button, a, [role='button']")) {
-            if (skipChrome(node)) continue;
-            harvestAttrs(node, names);
-            const lines = chipLines(node);
-            const typed = lines.some(line => TYPE_WORD.test(normSpace(line)));
-            if (typed) sawChip = true;
-            if (typed || lines.length <= 4) takeFileLines(lines, names, typed || lines.length <= 3);
-        }
-        for (const node of el.querySelectorAll<HTMLElement>("[title], [aria-label], [download], img[alt], [alt]")) {
-            if (skipChrome(node)) continue;
-            harvestAttrs(node, names);
-        }
-        for (const node of el.querySelectorAll<HTMLElement>("div, span, p")) {
-            if (skipChrome(node)) continue;
-            const lines = chipLines(node);
-            if (!lines.length || lines.length > 6 || lines.join(" ").length > 240) continue;
-            const selfTyped = lines.some(line => TYPE_WORD.test(normSpace(line)));
-            const strong = lines.some(line => isFileName(line));
-            if (selfTyped) sawChip = true;
-            if (!selfTyped && !strong && !nearFileMark(node)) continue;
-            takeFileLines(lines, names, selfTyped || nearFileMark(node));
-        }
-    } catch { /* ignore */ }
-    const best = bestName(names);
-    if (best) return clipText(best);
-    return sawChip ? FILE_LABEL : "";
+        return found;
+    } catch {
+        return null;
+    }
+}
+
+/** "File" only when a chip exists. The filename is not the label. */
+function fileLabelOf(el: HTMLElement): string {
+    return fileChipOf(el) ? FILE_LABEL : "";
 }
 
 function isDecorativeMedia(node: Element): boolean {
@@ -624,20 +558,60 @@ function looseProse(root: HTMLElement): string {
     return normSpace(blocks.join(" "));
 }
 
+/** Caption under the file chip. Filename, "File", and zh-cn are not the caption. */
+function textBelowFile(el: HTMLElement): string {
+    const chip = fileChipOf(el);
+    if (!chip) return "";
+    const blocks: string[] = [];
+    const seen = new Set<string>();
+    const take = (node: HTMLElement) => {
+        try {
+            if (chip.contains(node) || node.contains(chip)) return;
+            if (!(chip.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING)) return;
+            if (noiseInside(node, el) || node.closest(FILE_CHIP_SEL)) return;
+        } catch {
+            return;
+        }
+        const t = extractText(node);
+        if (!t || seen.has(t) || isChipLine(t)) return;
+        seen.add(t);
+        blocks.push(t);
+    };
+    try {
+        for (const node of el.querySelectorAll<HTMLElement>("p, li, h1, h2, h3, blockquote, .whitespace-pre-wrap, .markdown")) {
+            take(node);
+            if (blocks.join(" ").length > CLIP + 20) break;
+        }
+        if (!blocks.length) {
+            for (const node of el.querySelectorAll<HTMLElement>("div, span")) {
+                if (node.querySelector("div, p, li")) continue;
+                take(node);
+                if (blocks.join(" ").length > CLIP + 20) break;
+            }
+        }
+    } catch { /* ignore */ }
+    return normSpace(blocks.join(" "));
+}
+
 function bodyText(el: HTMLElement, role: Role): string {
     const chunks: string[] = [];
     try {
         for (const node of el.querySelectorAll<HTMLElement>(CONTENT_SEL)) {
             if (skipNode(node)) continue;
             const t = extractText(node);
-            if (!t || isSkipLine(t)) continue;
+            if (!t || isSkipLine(t) || isChipLine(t)) continue;
             chunks.push(t);
             if (chunks.join(" ").length > CLIP + 20) break;
         }
     } catch { /* ignore */ }
     const joined = normSpace(chunks.join(" "));
+    if (role === "user") {
+        const below = textBelowFile(el);
+        if (below) return below;
+    }
     if (joined) return joined;
-    return role === "assistant" ? looseProse(el) : "";
+    if (role === "assistant") return looseProse(el);
+    return "";
 }
 
 function clipText(raw: string): string {
@@ -755,17 +729,15 @@ function nodeInProgress(el: HTMLElement, lastAssistant: boolean): boolean {
 
 /**
  * Void++ lookSettled: Stop gone and the turn already shows a finished reply.
- * Done-action buttons, generated images, and prose all win even if aria-busy
- * was left on. Pro thinking still on screen is not finished. Copy inside a
- * code block is not a done action.
+ * Copy/good/bad or a generated image win. A plan sentence does not — agent
+ * turns write prose before tools finish. Pro thinking or a spinner is not done.
  */
 function lookSettled(el: HTMLElement | null): boolean {
     if (!el || stopVisible()) return false;
     try {
-        if (proThinkingLive(el)) return false;
+        if (proThinkingLive(el) || turnSpinner(el)) return false;
         if (el.querySelector(DONE_ACTION_SEL)) return true;
         if (isImageGen(el)) return true;
-        if (bodyText(el, "assistant")) return true;
     } catch { /* ignore */ }
     return false;
 }
@@ -828,15 +800,18 @@ function collect(): NavItem[] {
             if (role === "assistant" && !showAsst) continue;
             const last = node === lastAsst;
             const marker = last && proThinkingLive(node);
-            const spinning = last && armed && turnSpinner(node);
+            const spinning = last && turnSpinner(node);
+            // Arm covers the tool gap after the first sentence, once Stop has dropped.
+            // Copy/good/bad (lookSettled) still beats a leftover aria-busy.
             const live = role === "assistant"
-                && (nodeInProgress(node, last) || spinning)
+                && last
                 && !lookSettled(node)
-                && (armed || marker);
+                && (marker || spinning || armed || nodeInProgress(node, true));
             const fresh = itemText(node, role, out.length, live);
             if (fresh && fresh !== LIVE_LABEL) {
                 const prev = labels.get(id);
-                if (!prev || !isWeakLabel(fresh) || isWeakLabel(prev)) {
+                const staleName = !!prev && (isFileName(prev) || isFileStem(prev));
+                if (!prev || staleName || !isWeakLabel(fresh) || isWeakLabel(prev)) {
                     if (fresh !== prev) labels.set(id, fresh);
                 }
             }

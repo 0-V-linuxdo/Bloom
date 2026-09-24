@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.82](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.82)** (`userscript/Bloom.update.user.js`, `@version [20260924] v1.4.82`).
+Current release: **[v1.4.83](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.83)** (`userscript/Bloom.update.user.js`, `@version [20260924] v1.4.83`).
 
 Plugins:
 
@@ -168,6 +168,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.83: **BetterNavigator uses the text under a file chip, and keeps the live tick dashed.** The filename is not the label. No caption falls back to File. `continue` stays. The last assistant tick stays dashed until copy/good/bad or a generated image — a plan sentence is not finished. Pro thinking, a spinner, or the generate arm keeps the dash after Stop drops.
 
 v1.4.82: **PromptQueue actually queues a follow-up while ChatGPT is generating.** Typing the next prompt swaps the trailing Stop for Send, and `isStreaming()` then said the turn was idle, so Enter still interrupted. Queue while this page's generate is still in flight (or the assistant turn is still busy), including `beforeinput` and Send `pointerdown`. Stop still does not send the queue. Alt+Enter still interrupts.
 
