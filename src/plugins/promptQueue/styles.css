@@ -40,26 +40,27 @@ html.dark .bloom-pq-row {
     background: #3a3a3a;
 }
 
-.bloom-pq-text,
-.bloom-pq-edit {
+.bloom-pq-text {
     min-width: 0;
     flex: 1 1 auto;
+    overflow: hidden;
     color: inherit;
     font: inherit;
-}
-
-.bloom-pq-text {
-    overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.bloom-pq-edit {
-    height: 28px;
-    padding: 0;
-    border: 0;
-    background: transparent;
+.bloom-pq-editing {
+    text-overflow: clip;
+    caret-color: currentColor;
+    cursor: text;
     outline: none;
+}
+
+#bloom-pq-chip .bloom-pq-editing:focus,
+#bloom-pq-chip .bloom-pq-editing:focus-visible {
+    outline: none;
+    box-shadow: none;
 }
 
 .bloom-pq-actions {

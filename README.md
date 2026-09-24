@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.87](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.87)** (`userscript/Bloom.update.user.js`, `@version [20260924] v1.4.87`).
+Current release: **[v1.4.88](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.88)** (`userscript/Bloom.update.user.js`, `@version [20260924] v1.4.88`).
 
 Plugins:
 
@@ -168,6 +168,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.88: **PromptQueue keeps queuing after you delete the chip.** The follow-up window stays open until the reply is actually finished (copy / good / bad, or a generated image), you press Stop, or you leave the chat. A Send button that replaced Stop is not “done”. Editing the queued line is a caret in the preview row, not a blue system input.
 
 v1.4.87: **PromptQueue tray stays on the composer.** 1.4.85 anchored the card to the first superellipse, which is not the input, so the card drew off-screen and Enter looked like it did nothing. The card is anchored to the visible composer again. Same Grok tray: header, preview row, grip / dismiss / edit / send.
 

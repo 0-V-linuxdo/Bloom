@@ -44,6 +44,17 @@ const DRAIN_PAUSE_MS = 50;
 const BYPASS_MS = 2000;
 const ASSISTANT_TURN_SEL = '#thread section[data-testid^="conversation-turn-"][data-turn="assistant"], #thread article[data-testid^="conversation-turn-"][data-turn="assistant"]';
 const PRO_LIVE_RE = /^(?:pro thinking|thinking(?:…|\.\.\.)?|正在思考|思考中)$/i;
+const DONE_ACTION_SEL = [
+    'button[data-testid="copy-turn-action-button"]',
+    'button[data-testid="good-response-turn-action-button"]',
+    'button[data-testid="bad-response-turn-action-button"]',
+    'button[aria-label="Copy"]',
+    'button[aria-label="Good response"]',
+    'button[aria-label="Bad response"]',
+    'button[aria-label="复制"]',
+    'button[aria-label="好评"]',
+    'button[aria-label="差评"]',
+].join(", ");
 
 const settings = definePluginSettings({
     replacePending: {
@@ -71,6 +82,8 @@ let drainTimer: ReturnType<typeof setTimeout> | undefined;
 let bypassTimer: ReturnType<typeof setTimeout> | undefined;
 let chip: HTMLElement | null = null;
 let editingKey: string | null = null;
+/** Still the open reply after Stop remounts as Send. Not cleared by deleting the chip. */
+let busyLatch = false;
 
 function contextKey(): string {
     return contextKeyFromUrl(conversationToken());
@@ -136,19 +149,45 @@ function generateHeld(): boolean {
 }
 
 /**
+ * Copy / good / bad (or a finished image) means this reply is done.
+ * A visible Send with no action row is the false idle: Stop remounted
+ * because a follow-up was typed, and host onFall can fire anyway.
+ */
+function replySettled(): boolean {
+    if (isStreaming() || generateHeld()) return false;
+    const last = lastAssistantTurn();
+    if (!last) return true;
+    if (turnBusy(last) || proThinkingLive(last)) return false;
+    try {
+        if (last.querySelector(DONE_ACTION_SEL)) return true;
+        if (last.querySelector('img[alt="Generated image"]')) return true;
+    } catch { /* ignore */ }
+    return false;
+}
+
+/**
  * Enter/Send would interrupt the open reply.
  * Do not use raw isStreaming() alone: a visible non-Stop Send short-circuits it
- * exactly when the user types the follow-up.
+ * exactly when the user types the follow-up. busyLatch stays up across that
+ * remount and across deleting the chip, until the turn is actually settled,
+ * the user hits Stop, or they leave the chat.
  */
 function interruptWindow(): boolean {
-    if (streamingSuppressed()) return false;
-    if (stoppedByUser()) return false;
-    if (isStreaming()) return true;
-    if (generateHeld()) return true;
+    if (streamingSuppressed() || stoppedByUser()) {
+        busyLatch = false;
+        return false;
+    }
+    if (isStreaming() || generateHeld()) {
+        busyLatch = true;
+        return true;
+    }
     const last = lastAssistantTurn();
-    if (!last) return false;
-    if (turnBusy(last)) return true;
-    if (proThinkingLive(last)) return true;
+    if (last && (turnBusy(last) || proThinkingLive(last))) {
+        busyLatch = true;
+        return true;
+    }
+    if (busyLatch && !replySettled()) return true;
+    busyLatch = false;
     return false;
 }
 
@@ -204,6 +243,7 @@ function enqueue(text: string) {
     const existing = pending.get(key);
     if (existing && settings.store.replacePending === false) return;
     pending.set(key, { text, at: Date.now() });
+    busyLatch = true;
     leak = { key, text, turns: userTurnCount(), ticks: 3 };
     const editor = getActiveEditor();
     if (editor) setEditorText(editor, "");
@@ -378,9 +418,25 @@ function iconButton(label: string, graphic: SVGSVGElement, onClick: () => void):
     return btn;
 }
 
+function fromChip(t: EventTarget | null): boolean {
+    const el = t instanceof Element ? t : t instanceof Node ? t.parentElement : null;
+    return !!el?.closest?.(`#${CHIP_ID}`);
+}
+
 function liveEditValue(): string | null {
-    const input = chip?.querySelector("input.bloom-pq-edit");
-    return input instanceof HTMLInputElement ? input.value : null;
+    const node = chip?.querySelector(".bloom-pq-editing");
+    return node instanceof HTMLElement ? node.innerText : null;
+}
+
+function focusEditable(el: HTMLElement) {
+    el.focus();
+    const sel = window.getSelection();
+    if (!sel) return;
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
 }
 
 function endEdit(key: string, value: string | null) {
@@ -425,34 +481,33 @@ function paintChip() {
     const row = document.createElement("div");
     row.className = "bloom-pq-row";
     const editing = editingKey === key;
-    let focusEdit: HTMLInputElement | null = null;
+    let focusEdit: HTMLElement | null = null;
+    const text = document.createElement("span");
+    text.className = editing ? "bloom-pq-text bloom-pq-editing" : "bloom-pq-text";
     if (editing) {
-        const input = document.createElement("input");
-        input.type = "text";
-        input.className = "bloom-pq-edit";
-        input.value = slot.text;
-        input.setAttribute("aria-label", "Edit queued prompt");
-        input.addEventListener("keydown", ev => {
+        text.textContent = slot.text;
+        text.contentEditable = "true";
+        text.spellcheck = false;
+        text.setAttribute("role", "textbox");
+        text.setAttribute("aria-label", "Edit queued prompt");
+        text.addEventListener("keydown", ev => {
             ev.stopPropagation();
             if (ev.key === "Enter") {
                 ev.preventDefault();
-                endEdit(key, input.value);
+                if (!ev.shiftKey) endEdit(key, text.innerText);
             } else if (ev.key === "Escape") {
                 ev.preventDefault();
                 endEdit(key, null);
             }
         });
-        input.addEventListener("blur", () => endEdit(key, input.value));
-        row.append(input);
-        focusEdit = input;
+        text.addEventListener("blur", () => endEdit(key, text.innerText));
+        focusEdit = text;
     } else {
-        const text = document.createElement("span");
-        text.className = "bloom-pq-text";
         const clip = slot.text.length > CLIP ? `${slot.text.slice(0, CLIP)}…` : slot.text;
         text.textContent = clip;
         text.title = slot.text;
-        row.append(text);
     }
+    row.append(text);
     const actions = document.createElement("div");
     actions.className = "bloom-pq-actions";
     const grip = document.createElement("span");
@@ -493,7 +548,7 @@ function paintChip() {
     if (focusEdit) {
         const input = focusEdit;
         queueMicrotask(() => {
-            if (editingKey === key && input.isConnected) input.focus();
+            if (editingKey === key && input.isConnected) focusEditable(input);
         });
     }
 }
@@ -526,6 +581,7 @@ function onKeyDown(e: KeyboardEvent) {
     if (!started) return;
     if (e.isComposing || e.keyCode === 229) return;
     if (e.key !== "Enter") return;
+    if (fromChip(e.target)) return;
     if (e.shiftKey || e.ctrlKey || e.metaKey) return;
     if (draining) return;
     const editor = chatEditor(e.target) ?? chatEditor(document.activeElement);
@@ -634,6 +690,7 @@ export default definePlugin({
         bypassIntercept = false;
         passNative = false;
         leak = null;
+        busyLatch = !streamingSuppressed() && !stoppedByUser() && (isStreaming() || generateHeld());
         registerStyle(STYLE_NAME, css);
         keys?.abort();
         keys = new AbortController();
@@ -649,15 +706,26 @@ export default definePlugin({
             onFall(edge) {
                 if (!started) return;
                 if (edge.userStopped || edge.error) {
+                    busyLatch = false;
                     drainKey = "";
                     paintChip();
                     return;
                 }
+                if (!replySettled()) {
+                    logger.debug("unsettled fall; keep queue window");
+                    return;
+                }
+                busyLatch = false;
                 drainKey = edge.contextKey;
                 tryDrain(edge.contextKey);
             },
+            onRise() {
+                if (streamingSuppressed() || stoppedByUser()) return;
+                busyLatch = true;
+            },
             onContext(next, prev) {
                 if (prev && next && !isDraftMigrate(prev, next)) {
+                    busyLatch = false;
                     drainKey = "";
                     draining = false;
                     if (drainTimer !== undefined) {
@@ -673,6 +741,13 @@ export default definePlugin({
                 migrateIfNeeded(state.contextKey);
                 lastKey = state.contextKey;
                 watchLeak();
+                if (busyLatch && replySettled()) {
+                    busyLatch = false;
+                    if (!drainKey && pending.get(state.contextKey)) {
+                        drainKey = state.contextKey;
+                        tryDrain(state.contextKey);
+                    }
+                }
                 if (drainKey && drainKey === state.contextKey) tryDrain(drainKey);
                 if (pending.get(state.contextKey) && !chip?.isConnected) paintChip();
                 else if (chip) placeChip(chip);
@@ -697,6 +772,7 @@ export default definePlugin({
         draining = false;
         bypassIntercept = false;
         passNative = false;
+        busyLatch = false;
         dropChip();
     },
 });
