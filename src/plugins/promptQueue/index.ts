@@ -207,7 +207,11 @@ function enqueue(text: string) {
     leak = { key, text, turns: userTurnCount(), ticks: 3 };
     const editor = getActiveEditor();
     if (editor) setEditorText(editor, "");
-    paintChip();
+    try {
+        paintChip();
+    } catch (err) {
+        logger.error("chip", err);
+    }
     logger.debug("queued", key, text.length);
 }
 
@@ -295,26 +299,25 @@ function finishDrain(key: string, text: string) {
     }
 }
 
-function composerFrame(): DOMRect | null {
-    const root = getComposerRoot();
-    if (!root || root === document.body) return null;
-    const pill = root.querySelector<HTMLElement>('[class*="corner-superellipse"]');
-    const box = (pill ?? root).getBoundingClientRect();
-    if (box.width < 160 || box.height < 16) return null;
-    return box;
-}
-
 function placeChip(el: HTMLElement) {
-    const box = composerFrame();
-    if (!box) {
+    // Anchor to the visible composer form. The first corner-superellipse
+    // inside it is not the pill — 1.4.85 used that rect and drew the tray
+    // off-screen, so Enter cleared the draft and looked like a no-op.
+    el.style.position = "fixed";
+    el.style.zIndex = "9999";
+    el.style.transform = "translateX(-50%)";
+    const root = getComposerRoot();
+    const box = root && root !== document.body ? root.getBoundingClientRect() : null;
+    const onScreen = !!box && box.width >= 160 && box.bottom > 0 && box.top < window.innerHeight;
+    if (!onScreen || !box) {
         el.style.left = "50%";
-        el.style.width = "min(48rem, calc(100vw - 1rem))";
+        el.style.width = "min(40rem, calc(100vw - 1rem))";
         el.style.bottom = "6.5rem";
         return;
     }
     const width = Math.min(box.width, window.innerWidth - 16);
     el.style.left = `${Math.round(box.left + box.width / 2)}px`;
-    el.style.width = `${Math.round(width)}px`;
+    el.style.width = `${Math.round(Math.max(240, width))}px`;
     el.style.bottom = `${Math.round(Math.max(12, window.innerHeight - box.top + 8))}px`;
 }
 
@@ -487,7 +490,12 @@ function paintChip() {
     row.append(actions);
     el.append(head, row);
     placeChip(el);
-    if (focusEdit) focusEdit.focus();
+    if (focusEdit) {
+        const input = focusEdit;
+        queueMicrotask(() => {
+            if (editingKey === key && input.isConnected) input.focus();
+        });
+    }
 }
 
 function watchLeak() {
@@ -666,7 +674,8 @@ export default definePlugin({
                 lastKey = state.contextKey;
                 watchLeak();
                 if (drainKey && drainKey === state.contextKey) tryDrain(drainKey);
-                if (chip) placeChip(chip);
+                if (pending.get(state.contextKey) && !chip?.isConnected) paintChip();
+                else if (chip) placeChip(chip);
             },
         });
         paintChip();
