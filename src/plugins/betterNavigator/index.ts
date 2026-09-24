@@ -27,7 +27,12 @@
  * Leftover <details> / descendant aria-busy do not keep it. Never raw
  * isStreaming(), never the previous finished reply, no streamEnd, no
  * Grok stores.
- * Collect mounted conversation-turn sections (data-turn user|assistant).
+ * Collect the active branch, not only the turns ChatGPT has mounted.
+ * GET `/backend-api/conversation/{id}` mapping (via host harvest, no
+ * second fetch, no `/conversations` poll, no Grok store) supplies
+ * user|assistant ids. Mounted nodes fill the label and the live dash.
+ * A virtualized turn stays in the outline with no element. Jump nudges
+ * the thread until that id mounts; opening the chat does not scroll it.
  * Image-gen assistant turns have no data-message-id / author-role; one
  * tick per data-turn-id (filmstrip thumbs are not extra ticks).
  * Hover marks follow Void++ ❓/🤖 — never You/GPT text. Empty image-gen
@@ -47,7 +52,7 @@
 import { definePluginSettings } from "../../api/Settings";
 import { getStopButton } from "../../host/composer";
 import { currentConversationId } from "../../host/conversation";
-import { subscribeHarvest, type HarvestEvent } from "../../host/harvest";
+import { conversationChain, subscribeHarvest, type ChainTurn, type HarvestEvent } from "../../host/harvest";
 import { getProStopButton, isDraftMigrate, streamingSuppressed, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
@@ -61,6 +66,8 @@ const HOST_ID = "bloom-bn-host";
 const CLIP = 60;
 const DENSE_AT = 16;
 const LOCK_MS = 1000;
+const HYDRATE_MS = 2400;
+const HYDRATE_STEP = 80;
 const FAR_SCREENS = 2.5;
 const THRESHOLD = 0.4;
 const LIVE_LABEL = "正在输出…";
@@ -151,7 +158,7 @@ const TYPING = [
 ].join(", ");
 
 type Role = "user" | "assistant";
-type NavItem = { id: string; el: HTMLElement; role: Role; text: string; live?: boolean };
+type NavItem = { id: string; el: HTMLElement | null; role: Role; text: string; live?: boolean };
 
 const settings = definePluginSettings({
     showAssistant: {
@@ -201,6 +208,7 @@ let io: IntersectionObserver | null = null;
 let scroller: HTMLElement | Window | null = null;
 let unbindScroll: (() => void) | null = null;
 let overMenu = false;
+let hydrateGen = 0;
 
 function threadRoot(): HTMLElement | null {
     return document.getElementById("thread")
@@ -787,9 +795,21 @@ function collectNodes(root: HTMLElement): HTMLElement[] {
     return out;
 }
 
-function collect(): NavItem[] {
-    const root = threadRoot();
-    if (!root || root === document.body) return [];
+function nodeIds(el: HTMLElement): string[] {
+    const ids = [
+        el.getAttribute("data-message-id"),
+        el.getAttribute("data-turn-id"),
+        el.querySelector("[data-message-id]")?.getAttribute("data-message-id"),
+        el.querySelector("[data-turn-id]")?.getAttribute("data-turn-id"),
+    ];
+    const out: string[] = [];
+    for (const id of ids) {
+        if (id && !out.includes(id)) out.push(id);
+    }
+    return out;
+}
+
+function collectMounted(root: HTMLElement): NavItem[] {
     const showAsst = settings.store.showAssistant !== false;
     const armed = showAsst && generationArmed();
     const nodes = collectNodes(root);
@@ -810,8 +830,6 @@ function collect(): NavItem[] {
             const last = node === lastAsst;
             const marker = last && proThinkingLive(node);
             const spinning = last && turnSpinner(node);
-            // Arm covers the tool gap after the first sentence, once Stop has dropped.
-            // Copy/good/bad (lookSettled) still beats a leftover aria-busy.
             const live = role === "assistant"
                 && last
                 && !lookSettled(node)
@@ -828,6 +846,90 @@ function collect(): NavItem[] {
             out.push({ id, el: node, role, text, live });
         }
     } catch { /* ignore */ }
+    return out;
+}
+
+function indexMounted(items: NavItem[]): Map<string, NavItem> {
+    const map = new Map<string, NavItem>();
+    for (const item of items) {
+        map.set(item.id, item);
+        if (!item.el) continue;
+        for (const id of nodeIds(item.el)) map.set(id, item);
+    }
+    return map;
+}
+
+function chainItem(turn: ChainTurn, dom: NavItem | undefined): NavItem {
+    if (dom) {
+        if (dom.text && dom.text !== LIVE_LABEL) labels.set(turn.id, dom.text);
+        return { ...dom, id: turn.id };
+    }
+    const cached = labels.get(turn.id) || (turn.alias ? labels.get(turn.alias) : "") || "";
+    return {
+        id: turn.id,
+        el: null,
+        role: turn.role,
+        text: cached || turn.text || "Message",
+    };
+}
+
+/** Chain order, plus mounted turns the mapping has not seen yet (the live tail). */
+function mergeOutline(chain: readonly ChainTurn[], mounted: NavItem[]): NavItem[] {
+    const showAsst = settings.store.showAssistant !== false;
+    const byId = indexMounted(mounted);
+    const used = new Set<HTMLElement>();
+    const out: NavItem[] = [];
+    for (const turn of chain) {
+        if (turn.role === "assistant" && !showAsst) continue;
+        const dom = byId.get(turn.id) || (turn.alias ? byId.get(turn.alias) : undefined);
+        const item = chainItem(turn, dom);
+        if (item.el) used.add(item.el);
+        out.push(item);
+    }
+    for (let i = 0; i < mounted.length; i++) {
+        const item = mounted[i];
+        if (!item.el || used.has(item.el)) continue;
+        let at = out.length;
+        for (let j = i - 1; j >= 0; j--) {
+            const prev = mounted[j].el;
+            if (!prev) continue;
+            const idx = out.findIndex(row => row.el === prev);
+            if (idx >= 0) {
+                at = idx + 1;
+                break;
+            }
+        }
+        if (at === out.length) {
+            for (let j = i + 1; j < mounted.length; j++) {
+                const next = mounted[j].el;
+                if (!next) continue;
+                const idx = out.findIndex(row => row.el === next);
+                if (idx >= 0) {
+                    at = idx;
+                    break;
+                }
+            }
+        }
+        out.splice(at, 0, item);
+        used.add(item.el);
+    }
+    let lastAsst = -1;
+    for (let i = 0; i < out.length; i++) {
+        if (out[i].role === "assistant") lastAsst = i;
+    }
+    for (let i = 0; i < out.length; i++) {
+        if (out[i].live && i !== lastAsst) out[i].live = false;
+    }
+    return out;
+}
+
+function collect(): NavItem[] {
+    const root = threadRoot();
+    if (!root || root === document.body) return [];
+    const mounted = collectMounted(root);
+    const cid = currentConversationId();
+    const chain = cid ? conversationChain(cid) : [];
+    const out = chain.length ? mergeOutline(chain, mounted) : mounted;
     releaseArmIfSettled(out);
     return out;
 }
@@ -905,16 +1007,110 @@ function alignMenu(index: number) {
 
 function jump(index: number) {
     const item = lastNav[index];
-    if (!item?.el.isConnected) return;
+    if (!item) return;
+    const el = item.el?.isConnected ? item.el : findTurn(item.id);
+    if (!el) {
+        void hydrateJump(index);
+        return;
+    }
+    item.el = el;
     lockIdx = index;
     lockUntil = Date.now() + LOCK_MS;
     setActive(index);
     alignMenu(index);
-    const parent = scroller ?? findScroller(item.el);
-    const dist = Math.abs(item.el.getBoundingClientRect().top - headerOffset());
+    const parent = scroller ?? findScroller(el);
+    const dist = Math.abs(el.getBoundingClientRect().top - headerOffset());
     const far = dist > FAR_SCREENS * viewHeight(parent);
-    item.el.scrollIntoView({ behavior: far ? "auto" : "smooth", block: "start" });
-    if (settings.store.jumpEffect !== "none") flash(item.el);
+    el.scrollIntoView({ behavior: far ? "auto" : "smooth", block: "start" });
+    if (settings.store.jumpEffect !== "none") flash(el);
+}
+
+function findTurn(id: string): HTMLElement | null {
+    const root = threadRoot();
+    if (!root || root === document.body || !id) return null;
+    const ids = [id];
+    const cid = currentConversationId();
+    const chain = cid ? conversationChain(cid) : [];
+    const hit = chain.find(t => t.id === id || t.alias === id);
+    if (hit?.alias && !ids.includes(hit.alias)) ids.push(hit.alias);
+    if (hit && !ids.includes(hit.id)) ids.push(hit.id);
+    for (const raw of ids) {
+        let node: HTMLElement | null = null;
+        try {
+            const esc = CSS.escape(raw);
+            node = root.querySelector<HTMLElement>(`[data-turn-id="${esc}"], [data-message-id="${esc}"]`);
+        } catch { /* ignore */ }
+        if (!node || skipNode(node)) continue;
+        const turn = node.closest(TURN_SEL);
+        return turn instanceof HTMLElement ? turn : node;
+    }
+    return null;
+}
+
+function threadScroller(): HTMLElement | Window {
+    if (scroller) return scroller;
+    const root = threadRoot();
+    return root ? findScroller(root) : window;
+}
+
+function nudgeThread(dir: -1 | 1) {
+    const parent = threadScroller();
+    const view = viewHeight(parent);
+    if (!(parent instanceof HTMLElement)) window.scrollBy(0, dir * view * 0.85);
+    else parent.scrollBy({ top: dir * view * 0.85, behavior: "auto" });
+}
+
+function scrollEdge(dir: -1 | 1, top: number): boolean {
+    const parent = threadScroller();
+    if (!(parent instanceof HTMLElement)) {
+        const doc = document.scrollingElement || document.documentElement;
+        if (dir < 0) return top <= 1;
+        return top + window.innerHeight >= doc.scrollHeight - 2;
+    }
+    if (dir < 0) return top <= 1;
+    return top + parent.clientHeight >= parent.scrollHeight - 2;
+}
+
+/** User jump only. Do not call from paint — that would walk the whole thread. */
+async function hydrateJump(index: number) {
+    const gen = ++hydrateGen;
+    const item = lastNav[index];
+    if (!item) return;
+    lockIdx = index;
+    lockUntil = Date.now() + HYDRATE_MS + LOCK_MS;
+    setActive(index);
+    alignMenu(index);
+    let lastM = -1;
+    for (let i = 0; i < lastNav.length; i++) {
+        if (lastNav[i].el?.isConnected) lastM = i;
+    }
+    const dir: -1 | 1 = index > lastM && lastM >= 0 ? 1 : -1;
+    const deadline = Date.now() + HYDRATE_MS;
+    let stuck = 0;
+    let lastTop = -1;
+    while (Date.now() < deadline) {
+        if (gen !== hydrateGen || !started) return;
+        const el = findTurn(item.id);
+        if (el) {
+            item.el = el;
+            lockUntil = Date.now() + LOCK_MS;
+            const parent = scroller ?? findScroller(el);
+            const dist = Math.abs(el.getBoundingClientRect().top - headerOffset());
+            const far = dist > FAR_SCREENS * viewHeight(parent);
+            el.scrollIntoView({ behavior: far ? "auto" : "smooth", block: "start" });
+            if (settings.store.jumpEffect !== "none") flash(el);
+            schedulePaint();
+            return;
+        }
+        const parent = threadScroller();
+        const top = parent instanceof HTMLElement ? parent.scrollTop : window.scrollY;
+        if (top === lastTop) stuck++;
+        else stuck = 0;
+        lastTop = top;
+        if (stuck >= 3 && scrollEdge(dir, top)) break;
+        nudgeThread(dir);
+        await new Promise(resolve => setTimeout(resolve, HYDRATE_STEP));
+    }
 }
 
 function requestActive() {
@@ -927,7 +1123,7 @@ function requestActive() {
     let idx = 0;
     for (let i = 0; i < lastNav.length; i++) {
         const el = lastNav[i].el;
-        if (!el.isConnected) continue;
+        if (!el?.isConnected) continue;
         if (el.getBoundingClientRect().top <= cut) idx = i;
     }
     setActive(idx);
@@ -956,7 +1152,7 @@ function bindIo(items: NavItem[]) {
         threshold: [0, 0.15, 0.4, 0.75, 1],
     });
     for (const item of items) {
-        if (item.el.isConnected) io.observe(item.el);
+        if (item.el?.isConnected) io.observe(item.el);
     }
 }
 
@@ -1052,6 +1248,7 @@ function renderNav(items: NavItem[]) {
     ticks.replaceChildren();
     list.replaceChildren();
     ticks.classList.toggle("bloom-bn-dense", items.length > DENSE_AT);
+    ticks.classList.toggle("bloom-bn-fit", items.length > DENSE_AT);
     items.forEach((item, i) => {
         const tick = document.createElement("button");
         tick.type = "button";
@@ -1184,6 +1381,10 @@ function observeThread() {
 
 function onHarvest(ev: HarvestEvent) {
     if (!started) return;
+    if (ev.type === "conversation-chain") {
+        if (!ev.conversationId || ev.conversationId === currentConversationId()) schedulePaint();
+        return;
+    }
     if (ev.type === "post-start") {
         noteArm();
         ignoreStop = false;
@@ -1225,6 +1426,7 @@ function onKeyDown(ev: KeyboardEvent) {
 }
 
 function unmount() {
+    hydrateGen++;
     dropFlash();
     io?.disconnect();
     io = null;
@@ -1246,7 +1448,7 @@ function unmount() {
 
 export default definePlugin({
     name: "BetterNavigator",
-    description: "Notion-style outline for the open chat. Hover the ticks, click or use ↑/↓ to jump. A dashed tick marks the reply still streaming.",
+    description: "Notion-style outline of the open chat, including turns ChatGPT has not mounted. Hover the ticks, click or use ↑/↓ to jump. A dashed tick marks the reply still streaming.",
     authors: [Devs.p],
     tags: ["chat", "ui"],
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5v14"/><path d="M14 7h5M12 12h7M14 17h5"/></svg>`,
