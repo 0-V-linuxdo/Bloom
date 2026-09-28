@@ -40,7 +40,9 @@ const CHROME_SEL = [
     "#bloom-plugin-layer",
     "#bloom-plugin-dialog",
     "#thread-bottom-container",
+    "#thread-bottom",
     'form[data-type="unified-composer"]',
+    '[data-type="unified-composer"]',
     'textarea[name="prompt"]',
     "#mobile-composer-prompt",
 ].join(", ");

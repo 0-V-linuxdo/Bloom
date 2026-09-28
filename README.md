@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.116](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.116)** (`userscript/Bloom.update4.user.js`, `@version [20260928] v1.4.116`).
+Current release: **[v1.4.117](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.117)** (`userscript/Bloom.update4.user.js`, `@version [20260928] v1.4.117`).
 
 Plugins:
 
@@ -170,6 +170,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.117: **Finish the 2026-09 shell walk.** chatgpt-exporter (2026-09-20–26) already named the rail / packed-turn attrs Bloom 1.4.110–116 kept as A/B unions. Remaining misses: RecentTopics still keyed visits on `^/c/`, so GPT Recents `/g/{gizmo}/c/{id}` never harvested titles or Ctrl+` clicks; StreamerMode skipped Helium `.min-w-0.flex-col .truncate`; leftover collapsed “Thinking” kept PromptQueue / BetterNavigator live after the reply settled. Host now treats a *live* Configuring / Searching / Analyzing tool row like Thinking (not finished “Analyzed”). Composer slab helpers include `#thread-bottom` without a `form`. Still write `Bloom.update4.user.js` and the older copies.
 
 v1.4.116: **Helium: CSI covers the teal “18”; PromptQueue steals Enter during Thinking; ChatStateFavicons rotates on GPT `/g/…/c/{id}`.** The 2026-09 Pro composer remounts Stop as a Voice/Send circle while the thread still shows a Thinking dropdown or a tool accordion — `isStreaming()` treated that as idle, so PQ let native Enter through and CSF stayed on the official knot. Host now counts a *live* Thinking / Working status (expanded / busy / open details / spinner) and a last-turn tool spinner *before* the visible-Send short-circuit. A leftover collapsed Thinking next to finished markdown is idle. `/g/{gizmo}/c/{id}` is a real conversation, not a draft landing; `conversationToken` is the path id only so `data-conversation-id` cannot flicker `id` → `id|id` and abort rotate. CSI picks an `<img>` or svg-wrapped initials that live as the first child of Helium `.min-w-0.flex-col` (do not skip those faces just because they sit under `.min-w-0`). `pinRail` marks `data-bloom-profile-chip` so NSI/CSI CSS still hits when `accounts-profile-button` is gone. Same-slab `textarea[name=prompt]` remains a draft *read* fallback only — not the 1.4.113 textarea-wins editor. Still write `Bloom.update4.user.js` and the older copies.
 

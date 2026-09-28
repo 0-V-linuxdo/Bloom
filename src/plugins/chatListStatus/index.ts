@@ -9,8 +9,8 @@
  * Sources: host harvest of generate POST/SSE (not /conversation/init),
  * watchStreamingEdge onTick gated on harvest-arm / Stop (ignore hydrate
  * isStreaming and last-resort spinners), BroadcastChannel across tabs.
- * Paints only the Recents `a[href^="/c/"]` whose id is
- * `currentConversationId()`. No /backend-api/conversations poll, no
+ * Paints only the Recents `a[href*="/c/"]` whose id is
+ * `currentConversationId()` (includes GPT `/g/…/c/{id}`). No /backend-api/conversations poll, no
  * html/body subtree observer, no Grok Zustand stores.
  */
 

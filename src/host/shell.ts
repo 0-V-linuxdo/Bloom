@@ -42,6 +42,7 @@ export const SIDEBAR_SEL = [
     "#stage-slideover-sidebar",
     "#stage-popover-sidebar",
     "[data-app-action-sidebar-scroll]",
+    "[data-sidebar-destination]",
     '[data-testid="desktop-app-shell"]',
 ].join(",");
 
@@ -53,6 +54,13 @@ export const RAIL_SEL = [
 export const RECENTS_SEL = 'a[href^="/c/"], a[href*="/c/"]';
 
 /** JS-only. CSS plugins must not copy the :has() clauses. */
+/** Composer slab. CSS plugins may copy this list — no :has(). */
+export const COMPOSER_SLAB_SEL = [
+    "#thread-bottom-container",
+    "#thread-bottom",
+    '[data-type="unified-composer"]',
+].join(", ");
+
 export const COMPOSER_FORM_SEL = [
     'form[data-type="unified-composer"]',
     "form.w-full[data-type]",

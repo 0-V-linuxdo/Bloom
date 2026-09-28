@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import {
     ASSISTANT_TURN_SEL,
     COMPOSER_FORM_SEL,
+    COMPOSER_SLAB_SEL,
     EDITOR_SEL,
     MESSAGE_NODE_SEL,
     PROFILE_SEL,
@@ -26,12 +27,16 @@ import {
 
 assert.match(SIDEBAR_SEL, /stage-slideover-sidebar/);
 assert.match(SIDEBAR_SEL, /data-app-action-sidebar-scroll/);
+assert.match(SIDEBAR_SEL, /data-sidebar-destination/);
 assert.match(SIDEBAR_SEL, /desktop-app-shell/);
 assert.match(RAIL_SEL, /stage-sidebar-tiny-bar/);
 assert.match(RAIL_SEL, /data-app-navigation-rail/);
 assert.match(EDITOR_SEL, /#prompt-textarea/);
 assert.match(EDITOR_SEL, /mobile-composer-prompt/);
 assert.match(EDITOR_SEL, /textarea\[name="prompt"\]/);
+assert.match(COMPOSER_SLAB_SEL, /#thread-bottom-container/);
+assert.match(COMPOSER_SLAB_SEL, /#thread-bottom/);
+assert.match(COMPOSER_SLAB_SEL, /unified-composer/);
 assert.match(COMPOSER_FORM_SEL, /unified-composer/);
 assert.match(COMPOSER_FORM_SEL, /textarea\[name="prompt"\]/);
 assert.match(THREAD_SEL, /#thread/);

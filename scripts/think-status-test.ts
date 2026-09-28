@@ -22,8 +22,15 @@ assert.equal(isThinkStatusText("思考中"), true);
 assert.equal(isThinkStatusText("Thinking…"), true);
 assert.equal(isThinkStatusText("Working 12s"), true);
 assert.equal(isThinkStatusText("  Thinking  "), true);
+assert.equal(isThinkStatusText("Configuring"), true);
+assert.equal(isThinkStatusText("Configuring…"), true);
+assert.equal(isThinkStatusText("Configuring translation glossary…"), true);
+assert.equal(isThinkStatusText("Searching the web"), true);
+assert.equal(isThinkStatusText("Analyzing"), true);
 
 assert.equal(isThinkStatusText(""), false);
+assert.equal(isThinkStatusText("Analyzed"), false);
+assert.equal(isThinkStatusText("I was configuring the glossary in the other chat"), false);
 assert.equal(isThinkStatusText("Resumed from 237/434 saved units and continuing"), false);
 assert.equal(isThinkStatusText("I was thinking about the translation"), false);
 assert.equal(isThinkStatusText("thought for 4s"), false);

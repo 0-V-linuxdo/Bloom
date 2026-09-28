@@ -68,6 +68,8 @@ const DISCLAIMER_SELECTORS = [
     '#thread-bottom-container .text-token-text-secondary.text-center.text-xs',
     '#thread-bottom-container .text-token-text-tertiary.text-center.text-xs',
     '#thread-bottom [class*="vt-disclaimer"]',
+    '#thread-bottom .text-token-text-secondary.text-center.text-xs',
+    '#thread-bottom .text-token-text-tertiary.text-center.text-xs',
     '[data-testid="desktop-app-shell"] [class*="disclaimer"]',
 ];
 

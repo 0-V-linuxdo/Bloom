@@ -51,6 +51,15 @@ const BUTTON_SELECTORS = [
     'form button[aria-label="语音输入"]',
     'form button[data-testid="composer-dictate-button"]',
     'form button[data-testid="dictation-button"]',
+    '#thread-bottom-container button[aria-label*="Dictate" i]',
+    '#thread-bottom button[aria-label*="Dictate" i]',
+    '#thread-bottom-container button[aria-label*="听写"]',
+    '#thread-bottom button[aria-label*="听写"]',
+    '#thread-bottom-container button[data-testid*="dictat" i]',
+    '#thread-bottom button[data-testid*="dictat" i]',
+    '[data-type="unified-composer"] button[aria-label*="Dictate" i]',
+    '[data-type="unified-composer"] button[aria-label*="听写"]',
+    '[data-type="unified-composer"] button[data-testid*="dictat" i]',
 ];
 
 const SETTINGS_SELECTORS = [

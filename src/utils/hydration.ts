@@ -24,7 +24,7 @@ export function hasRecentsIsland(): boolean {
 export function hasAvatarIsland(): boolean {
     try {
         const nodes = document.querySelectorAll(
-            '[data-testid="profile-button"] img, [data-testid="accounts-profile-button"] img, [data-app-navigation-rail] img, nav img',
+            '[data-testid="profile-button"] img, [data-testid="accounts-profile-button"] img, [data-app-navigation-rail] img, [data-bloom-profile-chip] img, [data-bloom-csi-slot] img, nav img',
         );
         for (const node of nodes) {
             if (!(node instanceof HTMLImageElement)) continue;

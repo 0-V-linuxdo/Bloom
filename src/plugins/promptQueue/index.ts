@@ -32,6 +32,7 @@ import {
 } from "../../host/composer";
 import { contextKeyFromUrl, conversationToken } from "../../host/conversation";
 import { ASSISTANT_TURN_SEL } from "../../host/shell";
+import { isLiveThinkNode, isThinkStatusText } from "../../host/thinkStatus";
 import { generateHeld, hasErrorToast, isDraftMigrate, isStreaming, stoppedByUser, streamingSuppressed, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle } from "../../utils/css";
@@ -45,7 +46,6 @@ const STYLE_NAME = "promptQueue";
 const QUEUE_CAP = 8;
 const DRAIN_PAUSE_MS = 50;
 const BYPASS_MS = 2000;
-const PRO_LIVE_RE = /^(?:pro[\s-]*thinking|thinking|working|正在思考|思考中|正在工作)(?:\s*\d+\s*[sm])?(?:…|\.{3})?$/i;
 const DONE_ACTION_SEL = [
     'button[data-testid="copy-turn-action-button"]',
     'button[data-testid="good-response-turn-action-button"]',
@@ -145,15 +145,20 @@ function turnBusy(el: HTMLElement): boolean {
 
 function proThinkingLive(el: HTMLElement): boolean {
     try {
-        if (PRO_LIVE_RE.test((el.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim())) return true;
-        for (const node of el.querySelectorAll<HTMLElement>('button, [role="button"], [aria-expanded], [class*="thinking"], span, p')) {
-            // Helium Thinking is icon + label + chevron (3). Old cap of 2 missed it.
+        if (isLiveThinkNode(el)) return true;
+        let sawLabel = false;
+        for (const node of el.querySelectorAll<HTMLElement>('button, [role="button"], [aria-expanded], summary, [class*="thinking"]')) {
             if (node.childElementCount > 4) continue;
-            const label = (node.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
-            if (label && label.length <= 32 && PRO_LIVE_RE.test(label)) return true;
-            const text = (node.textContent || "").replace(/\s+/g, " ").trim();
-            if (!text || text.length > 32) continue;
-            if (PRO_LIVE_RE.test(text)) return true;
+            if (isLiveThinkNode(node)) return true;
+            if (isThinkStatusText(node.getAttribute("aria-label") || "") || isThinkStatusText(node.textContent || "")) {
+                sawLabel = true;
+            }
+        }
+        // Empty assistant + leftover Think label: Helium drops Stop first.
+        if (sawLabel) {
+            const md = el.querySelector(".markdown");
+            const prose = md instanceof HTMLElement && !!(md.innerText || md.textContent || "").replace(/\s+/g, " ").trim();
+            if (!prose) return true;
         }
     } catch { /* ignore */ }
     return false;

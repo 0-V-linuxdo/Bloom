@@ -37,7 +37,7 @@ import { getStopButton, getSubmitButton, isStopControl, isVisible } from "./comp
 import { contextKeyFromUrl, conversationIdFromHref, conversationToken, currentConversationId, isDraftLandingPath } from "./conversation";
 import { subscribeHarvest, type HarvestEvent } from "./harvest";
 import { ASSISTANT_TURN_SEL } from "./shell";
-import { isLiveThinkFlags, isThinkStatusText } from "./thinkStatus";
+import { isLiveThinkNode, isThinkStatusText } from "./thinkStatus";
 import { Logger } from "../utils/Logger";
 
 export { isThinkStatusText } from "./thinkStatus";
@@ -95,32 +95,12 @@ function isThinkLabel(text: string): boolean {
     return isThinkStatusText(text);
 }
 
-function nodeHasSpinner(el: HTMLElement): boolean {
-    try {
-        return !!el.querySelector("svg.animate-spin, .animate-spin");
-    } catch {
-        return false;
-    }
-}
-
-function thinkFlagsOf(node: HTMLElement, text: string): boolean {
-    const details = node.closest("details");
-    return isLiveThinkFlags({
-        text,
-        ariaLabel: node.getAttribute("aria-label") || "",
-        ariaExpanded: node.getAttribute("aria-expanded"),
-        ariaBusy: node.getAttribute("aria-busy"),
-        detailsOpen: details instanceof HTMLDetailsElement && details.open,
-        hasSpinner: nodeHasSpinner(node),
-    });
-}
-
 function thinkNodes(root: ParentNode): HTMLElement[] {
     const out: HTMLElement[] = [];
     try {
         if (root instanceof Element && root.closest(BLOOM_THINK_CHROME)) return out;
         if (root instanceof HTMLElement) out.push(root);
-        for (const node of root.querySelectorAll<HTMLElement>('button, [role="button"], [aria-expanded], [class*="thinking"], [class*="reasoning"]')) {
+        for (const node of root.querySelectorAll<HTMLElement>('button, [role="button"], [aria-expanded], summary, [class*="thinking"], [class*="reasoning"]')) {
             if (node.closest(BLOOM_THINK_CHROME)) continue;
             out.push(node);
         }
@@ -131,8 +111,7 @@ function thinkNodes(root: ParentNode): HTMLElement[] {
 /** Expanded / busy / open / spinning Thinking — leftover collapsed label is idle. */
 function thinkingLiveIn(root: ParentNode): boolean {
     for (const node of thinkNodes(root)) {
-        const text = node.childElementCount <= 4 ? (node.textContent || "") : "";
-        if (thinkFlagsOf(node, text)) return true;
+        if (isLiveThinkNode(node)) return true;
     }
     return false;
 }

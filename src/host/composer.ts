@@ -13,7 +13,7 @@
  * Plugins must not import InputHistory to fill the editor.
  */
 
-import { COMPOSER_FORM_SEL, EDITOR_SEL as SHARED_EDITOR_SEL } from "./shell";
+import { COMPOSER_FORM_SEL, COMPOSER_SLAB_SEL, EDITOR_SEL as SHARED_EDITOR_SEL } from "./shell";
 
 export const COMPOSER_SEL = COMPOSER_FORM_SEL;
 export const EDITOR_SEL = SHARED_EDITOR_SEL;
@@ -95,7 +95,7 @@ export function getComposerRoot(): HTMLElement {
     if (visible instanceof HTMLElement) return visible;
     const ta = queryAny(document, EDITOR_SEL);
     const wrap = ta?.closest("form")
-        ?? ta?.closest('#thread-bottom-container, #thread-bottom, [data-type="unified-composer"]')
+        ?? ta?.closest(COMPOSER_SLAB_SEL)
         ?? document.getElementById("thread-bottom-container")
         ?? document.getElementById("thread-bottom")
         ?? ta?.parentElement;
@@ -245,7 +245,7 @@ export function editorText(el: HTMLElement): string {
     // Same composer slab only. Helium sometimes keeps the live draft on
     // textarea[name=prompt] beside an empty #prompt-textarea stub, not
     // necessarily as a descendant of that stub.
-    const wrap = el.closest('#thread-bottom-container, #thread-bottom, [data-type="unified-composer"]');
+    const wrap = el.closest(COMPOSER_SLAB_SEL);
     if (wrap instanceof HTMLElement) {
         const field = promptFieldIn(wrap);
         if (field && (wrap.contains(el) || el.contains(wrap)) && field.value.replaceAll("\u200B", "").trim()) {

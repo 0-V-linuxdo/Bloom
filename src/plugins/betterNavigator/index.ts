@@ -54,6 +54,7 @@ import { getStopButton } from "../../host/composer";
 import { currentConversationId } from "../../host/conversation";
 import { TURN_SEL as HOST_TURN_SEL, messageIdsOf, primaryMessageId, threadRoot as hostThreadRoot } from "../../host/shell";
 import { conversationChain, subscribeHarvest, type ChainTurn, type HarvestEvent } from "../../host/harvest";
+import { isLiveThinkNode, isThinkStatusText } from "../../host/thinkStatus";
 import { getProStopButton, isDraftMigrate, streamingSuppressed, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
@@ -90,7 +91,6 @@ const FILE_EXT = /\.(?:epub|pdf|docx?|xlsx?|pptx?|txt|md|csv|json|zip|rar|7z|png
 const FILE_TRUNC = /\.[A-Za-z0-9]{1,8}(?:…|\.\.\.)$/;
 const TYPE_WORD = /^(?:file|image|pdf|epub|document|attachment|video|audio|code|zip|png|jpe?g|gif|webp|txt|markdown|文件|图片|附件|文档)$/i;
 const DECORATIVE_SRC = /favicon|iconify|shields\.io|badgen\.net|google\.com\/s2\/favicons|gstatic\.com\/favicon/i;
-const PRO_LIVE_RE = /^(?:pro[\s-]*thinking|thinking|working|正在思考|思考中|正在工作)(?:\s*\d+\s*[sm])?(?:…|\.{3})?$/i;
 const SKIP_STATUS_RE = /^(?:pro thinking|thinking(?:…|\.\.\.)?|reasoning|thoughts?|正在思考|思考中|已思考.*|thought for\b.*|worked for\b.*|思考了.*|思考用时.*)$/i;
 const TOOL_LINE_RE = /^(?:inspected|analyzed|translated|validated|searched|reviewed|extracted|packaged|已检查|已分析|已翻译|已验证|搜索了|已搜索)\b/i;
 const CHIP_LINE_RE = /^(?:\d+\s+)?(?:sources?|websites?)$|^web search$/i;
@@ -247,9 +247,10 @@ function contentColumnRect(thread: HTMLElement): DOMRect {
     } catch { /* ignore */ }
     if (!wrap) {
         try {
-            const bottom = document.getElementById("thread-bottom-container");
+            const bottom = document.getElementById("thread-bottom-container")
+                ?? document.getElementById("thread-bottom");
             const inner = bottom?.querySelector<HTMLElement>(
-                '[class*="thread-content-max-width"], [class*="max-w-(--thread-content"], form[data-type="unified-composer"]',
+                '[class*="thread-content-max-width"], [class*="max-w-(--thread-content"], form[data-type="unified-composer"], [data-type="unified-composer"]',
             );
             if (inner) {
                 const r = inner.getBoundingClientRect();
@@ -710,11 +711,15 @@ function thinkingActive(el: HTMLElement): boolean {
 /** "Pro thinking" footer. Short label only — a paragraph that mentions the words does not count. */
 function proThinkingLive(el: HTMLElement): boolean {
     try {
-        for (const node of el.querySelectorAll<HTMLElement>("span, div, p, button")) {
-            if (node.childElementCount > 2) continue;
+        if (isLiveThinkNode(el)) return true;
+        for (const node of el.querySelectorAll<HTMLElement>("span, div, p, button, summary, [aria-expanded]")) {
+            if (node.childElementCount > 4) continue;
+            if (isLiveThinkNode(node)) return true;
             const t = normSpace(node.textContent || "");
-            if (t.length > 32) continue;
-            if (PRO_LIVE_RE.test(t)) return true;
+            if (t.length > 32 || !isThinkStatusText(t)) continue;
+            const md = el.querySelector(".markdown");
+            const prose = md instanceof HTMLElement && !!extractText(md);
+            if (!prose) return true;
         }
     } catch { /* ignore */ }
     return false;
@@ -1188,7 +1193,8 @@ function placeHost() {
     }
     const rect = thread.getBoundingClientRect();
     const col = contentColumnRect(thread);
-    const bottomEl = document.getElementById("thread-bottom-container");
+    const bottomEl = document.getElementById("thread-bottom-container")
+        ?? document.getElementById("thread-bottom");
     const header = document.getElementById("page-header");
     const top = Math.max(rect.top + 8, header?.getBoundingClientRect().bottom ?? 0, 8);
     const floor = Math.min(

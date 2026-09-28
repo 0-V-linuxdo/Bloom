@@ -114,6 +114,8 @@ function apply() {
             "#page-header h2",
             '#page-header [data-testid="conversation-title"]',
             '#page-header [data-testid="thread-title"]',
+            '[data-testid="conversation-title"]',
+            '[data-testid="thread-title"]',
             '[data-testid="temporary-chat-label"]',
         ], false));
     }
@@ -129,6 +131,8 @@ function apply() {
         rules.push(rule([
             ...under(PROFILE, ".min-w-0 > .truncate"),
             ...under(PROFILE, ".min-w-0.flex-1 .truncate"),
+            ...under(PROFILE, ".min-w-0.flex-col .truncate"),
+            ...under(PROFILE, ".min-w-0.flex .truncate"),
         ], false));
     }
     if (settings.store.accountEmail !== false) {

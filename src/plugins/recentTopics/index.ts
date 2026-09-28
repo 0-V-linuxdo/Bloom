@@ -11,7 +11,7 @@
 
 import { definePluginSettings } from "../../api/Settings";
 import { onBloomEvent } from "../../api/Events";
-import { conversationToken } from "../../host/conversation";
+import { conversationIdFromHref, conversationToken } from "../../host/conversation";
 import { conversationTitle, subscribeHarvest, type HarvestEvent } from "../../host/harvest";
 import { applySchemeTokens, resolveScheme } from "../../host/theme";
 import { Devs } from "../../utils/constants";
@@ -23,7 +23,6 @@ import css from "./styles.css";
 const logger = new Logger("RecentTopics");
 const HOST_ID = "bloom-rt-host";
 const HOME_KEY = "home";
-const CONV_RE = /^\/c\/([a-z0-9_-]{8,})/i;
 const HREF_CONV_RE = /\/c\/([a-z0-9_-]{8,})/i;
 const DATE_SKIP = /^(today|yesterday|previous|pinned|recents|chats|today|昨天|今天|最近|置顶|前\s*\d+)/i;
 const TRIGGER_CODES = new Set(["Backquote", "IntlBackslash"]);
@@ -137,26 +136,17 @@ function clip(text: string, n = CLIP): string {
 
 function idFromHref(href: string): string {
     if (!href) return "";
+    const fromHost = conversationIdFromHref(href);
+    if (fromHost) return fromHost;
     try {
-        const u = new URL(href, location.origin);
-        const m = u.pathname.match(CONV_RE);
-        return m?.[1] ?? "";
+        return conversationIdFromHref(new URL(href, location.origin).pathname);
     } catch {
-        const m = href.match(HREF_CONV_RE);
-        return m?.[1] ?? "";
+        return href.match(HREF_CONV_RE)?.[1] ?? "";
     }
 }
 
 function currentVisit(): string {
-    const m = (location.pathname || "/").match(CONV_RE);
-    if (m?.[1]) return m[1];
-    const token = conversationToken();
-    const parts = token.split("|").filter(Boolean);
-    for (let i = parts.length - 1; i >= 0; i--) {
-        const part = parts[i];
-        if (/^[a-z0-9_-]{8,}$/i.test(part)) return part;
-    }
-    return HOME_KEY;
+    return conversationIdFromHref(location.pathname) || conversationToken() || HOME_KEY;
 }
 
 function liveTitle(id: string): string {
@@ -323,7 +313,7 @@ function projectNameFromAncestors(el: HTMLElement): string {
         const heading = node.querySelector(":scope > button, :scope > [role='button'], :scope > h2, :scope > h3, :scope > .truncate");
         const text = clip((heading instanceof HTMLElement ? heading.textContent : "") || "", 60);
         if (text && !DATE_SKIP.test(text) && !/^20\d{2}/.test(text) && text !== el.textContent?.trim()) {
-            const nested = node.querySelector('a[href^="/c/"]');
+            const nested = node.querySelector('a[href*="/c/"]');
             if (nested) return text;
         }
         node = node.parentElement;
@@ -493,7 +483,7 @@ function onKeyUp(e: KeyboardEvent) {
 function onClickCapture(e: Event) {
     const el = e.target instanceof Element ? e.target : null;
     if (!el) return;
-    const hit = el.closest('a[href^="/c/"], a[href="/"], [data-testid="create-new-chat-button"]');
+    const hit = el.closest('a[href*="/c/"], a[href="/"], [data-testid="create-new-chat-button"]');
     if (!hit) return;
     requestAnimationFrame(onRoute);
 }

@@ -18,7 +18,7 @@ import { clamp } from "../../utils/misc";
 import definePlugin, { OptionType, StartAt } from "../../utils/types";
 
 const STYLE_NAME = "composerOpacity";
-const FORM = 'form[data-type="unified-composer"],form.w-full[data-type]';
+const FORM = 'form[data-type="unified-composer"],form.w-full[data-type],[data-type="unified-composer"]';
 const PILL = [
     `${FORM} [class*="corner-superellipse"]`,
     `${FORM} [class*="bg-token-bg-primary"]`,
