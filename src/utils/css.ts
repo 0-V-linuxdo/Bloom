@@ -4,42 +4,66 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-const styles = new Map<string, HTMLStyleElement>();
-let headObserver: MutationObserver | undefined;
+import { Logger } from "./Logger";
+import { pageWindow } from "./misc";
+
+const logger = new Logger("Styles");
+
+const sheets = new Map<string, CSSStyleSheet>();
+const owned = new Set<CSSStyleSheet>();
+const elements = new Map<string, HTMLStyleElement>();
+let adoptable = true;
+
+function adopt() {
+    const host = document.adoptedStyleSheets.filter(sheet => !owned.has(sheet));
+    document.adoptedStyleSheets = [...host, ...sheets.values()];
+}
 
 function mount(style: HTMLStyleElement) {
-    if (!document.head || style.parentNode === document.head) return;
+    if (document.readyState === "loading" || style.parentNode === document.head) return;
     document.head.append(style);
 }
 
-function watchHead() {
-    if (headObserver || !document.head) return;
-    headObserver = new MutationObserver(() => {
-        for (const style of styles.values()) if (!style.isConnected) mount(style);
-    });
-    headObserver.observe(document.head, { childList: true });
-}
-
-export function registerStyle(id: string, css: string) {
-    let style = styles.get(id);
+function registerElement(id: string, css: string) {
+    let style = elements.get(id);
     if (!style) {
         style = document.createElement("style");
         style.id = `bloom-style-${id}`;
-        styles.set(id, style);
+        elements.set(id, style);
     }
     if (style.textContent !== css) style.textContent = css;
     mount(style);
-    watchHead();
+}
+
+export function registerStyle(id: string, css: string) {
+    if (adoptable) {
+        try {
+            let sheet = sheets.get(id);
+            if (!sheet) {
+                sheet = new pageWindow.CSSStyleSheet();
+                sheets.set(id, sheet);
+                owned.add(sheet);
+            }
+            sheet.replaceSync(css);
+            adopt();
+            return;
+        } catch (e) {
+            logger.warn("Constructed style sheets unavailable, using <style> after parsing", e);
+            adoptable = false;
+            sheets.delete(id);
+        }
+    }
+    registerElement(id, css);
 }
 
 export function removeStyle(id: string) {
-    styles.get(id)?.remove();
-    styles.delete(id);
+    if (sheets.delete(id) && adoptable) adopt();
+    elements.get(id)?.remove();
+    elements.delete(id);
 }
 
 export function mountPendingStyles() {
-    for (const style of styles.values()) mount(style);
-    watchHead();
+    for (const style of elements.values()) mount(style);
 }
 
 export const classNameFactory = (prefix: string) => (...names: string[]) => names.map(name => prefix + name).join(" ");

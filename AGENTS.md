@@ -13,7 +13,7 @@ Plugin host for chatgpt.com in the style of Void++ (`definePlugin`, `definePlugi
 
 chatgpt.com hydrates with `hydrateRoot(document)`. These broke earlier versions:
 
-1. Never append to `<html>`. `<style>` goes in `<head>` (see `registerStyle`), UI goes in `<body>`.
+1. Never append to `<html>` and never insert into `<head>` before hydration. Styles go in `document.adoptedStyleSheets` (see `registerStyle`; a `<style>` after parsing is only the fallback), UI goes in `<body>`.
 2. Touch `<body>` only after `StartAt.HostReady` (shell mounted, then idle, 8 s cap).
 3. Never remove a React-owned node. The official favicon links are parked (`rel` renamed, `media="not all"`), never removed; the Bloom favicon link stays last in `<head>`.
 4. Writes from observers are idempotent and batched per frame (`watchBody`, `frameScheduler`). Ignore mutations of Bloom's own nodes (`hostMutations`).

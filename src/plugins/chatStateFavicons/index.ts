@@ -112,7 +112,7 @@ export default definePlugin({
     tags: ["chat", "ui"],
     icon: "favicon",
     enabledByDefault: true,
-    startAt: StartAt.DOMContentLoaded,
+    startAt: StartAt.HostReady,
     settings,
     start() {
         park();

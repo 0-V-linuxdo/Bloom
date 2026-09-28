@@ -122,6 +122,7 @@ async function newShellSuite(browser) {
 
     check("new shell: entry in expanded sidebar and rail", await page.locator('[data-bloom="entry"]').count() === 2);
     check("new shell: entry is first in the footer", await page.evaluate(() => document.querySelector(".footer")?.firstElementChild?.getAttribute("data-bloom") === "entry"));
+    check("styles are adopted, not inserted into <head>", await page.evaluate(() => !document.querySelector('style[id^="bloom-style-"]') && document.adoptedStyleSheets.length > 0));
     check("new shell: menu command registered", await page.evaluate(() => window.__menu.some(item => item.name === "Bloom++ settings")));
     check("Cleaner hides the upgrade link", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="upgrade-button"]')).display === "none"));
     check("Cleaner hides the GPTs migration notice", await page.evaluate(() => !document.querySelector(".gpts-notice aside")?.getClientRects().length));

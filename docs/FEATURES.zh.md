@@ -30,12 +30,12 @@
 | 阶段 | 触发 | 用途 |
 | --- | --- | --- |
 | `Init` | 脚本执行、设置加载完成后立即 | 纯 CSS 插件（隐藏类、宽度、透明度、模糊），越早越好，避免闪一下原样 |
-| `DOMContentLoaded` | DOM 就绪 | ChatStateFavicons（只碰 `<head>`） |
+| `DOMContentLoaded` | DOM 就绪 | 无（ChatStateFavicons 改到 HostReady，水合前不碰 `<head>` 里的图标链接） |
 | `HostShell` | 侧栏外壳出现 | 预留，目前无插件使用 |
 | `HostReady` | React 水合结束 + 浏览器空闲，最长 8 秒兜底 | 所有会往 `<body>` 里插节点的插件、设置入口 |
 
 硬约束（历史卡死教训）：
-- chatgpt.com 用 `hydrateRoot(document)`。水合结束前不要往 `<body>` 里插节点；任何时候都**不要**给 `<html>` 挂子节点（`<style>` 只进 `<head>`，UI 只进 `<body>`）。
+- chatgpt.com 用 `hydrateRoot(document)`。水合结束前不要往 `<body>` 里插节点；任何时候都**不要**给 `<html>` 挂子节点，水合前也不要往 `<head>` 插节点：样式走 `document.adoptedStyleSheets`（不支持时才在解析完后放 `<style>`），UI 只进 `<body>`。2.0.x 实测：样式在解析中途插进 `<head>` 时，出现过先亮后暗和侧栏整列空白（推断为水合失败）。
 - 不要删除 React 管的节点（例如官方 favicon `<link>`），React 会补回，再删再补 → 死循环卡死。
 - 观察回调里不要同步改 DOM 然后又触发自己；写入必须幂等（值相同就不写），并合并到下一帧。
 - 水合检测失败也必须触发 `HostReady`，默认开启的插件不能“死掉”。
