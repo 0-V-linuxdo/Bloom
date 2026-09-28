@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.111](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.111)** (`userscript/Bloom.update3.user.js`, `@version [20260928] v1.4.111`).
+Current release: **[v1.4.112](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.112)** (`userscript/Bloom.update4.user.js`, `@version [20260928] v1.4.112`).
 
 Plugins:
 
@@ -33,11 +33,11 @@ The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in th
 ## Install
 
 1. Install [Violentmonkey](https://violentmonkey.github.io/) or Tampermonkey.
-2. Open [`userscript/Bloom.update3.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update3.user.js).
+2. Open [`userscript/Bloom.update4.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update4.user.js).
 3. Confirm install. Reload `chatgpt.com`.
 4. Look for **Bloom++** above your profile in the left sidebar. Tampermonkey / Violentmonkey → **Bloom++ settings** also opens the panel (second click closes it). The panel always docks to the left of the page on `document.body` — it is never inserted into the sidebar tree. Plugins render as a **Void++ BaseCard** stack (icon tile, two-line description, author footer, gear + switch).
 
-Prefer Tampermonkey / Violentmonkey **Check for updates** after this install — that keeps the same script UUID and the settings store. Auto-update uses `Bloom.update3.user.js` on `raw.githubusercontent.com/.../refs/heads/main/...`. If “脚本已更新” stays on an older `@version`, Fastly is serving a stale `Bloom.update2.user.js` / `Bloom.update.user.js` / `Bloom.latest.user.js` / `Bloom.user.js`: open the `Bloom.update3.user.js` raw link or [`releases/latest/download/Bloom.update3.user.js`](https://github.com/0-V-linuxdo/Bloom/releases/latest/download/Bloom.update3.user.js). Only remove an old copy if you have two Bloom++ entries. Uninstall wipes the userscript store; Bloom++ will try to restore from this site’s IndexedDB / `localStorage`. Do not use `.../Bloom/main/userscript/Bloom.user.js`, `.../refs/heads/main/userscript/Bloom.user.js`, `.../Bloom.latest.user.js`, `.../Bloom.update.user.js`, or `.../Bloom.update2.user.js` (Fastly can keep an old script). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
+Prefer Tampermonkey / Violentmonkey **Check for updates** after this install — that keeps the same script UUID and the settings store. Auto-update uses `Bloom.update4.user.js` on `raw.githubusercontent.com/.../refs/heads/main/...`. If the dashboard shows red “获取更新信息失败”, or “脚本已更新” stays on an older `@version`, Fastly is serving a stale or unreadable `Bloom.update3.user.js` / `Bloom.update2.user.js` / `Bloom.update.user.js` / `Bloom.latest.user.js` / `Bloom.user.js`: open the `Bloom.update4.user.js` raw link or [`releases/latest/download/Bloom.update4.user.js`](https://github.com/0-V-linuxdo/Bloom/releases/latest/download/Bloom.update4.user.js). Only remove an old copy if you have two Bloom++ entries. Uninstall wipes the userscript store; Bloom++ will try to restore from this site’s IndexedDB / `localStorage`. Do not use `.../Bloom/main/userscript/Bloom.user.js`, `.../refs/heads/main/userscript/Bloom.user.js`, `.../Bloom.latest.user.js`, `.../Bloom.update.user.js`, `.../Bloom.update2.user.js`, or `.../Bloom.update3.user.js` (Fastly can keep an old script). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
 
 The settings shell **follows chatgpt.com's own theme**. ChatStateFavicons **keeps the official ChatGPT tab icon while idle**; overlays (white blossom PNG, dark halo) appear only for streaming / done / ready / error.
 
@@ -171,7 +171,9 @@ v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses 
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
 
-v1.4.111: **Helium rail pin clicks, lines up with the account chip, and CSI covers the teal “18”.** The redesigned rail is `pointer-events:none` (rows opt back in). `#bloom-rail-item` sets `pointer-events:auto` and stays the previous sibling of the avatar chip — never a child of the profile button. CSI treats the first child of Helium `.min-w-0.flex-col` as the face. Install URL stays `userscript/Bloom.update3.user.js`.
+v1.4.112: **Install / `@updateURL` / `@downloadURL` move to `userscript/Bloom.update4.user.js`.** After 1.4.111 reached `main`, Tampermonkey stayed on `[20260928] v1.4.110` with red “获取更新信息失败”, so Helium never received the rail / CSI fix. Still write the old copies (`update3` / `update2` / `update` / `latest` / `Bloom.user.js`). Do not drop the date prefix.
+
+v1.4.111: **Helium rail pin clicks, lines up with the account chip, and CSI covers the teal “18”.** The redesigned rail is `pointer-events:none` (rows opt back in). `#bloom-rail-item` sets `pointer-events:auto` and stays the previous sibling of the avatar chip — never a child of the profile button. CSI treats the first child of Helium `.min-w-0.flex-col` as the face. Install URL was still `userscript/Bloom.update3.user.js` (1.4.112 moved to `update4`).
 
 v1.4.110: **Host selectors cover the 2026-09 ChatGPT rail/composer redesign so Bloom++ is not dead on Helium.** Keep the old `stage-slideover` / `unified-composer` / `#prompt-textarea` unions. The new shell is `[data-app-navigation-rail]`, `[data-app-action-sidebar-scroll]`, `textarea[name=prompt]`, and `[data-chatgpt-search-message-ids]`. pinRail may sit on the rail row or expanded footer. Do not strip official favicon links or mount on `documentElement`. Install URL stays `userscript/Bloom.update3.user.js`.
 

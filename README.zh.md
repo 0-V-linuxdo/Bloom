@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.111](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.111)**（`userscript/Bloom.update3.user.js`，`@version [20260928] v1.4.111`）。
+当前版本：**[v1.4.112](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.112)**（`userscript/Bloom.update4.user.js`，`@version [20260928] v1.4.112`）。
 
 插件：
 
@@ -33,11 +33,11 @@
 ## 安装
 
 1. 安装 [Violentmonkey](https://violentmonkey.github.io/) 或 Tampermonkey。
-2. 打开 [`userscript/Bloom.update3.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update3.user.js)。
+2. 打开 [`userscript/Bloom.update4.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update4.user.js)。
 3. 确认安装后刷新 `chatgpt.com`。
 4. 左侧栏头像上方会出现 **Bloom++**。油猴菜单 **Bloom++ settings** 也会打开同一块面板（再点一次关闭）。面板永远停在页面左侧的 `document.body` 上，不会插入侧栏 DOM。插件列表是 **Void++ BaseCard** 栈（图标砖、两行描述、作者栏、齿轮 + 开关）。
 
-优先用油猴的**检查更新**（同一脚本 UUID，配置还在）。自动更新走 `Bloom.update3.user.js`（`raw.githubusercontent.com/.../refs/heads/main/...`）。如果提示「脚本已更新」但 `@version` 还是旧的，那是 Fastly 把 `Bloom.update2.user.js` / `Bloom.update.user.js` / `Bloom.latest.user.js` / `Bloom.user.js` 卡在旧稿：改点 `Bloom.update3.user.js` raw 或 [`releases/latest/download/Bloom.update3.user.js`](https://github.com/0-V-linuxdo/Bloom/releases/latest/download/Bloom.update3.user.js)。只有同时装着两条 Bloom++ 时才卸旧的。卸载会清掉油猴 GM 存储；Bloom++ 会尝试从当前站点的 IndexedDB / `localStorage` 救回。不要用 `.../Bloom/main/userscript/Bloom.user.js`、`.../refs/heads/main/userscript/Bloom.user.js`、`Bloom.latest.user.js`、`Bloom.update.user.js` 或 `Bloom.update2.user.js`（Fastly 会卡住旧脚本）。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
+优先用油猴的**检查更新**（同一脚本 UUID，配置还在）。自动更新走 `Bloom.update4.user.js`（`raw.githubusercontent.com/.../refs/heads/main/...`）。如果仪表盘是红字「获取更新信息失败」，或提示「脚本已更新」但 `@version` 还是旧的，那是 Fastly 把 `Bloom.update3.user.js` / `Bloom.update2.user.js` / `Bloom.update.user.js` / `Bloom.latest.user.js` / `Bloom.user.js` 卡在旧稿或不可读：改点 `Bloom.update4.user.js` raw 或 [`releases/latest/download/Bloom.update4.user.js`](https://github.com/0-V-linuxdo/Bloom/releases/latest/download/Bloom.update4.user.js)。只有同时装着两条 Bloom++ 时才卸旧的。卸载会清掉油猴 GM 存储；Bloom++ 会尝试从当前站点的 IndexedDB / `localStorage` 救回。不要用 `.../Bloom/main/userscript/Bloom.user.js`、`.../refs/heads/main/userscript/Bloom.user.js`、`Bloom.latest.user.js`、`Bloom.update.user.js`、`Bloom.update2.user.js` 或 `Bloom.update3.user.js`（Fastly 会卡住旧脚本）。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
 
 设置面板**跟随 `chatgpt.com` 自己的主题**。ChatStateFavicons **空闲时保持官方 ChatGPT 标签页图标**；只在 streaming / done / ready / error 时叠白色 blossom PNG（深色描边）。
 
@@ -168,7 +168,9 @@ v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**fav
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
 
-v1.4.111：**Helium 上 Bloom++ 行可点、跟头像芯片对齐，CSI 盖住青绿 “18”。** 新 rail 是 `pointer-events:none`，行自己 `auto`。`#bloom-rail-item` 必须 `pointer-events:auto`，并且是头像芯片的前一个兄弟，不能插进 profile button。CSI 认 `.min-w-0.flex-col` 的第一个子节点为脸。安装地址仍是 `userscript/Bloom.update3.user.js`。
+v1.4.112：**安装 / `@updateURL` / `@downloadURL` 改走 `userscript/Bloom.update4.user.js`。** 1.4.111 进 `main` 之后油猴仍停在 `[20260928] v1.4.110`，检查更新是红字「获取更新信息失败」，所以 Helium 从没装到 rail / CSI 修复。旧文件继续写。不要去掉日期前缀。
+
+v1.4.111：**Helium 上 Bloom++ 行可点、跟头像芯片对齐，CSI 盖住青绿 “18”。** 新 rail 是 `pointer-events:none`，行自己 `auto`。`#bloom-rail-item` 必须 `pointer-events:auto`，并且是头像芯片的前一个兄弟，不能插进 profile button。CSI 认 `.min-w-0.flex-col` 的第一个子节点为脸。当时安装地址仍是 `userscript/Bloom.update3.user.js`（1.4.112 已换 `update4`）。
 
 v1.4.110：**ChatGPT 2026-09 侧栏/作曲器重做后，宿主选择器并集，Helium 上脚本不再整死。** 旧 `stage-slideover` / `unified-composer` / `#prompt-textarea` 仍保留。新壳认 `[data-app-navigation-rail]`、`[data-app-action-sidebar-scroll]`、`textarea[name=prompt]`、`[data-chatgpt-search-message-ids]`。Bloom++ 行可钉在新 rail / footer。不 strip 官方 favicon，不挂 `documentElement`。安装地址仍是 `userscript/Bloom.update3.user.js`。
 

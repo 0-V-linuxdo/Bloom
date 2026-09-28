@@ -40,11 +40,12 @@ jobs:
       - name: Confirm header matches this release
         run: |
           set -euo pipefail
-          grep -m1 '@version' userscript/Bloom.update3.user.js | grep -Fq "v${{ steps.ver.outputs.ver }}"
+          grep -m1 '@version' userscript/Bloom.update4.user.js | grep -Fq "v${{ steps.ver.outputs.ver }}"
           cmp -s userscript/Bloom.user.js userscript/Bloom.latest.user.js
           cmp -s userscript/Bloom.user.js userscript/Bloom.update.user.js
           cmp -s userscript/Bloom.user.js userscript/Bloom.update2.user.js
           cmp -s userscript/Bloom.user.js userscript/Bloom.update3.user.js
+          cmp -s userscript/Bloom.user.js userscript/Bloom.update4.user.js
 
       - name: Tag main when the version tag is missing
         id: tag
@@ -73,5 +74,6 @@ jobs:
             userscript/Bloom.update.user.js
             userscript/Bloom.update2.user.js
             userscript/Bloom.update3.user.js
+            userscript/Bloom.update4.user.js
           fail_on_unmatched_files: true
           generate_release_notes: true
