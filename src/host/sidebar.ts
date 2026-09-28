@@ -23,6 +23,8 @@ const INITIALS_MAX = 3;
 const PROJECT_PATH = /^\/g\/(g-p-[^/]+)\//;
 const PROJECT_SLUG_PREFIX = /^g-p-[0-9a-f]+-?/i;
 
+const isScreenReaderOnly = (el: Element) => !!el.closest(".sr-only");
+
 const hasMenuButton = (el: Element | null | undefined): el is Element => !!el?.querySelector(Sel.menuButton);
 
 export function expandedFooters() {
@@ -51,14 +53,24 @@ export function sidebarMounts(): SidebarMount[] {
     return mounts;
 }
 
-export function profileChips(): HTMLElement[] {
+const hasContent = (el: Element) =>
+    !el.closest("[data-bloom]") && (!!el.querySelector("img, [class*=rounded-full]") || textLeaves(el).some(leaf => !isScreenReaderOnly(leaf)));
+
+const chipBeside = (button: HTMLElement) =>
+    [...button.parentElement?.children ?? []].find((el): el is HTMLElement => el !== button && el instanceof HTMLElement && hasContent(el)) ?? null;
+
+function profileButtons(): HTMLElement[] {
     const old = [...document.querySelectorAll<HTMLElement>(Sel.oldProfile)];
     if (old.length) return old;
     const footers = [...expandedFooters(), ...[...document.querySelectorAll(Sel.rail)].map(rail => [...rail.children].findLast(hasMenuButton))];
     return footers
-        .map(footer => [...(footer?.querySelectorAll<HTMLElement>(Sel.menuButton) ?? [])].findLast(button => button.querySelector("img") || textLeaves(button).length))
-        .filter(chip => chip != null);
+        .map(footer => [...(footer?.querySelectorAll<HTMLElement>(Sel.menuButton) ?? [])].findLast(button => hasContent(button) || chipBeside(button)))
+        .filter(button => button != null);
 }
+
+export const profileChips = () => profileButtons()
+    .map(button => hasContent(button) ? button : chipBeside(button))
+    .filter(chip => chip != null);
 
 export function textLeaves(root: Element) {
     return [...root.querySelectorAll<HTMLElement>("*")].filter(el =>
@@ -86,9 +98,9 @@ export function markIdentity(root: HTMLElement, prefix: "profile" | "menu") {
     const leaves = textLeaves(root);
     const initials = image ? null : leaves.map(initialsCircle).find(el => el != null);
     const round = image?.closest("[class*=rounded-full]");
-    const avatar = round && round !== root && root.contains(round) ? round : image ?? initials;
+    const avatar = (round && round !== root && root.contains(round) ? round : image ?? initials) ?? root.querySelector("[class*=rounded-full]:not([data-bloom] *)");
     setMark(avatar, `data-bloom-${prefix}-avatar`);
-    const text = leaves.filter(leaf => !avatar?.contains(leaf));
+    const text = leaves.filter(leaf => !avatar?.contains(leaf) && !isScreenReaderOnly(leaf));
     const plan = text.find(leaf => PLAN.test(normalizeText(leaf.textContent ?? "")));
     const email = text.find(leaf => EMAIL.test(leaf.textContent ?? ""));
     setMark(plan, `data-bloom-${prefix}-plan`);
@@ -96,17 +108,17 @@ export function markIdentity(root: HTMLElement, prefix: "profile" | "menu") {
     setMark(text.find(leaf => leaf !== plan && leaf !== email), `data-bloom-${prefix}-name`);
 }
 
-export function accountMenu() {
-    return [...document.querySelectorAll<HTMLElement>('[role="menu"]')].find(menu =>
-        !menu.closest("[data-bloom]") && (EMAIL.test(menu.textContent ?? "") || menu.querySelector('[data-testid*="log-out" i], [data-testid*="logout" i]'))) ?? null;
+function openedMenu(button: HTMLElement) {
+    const id = button.getAttribute("aria-expanded") === "true" && button.getAttribute("aria-controls");
+    const menu = id ? document.getElementById(id) : null;
+    return menu?.matches('[role="menu"]') ? menu : null;
 }
 
-export function accountMenuHeader(menu: HTMLElement) {
-    const email = textLeaves(menu).find(leaf => EMAIL.test(leaf.textContent ?? ""));
-    if (!email) return null;
-    let header: HTMLElement = email;
-    while (header.parentElement && header.parentElement !== menu && !header.parentElement.matches('[role="menuitem"], [role="group"]')) header = header.parentElement;
-    return header;
+export function accountMenu() {
+    return profileButtons().map(openedMenu).find(menu => menu != null)
+        ?? [...document.querySelectorAll<HTMLElement>('[role="menu"]')].find(menu =>
+            !menu.closest("[data-bloom]") && (EMAIL.test(menu.textContent ?? "") || menu.querySelector('[data-testid*="log-out" i], [data-testid*="logout" i]')))
+        ?? null;
 }
 
 export const conversationLinks = (id: string) =>

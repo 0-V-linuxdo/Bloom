@@ -48,6 +48,45 @@ export const OLD_SHELL = `
   <form data-type="unified-composer"><div id="prompt-textarea" contenteditable="true" class="ProseMirror"><p>draft <span contenteditable="false">chip</span></p></div><button data-testid="stop-button" aria-label="Stop streaming">Stop</button></form>
 </main>`;
 
+export const LIVE_SHELL = `
+<div id="app">
+  <nav>
+    <div data-app-action-sidebar-scroll><a href="/c/11111111-1111-4111-8111-111111111111">First chat</a></div>
+    <div class="footer">
+      <div class="relative">
+        <button aria-label="Open profile menu" aria-haspopup="menu" aria-expanded="true" aria-controls="profile-menu" class="absolute inset-0"></button>
+        <div class="pointer-events-none">
+          <img class="rounded-full size-6" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">
+          <span class="truncate text-default"><span class="truncate">1876948535</span></span>
+          <span class="text-xs text-secondary">Pro</span>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <div data-app-navigation-rail>
+    <div class="row"><a href="/">New</a></div>
+    <div class="row"><button aria-haspopup="menu" aria-busy="true"><span class="rounded-full bg-text-tertiary/80"></span><span class="sr-only">Loading profile</span></button></div>
+  </div>
+  <div role="menu" id="profile-menu"><div role="menuitem"><span>1876948535</span></div><div role="menuitem">Settings</div><div role="menuitem">Log out</div></div>
+  <main>
+    <h1 aria-hidden="true" class="heading-xl invisible">Ready when you are.</h1>
+    <div class="heading-xl"><div class="relative inline-block"><h1 class="inline">What’s on your mind today?</h1></div></div>
+    <div data-app-action-timeline-scroll>
+      <div data-chatgpt-conversation-selection-target>
+        <div data-turn-key="t1">
+          <div data-chatgpt-search-unit-key="t1:user" data-chatgpt-search-message-ids="u1"><div class="whitespace-pre-wrap">First question</div></div>
+          <div data-chatgpt-search-unit-key="t1:assistant"><div data-chatgpt-search-message-ids="a1"><div>Worked for 15s</div><div class="markdown">First answer</div></div></div>
+        </div>
+        <div data-turn-key="t2">
+          <div data-chatgpt-search-unit-key="t2:user" data-chatgpt-search-message-ids="u2"><div class="whitespace-pre-wrap">Second question</div></div>
+          <div data-chatgpt-search-unit-key="t2:assistant" data-chatgpt-search-message-ids="a2"><span role="status" aria-busy="true"><span class="sr-only">ChatGPT is responding</span></span></div>
+        </div>
+      </div>
+    </div>
+    <form class="relative flex flex-col gap-2"><div contenteditable="true" class="ProseMirror" aria-label="Ask ChatGPT"><p>next</p></div><button aria-label="Dictate"></button><button aria-label="Send"></button></form>
+  </main>
+</div>`;
+
 export function mount(html: string) {
     document.body.innerHTML = html;
 }

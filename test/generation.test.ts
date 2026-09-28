@@ -10,7 +10,7 @@ import { type FallOutcome, generation, startGeneration } from "../src/host/gener
 import { network } from "../src/host/network";
 import { checkRoute } from "../src/host/route";
 
-const SETTLE_MS = 500;
+const SETTLE_MS = 800;
 const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
@@ -27,8 +27,13 @@ function navigate(path: string) {
 function stream() {
     const id = requestId++;
     network.emit("generate-start", { requestId: id, conversationId: null });
-    return (end: { error?: boolean; aborted?: boolean; } = {}) =>
-        network.emit("generate-end", { requestId: id, conversationId: null, error: !!end.error, aborted: !!end.aborted });
+    return (end: { error?: boolean; handoff?: boolean; } = {}) =>
+        network.emit("generate-end", { requestId: id, conversationId: null, error: !!end.error, handoff: !!end.handoff });
+}
+
+function busyTurn() {
+    document.body.insertAdjacentHTML("beforeend", '<div data-turn-key="t"><div data-chatgpt-search-unit-key="t:assistant"><span role="status" aria-busy="true"></span></div></div>');
+    return () => document.querySelector("[data-turn-key]")?.remove();
 }
 
 beforeAll(() => {
@@ -55,8 +60,26 @@ describe("generation", () => {
         expect(events).toEqual(["rise", "fall:done"]);
     });
 
-    test("an aborted stream falls as stopped and an error as error", async () => {
-        stream()({ aborted: true });
+    test("a relay stream handed to the page keeps generating while the turn is busy", async () => {
+        const end = stream();
+        const done = busyTurn();
+        end({ handoff: true });
+        await wait(SETTLE_MS);
+        expect(events).toEqual(["rise"]);
+        done();
+        await wait(SETTLE_MS);
+        expect(events).toEqual(["rise", "fall:done"]);
+    });
+
+    test("clicking Stop falls as stopped and an error as error", async () => {
+        document.querySelector("form")?.insertAdjacentHTML("beforeend", '<button aria-label="Stop"></button>');
+        const end = stream();
+        const done = busyTurn();
+        const stop = document.querySelector<HTMLElement>('button[aria-label="Stop"]');
+        stop?.click();
+        stop?.remove();
+        end({ handoff: true });
+        done();
         await wait(SETTLE_MS);
         stream()({ error: true });
         await wait(SETTLE_MS);

@@ -13,6 +13,7 @@ const logger = new Logger("Network");
 const GENERATE_PATH = /^\/backend-api\/(?:f\/)?conversation(?:\/resume)?\/?$/;
 const CONVERSATION_PATH = /^\/backend-api\/conversations?\/([0-9a-f]{8}-[0-9a-f-]{20,})\/?$/i;
 const SECONDS_TO_MS = 1000;
+const HANDOFF_EVENTS = new Set(["stream_handoff", "resume_sse_endpoint", "subscribe_ws_topic"]);
 
 export type Role = "user" | "assistant";
 
@@ -36,7 +37,7 @@ export interface GenerateEnd {
     requestId: number;
     conversationId: string | null;
     error: boolean;
-    aborted: boolean;
+    handoff: boolean;
 }
 
 export const network = createEmitter<{
@@ -121,8 +122,15 @@ function requestedConversationId(init: RequestInit | undefined) {
     return isRecord(body) && typeof body.conversation_id === "string" ? body.conversation_id : null;
 }
 
-function handleEvent(data: unknown, state: { conversationId: string | null; error: boolean; }) {
+interface StreamState {
+    conversationId: string | null;
+    error: boolean;
+    handoff: boolean;
+}
+
+function handleEvent(data: unknown, state: StreamState) {
     if (!isRecord(data)) return;
+    if (typeof data.type === "string" && HANDOFF_EVENTS.has(data.type)) state.handoff = true;
     const payload = isRecord(data.v) && (data.v.message || data.v.conversation_id) ? data.v : data;
     if (typeof payload.conversation_id === "string") state.conversationId = payload.conversation_id;
     if (data.error || payload.error || data.type === "error") state.error = true;
@@ -138,7 +146,7 @@ function handleEvent(data: unknown, state: { conversationId: string | null; erro
     }
 }
 
-async function readStream(response: Response, state: { conversationId: string | null; error: boolean; }) {
+async function readStream(response: Response, state: StreamState) {
     const reader = response.body?.getReader();
     if (!reader) return;
     const decoder = new TextDecoder();
@@ -158,20 +166,20 @@ async function readStream(response: Response, state: { conversationId: string | 
 }
 
 async function observeGenerate(requestId: number, conversationId: string | null, pending: Promise<Response>) {
-    const state = { conversationId, error: false };
+    const state: StreamState = { conversationId, error: false, handoff: false };
     activeStreams.set(requestId, conversationId);
     network.emit("generate-start", { requestId, conversationId });
-    let aborted = false;
     try {
         const response = await pending;
         if (!response.ok) state.error = true;
         else if (response.headers.get("content-type")?.includes("event-stream")) await readStream(response.clone(), state);
     } catch (e) {
-        aborted = e instanceof DOMException && e.name === "AbortError";
+        const aborted = e instanceof DOMException && e.name === "AbortError";
+        state.handoff ||= aborted;
         state.error ||= !aborted;
     } finally {
         activeStreams.delete(requestId);
-        network.emit("generate-end", { requestId, conversationId: state.conversationId, error: state.error, aborted });
+        network.emit("generate-end", { requestId, ...state });
     }
 }
 

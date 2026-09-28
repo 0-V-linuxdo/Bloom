@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+const AVATAR = "data:image/gif;base64,R0lGODlhAQABAIAAABnDfQAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==";
+
 const HEAD = theme => `<!doctype html>
 <html lang="en" data-theme="${theme}" class="${theme}">
 <head>
@@ -24,8 +26,15 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .column { max-width: var(--thread-content-max-width); margin: 0 auto; width: 100%; }
 [data-turn-key], article { padding: 16px; min-height: 120px; }
 form { max-width: var(--thread-content-max-width); margin: 8px auto; width: 100%; display: flex; gap: 8px; }
-textarea, #prompt-textarea { flex: 1; min-height: 40px; border: 1px solid #ccc; }
-.rounded-full { border-radius: 50%; display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; background: #19c37d; color: #fff; }
+.ProseMirror { flex: 1; min-height: 40px; border: 1px solid #ccc; }
+.relative { position: relative; }
+.profile-overlay { position: absolute; inset: 0; opacity: 0; }
+.pointer-events-none { pointer-events: none; display: flex; gap: 8px; align-items: center; padding: 8px; }
+.invisible { visibility: hidden; position: absolute; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+[role="menu"] { position: fixed; left: 8px; bottom: 60px; background: #fff; border: 1px solid #ccc; padding: 4px; }
+[role="menuitem"] { padding: 6px 10px; }
+.rounded-full { border-radius: 50%; display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; background: #19c37d; color: #fff; }
 </style>
 </head>`;
 
@@ -42,17 +51,21 @@ export const newShell = theme => `${HEAD(theme)}
   </nav>
   <div class="footer">
     <button aria-haspopup="menu" aria-label="Help">?</button>
-    <button aria-haspopup="menu" class="chip"><span class="rounded-full"><span>GG</span></span><span class="min-w-0"><span class="truncate">Grace Green</span> <span class="text-xs">Plus</span></span></button>
+    <div class="relative">
+      <button aria-label="Open profile menu" aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu" class="profile-overlay"></button>
+      <div class="pointer-events-none chip"><img class="rounded-full size-6" alt="" src="${AVATAR}"><span class="truncate text-default"><span class="truncate">Grace Green</span></span> <span class="text-xs text-secondary">Plus</span></div>
+    </div>
   </div>
 </div>
 <div data-app-navigation-rail inert>
   <div class="row"><a href="/">+</a></div>
-  <div class="row"><button aria-haspopup="menu"><span class="rounded-full"><span>GG</span></span></button></div>
+  <div class="row"><button aria-haspopup="menu" aria-busy="true"><span class="rounded-full"></span><span class="sr-only">Loading profile</span></button></div>
 </div>
 <main>
-  <h1 class="home-heading">What can I help with?</h1>
+  <h1 aria-hidden="true" class="heading-xl invisible">Ready when you are.</h1>
+  <div class="heading-xl"><div class="relative inline-block"><h1 class="inline home-heading">What’s on your mind today?</h1></div></div>
   <div class="timeline" data-app-action-timeline-scroll><div class="column" data-chatgpt-conversation-selection-target></div></div>
-  <form><textarea name="prompt" placeholder="Ask anything"></textarea><button data-testid="send-button" aria-label="Send prompt">Send</button></form>
+  <form class="relative flex flex-col gap-2"><div class="ProseMirror" contenteditable="true" aria-label="Ask ChatGPT"><p></p></div><button type="button" aria-label="Dictate">Mic</button><button aria-label="Send">Send</button></form>
   <div data-testid="thread-disclaimer">ChatGPT can make mistakes.</div>
 </main>
 <script>document.documentElement.dataset.shell = "new";</script>

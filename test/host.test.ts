@@ -9,9 +9,10 @@ import { describe, expect, test } from "bun:test";
 import { readDraft, sendButton, stopButton, writeDraft } from "../src/host/composer";
 import { parseConversation } from "../src/host/network";
 import { conversationIdFromHref } from "../src/host/route";
-import { conversationLinks, markIdentity, profileChips, projectName, sidebarMounts } from "../src/host/sidebar";
+import { Sel } from "../src/host/selectors";
+import { accountMenu, conversationLinks, markIdentity, profileChips, projectName, sidebarMounts } from "../src/host/sidebar";
 import { listTurns, outerMessageUnits, turnSummary, unitMessageIds } from "../src/host/thread";
-import { mount, NEW_SHELL, OLD_SHELL } from "./fixtures";
+import { LIVE_SHELL, mount, NEW_SHELL, OLD_SHELL } from "./fixtures";
 
 const CHAT_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -65,6 +66,42 @@ describe("new shell", () => {
         expect(readDraft()).toBe("hello");
         expect(sendButton()?.dataset.testid).toBe("send-button");
         expect(stopButton()).toBeNull();
+    });
+});
+
+describe("signed-in shell 2026-09", () => {
+    test("marks the chip beside the empty profile overlay button and the rail placeholder", () => {
+        mount(LIVE_SHELL);
+        const chips = profileChips();
+        expect(chips.map(chip => chip.className)).toEqual(["pointer-events-none", ""]);
+        for (const chip of chips) markIdentity(chip, "profile");
+        expect([...document.querySelectorAll("[data-bloom-profile-name]")].map(el => el.textContent)).toEqual(["1876948535"]);
+        expect(document.querySelector("[data-bloom-profile-plan]")?.textContent).toBe("Pro");
+        expect([...document.querySelectorAll("[data-bloom-profile-avatar]")].map(el => el.tagName)).toEqual(["IMG", "SPAN"]);
+    });
+
+    test("finds the account menu the profile button opened", () => {
+        mount(LIVE_SHELL);
+        expect(accountMenu()?.id).toBe("profile-menu");
+    });
+
+    test("splits a turn into its user and assistant messages", () => {
+        mount(LIVE_SHELL);
+        const turns = listTurns();
+        expect(turns.map(t => [t.role, t.messageIds.join()])).toEqual([["user", "u1"], ["assistant", "a1"], ["user", "u2"], ["assistant", "a2"]]);
+        expect(turns.map(t => t.streaming)).toEqual([false, false, false, true]);
+        expect(turnSummary(turns[1])).toBe("First answer");
+        expect(outerMessageUnits().map(unitMessageIds)).toEqual([["u1"], ["a1"], ["u2"], ["a2"]]);
+    });
+
+    test("uses the Send and Stop labels and the visible home heading", () => {
+        mount(LIVE_SHELL);
+        expect(readDraft()).toBe("next");
+        expect(sendButton()?.getAttribute("aria-label")).toBe("Send");
+        expect(stopButton()).toBeNull();
+        sendButton()?.setAttribute("aria-label", "Stop");
+        expect(stopButton()?.getAttribute("aria-label")).toBe("Stop");
+        expect(document.querySelector(Sel.homeHeading)?.textContent).toBe("What’s on your mind today?");
     });
 });
 

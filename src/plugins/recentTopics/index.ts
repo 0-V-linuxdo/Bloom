@@ -7,7 +7,7 @@
 import { definePluginSettings } from "@api/Settings";
 import { conversationTitle } from "@host/conversation";
 import { conversationData, network } from "@host/network";
-import { currentConversationId, isHomePath, onRouteChange } from "@host/route";
+import { currentConversationId, isHomePath, isTemporaryChat, onRouteChange } from "@host/route";
 import { conversationLinks, projectName } from "@host/sidebar";
 import { chainSummary, listTurns, turnSummary } from "@host/thread";
 import { classNameFactory } from "@utils/css";
@@ -50,7 +50,7 @@ let selected = 0;
 let controller: AbortController | undefined;
 let unsubscribers: (() => void)[] = [];
 
-const currentKey = () => currentConversationId() ?? (isHomePath() ? HOME : null);
+const currentKey = () => isTemporaryChat() ? null : currentConversationId() ?? (isHomePath() ? HOME : null);
 
 function prune<T>(record: Record<string, T>, keep: Set<string>) {
     return Object.fromEntries(Object.entries(record).filter(([id]) => keep.has(id)));
@@ -74,7 +74,7 @@ function visit(key: string | null) {
 }
 
 function capturePreview(id: string | null) {
-    if (!id) return;
+    if (!id || !settings.store.visits.includes(id)) return;
     const preview: Preview = {};
     const chain = conversationData(id)?.chain ?? [];
     for (const message of chain) preview[message.role] = truncate(chainSummary(message), PREVIEW_CHARS);
@@ -197,6 +197,8 @@ export default definePlugin({
             }),
             network.on("conversation", ({ id }) => {
                 if (settings.store.visits.includes(id)) remember(id);
+                capturePreview(id);
+                capturePreview(id);
             }),
         ];
         visit(currentKey());

@@ -21,6 +21,8 @@ mkdirSync(shots, { recursive: true });
 
 const CHROMIUM = ["/opt/pw-browsers/chromium", process.env.CHROMIUM_PATH].find(path => path && existsSync(path));
 const REPLY_DELAY_MS = 1500;
+const RELAY_MS = 300;
+const RELAY_EVENTS = ["resume_conversation_token", "input_message", "stream_handoff", "resume_sse_endpoint", "subscribe_ws_topic", "conversation_detail_metadata"];
 const CHAT_A = "11111111-1111-4111-8111-111111111111";
 const CHAT_B = "22222222-2222-4222-8222-222222222222";
 
@@ -72,6 +74,11 @@ async function setup(browser, { shell = "new", theme = "light", settings = null 
         const url = new URL(route.request().url());
         if (url.pathname === "/mock/app.js") return route.fulfill({ contentType: "text/javascript", body: appJs });
         if (url.pathname === "/favicon.ico") return route.fulfill({ contentType: "image/x-icon", body: "" });
+        if (url.pathname === "/backend-api/f/conversation" && shell === "new") {
+            generateRequests.push(JSON.parse(route.request().postData() ?? "{}"));
+            await new Promise(resolve => setTimeout(resolve, RELAY_MS));
+            return route.fulfill({ contentType: "text/event-stream", body: `${RELAY_EVENTS.map(type => `data: ${JSON.stringify({ type })}\n\n`).join("")}data: [DONE]\n\n` }).catch(() => {});
+        }
         if (url.pathname === "/backend-api/f/conversation") {
             generateRequests.push(JSON.parse(route.request().postData() ?? "{}"));
             await new Promise(resolve => setTimeout(resolve, REPLY_DELAY_MS));
@@ -81,18 +88,25 @@ async function setup(browser, { shell = "new", theme = "light", settings = null 
             ];
             return route.fulfill({ contentType: "text/event-stream", body: `${events.map(event => `data: ${JSON.stringify(event)}\n\n`).join("")}data: [DONE]\n\n` }).catch(() => {});
         }
-        const conversation = url.pathname.match(/^\/backend-api\/conversation\/([\w-]+)$/);
+        const conversation = url.pathname.match(/^\/backend-api\/conversations?\/([\w-]+)$/);
         if (conversation) return route.fulfill({ contentType: "application/json", body: JSON.stringify(conversationJson(conversation[1])) });
         return route.fulfill({ contentType: "text/html", body: shell === "new" ? newShell(theme) : oldShell(theme) });
     });
+    await context.routeWebSocket("wss://chatgpt.com/ws/**", ws => ws.onMessage(message => {
+        const { replyId } = JSON.parse(String(message));
+        setTimeout(() => ws.send(JSON.stringify({ replyId, text: "Here is the answer." })), REPLY_DELAY_MS);
+    }));
     await page.addInitScript(gmShim(settings));
     await page.addInitScript(script);
     return { context, page, generateRequests };
 }
 
+const COMPOSER = "form .ProseMirror";
+const STOP = 'form button[aria-label="Stop"]';
+
 async function sendPrompt(page, text) {
-    await page.locator('textarea[name="prompt"]').fill(text);
-    await page.locator('textarea[name="prompt"]').press("Enter");
+    await page.locator(COMPOSER).fill(text);
+    await page.locator(COMPOSER).press("Enter");
 }
 
 async function newShellSuite(browser) {
@@ -108,9 +122,9 @@ async function newShellSuite(browser) {
     check("Cleaner hides the upgrade link", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="upgrade-button"]')).display === "none"));
     check("Cleaner hides the disclaimer", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="thread-disclaimer"]')).display === "none"));
     check("WiderChat widens the thread", await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--thread-content-max-width").trim() === "64rem"));
-    check("NoSidebarIdentity hides the name", await page.evaluate(() => getComputedStyle(document.querySelector(".chip .truncate")).visibility === "hidden"));
+    check("NoSidebarIdentity hides the name", await page.evaluate(() => getComputedStyle(document.querySelector(".chip .truncate .truncate")).visibility === "hidden"));
     check("NoSidebarIdentity enlarges the plan", await page.evaluate(() => getComputedStyle(document.querySelector(".chip .text-xs")).fontSize === "14px"));
-    check("GreetingCustomizer replaces the home heading", await page.evaluate(() => (document.querySelector("main h1")?.getAttribute("data-bloom-text") ?? "").length > 0));
+    check("GreetingCustomizer replaces the visible home heading", await page.evaluate(() => (document.querySelector(".home-heading")?.getAttribute("data-bloom-text") ?? "").length > 0 && !document.querySelector('h1[aria-hidden="true"][data-bloom-text]')));
     check("ChatStateFavicons parks the official icon", await page.evaluate(() => document.querySelector('link[href="/favicon.ico"]')?.media === "not all" && document.head.lastElementChild?.id === "bloom-chat-state-favicon"));
 
     await page.locator(".footer [data-bloom=entry] button").click();
@@ -129,6 +143,11 @@ async function newShellSuite(browser) {
     await page.keyboard.press("Escape");
     check("Escape closes the panel", await page.locator('[data-bloom="settings"]').count() === 0);
 
+    await page.locator(".profile-overlay").click();
+    await page.waitForSelector('[data-bloom="menu-entry"]', { timeout: 2000 }).catch(() => {});
+    check("account menu starts with the Bloom++ entry", await page.evaluate(() => document.getElementById("profile-menu")?.firstElementChild?.getAttribute("data-bloom") === "menu-entry"));
+    await page.locator(".profile-overlay").click();
+
     await sendPrompt(page, "First question");
     await page.waitForTimeout(300);
     const rotating = await page.evaluate(() => document.getElementById("bloom-chat-state-favicon")?.href ?? "");
@@ -136,34 +155,36 @@ async function newShellSuite(browser) {
     await page.waitForFunction(() => location.pathname.startsWith("/c/"));
     await page.waitForTimeout(200);
     check("ChatListStatus spins on the open chat", await page.locator('[data-bloom="cls"][data-status="streaming"]').count() === 1);
-    await page.locator('textarea[name="prompt"]').fill("Queued follow-up");
-    await page.locator('textarea[name="prompt"]').press("Enter");
+    await page.locator(COMPOSER).fill("Queued follow-up");
+    await page.locator(COMPOSER).press("Enter");
     await page.waitForTimeout(150);
     check("PromptQueue queues during a reply", await page.locator(".bloom-queue-count").textContent() === "1 Queued message");
-    check("PromptQueue clears the composer", await page.locator('textarea[name="prompt"]').inputValue() === "");
+    check("PromptQueue clears the composer", (await page.locator(COMPOSER).textContent()).trim() === "");
     await page.screenshot({ path: resolve(shots, "queue-light.png") });
     await page.waitForFunction(() => window.__notifications.length > 0, null, { timeout: 5000 }).catch(() => {});
     check("ResponseNotification fires when the reply is done", await page.evaluate(() => window.__notifications[0]?.includes("finished answering")));
-    await page.waitForFunction(count => document.querySelectorAll("[data-turn-key]").length >= count, 4, { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(count => document.querySelectorAll("[data-chatgpt-search-unit-key]").length >= count, 4, { timeout: 5000 }).catch(() => {});
     check("PromptQueue sends the queued message after the reply", generateRequests.length >= 2 && generateRequests[1].messages?.[0]?.content?.parts?.[0] === "Queued follow-up");
-    await page.waitForFunction(() => !document.querySelector('[data-testid="stop-button"]'), null, { timeout: 5000 });
+    check("PromptQueue leaves the first reply intact", await page.locator('[data-chatgpt-search-unit-key$=":assistant"] .markdown').first().textContent() === "Here is the answer.");
+    await page.waitForFunction(stop => !document.querySelector(stop), STOP, { timeout: 5000 });
     await page.waitForTimeout(700);
     const favicons = await page.evaluate(() => window.__favicons);
     check("favicon moved through wait, generating and done", favicons.length >= 3 && favicons.at(-1).startsWith("data:image/png") && favicons.at(-1) !== rotating, `${favicons.length} states`);
     check("ChatListStatus clears after the reply", await page.locator('[data-bloom="cls"]').count() === 0);
     check("MessageTimestamps stamps live messages", await page.locator('time[data-bloom="timestamp"]').count() >= 2);
-    check("BetterNavigator draws one tick per turn", await page.locator(".bloom-nav-tick").count() === await page.locator("[data-turn-key]").count());
+    check("BetterNavigator draws one tick per message", await page.locator(".bloom-nav-tick").count() === await page.locator("[data-chatgpt-search-unit-key]").count());
 
-    await page.locator('textarea[name="prompt"]').focus();
+    await page.locator(COMPOSER).focus();
     await page.keyboard.press("ArrowUp");
-    check("InputHistory recalls the last prompt", await page.locator('textarea[name="prompt"]').inputValue() === "Queued follow-up");
+    check("InputHistory recalls the last prompt", (await page.locator(COMPOSER).textContent()).trim() === "Queued follow-up");
     await page.keyboard.press("Escape");
-    check("InputHistory restores the draft on Escape", await page.locator('textarea[name="prompt"]').inputValue() === "");
+    check("InputHistory restores the draft on Escape", (await page.locator(COMPOSER).textContent()).trim() === "");
 
     await page.locator(`a[href="/c/${CHAT_A}"]`).first().click();
     await page.waitForSelector("[data-turn-key]");
     await page.waitForTimeout(400);
     check("MessageTimestamps uses create_time from the page's own request", (await page.locator('time[data-bloom="timestamp"]').first().textContent())?.length > 5);
+    check("MessageTimestamps stamps both messages of a loaded turn", await page.locator('[data-chatgpt-search-unit-key] > time[data-bloom="timestamp"]').count() === 2);
     await page.locator(`a[href="/c/${CHAT_B}"]`).first().click();
     await page.waitForTimeout(400);
     await page.locator("body").click({ position: { x: 700, y: 300 } });
@@ -186,7 +207,7 @@ async function stopAndSwitchSuite(browser) {
     await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
     await sendPrompt(page, "Stop me");
     await page.waitForTimeout(300);
-    await page.locator('[data-testid="stop-button"]').click();
+    await page.locator(STOP).click();
     await page.waitForTimeout(900);
     check("stopping a reply does not notify", await page.evaluate(() => window.__notifications.length === 0));
     check("stopping a reply returns the favicon to idle", await page.evaluate(() => document.getElementById("bloom-chat-state-favicon")?.href.endsWith("/favicon.ico")));

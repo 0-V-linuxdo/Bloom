@@ -9,7 +9,7 @@ import { generation, generationState } from "@host/generation";
 import { conversationData, network } from "@host/network";
 import { currentConversationId } from "@host/route";
 import { Sel } from "@host/selectors";
-import { isRole, outerMessageUnits, unitMessageIds } from "@host/thread";
+import { isRole, outerMessageUnits, searchUnitRole, unitMessageIds } from "@host/thread";
 import { frameScheduler, h, hostMutations, watchBody } from "@utils/dom";
 import definePlugin, { OptionType } from "@utils/types";
 
@@ -63,7 +63,7 @@ function format(time: number) {
 }
 
 function unitRole(unit: HTMLElement) {
-    const value = unit.getAttribute("data-message-author-role") ?? unit.closest(Sel.turn)?.getAttribute("data-turn") ?? unit.querySelector(Sel.authorRole)?.getAttribute("data-message-author-role");
+    const value = searchUnitRole(unit) ?? unit.getAttribute("data-message-author-role") ?? unit.closest(Sel.turn)?.getAttribute("data-turn") ?? unit.querySelector(Sel.authorRole)?.getAttribute("data-message-author-role");
     if (isRole(value)) return value;
     const id = unitMessageIds(unit).at(-1);
     return conversationData(currentConversationId())?.chain.find(message => message.id === id)?.role ?? null;

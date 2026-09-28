@@ -18,8 +18,9 @@ export interface Turn {
     streaming: boolean;
 }
 
-const BUSY = '[aria-busy="true"], .result-streaming';
 const ROLE_ATTRS = ["data-turn", "data-message-author-role"] as const;
+const UNIT_ROLE = /:(user|assistant)$/;
+const MESSAGE_UNIT = `${Sel.messageUnit}, ${Sel.oldMessage}`;
 
 export const isRole = (value: string | null | undefined): value is Role => value === "user" || value === "assistant";
 
@@ -37,14 +38,22 @@ export function threadScroller(): HTMLElement | null {
 export const threadColumn = () =>
     document.querySelector<HTMLElement>(Sel.conversationTarget) ?? document.querySelector<HTMLElement>(Sel.oldThread);
 
+export const searchUnitRole = (unit: Element) => (unit.getAttribute("data-chatgpt-search-unit-key")?.match(UNIT_ROLE)?.[1] ?? null) as Role | null;
+
+const roleUnits = (root: ParentNode) => [...root.querySelectorAll<HTMLElement>(Sel.searchUnit)]
+    .filter(unit => searchUnitRole(unit) && !unit.parentElement?.closest(Sel.searchUnit));
+
+const ownMessageIds = (el: Element) =>
+    (el.getAttribute("data-chatgpt-search-message-ids") ?? el.getAttribute("data-message-id"))?.split(/\s+/).filter(Boolean) ?? [];
+
 export function unitMessageIds(unit: Element) {
-    return unit.getAttribute("data-chatgpt-search-message-ids")?.split(/\s+/).filter(Boolean)
-        ?? [unit.getAttribute("data-message-id")].filter(id => id != null);
+    const own = ownMessageIds(unit);
+    return own.length ? own : [...new Set([...unit.querySelectorAll(MESSAGE_UNIT)].flatMap(ownMessageIds))];
 }
 
 export function outerMessageUnits(root: ParentNode = document) {
-    return [...root.querySelectorAll<HTMLElement>(`${Sel.messageUnit}, ${Sel.oldMessage}`)]
-        .filter(unit => !unit.parentElement?.closest(`${Sel.messageUnit}, ${Sel.oldMessage}`));
+    const units = roleUnits(root);
+    return units.length ? units : [...root.querySelectorAll<HTMLElement>(MESSAGE_UNIT)].filter(unit => !unit.parentElement?.closest(MESSAGE_UNIT));
 }
 
 function chainRole(ids: string[], chain: ChainMessage[]) {
@@ -68,17 +77,20 @@ const isOuterTurn = (el: HTMLElement) => !el.parentElement?.closest(Sel.turn);
 
 export function listTurns(): Turn[] {
     const chain = conversationData(currentConversationId())?.chain ?? [];
-    const els = [...document.querySelectorAll<HTMLElement>(Sel.turn)].filter(isOuterTurn);
+    const parts = [...document.querySelectorAll<HTMLElement>(Sel.turn)].filter(isOuterTurn).flatMap(el => {
+        const units = roleUnits(el);
+        return units.length ? units.map(unit => ({ el: unit, known: searchUnitRole(unit) })) : [{ el, known: null }];
+    });
     const { generating } = generationState();
-    return els.map((el, index) => {
-        const messageIds = outerMessageUnits(el).flatMap(unitMessageIds);
-        const role = domRole(el) ?? chainRole(messageIds, chain) ?? (index % 2 ? "assistant" : "user");
-        const streaming = role === "assistant" && (el.matches(BUSY) || !!el.querySelector(BUSY) || (generating && index === els.length - 1));
+    return parts.map(({ el, known }, index) => {
+        const messageIds = known ? unitMessageIds(el) : outerMessageUnits(el).flatMap(unitMessageIds);
+        const role = known ?? domRole(el) ?? chainRole(messageIds, chain) ?? (index % 2 ? "assistant" : "user");
+        const streaming = role === "assistant" && (el.matches(Sel.turnBusy) || !!el.querySelector(Sel.turnBusy) || (generating && index === parts.length - 1));
         return { el, role, messageIds, streaming };
     });
 }
 
-const SKIP_LINE = /^(?:\d+\s+sources?|web search|searched|thought for|reasoned|thinking)\b/i;
+const SKIP_LINE = /^(?:\d+\s+sources?|web search|searched|thought for|worked for|reasoned|thinking)\b/i;
 
 const summaries = new WeakMap<HTMLElement, { length: number; summary: string; }>();
 

@@ -14,6 +14,8 @@ import { Sel } from "./selectors";
 const TICK_MS = 250;
 const FALL_SETTLE_MS = 400;
 const MIGRATION_WINDOW_MS = 60_000;
+const HANDOFF_HOLD_MS = 5000;
+const BUSY_TURN = `:is(${Sel.turn}) :is(${Sel.turnBusy})`;
 
 export type FallOutcome = "done" | "stopped" | "error" | "left";
 
@@ -35,22 +37,25 @@ let generating = false;
 let riseAt = 0;
 let fallTimer: ReturnType<typeof setTimeout> | undefined;
 let stopRequested = false;
-let staleStop = false;
+let staleDom = false;
+let holdUntil = 0;
 let lastEnd: GenerateEnd | null = null;
 let started = false;
 
 export const generationState = (): GenerationState => ({ generating, conversationId: currentConversationId() });
 
+const domGenerating = () => isStopVisible() || !!document.querySelector(BUSY_TURN);
+
 function rawGenerating() {
-    const stopVisible = isStopVisible();
-    if (!stopVisible) staleStop = false;
-    return [...activeRequests].some(id => !ignoredRequests.has(id)) || (stopVisible && !staleStop);
+    const dom = domGenerating();
+    if (!dom) staleDom = false;
+    else if (!staleDom) holdUntil = 0;
+    return [...activeRequests].some(id => !ignoredRequests.has(id)) || (dom && !staleDom) || Date.now() < holdUntil;
 }
 
 function outcome(): FallOutcome {
     if (lastEnd?.error) return "error";
-    if (stopRequested || lastEnd?.aborted) return "stopped";
-    return "done";
+    return stopRequested ? "stopped" : "done";
 }
 
 function settle() {
@@ -84,7 +89,8 @@ function onRoute({ prevId, id }: RouteChange) {
     const migrated = !prevId && !!id && (generating || Date.now() - riseAt < MIGRATION_WINDOW_MS);
     if (!migrated && generating) {
         for (const request of activeRequests) ignoredRequests.add(request);
-        staleStop = isStopVisible();
+        staleDom = domGenerating();
+        holdUntil = 0;
         clearTimeout(fallTimer);
         fallTimer = undefined;
         generating = false;
@@ -97,7 +103,10 @@ function onRoute({ prevId, id }: RouteChange) {
 }
 
 function onClick(event: MouseEvent) {
-    if (event.target instanceof Element && event.target.closest(Sel.stopButton)) stopRequested = true;
+    if (event.target instanceof Element && event.target.closest(Sel.stopButton)) {
+        stopRequested = true;
+        holdUntil = 0;
+    }
 }
 
 export function startGeneration() {
@@ -111,6 +120,7 @@ export function startGeneration() {
         activeRequests.delete(end.requestId);
         if (ignoredRequests.delete(end.requestId)) return;
         lastEnd = end;
+        holdUntil = end.handoff && !end.error && !stopRequested ? Date.now() + HANDOFF_HOLD_MS : 0;
         evaluateGeneration();
     });
     onRouteChange(onRoute);

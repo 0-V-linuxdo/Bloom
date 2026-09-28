@@ -24,9 +24,8 @@ export function readDraft(input = composerInput()) {
     if (input instanceof HTMLTextAreaElement) return input.value.replace(ZERO_WIDTH, "").trim();
     const clone = input.cloneNode(true) as HTMLElement;
     for (const chip of clone.querySelectorAll('[contenteditable="false"], button')) chip.remove();
-    const paragraphs = [...clone.querySelectorAll("p")];
-    const text = paragraphs.length ? paragraphs.map(p => p.textContent ?? "").join("\n") : clone.textContent ?? "";
-    return text.replace(ZERO_WIDTH, "").trim();
+    const paragraphs = [...clone.querySelectorAll("p")].map(p => p.textContent ?? "").join("\n");
+    return (paragraphs.trim() ? paragraphs : clone.textContent ?? "").replace(ZERO_WIDTH, "").trim();
 }
 
 const textareaValueSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;

@@ -22,7 +22,7 @@ chatgpt.com hydrates with `hydrateRoot(document)`. These broke earlier versions:
 
 ## Generation state
 
-`host/generation.ts` is the single source for "ChatGPT is answering". It is true while a generate stream (`POST /backend-api/f/conversation`, SSE) is open or a Stop button is visible. It emits `rise`, `fall` (`done`, `stopped`, `error`, `left`), `context` (with `migrated` for the first message moving `/` → `/c/{id}`) and `tick`. Leaving a chat mid-reply is `left`, never `done`. Plugins subscribe; they do not poll the DOM for Stop themselves.
+`host/generation.ts` is the single source for "ChatGPT is answering". It rises when `POST /backend-api/f/conversation` starts and stays true while that stream is open, while a Stop button (`aria-label="Stop"` in the 2026-09 shell) is visible or while a turn holds `[role=status][aria-busy=true]`. In the 2026-09 shell that request is a short relay stream the page aborts; the reply arrives over WebSocket, so a relay ending holds the state for a few seconds until the DOM takes over, and only a click on Stop counts as stopped. It emits `rise`, `fall` (`done`, `stopped`, `error`, `left`), `context` (with `migrated` for the first message moving `/` → `/c/{id}`) and `tick`. Leaving a chat mid-reply is `left`, never `done`. Plugins subscribe; they do not poll the DOM for Stop themselves.
 
 ## Code style
 

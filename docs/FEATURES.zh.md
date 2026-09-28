@@ -55,7 +55,7 @@
 - 当前会话 id 只看 pathname 里的 `/c/{id}`（含 `/g/{gizmo}/c/{id}`）。`/` 和 `/g/{gizmo}`（无 `/c/`）是“草稿落地页”。
 - 第一条消息发出后 URL 从 `/` 或 `/g/…` 变成 `/c/{新id}`：这是**同一次对话的迁移**，不是切会话（状态、队列、计时都要跟过去）。
 - 点另一条 Recents、点 New chat：这是**真切会话**，离开时正在生成的回复不算“完成”（不响通知、不画完成图标、不发队列）。
-- 临时聊天：`?temporary-chat=true`，id 不进 URL。
+- 临时聊天：`?temporary-chat=true`；发出第一条后变成 `/c/{id}?temporary-chat=true`。RecentTopics 不记录临时聊天。
 
 ### 2.4 生成状态（流式）
 
@@ -66,9 +66,9 @@
 - `tick`：周期性状态快照（隐藏标签页也要跑，Chrome 在后台不跑 rAF）。
 
 判定来源：
-1. 网络：生成请求 `POST /backend-api/f/conversation`（旧路径 `/backend-api/conversation`）的 SSE 响应，开始即生成中、流结束即结束；响应出错或 SSE 里有 `error` 即 `error`。`/conversation/init`、`/prepare` 不是生成。
-2. DOM：输入框区域可见的 Stop 按钮，助手回合 `aria-busy`，“Thinking/Working”等进行中的状态行。
-3. 用户点 Stop → `userStopped`。
+1. 网络：生成请求 `POST /backend-api/f/conversation`（旧路径 `/backend-api/conversation`）一开始即生成中；响应出错或 SSE 里有 `error` 即 `error`。`/conversation/init`、`/prepare` 不是生成。2026-09 实测：这个请求只是“接力”流（`stream_handoff`、`resume_sse_endpoint`、`subscribe_ws_topic` 等事件后 `[DONE]`，约 1.6 秒后被页面中止），真正的回复走 WebSocket，所以接力流结束或被中止都不算结束，也不算用户中止，只保持几秒“生成中”等 DOM 接手。
+2. DOM（新版的主判据）：输入框 form 内可见的 Stop 按钮（新版 aria-label 就是 `Stop`，无 `data-testid`），回合内的 `span[role=status][aria-busy=true]`（sr-only “ChatGPT is responding”）。全局的 `aria-busy` 不能用：rail 的头像按钮常驻 `aria-busy="true"`。
+3. 用户点 Stop → `userStopped`。只有点了 Stop 才算中止。
 
 规则：离开生成中的会话不算完成；迁移（`/` → `/c/{id}`）不打断；下降沿要稳定一小段时间再确认，避免闪断误报。
 
@@ -83,7 +83,7 @@
 
 - 读草稿：忽略 `contenteditable=false` 的芯片、提及按钮、零宽字符；只有芯片没有文字 = 空。
 - 写草稿：统一的写入函数（`execCommand("insertText")` + `InputEvent`，textarea 则写 `value` 再派 `input`），任何插件都不直接写 `innerHTML`。
-- 找 Send / Stop 按钮：`data-testid` 优先（`send-button`、`stop-button`、`composer-submit-button`），其次 aria-label（中英文），限定在输入框 form 内。
+- 找 Send / Stop 按钮：`data-testid` 优先（`send-button`、`stop-button`、`composer-submit-button`），其次 aria-label（中英文，含新版的精确 `Send` / `Stop`），限定在输入框 form 内。
 
 ### 2.7 主题
 
@@ -343,7 +343,11 @@
 | 回合操作条 | `.turn-action-controls`；代码块复制 `[data-markdown-copy="code-block"]`；复制按钮 `[data-testid="copy-turn-action-button"]` |
 | 生成图片 | `[class~="group/generated-image-preview"]`、`img[alt="Generated image"]` |
 | 输入框 | `textarea[name="prompt"]` 或 `#mobile-composer-prompt`（仍可能是 ProseMirror `#prompt-textarea`） |
-| 生成请求 | `POST /backend-api/f/conversation`（SSE） |
+| 生成请求 | `POST /backend-api/f/conversation`（接力 SSE，回复走 WebSocket） |
+| 回合 | 一个 `[data-turn-key]` 同时含用户和助手两条消息，各在 `[data-chatgpt-search-unit-key$=":user"|":assistant"]` 里 |
+| 账号芯片 | `button[aria-haspopup=menu]`（英文 aria-label “Open profile menu”）是空的覆盖按钮，旁边的 `div.pointer-events-none` 里才是头像 img、名字、套餐；打开的菜单是按钮 `aria-controls` 指向的 `[role=menu]` |
+| 首页标题 | 不可见的 `h1[aria-hidden=true]` 占位 + 可见的 `h1.inline`；取后者 |
+| 发送/停止 | form 内 `button[aria-label="Send"|"Stop"]`，听写是 `Dictate` |
 
 ### 6.2 旧壳（仍在 A/B）
 
@@ -369,4 +373,4 @@
 4. **生成检测**：主要靠 400ms 轮询 DOM（Stop 按钮、`aria-busy`、Thinking 文字）加大量补丁规则；新壳 Stop 按钮会被换成 Voice/Send，导致 favicon、通知、队列、侧栏转圈一起出错。
 5. **选择器堆积**：每个插件各自维护一份宿主选择器并集（数百条），新壳一变就各自漏。
 
-重写方向：宿主结构知识集中到一个适配层；生成状态以网络 SSE 为主、DOM 为辅；新旧两套壳并存支持；插件只消费宿主提供的语义接口。
+重写方向：宿主结构知识集中到一个适配层；生成状态由网络请求起、DOM（Stop 按钮、回合内 status）判定持续与结束；新旧两套壳并存支持；插件只消费宿主提供的语义接口。
