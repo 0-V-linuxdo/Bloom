@@ -68,6 +68,7 @@ export const newShell = theme => `${HEAD(theme)}
   <form class="relative flex flex-col gap-2"><div class="ProseMirror" contenteditable="true" aria-label="Ask ChatGPT"><p></p></div><button type="button" aria-label="Dictate">Mic</button><button aria-label="Send">Send</button></form>
   <div data-testid="thread-disclaimer">ChatGPT can make mistakes.</div>
 </main>
+<div role="dialog" data-state="open" class="gpts-notice"><h2>Migrate your GPTs to plugins by December 11</h2><button aria-label="Close" onclick="this.closest('[role=dialog]').remove()">×</button></div>
 <script>document.documentElement.dataset.shell = "new";</script>
 <script src="/mock/app.js"></script>
 </body></html>`;

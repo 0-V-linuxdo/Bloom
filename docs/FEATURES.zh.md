@@ -201,6 +201,7 @@
 - `hideLockedModels`：模型选择器里锁定、不可用的模型。
 - `hideHomePromo`：首页的 GPT/应用/Codex 推广横幅。
 - `hideAds`：Free 套餐的广告、赞助位。
+- `hideNotices`：自动关掉通知弹窗，目前是 “Migrate your GPTs to plugins by December 11”。按文字识别弹窗，有关闭按钮就点关闭，没有就隐藏。
 
 不能隐藏整个输入框区域、Voice、Share、头像、Bloom++ 行。
 
@@ -309,7 +310,7 @@
 | NoSidebarIdentity | `hideUsername` `hideEmail` `enlargePlan` `alignPlanWithAvatar` | — |
 | CustomSidebarIdentity | `displayName` `avatarSize` `applyToMenu` | `avatarUrl` `avatarSource` `cropX` `cropY` `cropZoom` |
 | RecentTopics | `maxRecent` `includeHome` | `visits` `titles` `previews` `projects` |
-| Cleaner | `hideDownloadApps` `hideDisclaimer` `hideUpgrade` `hideLockedModels` `hideHomePromo` `hideAds` | — |
+| Cleaner | `hideDownloadApps` `hideDisclaimer` `hideUpgrade` `hideLockedModels` `hideHomePromo` `hideAds` `hideNotices` | — |
 | ResponseNotification | `sound` `soundUrl` `browserNotification` `onlyWhenHidden` | — |
 | PromptQueue | `replacePending` | `queueModeRev` |
 | ChatListStatus | — | — |
