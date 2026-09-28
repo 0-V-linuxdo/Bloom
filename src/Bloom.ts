@@ -216,5 +216,5 @@ export { VERSION, REPO_URL } from "./utils/constants";
 export { isDocumentInteractive, hasLateIslands } from "./utils/hydration";
 export { subscribeHarvest, conversationTitle, messageCreateTime, conversationChain, ensureConversationChain } from "./host/harvest";
 export { conversationToken, currentConversationId, contextKeyFromUrl } from "./host/conversation";
-export { draftText, hasDraftText, isUserDraftEmpty, setEditorText } from "./host/composer";
+export { hasDraftText, isUserDraftEmpty, setEditorText } from "./host/composer";
 export { isStreaming, hasErrorToast, watchStreamingEdge } from "./host/streaming";

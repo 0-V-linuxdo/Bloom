@@ -58,13 +58,9 @@ export function hasImageGenerationSpinner(): boolean {
 
 export function hasStreamingTurn(): boolean {
     try {
-        return !!document.querySelector([
-            '[data-message-author-role="assistant"][aria-busy="true"]',
-            '.result-streaming[aria-busy="true"]',
-            '[data-chatgpt-search-message-ids][aria-busy="true"]',
-            '[data-chatgpt-search-message-ids][data-message-author-role="assistant"][aria-busy="true"]',
-            '[data-chatgpt-conversation-selection-target] [data-chatgpt-search-message-ids][aria-busy="true"]',
-        ].join(", "));
+        return !!document.querySelector(
+            '[data-message-author-role="assistant"][aria-busy="true"], .result-streaming[aria-busy="true"]',
+        );
     } catch {
         return false;
     }

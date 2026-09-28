@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.113](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.113)** (`userscript/Bloom.update4.user.js`, `@version [20260928] v1.4.113`).
+Current release: **[v1.4.112](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.112)** (`userscript/Bloom.update4.user.js`, `@version [20260928] v1.4.112`).
 
 Plugins:
 
@@ -170,8 +170,6 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
-
-v1.4.113: **ChatStateFavicons and PromptQueue read the 2026-09 `textarea[name=prompt]` draft.** An empty `#prompt-textarea` `<p>` stub no longer hides the live field, so Enter during generate enqueues and the tab icon can leave wait. Packed `data-chatgpt-search-message-ids[aria-busy=true]` counts as a streaming turn. Install URL stays `userscript/Bloom.update4.user.js`.
 
 v1.4.112: **Install / `@updateURL` / `@downloadURL` move to `userscript/Bloom.update4.user.js`.** After 1.4.111 reached `main`, Tampermonkey stayed on `[20260928] v1.4.110` with red “获取更新信息失败”, so Helium never received the rail / CSI fix. Still write the old copies (`update3` / `update2` / `update` / `latest` / `Bloom.user.js`). Do not drop the date prefix.
 

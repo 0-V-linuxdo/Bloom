@@ -9,9 +9,6 @@
  *
  * Draft emptiness ignores contenteditable=false atoms / mention buttons /
  * leftover App chips re-pinned inside #prompt-textarea after Send.
- * The 2026-09 shell stores the live draft on textarea[name=prompt]
- * (sometimes under an empty #prompt-textarea <p> stub). Read/write that
- * field; do not join only <p>.
  * setEditorText is the shared write path (execCommand insertText + InputEvent).
  * Plugins must not import InputHistory to fill the editor.
  */
@@ -30,14 +27,11 @@ export const SEND_SEL = [
     'form button[aria-label^="Send" i]',
     'form button[aria-label="Send prompt"]',
     'form button[aria-label="发送"]',
-    '#thread-bottom-container button[aria-label^="Send" i]',
-    '#thread-bottom button[aria-label^="Send" i]',
     'form button[type="submit"]',
 ].join(", ");
 export const STOP_SEL = [
     'button[data-testid="stop-button"]',
     'button[data-testid="composer-stop-button"]',
-    'button[data-testid*="stop-button" i]',
     'form[data-type="unified-composer"] button[aria-label*="Stop streaming" i]',
     'form[data-type="unified-composer"] button[aria-label*="Stop generating" i]',
     'form[data-type="unified-composer"] button[aria-label*="停止生成"]',
@@ -46,10 +40,6 @@ export const STOP_SEL = [
     'form button[aria-label*="Stop generating" i]',
     'form button[aria-label*="停止生成"]',
     'form button[aria-label*="停止输出"]',
-    '#thread-bottom-container button[aria-label*="Stop streaming" i]',
-    '#thread-bottom-container button[aria-label*="Stop generating" i]',
-    '#thread-bottom button[aria-label*="Stop streaming" i]',
-    '#thread-bottom button[aria-label*="Stop generating" i]',
 ].join(", ");
 export const TRAILING_SEL = [
     '[data-testid="composer-trailing-actions"]',
@@ -60,19 +50,6 @@ export const TRAILING_SEL = [
 
 const STOP_LABEL = /stop streaming|stop generating|停止生成|停止输出|停止响应/;
 const ATOM_SEL = '[contenteditable="false"], button, [role="button"]';
-const FIELD_SEL = [
-    'textarea[name="prompt"]',
-    "#mobile-composer-prompt",
-    '[data-testid="mobile-composer-prompt"]',
-    "textarea#prompt-textarea",
-    'textarea[data-testid="prompt-textarea"]',
-].join(", ");
-const COMPOSER_WRAP_SEL = [
-    COMPOSER_SEL,
-    '[data-type="unified-composer"]',
-    "#thread-bottom-container",
-    "#thread-bottom",
-].join(", ");
 
 export function isVisible(el: Element | null | undefined): el is HTMLElement {
     if (!(el instanceof HTMLElement) || !el.isConnected) return false;
@@ -105,85 +82,22 @@ export function isStopControl(el: HTMLElement): boolean {
     return false;
 }
 
-function isPlainField(el: HTMLElement): el is HTMLTextAreaElement | HTMLInputElement {
-    return el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement;
-}
-
-function fieldOf(root: ParentNode | null | undefined): HTMLTextAreaElement | HTMLInputElement | null {
-    if (!root) return null;
-    if (root instanceof HTMLElement && isPlainField(root)) return root;
-    try {
-        for (const node of root.querySelectorAll(FIELD_SEL)) {
-            if (node instanceof HTMLTextAreaElement || node instanceof HTMLInputElement) return node;
-        }
-    } catch { /* ignore */ }
-    return null;
-}
-
-function nonempty(text: string): boolean {
-    return text.replaceAll("\u200B", "").trim().length > 0;
-}
-
-function wrapOf(el: HTMLElement | null): HTMLElement | null {
-    if (!el) return null;
-    const wrap = el.closest(COMPOSER_WRAP_SEL) ?? el.closest("form") ?? el.parentElement;
-    if (!(wrap instanceof HTMLElement)) return null;
-    if (wrap === document.body || wrap === document.documentElement) return null;
-    return wrap;
-}
-
 export function getComposerRoot(): HTMLElement {
     const forms = Array.from(document.querySelectorAll(COMPOSER_SEL));
     const visible = forms.find(isVisible);
     if (visible instanceof HTMLElement) return visible;
-    const connected = forms.find(node => node instanceof HTMLElement && node.isConnected);
-    if (connected instanceof HTMLElement) return connected;
-    const field = fieldOf(document);
-    const editor = field ?? queryAny(document, EDITOR_SEL);
-    return wrapOf(editor) ?? document.body;
-}
-
-function focusedEditor(): HTMLElement | null {
-    const ae = document.activeElement;
-    if (!(ae instanceof HTMLElement)) return null;
-    if (isPlainField(ae)) return ae;
-    const field = ae.closest(FIELD_SEL);
-    if (field instanceof HTMLElement && isPlainField(field)) return field;
-    const hit = ae.closest(EDITOR_SEL);
-    if (!(hit instanceof HTMLElement)) return null;
-    const inner = fieldOf(hit);
-    if (inner && nonempty(inner.value)) return inner;
-    return hit;
-}
-
-function leafEditors(nodes: HTMLElement[]): HTMLElement[] {
-    return nodes.filter(el => !nodes.some(other => other !== el && el.contains(other)));
+    const ta = queryAny(document, EDITOR_SEL);
+    const wrap = ta?.closest("form") ?? ta?.parentElement;
+    return wrap instanceof HTMLElement ? wrap : document.body;
 }
 
 export function getActiveEditor(): HTMLElement | null {
-    const focused = focusedEditor();
-    if (focused) return focused;
-    let fields: HTMLElement[] = [];
-    try {
-        fields = Array.from(document.querySelectorAll(FIELD_SEL)).filter((node): node is HTMLTextAreaElement | HTMLInputElement => (
-            node instanceof HTMLTextAreaElement || node instanceof HTMLInputElement
-        ));
-    } catch { /* ignore */ }
-    const visibleFields = fields.filter(isVisible);
-    const valued = (visibleFields.length ? visibleFields : fields).find(el => isPlainField(el) && nonempty(el.value));
-    if (valued) return valued;
-    if (visibleFields[0]) return visibleFields[0];
     const list = Array.from(document.querySelectorAll<HTMLElement>(EDITOR_SEL));
-    const visible = list.filter(isVisible);
-    const pool = leafEditors(visible.length ? visible : list);
-    const drafted = pool.find(el => nonempty(editorText(el)));
-    return drafted ?? pool[0] ?? fields[0] ?? null;
+    return list.find(isVisible) ?? list[0] ?? null;
 }
 
 function isDraftAtom(el: Element | null, editor: HTMLElement): boolean {
     if (!el || el === editor || !editor.contains(el)) return false;
-    if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) return true;
-    if (el.closest("textarea, input")) return true;
     const hit = el.closest(ATOM_SEL);
     return !!hit && hit !== editor && editor.contains(hit);
 }
@@ -208,50 +122,16 @@ function draftTextOf(root: HTMLElement, editor: HTMLElement): string {
  * Walk the editor and collect text that is not inside a non-editable
  * atom (App/@plugin chip, mention button, contenteditable=false pill).
  * Chip-only leftover after Send counts as empty.
- * A leftover empty <p> must not hide textarea[name=prompt].
  */
-export function editorText(el: HTMLElement): string {
-    if (isPlainField(el)) return el.value;
-    const field = fieldOf(el);
-    if (field && nonempty(field.value)) return field.value;
-    const blocks = el.querySelectorAll("p");
-    if (blocks.length) {
-        const joined = Array.from(blocks, b => draftTextOf(b, el)).join("\n");
-        if (nonempty(joined)) return joined;
-    }
-    const walked = draftTextOf(el, el);
-    if (nonempty(walked)) return walked;
-    return field?.value ?? "";
-}
-
-/** Live composer draft: the passed node, else the focused/active editor, else the prompt field. */
-export function draftText(el?: HTMLElement | null): string {
-    if (el) {
-        const fromEl = editorText(el);
-        if (nonempty(fromEl)) return fromEl;
-        const root = getComposerRoot();
-        if (root && root !== document.body && (root.contains(el) || el.contains(root))) {
-            const fromRoot = editorText(root);
-            if (nonempty(fromRoot)) return fromRoot;
-            return fieldOf(root)?.value ?? "";
-        }
-        return "";
-    }
-    const editor = getActiveEditor();
-    if (editor) {
-        const fromEditor = editorText(editor);
-        if (nonempty(fromEditor)) return fromEditor;
-    }
-    const root = getComposerRoot();
-    if (root) {
-        const fromRoot = editorText(root);
-        if (nonempty(fromRoot)) return fromRoot;
-    }
-    return fieldOf(document)?.value ?? "";
+function isPlainField(el: HTMLElement): el is HTMLTextAreaElement | HTMLInputElement {
+    return el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement;
 }
 
 export function hasDraftText(el?: HTMLElement | null): boolean {
-    return nonempty(el ? editorText(el) : draftText());
+    const editor = el ?? getActiveEditor();
+    if (!editor) return false;
+    if (isPlainField(editor)) return editor.value.replaceAll("\u200B", "").trim().length > 0;
+    return draftTextOf(editor, editor).replaceAll("\u200B", "").trim().length > 0;
 }
 
 /** True when the composer has no user-typed draft (chip-only = empty). */
@@ -314,6 +194,15 @@ export function getStopButton(): HTMLElement | null {
     return scanComposerButtons(isStopControl);
 }
 
+export function editorText(el: HTMLElement): string {
+    if (isPlainField(el)) return el.value;
+    const blocks = el.querySelectorAll("p");
+    if (blocks.length) {
+        return Array.from(blocks, b => draftTextOf(b, el)).join("\n");
+    }
+    return draftTextOf(el, el);
+}
+
 type PmView = {
     state: {
         doc: unknown;
@@ -342,21 +231,25 @@ export function placeCaret(el: HTMLElement, atStart = false) {
     sel.addRange(range);
 }
 
-function writePlain(el: HTMLTextAreaElement | HTMLInputElement, text: string, atStart: boolean) {
-    el.focus();
-    el.value = text;
-    el.dispatchEvent(new InputEvent("input", {
-        bubbles: true,
-        data: text,
-        inputType: text ? "insertText" : "deleteContent",
-    }));
-    try {
-        const pos = atStart ? 0 : text.length;
-        el.setSelectionRange(pos, pos);
-    } catch { /* ignore */ }
-}
-
-function writeRich(el: HTMLElement, text: string, atStart: boolean) {
+/**
+ * Fill the composer via execCommand insertText + InputEvent.
+ * Never innerHTML. textContent is last-resort only when insertText throws.
+ */
+export function setEditorText(el: HTMLElement, text: string, atStart = false) {
+    if (isPlainField(el)) {
+        el.focus();
+        el.value = text;
+        el.dispatchEvent(new InputEvent("input", {
+            bubbles: true,
+            data: text,
+            inputType: text ? "insertText" : "deleteContent",
+        }));
+        try {
+            const pos = atStart ? 0 : text.length;
+            el.setSelectionRange(pos, pos);
+        } catch { /* ignore */ }
+        return;
+    }
     el.focus();
     const sel = window.getSelection();
     if (!sel) return;
@@ -376,32 +269,4 @@ function writeRich(el: HTMLElement, text: string, atStart: boolean) {
         inputType: text ? "insertText" : "deleteContent",
     }));
     placeCaret(el, atStart);
-}
-
-/**
- * Fill the composer via execCommand insertText + InputEvent.
- * Never innerHTML. textContent is last-resort only when insertText throws.
- * A wrapper #prompt-textarea also writes textarea[name=prompt].
- */
-function findRich(el: HTMLElement, field: HTMLElement | null): HTMLElement | null {
-    if (el.isContentEditable && el !== field && !(field && el.contains(field))) return el;
-    try {
-        for (const node of el.querySelectorAll<HTMLElement>('[contenteditable="true"]')) {
-            if (node === field) continue;
-            if (field && (node.contains(field) || field.contains(node))) continue;
-            return node;
-        }
-    } catch { /* ignore */ }
-    return null;
-}
-
-export function setEditorText(el: HTMLElement, text: string, atStart = false) {
-    const field = isPlainField(el) ? el : fieldOf(el) ?? fieldOf(getComposerRoot());
-    const rich = isPlainField(el) ? null : findRich(el, field);
-    if (rich) writeRich(rich, text, atStart);
-    if (field) {
-        writePlain(field, text, atStart);
-        return;
-    }
-    writeRich(el, text, atStart);
 }
