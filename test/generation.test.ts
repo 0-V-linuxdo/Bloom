@@ -37,6 +37,7 @@ function busyTurn() {
 }
 
 beforeAll(() => {
+    document.body.replaceChildren();
     startGeneration();
     generation.on("rise", () => events.push("rise"));
     generation.on("fall", ({ outcome }: { outcome: FallOutcome; }) => events.push(`fall:${outcome}`));
