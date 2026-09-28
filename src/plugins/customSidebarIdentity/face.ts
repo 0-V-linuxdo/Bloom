@@ -94,10 +94,6 @@ function isChipRoot(el: HTMLElement): boolean {
     return el.tagName === "BUTTON" || el.getAttribute("role") === "button";
 }
 
-function isFlexRow(cls: string): boolean {
-    return /\bflex\b/.test(cls) && !/\bflex-col\b/.test(cls);
-}
-
 export function isLaidOutCircle(el: HTMLElement): boolean {
     if (inChrome(el) || isReplaced(el) || isChipRoot(el) || isPlanish(el)) return false;
     if (isNameish(el)) return false;
@@ -153,7 +149,7 @@ function slotBesideName(root: HTMLElement): HTMLElement | null {
     for (const col of root.querySelectorAll(".min-w-0")) {
         if (!(col instanceof HTMLElement) || inChrome(col)) continue;
 
-        if (isFlexRow(classOf(col))) {
+        if (/\bflex\b/.test(classOf(col))) {
             const extras: HTMLElement[] = [];
             for (const child of col.children) {
                 if (!(child instanceof HTMLElement) || !usableChild(child)) continue;

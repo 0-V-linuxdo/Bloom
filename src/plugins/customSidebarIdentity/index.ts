@@ -23,8 +23,10 @@
 
 import { definePluginSettings } from "../../api/Settings";
 import {
+    accountChip,
     findAccountMenu,
     findProfileButton,
+    findSidebarFooter,
     findSidebarHost,
     findTinyBar,
     pathHitsProfile,
@@ -60,6 +62,7 @@ const PAGE_STYLE = "customSidebarIdentity";
 const FACE_CLASS = "bloom-csi-face";
 const NAME_CLASS = "bloom-csi-name";
 const SLOT = SLOT_ATTR;
+const CHIP_MARK = "data-bloom-profile-chip";
 const SOURCE_PX = 1024;
 const AVATAR_PX = 256;
 const SIZE_MIN = 24;
@@ -77,6 +80,7 @@ const PROFILE = [
     'button[aria-label*="account" i][aria-haspopup]',
     '[aria-haspopup="menu"][data-testid*="profile" i]',
     '[data-app-navigation-rail] button[aria-haspopup="menu"]',
+    "[data-bloom-profile-chip]",
 ];
 
 const MENU = [
@@ -348,19 +352,32 @@ function pickFace(root: HTMLElement): HTMLImageElement | null {
 
 function chipTargets(): HTMLElement[] {
     const out: HTMLElement[] = [];
-    const profile = findProfileButton();
-    if (profile) out.push(profile);
+    const add = (el: HTMLElement | null) => {
+        if (!el || inChrome(el) || !el.isConnected) return;
+        const chip = accountChip(el);
+        if (inChrome(chip) || out.includes(chip)) return;
+        out.push(chip);
+    };
+    add(findProfileButton());
+    const footer = findSidebarFooter();
+    if (footer) {
+        const named = footer.querySelector<HTMLElement>(
+            "button[aria-haspopup='menu'] .min-w-0, button[aria-haspopup='menu'] .truncate, button[aria-haspopup='menu'] img",
+        );
+        add(named);
+    }
     const tiny = findTinyBar();
     if (tiny && !out.some(el => tiny.contains(el) || el.contains(tiny))) {
         const inner = tiny.querySelector<HTMLElement>(PROFILE.join(","))
             ?? tiny.querySelector<HTMLElement>("button, a, [role='button']")
             ?? tiny;
-        if (inner && !out.includes(inner)) out.push(inner);
+        add(inner);
     }
     return out;
 }
 
 function paintRoot(root: HTMLElement, url: string | null) {
+    root.setAttribute(CHIP_MARK, "");
     const face = pickFace(root);
     if (face) paintImg(face, url);
     else {
@@ -389,6 +406,7 @@ function paintMenu(menu: HTMLElement, url: string | null) {
 function restoreAll() {
     for (const img of document.querySelectorAll<HTMLImageElement>(`img[${MARK}]`)) restoreImg(img);
     for (const el of document.querySelectorAll(`[${SLOT}]`)) el.removeAttribute(SLOT);
+    for (const el of document.querySelectorAll(`[${CHIP_MARK}]`)) el.removeAttribute(CHIP_MARK);
 }
 
 function applyCss() {

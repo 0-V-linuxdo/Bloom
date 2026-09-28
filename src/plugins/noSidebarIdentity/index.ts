@@ -37,6 +37,7 @@ const STYLE_NAME = "noSidebarIdentity";
 const PROFILE = [
     ...PROFILE_SEL.split(","),
     "[data-app-navigation-rail] button[aria-haspopup=\"menu\"]",
+    "[data-bloom-profile-chip]",
 ];
 
 const NAME_TRUNCATE = PROFILE.flatMap(root => [

@@ -29,6 +29,7 @@ const PROFILE = [
     '[data-testid="user-menu-button"]',
     '[data-testid="account-menu-button"]',
     '[data-app-navigation-rail] button[aria-haspopup="menu"]',
+    "[data-bloom-profile-chip]",
 ];
 
 const SIDEBAR = [

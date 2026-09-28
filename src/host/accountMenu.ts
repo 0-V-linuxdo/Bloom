@@ -65,13 +65,48 @@ function isNavOrStage(el: HTMLElement): boolean {
         || el.hasAttribute("data-app-action-sidebar-scroll");
 }
 
+function isInteractiveChip(el: HTMLElement): boolean {
+    return el.tagName === "BUTTON"
+        || el.tagName === "A"
+        || el.getAttribute("role") === "button";
+}
+
 function looksLikeProfile(el: HTMLElement): boolean {
+    if (isBloomChrome(el)) return false;
     const testid = el.getAttribute("data-testid") || "";
     if (/profile|account/i.test(testid)) return true;
     const label = `${el.getAttribute("aria-label") || ""} ${el.getAttribute("title") || ""}`;
     if (/profile|account|账号|账户|头像/i.test(label)) return true;
-    if (el.querySelector("img, [data-bloom-csi-slot], [class*='rounded-full']")) return true;
+    if (el.querySelector("img, [data-bloom-csi-slot], [data-bloom-profile-chip], [class*='rounded-full']")) return true;
+    if (el.querySelector(".min-w-0, .truncate")) return true;
+    const compact = (el.textContent || "").replace(/\s+/g, "");
+    if (compact.length >= 1 && compact.length <= 3 && !/^(plus|pro|free|team|go)$/i.test(compact)) return true;
+    if (/\b(plus|pro|free|team|go|business|enterprise)\b/i.test(compact) && compact.length < 64) return true;
     return false;
+}
+
+/** Outermost account chip that contains `from`. Never Bloom chrome. */
+export function accountChip(from: HTMLElement): HTMLElement {
+    let chip = from;
+    let n: HTMLElement | null = from;
+    while (n && !isBloomChrome(n)) {
+        if (isInteractiveChip(n) && looksLikeProfile(n)) {
+            if (!isNavOrStage(n) || isRailPocket(n.parentElement)) chip = n;
+        }
+        n = n.parentElement;
+    }
+    return chip;
+}
+
+function pickBestChip(root: ParentNode): HTMLElement | null {
+    const hits = railMenuButtons(root).filter(looksLikeProfile);
+    if (!hits.length) return null;
+    hits.sort((a, b) => {
+        const ar = a.getBoundingClientRect();
+        const br = b.getBoundingClientRect();
+        return (br.width * br.height) - (ar.width * ar.height);
+    });
+    return accountChip(hits[0]);
 }
 
 function allProfileButtons(): HTMLElement[] {
@@ -112,8 +147,21 @@ function railMenuButtons(root: ParentNode): HTMLElement[] {
 }
 
 export function findProfileButton(): HTMLElement | null {
+    const footer = findSidebarFooter();
+    if (footer) {
+        const chip = pickBestChip(footer);
+        if (chip) {
+            const r = chip.getBoundingClientRect();
+            if (r.width > 16 && r.height > 8 && r.left >= -20 && r.left < window.innerWidth / 2 && r.bottom > 0) {
+                return chip;
+            }
+        }
+    }
+
+    const named = allProfileButtons().filter(el => isOnscreenRail(el) && looksLikeProfile(el));
+    if (named[0]) return accountChip(named[0]);
     const onscreen = allProfileButtons().filter(isOnscreenRail);
-    if (onscreen[0]) return onscreen[0];
+    if (onscreen[0]) return accountChip(onscreen[0]);
 
     const rail = queryFirst("[data-app-navigation-rail]");
     if (rail) {
@@ -122,18 +170,8 @@ export function findProfileButton(): HTMLElement | null {
             return r.width > 16 && r.height > 16 && r.left >= 0
                 && r.left < window.innerWidth / 3 && r.bottom > 0;
         });
-        const profile = menus.find(looksLikeProfile) ?? menus.at(-1);
-        if (profile) return profile;
-    }
-
-    const footer = findSidebarFooter();
-    if (footer) {
-        const menus = railMenuButtons(footer).filter(el => {
-            const r = el.getBoundingClientRect();
-            return r.width > 16 && r.height > 16 && r.left >= 0 && r.bottom > 0;
-        });
-        const profile = menus.find(looksLikeProfile) ?? menus.at(-1);
-        if (profile) return profile;
+        const profile = menus.find(looksLikeProfile) ?? pickBestChip(rail);
+        if (profile) return accountChip(profile);
     }
     return null;
 }
@@ -155,9 +193,16 @@ export function findSidebarFooter(): HTMLElement | null {
     if (!scroll) return null;
     const candidates = [scroll.nextElementSibling, scroll.parentElement?.nextElementSibling];
     for (const el of candidates) {
-        if (!(el instanceof HTMLElement) || !el.isConnected) continue;
-        if (isBloomChrome(el) || isNavOrStage(el)) continue;
-        if (el.querySelector('button[aria-haspopup="menu"]')) return el;
+        if (!(el instanceof HTMLElement) || !el.isConnected || isBloomChrome(el)) continue;
+        if (!el.querySelector('button[aria-haspopup="menu"]')) continue;
+        if (isNavOrStage(el)) {
+            try {
+                if (el.getBoundingClientRect().height > 240) continue;
+            } catch {
+                continue;
+            }
+        }
+        return el;
     }
     return null;
 }
@@ -170,15 +215,34 @@ export function findSidebarFooter(): HTMLElement | null {
  * that whole row — but only when the row's parent is not nav / stage.
  */
 export function railAnchor(profile: HTMLElement): HTMLElement {
-    const rail = profile.closest(RAIL_SEL);
+    const chip = accountChip(profile);
+
+    const footer = findSidebarFooter();
+    if (footer && footer.contains(chip)) {
+        const wrap = chip.parentElement;
+        if (
+            wrap
+            && wrap !== footer
+            && wrap.children.length === 1
+            && !isBloomChrome(wrap)
+            && !isNavOrStage(wrap)
+            && wrap.parentElement
+            && !isNavOrStage(wrap.parentElement)
+        ) {
+            return wrap;
+        }
+        return chip;
+    }
+
+    const rail = chip.closest(RAIL_SEL);
     if (rail instanceof HTMLElement) {
-        let row: HTMLElement | null = profile;
+        let row: HTMLElement | null = chip;
         while (row && row.parentElement !== rail) row = row.parentElement;
         if (row && row.parentElement === rail) return row;
     }
 
-    let target: HTMLElement = profile;
-    const wrap = profile.parentElement;
+    let target: HTMLElement = chip;
+    const wrap = chip.parentElement;
     if (
         wrap
         && wrap.children.length === 1

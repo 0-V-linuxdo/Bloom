@@ -888,6 +888,17 @@ function togglePanel() {
     mountPanel();
 }
 
+function armRailPointer(row: HTMLElement) {
+    row.style.pointerEvents = "auto";
+    row.style.position = "relative";
+    row.style.zIndex = "2";
+}
+
+function nestedHost(row: HTMLElement): HTMLElement | null {
+    const host = row.parentElement?.closest("button, a, [role='button']");
+    return host instanceof HTMLElement && host !== row ? host : null;
+}
+
 function buildRailItem(): HTMLButtonElement {
     const row = document.createElement("button");
     row.type = "button";
@@ -896,12 +907,20 @@ function buildRailItem(): HTMLButtonElement {
     row.setAttribute("aria-controls", SIDEBAR_ID);
     row.setAttribute("aria-expanded", bloomOpen ? "true" : "false");
     row.innerHTML = `<span class="bloom-rail-mark">${blossomSvg()}</span><span>Bloom++</span>`;
-    row.addEventListener("pointerdown", ev => ev.stopPropagation());
-    row.addEventListener("click", ev => {
+    armRailPointer(row);
+    const open = (ev: Event) => {
         ev.preventDefault();
         ev.stopPropagation();
+        if (typeof (ev as Event & { stopImmediatePropagation?: () => void }).stopImmediatePropagation === "function") {
+            ev.stopImmediatePropagation();
+        }
         togglePanel();
+    };
+    row.addEventListener("pointerdown", ev => {
+        ev.stopPropagation();
+        if (typeof ev.stopImmediatePropagation === "function") ev.stopImmediatePropagation();
     });
+    row.addEventListener("click", open);
     return row;
 }
 
@@ -1075,7 +1094,15 @@ function pinRail() {
                 anchor.before(row);
                 inserted = true;
             }
-            syncCollapsed(row, pocketParent || isRailPocket(anchor) ? true : undefined);
+            const trapped = nestedHost(row);
+            if (trapped) {
+                trapped.before(row);
+                inserted = true;
+            }
+            armRailPointer(row);
+            const railWide = (parent?.getBoundingClientRect().width ?? 0) >= 80;
+            const compact = (pocketParent || isRailPocket(anchor)) && !railWide;
+            syncCollapsed(row, compact ? true : undefined);
             syncRailAlign(row, profile);
         } else if (findSidebarFooter()) {
             const footer = findSidebarFooter()!;
@@ -1083,12 +1110,14 @@ function pinRail() {
                 footer.prepend(row);
                 inserted = true;
             }
+            armRailPointer(row);
             syncCollapsed(row);
         } else if (tiny) {
             if (row.parentElement !== tiny) {
                 tiny.appendChild(row);
                 inserted = true;
             }
+            armRailPointer(row);
             syncCollapsed(row, true);
         } else if (row.isConnected && !isOnscreenRail(row)) {
             row.remove();

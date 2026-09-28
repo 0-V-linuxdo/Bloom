@@ -108,6 +108,13 @@ writeFileSync(html, `<!doctype html>
         </div>
       </div>
     </button>
+    <button class="chip" id="helium-col" data-testid="accounts-profile-button" type="button" style="margin-top:12px">
+      <div class="min-w-0 flex flex-col" style="display:flex;flex-direction:column;gap:2px;width:100%">
+        <div class="flex h-8 w-8 items-center justify-center overflow-hidden" id="helium-col-face" style="width:32px;height:32px;background:#0d9488;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0">18</div>
+        <div class="truncate">187694485335</div>
+        <div class="text-xs">Pro</div>
+      </div>
+    </button>
   </div>
 </div>
 <div id="ref"></div>
@@ -121,24 +128,29 @@ const initials = document.getElementById("initials");
 const photo = document.getElementById("photo");
 const large = document.getElementById("large");
 const helium = document.getElementById("helium");
+const heliumCol = document.getElementById("helium-col");
 const initFace = document.getElementById("init-face");
 const photoImg = document.getElementById("photo-img");
 const largeFace = document.getElementById("large-face");
 const heliumFace = document.getElementById("helium-face");
+const heliumColFace = document.getElementById("helium-col-face");
 const heliumPlan = helium.querySelector(".text-xs");
+const heliumColPlan = heliumCol.querySelector(".text-xs");
 const initSlot = Csi.pickAvatarSlot(initials, null);
 const photoSlot = Csi.pickAvatarSlot(photo, photoImg);
 const largeSlot = Csi.pickAvatarSlot(large, null);
 const heliumSlot = Csi.pickAvatarSlot(helium, null);
+const heliumColSlot = Csi.pickAvatarSlot(heliumCol, null);
 if (initSlot) initSlot.setAttribute(Csi.SLOT_ATTR, "");
 if (photoSlot) photoSlot.setAttribute(Csi.SLOT_ATTR, "");
 if (largeSlot) largeSlot.setAttribute(Csi.SLOT_ATTR, "");
 if (heliumSlot) heliumSlot.setAttribute(Csi.SLOT_ATTR, "");
+if (heliumColSlot) heliumColSlot.setAttribute(Csi.SLOT_ATTR, "");
 Csi.paintImg(photoImg, bake);
 
 const size = 40;
 const suffixes = Csi.faceSizeSuffixes(Csi.SLOT_ATTR);
-const size40 = suffixes.flatMap(s => ["#initials "+s, "#photo "+s, "#helium "+s]).join(",");
+const size40 = suffixes.flatMap(s => ["#initials "+s, "#photo "+s, "#helium "+s, "#helium-col "+s]).join(",");
 const size80 = suffixes.map(s => "#large "+s).join(",");
 const imgSel = "#initials img, #photo img";
 const st = document.createElement("style");
@@ -159,6 +171,7 @@ const result = {
   photoSlot: !!(photoSlot && photoSlot.tagName !== "IMG"),
   largeSlot: !!largeSlot,
   heliumSlot: !!(heliumSlot && heliumSlot.contains(heliumFace) && heliumSlot !== heliumPlan && !heliumSlot.contains(heliumPlan)),
+  heliumColSlot: !!(heliumColSlot && heliumColSlot.contains(heliumColFace) && heliumColSlot !== heliumColPlan && !heliumColSlot.contains(heliumColPlan)),
   initBox: box(initFace),
   photoBox: box(photoSlot || photoImg),
   largeBox: box(largeFace),
@@ -170,7 +183,7 @@ const result = {
   srcSwapped: photoImg.getAttribute("src") === bake,
   origKept: photoImg.getAttribute("data-bloom-csi-orig")?.startsWith("data:image/gif") === true,
 };
-const ok = result.initSlot && result.photoSlot && result.largeSlot && result.heliumSlot
+const ok = result.initSlot && result.photoSlot && result.largeSlot && result.heliumSlot && result.heliumColSlot
   && result.initBox.w === 40 && result.photoBox.w === 40 && result.largeBox.w === 80 && result.heliumBox.w === 40
   && result.initAfterBg && result.slotBg && result.srcSwapped && result.origKept
   && result.initFont === "0px";
@@ -179,7 +192,8 @@ document.getElementById("metrics").innerHTML = (ok?"<b class=ok>DOM PASS</b>":"<
   + "  initials "+result.initBox.w+"px after="+result.initAfterBg+" slotBg="+result.slotBg+" font="+result.initFont
   + "\\n  photo "+result.photoBox.w+"px srcSwap="+result.srcSwapped
   + "\\n  large "+result.largeBox.w+"px"
-  + "\\n  helium "+result.heliumBox.w+"px slot="+result.heliumSlot;
+  + "\\n  helium "+result.heliumBox.w+"px slot="+result.heliumSlot
+  + "\\n  heliumCol slot="+result.heliumColSlot;
 document.body.setAttribute("data-result", JSON.stringify(result));
 document.body.setAttribute("data-ok", ok ? "1" : "0");
 </script>
