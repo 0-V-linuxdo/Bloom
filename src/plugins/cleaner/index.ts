@@ -5,16 +5,8 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
-import { whenHostReady } from "@host/ready";
 import { hideRule } from "@utils/css";
-import { hostMutations, watchBody } from "@utils/dom";
-import { normalizeText } from "@utils/misc";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
-
-const HIDDEN = "data-bloom-cleaner-hidden";
-const NOTICES = [/Migrate your GPTs to plugins/i];
-const POPUP = '[role="dialog"], [role="alertdialog"], [data-radix-popper-content-wrapper], [data-testid*="modal" i], [data-testid*="banner" i], [data-sonner-toast]';
-const DISMISS = /^(?:close|dismiss|not now|maybe later|got it|关闭|稍后|知道了)$/i;
 
 const GROUPS = {
     hideDownloadApps: [
@@ -41,6 +33,10 @@ const GROUPS = {
     hideHomePromo: [
         ':is([data-testid*="promo" i], [data-testid*="marketing-banner" i], [data-testid="welcome-banner"], [data-testid*="app-banner" i], [data-testid="try-codex"])',
     ],
+    hideNotices: [
+        'div:has(> div > aside button[aria-label="Dismiss migration notice"])',
+        'aside:has(button[aria-label="Dismiss migration notice"])',
+    ],
     hideAds: [
         ':is([data-testid="ad"], [data-testid^="ad-"], [data-testid*="ad-slot"], [data-testid*="sponsored" i], [data-ad-slot])',
         ':is([aria-label="Sponsored" i], [aria-label="Advertisement" i], [aria-label="赞助"], [aria-label="广告"])',
@@ -55,22 +51,8 @@ const settings = definePluginSettings({
     hideLockedModels: { type: OptionType.BOOLEAN, description: "Hide locked models in the model picker.", default: true },
     hideHomePromo: { type: OptionType.BOOLEAN, description: "Hide promo banners on the home page.", default: true },
     hideAds: { type: OptionType.BOOLEAN, description: "Hide ads and sponsored slots.", default: true },
-    hideNotices: { type: OptionType.BOOLEAN, description: "Close notices such as “Migrate your GPTs to plugins”.", default: true },
+    hideNotices: { type: OptionType.BOOLEAN, description: "Hide the “Migrate your GPTs to plugins” notice above the composer.", default: true },
 });
-
-let unwatch: (() => void) | undefined;
-let running = false;
-
-const buttonLabel = (button: HTMLElement) => normalizeText(button.getAttribute("aria-label") || button.textContent || "");
-
-function dismissNotices(mutations: MutationRecord[]) {
-    if (!settings.store.hideNotices || !hostMutations(mutations)) return;
-    for (const popup of document.querySelectorAll<HTMLElement>(POPUP)) {
-        if (popup.hasAttribute(HIDDEN) || !NOTICES.some(notice => notice.test(popup.textContent ?? ""))) continue;
-        popup.setAttribute(HIDDEN, "");
-        [...popup.querySelectorAll<HTMLElement>("button")].find(button => DISMISS.test(buttonLabel(button)))?.click();
-    }
-}
 
 export default definePlugin({
     name: "Cleaner",
@@ -81,20 +63,5 @@ export default definePlugin({
     enabledByDefault: true,
     startAt: StartAt.Init,
     settings,
-    styles: () => hideRule([
-        ...Object.entries(GROUPS).flatMap(([key, selectors]) => settings.store[key as keyof typeof GROUPS] ? selectors : []),
-        ...settings.store.hideNotices ? [`[${HIDDEN}]`] : [],
-    ]),
-    start() {
-        running = true;
-        void whenHostReady().then(() => {
-            if (running && !unwatch) unwatch = watchBody(dismissNotices);
-        });
-    },
-    stop() {
-        running = false;
-        unwatch?.();
-        unwatch = undefined;
-        for (const el of document.querySelectorAll(`[${HIDDEN}]`)) el.removeAttribute(HIDDEN);
-    },
+    styles: () => hideRule(Object.entries(GROUPS).flatMap(([key, selectors]) => settings.store[key as keyof typeof GROUPS] ? selectors : [])),
 });

@@ -201,7 +201,7 @@
 - `hideLockedModels`：模型选择器里锁定、不可用的模型。
 - `hideHomePromo`：首页的 GPT/应用/Codex 推广横幅。
 - `hideAds`：Free 套餐的广告、赞助位。
-- `hideNotices`：自动关掉通知弹窗，目前是 “Migrate your GPTs to plugins by December 11”。按文字识别弹窗，有关闭按钮就点关闭，没有就隐藏。
+- `hideNotices`：隐藏 GPT 页面输入框上方的 “Migrate your GPTs to plugins by December 11” 提示（form 里的 `aside`，关闭按钮是 `button[aria-label="Dismiss migration notice"]`）。只用 CSS 隐藏，不替你点关闭。
 
 不能隐藏整个输入框区域、Voice、Share、头像、Bloom++ 行。
 
