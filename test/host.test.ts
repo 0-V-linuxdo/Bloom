@@ -8,7 +8,7 @@ import { describe, expect, test } from "bun:test";
 
 import { readDraft, sendButton, stopButton, writeDraft } from "../src/host/composer";
 import { parseConversation } from "../src/host/network";
-import { conversationIdFromHref } from "../src/host/route";
+import { conversationIdFromHref, currentConversationId } from "../src/host/route";
 import { Sel } from "../src/host/selectors";
 import { accountMenu, conversationLinks, markIdentity, profileChips, projectName, sidebarMounts } from "../src/host/sidebar";
 import { listTurns, outerMessageUnits, turnSummary, unitMessageIds } from "../src/host/thread";
@@ -21,6 +21,12 @@ describe("route", () => {
         expect(conversationIdFromHref(`/c/${CHAT_ID}`)).toBe(CHAT_ID);
         expect(conversationIdFromHref(`/g/g-p-x/c/${CHAT_ID}?model=a`)).toBe(CHAT_ID);
         expect(conversationIdFromHref("/g/g-p-x/project")).toBeNull();
+    });
+
+    test("a local placeholder id is still a draft", () => {
+        history.pushState(null, "", "/c/local-3f2a9c1e-0000-4000-8000-000000000000");
+        expect(currentConversationId()).toBeNull();
+        history.pushState(null, "", "/");
     });
 });
 
@@ -94,6 +100,14 @@ describe("signed-in shell 2026-09", () => {
         expect(outerMessageUnits().map(unitMessageIds)).toEqual([["u1"], ["a1"], ["u2"], ["a2"]]);
     });
 
+    test("summaries skip Bloom's timestamp and screen-reader labels", () => {
+        mount(LIVE_SHELL);
+        const unit = document.querySelector('[data-chatgpt-search-unit-key="t1:assistant"] [data-chatgpt-search-message-ids]');
+        unit?.querySelector(".markdown")?.classList.remove("markdown");
+        unit?.insertAdjacentHTML("afterbegin", '<time data-bloom="timestamp">22:41</time><span class="sr-only">ChatGPT said:</span>');
+        expect(turnSummary(listTurns()[1])).toBe("First answer");
+    });
+
     test("uses the Send and Stop labels and the visible home heading", () => {
         mount(LIVE_SHELL);
         expect(readDraft()).toBe("next");
@@ -124,6 +138,18 @@ describe("old shell", () => {
 });
 
 describe("conversation JSON", () => {
+    test("reads the windowed messages list", () => {
+        const data = parseConversation("33333333-3333-4333-8333-333333333333", {
+            title: "Windowed",
+            messages: [
+                { id: "w1", author: { role: "user" }, create_time: 10, content: { content_type: "text", parts: ["Hi"] } },
+                { id: "w2", author: { role: "assistant" }, create_time: 20, content: { content_type: "text", parts: ["Hello"] } },
+            ],
+        });
+        expect(data?.chain.map(m => [m.role, m.text])).toEqual([["user", "Hi"], ["assistant", "Hello"]]);
+        expect(data?.times.get("w1")).toBe(10_000);
+    });
+
     test("walks the main chain and keeps create times", () => {
         const data = parseConversation(CHAT_ID, {
             title: "Everest",

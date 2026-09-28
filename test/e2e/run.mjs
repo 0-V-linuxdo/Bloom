@@ -21,7 +21,7 @@ mkdirSync(shots, { recursive: true });
 
 const CHROMIUM = ["/opt/pw-browsers/chromium", process.env.CHROMIUM_PATH].find(path => path && existsSync(path));
 const REPLY_DELAY_MS = 1500;
-const RELAY_MS = 300;
+const RELAY_MS = 800;
 const RELAY_EVENTS = ["resume_conversation_token", "input_message", "stream_handoff", "resume_sse_endpoint", "subscribe_ws_topic", "conversation_detail_metadata"];
 const CHAT_A = "11111111-1111-4111-8111-111111111111";
 const CHAT_B = "22222222-2222-4222-8222-222222222222";
@@ -89,7 +89,11 @@ async function setup(browser, { shell = "new", theme = "light", settings = null 
             return route.fulfill({ contentType: "text/event-stream", body: `${events.map(event => `data: ${JSON.stringify(event)}\n\n`).join("")}data: [DONE]\n\n` }).catch(() => {});
         }
         const conversation = url.pathname.match(/^\/backend-api\/conversations?\/([\w-]+)$/);
-        if (conversation) return route.fulfill({ contentType: "application/json", body: JSON.stringify(conversationJson(conversation[1])) });
+        if (conversation) {
+            const data = conversationJson(conversation[1]);
+            const windowed = url.pathname.startsWith("/backend-api/conversations/") ? { title: data.title, messages: Object.values(data.mapping).map(node => node.message).filter(Boolean) } : data;
+            return route.fulfill({ contentType: "application/json", body: JSON.stringify(windowed) });
+        }
         return route.fulfill({ contentType: "text/html", body: shell === "new" ? newShell(theme) : oldShell(theme) });
     });
     await context.routeWebSocket("wss://chatgpt.com/ws/**", ws => ws.onMessage(message => {
@@ -152,13 +156,16 @@ async function newShellSuite(browser) {
     await page.waitForTimeout(300);
     const rotating = await page.evaluate(() => document.getElementById("bloom-chat-state-favicon")?.href ?? "");
     check("favicon shows generating", rotating.startsWith("data:image/png"));
-    await page.waitForFunction(() => location.pathname.startsWith("/c/"));
-    await page.waitForTimeout(200);
-    check("ChatListStatus spins on the open chat", await page.locator('[data-bloom="cls"][data-status="streaming"]').count() === 1);
+    check("new chat first sits on a local id", page.url().includes("/c/local-"), page.url());
     await page.locator(COMPOSER).fill("Queued follow-up");
     await page.locator(COMPOSER).press("Enter");
     await page.waitForTimeout(150);
     check("PromptQueue queues during a reply", await page.locator(".bloom-queue-count").textContent() === "1 Queued message");
+    await page.waitForFunction(() => /^\/c\/(?!local-)/.test(location.pathname));
+    await page.waitForTimeout(200);
+    check("ChatListStatus spins on the open chat", await page.locator('[data-bloom="cls"][data-status="streaming"]').count() === 1);
+    check("PromptQueue keeps the queue when the local id becomes real", await page.locator(".bloom-queue-count").textContent() === "1 Queued message");
+    check("favicon stays generating after the id becomes real", await page.evaluate(() => document.getElementById("bloom-chat-state-favicon")?.href) === rotating);
     check("PromptQueue clears the composer", (await page.locator(COMPOSER).textContent()).trim() === "");
     await page.screenshot({ path: resolve(shots, "queue-light.png") });
     await page.waitForFunction(() => window.__notifications.length > 0, null, { timeout: 5000 }).catch(() => {});
@@ -184,6 +191,7 @@ async function newShellSuite(browser) {
     await page.waitForSelector("[data-turn-key]");
     await page.waitForTimeout(400);
     check("MessageTimestamps uses create_time from the page's own request", (await page.locator('time[data-bloom="timestamp"]').first().textContent())?.length > 5);
+    check("BetterNavigator summaries skip Bloom's own text", !(await page.locator(".bloom-nav-row").allTextContents()).join(" ").match(/\d{2}:\d{2}/));
     check("MessageTimestamps stamps both messages of a loaded turn", await page.locator('[data-chatgpt-search-unit-key] > time[data-bloom="timestamp"]').count() === 2);
     await page.locator(`a[href="/c/${CHAT_B}"]`).first().click();
     await page.waitForTimeout(400);

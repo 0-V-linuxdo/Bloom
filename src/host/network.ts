@@ -85,10 +85,20 @@ function toChainMessage(raw: RawMessage): ChainMessage | null {
     return { id: raw.id, role, createTime: raw.create_time ? raw.create_time * SECONDS_TO_MS : null, text, hasFiles, imageCount };
 }
 
+function parseWindow(entry: ConversationData, items: unknown[]) {
+    const raws = items.filter(isRecord).map(item => (isRecord(item.message) ? item.message : item) as RawMessage);
+    for (const raw of raws) if (raw.id && raw.create_time) entry.times.set(raw.id, raw.create_time * SECONDS_TO_MS);
+    const chain = raws.map(toChainMessage).filter(message => message != null);
+    const ids = new Set(chain.map(message => message.id));
+    entry.chain = [...entry.chain.filter(message => !ids.has(message.id)), ...chain];
+    return entry;
+}
+
 export function parseConversation(id: string, json: unknown): ConversationData | null {
-    if (!isRecord(json) || !isRecord(json.mapping)) return null;
+    if (!isRecord(json) || !(isRecord(json.mapping) || Array.isArray(json.messages))) return null;
     const entry = conversationEntry(id);
     if (typeof json.title === "string" && json.title) entry.title = json.title;
+    if (Array.isArray(json.messages)) return parseWindow(entry, json.messages);
     const mapping = json.mapping as Record<string, { message?: RawMessage; parent?: string | null; }>;
     for (const node of Object.values(mapping)) {
         const time = node.message?.create_time;

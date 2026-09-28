@@ -90,6 +90,7 @@ export function listTurns(): Turn[] {
     });
 }
 
+const NOT_CONTENT = "[data-bloom], .sr-only";
 const SKIP_LINE = /^(?:\d+\s+sources?|web search|searched|thought for|worked for|reasoned|thinking)\b/i;
 
 const summaries = new WeakMap<HTMLElement, { length: number; summary: string; }>();
@@ -107,7 +108,9 @@ function computeSummary(turn: Turn) {
     const images = turn.el.querySelectorAll(Sel.generatedImage).length;
     if (turn.role === "assistant" && images) return images > 1 ? `Image ×${images}` : "Image";
     const body = turn.el.querySelector<HTMLElement>(turn.role === "assistant" ? Sel.markdown : ".whitespace-pre-wrap") ?? turn.el;
-    const lines = (body.innerText || body.textContent || "").split("\n").map(normalizeText).filter(line => line && !SKIP_LINE.test(line));
+    const extras = [...body.querySelectorAll<HTMLElement>(NOT_CONTENT)].map(el => normalizeText(el.textContent ?? "")).filter(Boolean);
+    const text = extras.reduce((rest, extra) => rest.replace(extra, "\n"), body.innerText || body.textContent || "");
+    const lines = text.split("\n").map(normalizeText).filter(line => line && !SKIP_LINE.test(line));
     if (lines.length) return lines.join(" ");
     return turn.role === "user" && turn.el.querySelector("img, a[download], [data-testid*=file]") ? "File" : "";
 }

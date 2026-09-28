@@ -9,8 +9,7 @@ import { pageWindow } from "@utils/misc";
 
 const logger = new Logger("Route");
 
-const CONVERSATION_PATH = /\/c\/([\w-]+)/;
-const GIZMO_PATH = /^\/g\/[^/]+\/?$/;
+const CONVERSATION_PATH = /\/c\/(?!local-)([\w-]+)/;
 const HREF_POLL_MS = 500;
 
 export const conversationIdFromHref = (href: string) => {
@@ -24,8 +23,6 @@ export const conversationIdFromHref = (href: string) => {
 export const currentConversationId = () => location.pathname.match(CONVERSATION_PATH)?.[1] ?? null;
 
 export const isHomePath = () => location.pathname === "/";
-
-export const isDraftPath = () => !currentConversationId() && (isHomePath() || GIZMO_PATH.test(location.pathname));
 
 export const isTemporaryChat = () => new URLSearchParams(location.search).get("temporary-chat") === "true";
 

@@ -198,9 +198,11 @@ export default definePlugin({
             network.on("conversation", ({ id }) => {
                 if (settings.store.visits.includes(id)) remember(id);
                 capturePreview(id);
-                capturePreview(id);
             }),
         ];
+        const { visits, titles, previews } = settings.store;
+        const stale = visits.filter(key => key !== HOME && (key.startsWith("local-") || !(titles[key] || previews[key])));
+        if (stale.length) settings.store.visits = visits.filter(key => !stale.includes(key));
         visit(currentKey());
     },
     stop() {

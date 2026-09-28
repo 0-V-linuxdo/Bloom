@@ -66,7 +66,7 @@ function setButton(stop) {
 }
 
 function currentId() {
-    return location.pathname.match(/\/c\/([\w-]+)/)?.[1] ?? null;
+    return location.pathname.match(/\/c\/(?!local-)([\w-]+)/)?.[1] ?? null;
 }
 
 function addSidebarLink(id, title) {
@@ -164,6 +164,7 @@ async function send() {
         await sendOld(text, userId, replyId);
         return;
     }
+    if (!id) history.pushState(null, "", `/c/local-${ids()}`);
     const reply = first.lastElementChild;
     reply.insertAdjacentHTML("afterbegin", '<span role="status" aria-busy="true"><span class="sr-only">ChatGPT is responding</span></span>');
     current = { reply, replyId };
@@ -231,7 +232,7 @@ async function openConversation() {
     const response = await fetch(live ? `/backend-api/conversations/${id}?num_turns=10&include_has_versions=true` : `/backend-api/conversation/${id}`);
     const data = await response.json();
     let node = data.current_node;
-    const chain = [];
+    const chain = (data.messages ?? []).map(message => [message.author.role, message.content.parts[0], message.id]);
     while (node) {
         const { message, parent } = data.mapping[node];
         if (message && message.author.role !== "system") chain.unshift([message.author.role, message.content.parts[0], message.id]);

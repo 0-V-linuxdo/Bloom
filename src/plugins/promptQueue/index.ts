@@ -28,7 +28,9 @@ let urgent: string | null = null;
 let controller: AbortController | undefined;
 let unsubscribers: (() => void)[] = [];
 
-const queueKey = () => currentConversationId() ?? `draft:${location.pathname}`;
+const DRAFT = "draft";
+
+const queueKey = () => currentConversationId() ?? DRAFT;
 const queue = () => queues.get(queueKey()) ?? [];
 
 function setQueue(items: string[]) {
@@ -137,11 +139,9 @@ export default definePlugin({
                 dispatchNext();
             }),
             generation.on("context", ({ prevId, id, migrated }) => {
-                const draftKey = [...queues.keys()].find(key => key.startsWith("draft:"));
-                if (migrated && !prevId && id && draftKey) {
-                    queues.set(id, queues.get(draftKey) ?? []);
-                    queues.delete(draftKey);
-                }
+                const draft = queues.get(DRAFT);
+                queues.delete(DRAFT);
+                if (migrated && !prevId && id && draft) queues.set(id, draft);
                 if (!migrated) armed = false;
                 renderTray(queue(), actions);
             }),

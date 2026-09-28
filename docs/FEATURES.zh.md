@@ -55,6 +55,7 @@
 - 当前会话 id 只看 pathname 里的 `/c/{id}`（含 `/g/{gizmo}/c/{id}`）。`/` 和 `/g/{gizmo}`（无 `/c/`）是“草稿落地页”。
 - 第一条消息发出后 URL 从 `/` 或 `/g/…` 变成 `/c/{新id}`：这是**同一次对话的迁移**，不是切会话（状态、队列、计时都要跟过去）。
 - 点另一条 Recents、点 New chat：这是**真切会话**，离开时正在生成的回复不算“完成”（不响通知、不画完成图标、不发队列）。
+- 新对话第一条消息：URL 先变成 `/c/local-{uuid}`（本地占位，按草稿处理），拿到真实 id 后再变成 `/c/{id}`；只有后一步才是迁移。
 - 临时聊天：`?temporary-chat=true`；发出第一条后变成 `/c/{id}?temporary-chat=true`。RecentTopics 不记录临时聊天。
 
 ### 2.4 生成状态（流式）
@@ -75,7 +76,7 @@
 ### 2.5 网络旁路（harvest）
 
 - 只包一次 `unsafeWindow.fetch`，一律 `response.clone()` 读取，绝不消费页面自己的响应体，也不改请求参数（例如不改 `num_turns`）。
-- 采集：会话标题、每条消息的 `create_time`、会话主链（`mapping` 从 `current_node` 回溯到根的 user/assistant 消息）。来源：`GET /backend-api/conversation/{id}`、窗口化的 `GET /backend-api/conversations/{id}?num_turns=`、生成 SSE。
+- 采集：会话标题、每条消息的 `create_time`、会话主链（`mapping` 从 `current_node` 回溯到根的 user/assistant 消息）。来源：`GET /backend-api/conversation/{id}`（`mapping` + `current_node`）、窗口化的 `GET /backend-api/conversations/{id}?num_turns=`（`messages: [...]` 数组，按顺序排列）、生成 SSE。
 - 不轮询 `/backend-api/conversations` 列表，不为了插件额外去拉会话详情，不要更早的分页。
 - 插件订阅宿主事件，不允许自己再包 `fetch`。
 
