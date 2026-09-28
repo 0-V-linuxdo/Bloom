@@ -216,7 +216,7 @@ async function stopAndSwitchSuite(browser) {
     await sendPrompt(page, "Stop me");
     await page.waitForTimeout(300);
     await page.locator(STOP).click();
-    await page.waitForTimeout(900);
+    await page.waitForTimeout(RELAY_MS + 900);
     check("stopping a reply does not notify", await page.evaluate(() => window.__notifications.length === 0));
     check("stopping a reply returns the favicon to idle", await page.evaluate(() => document.getElementById("bloom-chat-state-favicon")?.href.endsWith("/favicon.ico")));
     await sendPrompt(page, "Leave me");
@@ -224,6 +224,21 @@ async function stopAndSwitchSuite(browser) {
     await page.locator(`a[href="/c/${CHAT_B}"]`).first().click();
     await page.waitForTimeout(REPLY_DELAY_MS + 800);
     check("leaving a chat mid-reply does not notify", await page.evaluate(() => window.__notifications.length === 0));
+    await context.close();
+}
+
+async function throttledTimersSuite(browser) {
+    const { context, page } = await setup(browser, { settings: { plugins: { ResponseNotification: { onlyWhenHidden: false } } } });
+    await page.addInitScript(() => {
+        const slow = window.setInterval;
+        window.setInterval = (fn, ms, ...args) => slow(fn, Math.max(ms, 120_000), ...args);
+    });
+    await page.goto(`https://chatgpt.com/c/${CHAT_A}`);
+    await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 15_000 });
+    await sendPrompt(page, "Throttle me");
+    await page.waitForFunction(stop => !document.querySelector(stop), STOP, { timeout: 10_000 });
+    await page.waitForTimeout(1500);
+    check("a reply ends on time when page timers are throttled", await page.evaluate(() => window.__notifications.length === 1));
     await context.close();
 }
 
@@ -248,6 +263,7 @@ const browser = await chromium.launch({ executablePath: CHROMIUM, headless: true
 try {
     await newShellSuite(browser);
     await stopAndSwitchSuite(browser);
+    await throttledTimersSuite(browser);
     await oldShellSuite(browser);
 } finally {
     await browser.close();

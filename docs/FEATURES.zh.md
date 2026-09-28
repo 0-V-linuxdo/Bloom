@@ -64,7 +64,7 @@
 - `rise`：本页开始生成。
 - `fall`：本页生成结束，附 `userStopped`（用户点了 Stop）、`error`（网络/服务错误）、`conversationId`。
 - `context`：会话上下文变化（附 prev/next，插件自行判断是迁移还是切换）。
-- `tick`：周期性状态快照（隐藏标签页也要跑，Chrome 在后台不跑 rAF）。
+- `tick`：周期性状态快照（隐藏标签页也要跑：Chrome 在后台不跑 rAF，后台超过约 5 分钟后普通定时器每分钟才醒一次，所以用 Worker 计时，并在页面 DOM 变化时直接重新判定）。
 
 判定来源：
 1. 网络：生成请求 `POST /backend-api/f/conversation`（旧路径 `/backend-api/conversation`）一开始即生成中；响应出错或 SSE 里有 `error` 即 `error`。`/conversation/init`、`/prepare` 不是生成。2026-09 实测：这个请求只是“接力”流（`stream_handoff`、`resume_sse_endpoint`、`subscribe_ws_topic` 等事件后 `[DONE]`，约 1.6 秒后被页面中止），真正的回复走 WebSocket，所以接力流结束或被中止都不算结束，也不算用户中止，只保持几秒“生成中”等 DOM 接手。

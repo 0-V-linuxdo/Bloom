@@ -85,12 +85,15 @@ function toChainMessage(raw: RawMessage): ChainMessage | null {
     return { id: raw.id, role, createTime: raw.create_time ? raw.create_time * SECONDS_TO_MS : null, text, hasFiles, imageCount };
 }
 
+const visibleChain = (chain: ChainMessage[]) =>
+    chain.filter((message, index) => message.role === "user" || chain[index + 1]?.role !== "assistant");
+
 function parseWindow(entry: ConversationData, items: unknown[]) {
     const raws = items.filter(isRecord).map(item => (isRecord(item.message) ? item.message : item) as RawMessage);
     for (const raw of raws) if (raw.id && raw.create_time) entry.times.set(raw.id, raw.create_time * SECONDS_TO_MS);
     const chain = raws.map(toChainMessage).filter(message => message != null);
     const ids = new Set(chain.map(message => message.id));
-    entry.chain = [...entry.chain.filter(message => !ids.has(message.id)), ...chain];
+    entry.chain = visibleChain([...entry.chain.filter(message => !ids.has(message.id)), ...chain]);
     return entry;
 }
 
@@ -114,7 +117,7 @@ export function parseConversation(id: string, json: unknown): ConversationData |
         if (message) chain.push(message);
         cursor = mapping[cursor].parent ?? null;
     }
-    if (chain.length) entry.chain = chain.toReversed();
+    if (chain.length) entry.chain = visibleChain(chain.toReversed());
     return entry;
 }
 

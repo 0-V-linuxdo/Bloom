@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { every, watchBody } from "@utils/dom";
 import { createEmitter } from "@utils/events";
 
 import { isStopVisible } from "./composer";
 import { type GenerateEnd, network } from "./network";
+import { whenDomReady } from "./ready";
 import { currentConversationId, onRouteChange, type RouteChange } from "./route";
 import { Sel } from "./selectors";
 
@@ -35,7 +37,7 @@ const activeRequests = new Set<number>();
 const ignoredRequests = new Set<number>();
 let generating = false;
 let riseAt = 0;
-let fallTimer: ReturnType<typeof setTimeout> | undefined;
+let quietSince: number | null = null;
 let stopRequested = false;
 let staleDom = false;
 let holdUntil = 0;
@@ -59,15 +61,14 @@ function outcome(): FallOutcome {
 }
 
 function settle() {
-    fallTimer = undefined;
-    if (!generating || rawGenerating()) return;
+    quietSince = null;
     generating = false;
     generation.emit("fall", { conversationId: currentConversationId(), outcome: outcome() });
     stopRequested = false;
     lastEnd = null;
 }
 
-export function evaluateGeneration() {
+function evaluate() {
     const now = rawGenerating();
     if (now && !generating) {
         generating = true;
@@ -76,11 +77,13 @@ export function evaluateGeneration() {
         lastEnd = null;
         generation.emit("rise", { conversationId: currentConversationId() });
     }
-    if (now && fallTimer) {
-        clearTimeout(fallTimer);
-        fallTimer = undefined;
-    }
-    if (!now && generating && !fallTimer) fallTimer = setTimeout(settle, FALL_SETTLE_MS);
+    if (now || !generating) quietSince = null;
+    else if (quietSince == null) quietSince = Date.now();
+    else if (Date.now() - quietSince >= FALL_SETTLE_MS) settle();
+}
+
+function evaluateGeneration() {
+    evaluate();
     generation.emit("tick", generationState());
 }
 
@@ -91,8 +94,7 @@ function onRoute({ prevId, id }: RouteChange) {
         for (const request of activeRequests) ignoredRequests.add(request);
         staleDom = domGenerating();
         holdUntil = 0;
-        clearTimeout(fallTimer);
-        fallTimer = undefined;
+        quietSince = null;
         generating = false;
         stopRequested = false;
         lastEnd = null;
@@ -125,5 +127,6 @@ export function startGeneration() {
     });
     onRouteChange(onRoute);
     document.addEventListener("click", onClick, true);
-    setInterval(evaluateGeneration, TICK_MS);
+    every(evaluateGeneration, TICK_MS);
+    void whenDomReady().then(() => watchBody(evaluate));
 }

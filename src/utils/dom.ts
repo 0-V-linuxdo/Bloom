@@ -42,10 +42,27 @@ export const isVisible = (el: Element | null | undefined): el is HTMLElement =>
 export const visible = <T extends Element>(selector: string, root: ParentNode = document) =>
     [...root.querySelectorAll<T>(selector)].find(isVisible) ?? null;
 
-const HIDDEN_FRAME_MS = 16;
+
+const TICKER_SOURCE = "onmessage=event=>setInterval(()=>postMessage(0),event.data)";
+
+export function every(fn: () => void, ms: number) {
+    const timer = setInterval(fn, ms);
+    let worker: Worker | undefined;
+    try {
+        worker = new Worker(URL.createObjectURL(new Blob([TICKER_SOURCE], { type: "text/javascript" })));
+        worker.addEventListener("message", fn);
+        worker.postMessage(ms);
+    } catch {
+        worker = undefined;
+    }
+    return () => {
+        clearInterval(timer);
+        worker?.terminate();
+    };
+}
 
 export function nextFrame(fn: () => void) {
-    if (document.hidden) setTimeout(fn, HIDDEN_FRAME_MS);
+    if (document.hidden) queueMicrotask(fn);
     else requestAnimationFrame(fn);
 }
 

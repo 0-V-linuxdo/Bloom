@@ -150,6 +150,14 @@ describe("conversation JSON", () => {
         expect(data?.times.get("w1")).toBe(10_000);
     });
 
+    test("keeps only the last of consecutive assistant messages", () => {
+        const text = (id: string, role: string, part: string) => ({ id, author: { role }, create_time: 1, content: { content_type: "text", parts: [part] } });
+        const data = parseConversation("44444444-4444-4444-8444-444444444444", {
+            messages: [text("q", "user", "Check this"), text("p1", "assistant", "I'll look"), text("p2", "assistant", "Still looking"), text("r", "assistant", "Result")],
+        });
+        expect(data?.chain.map(m => m.id)).toEqual(["q", "r"]);
+    });
+
     test("walks the main chain and keeps create times", () => {
         const data = parseConversation(CHAT_ID, {
             title: "Everest",
