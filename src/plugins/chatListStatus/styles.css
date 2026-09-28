@@ -1,0 +1,35 @@
+/*
+ * Bloom++, a modification for chatgpt.com
+ * Copyright (c) 2026 Bloom contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+.bloom-cls {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 0.875rem;
+    height: 0.875rem;
+    margin-inline-start: auto;
+    pointer-events: none;
+}
+
+.bloom-cls-streaming::before {
+    content: "";
+    width: 0.75rem;
+    height: 0.75rem;
+    border: 2px solid color-mix(in srgb, var(--bloom-fg) 20%, transparent);
+    border-top-color: var(--bloom-fg);
+    border-radius: 50%;
+    animation: bloom-spin 0.8s linear infinite;
+}
+
+.bloom-cls-error {
+    color: var(--bloom-danger);
+}
+
+.bloom-cls-error .bloom-icon {
+    width: 0.875rem;
+    height: 0.875rem;
+}

@@ -1,0 +1,328 @@
+/*
+ * Bloom++, a modification for chatgpt.com
+ * Copyright (c) 2026 Bloom contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+.bloom-entry-wrap {
+    padding-inline: var(--padding-row-x, 0.5rem);
+}
+
+.bloom-entry-expanded {
+    padding-top: 0.5rem;
+}
+
+.bloom-entry-rail {
+    display: flex;
+    justify-content: center;
+    padding-block: 0.25rem;
+    pointer-events: auto;
+}
+
+.bloom-entry-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 2.25rem;
+    padding: 0 0.5rem;
+    border-radius: 0.625rem;
+    color: var(--bloom-fg);
+    font-size: 0.875rem;
+    text-align: start;
+}
+
+.bloom-entry-button:hover {
+    background-color: var(--bloom-hover);
+}
+
+.bloom-entry-button .bloom-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.bloom-entry-rail .bloom-entry-button {
+    justify-content: center;
+    width: 2.25rem;
+    padding: 0;
+}
+
+.bloom-entry-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-height: 2.25rem;
+    margin: 0.25rem;
+    padding: 0 0.625rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+}
+
+.bloom-entry-menu-item:hover,
+.bloom-entry-menu-item:focus {
+    outline: none;
+    background-color: var(--bloom-hover);
+}
+
+.bloom-settings-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: #0006;
+    contain: content;
+    animation: bloom-fade-in 0.15s ease-out;
+}
+
+.bloom-settings-modal {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: min(56rem, 100%);
+    height: min(44rem, 100%);
+    padding: 1.25rem;
+    border-radius: 1.25rem;
+    background: var(--bloom-surface);
+    box-shadow: var(--bloom-shadow);
+    overflow: hidden;
+}
+
+.bloom-settings-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.bloom-settings-logo .bloom-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.bloom-settings-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.bloom-settings-hint {
+    color: var(--bloom-fg-3);
+    cursor: help;
+}
+
+.bloom-settings-version {
+    margin-inline-start: auto;
+    color: var(--bloom-fg-3);
+    font-size: 0.75rem;
+}
+
+.bloom-settings-tabs {
+    display: flex;
+    gap: 1rem;
+    border-bottom: 1px solid var(--bloom-border-light);
+    overflow-x: auto;
+}
+
+.bloom-settings-tab {
+    padding: 0.375rem 0.125rem;
+    border-bottom: 2px solid transparent;
+    color: var(--bloom-fg-2);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.bloom-settings-tab:hover {
+    color: var(--bloom-fg);
+}
+
+.bloom-settings-tab[aria-selected="true"] {
+    border-bottom-color: var(--bloom-fg);
+    color: var(--bloom-fg);
+}
+
+.bloom-settings-toolbar {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.bloom-settings-toolbar .bloom-select {
+    width: 8rem;
+}
+
+.bloom-settings-search {
+    position: relative;
+    flex: 1;
+    color: var(--bloom-fg-3);
+}
+
+.bloom-settings-search .bloom-icon {
+    position: absolute;
+    top: 50%;
+    left: 0.75rem;
+    transform: translateY(-50%);
+}
+
+.bloom-settings-search .bloom-input {
+    padding-left: 2.25rem;
+    color: var(--bloom-fg);
+}
+
+.bloom-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    align-content: start;
+    gap: 0.75rem;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.bloom-settings-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    padding: 0.875rem;
+    border: 1px solid var(--bloom-border-light);
+    border-radius: 0.875rem;
+    background: var(--bloom-card);
+}
+
+.bloom-settings-card-off .bloom-settings-card-icon,
+.bloom-settings-card-off .bloom-settings-card-name {
+    opacity: 0.6;
+}
+
+.bloom-settings-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.bloom-settings-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.625rem;
+    background: var(--bloom-hover);
+}
+
+.bloom-settings-card-icon .bloom-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+}
+
+.bloom-settings-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+}
+
+.bloom-settings-card-actions .bloom-switch {
+    margin-inline-start: 0.375rem;
+}
+
+.bloom-settings-card-name {
+    font-weight: 600;
+}
+
+.bloom-settings-card-desc {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--bloom-fg-2);
+    font-size: 0.8125rem;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.bloom-settings-card-footer,
+.bloom-settings-popup-authors {
+    margin-top: auto;
+    color: var(--bloom-fg-3);
+    font-size: 0.75rem;
+}
+
+.bloom-settings-empty {
+    grid-column: 1 / -1;
+    padding: 3rem 1rem;
+    color: var(--bloom-fg-2);
+    text-align: center;
+}
+
+.bloom-settings-popup-backdrop {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: #0000004d;
+}
+
+.bloom-settings-popup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: min(32rem, 100%);
+    max-height: 100%;
+    padding: 1.25rem;
+    border-radius: 1rem;
+    background: var(--bloom-surface);
+    box-shadow: var(--bloom-shadow);
+    overflow-y: auto;
+    animation: bloom-fade-in 0.15s ease-out;
+}
+
+.bloom-settings-popup-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.bloom-settings-popup-title {
+    flex: 1;
+}
+
+.bloom-settings-popup-desc {
+    color: var(--bloom-fg-2);
+}
+
+.bloom-settings-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.bloom-settings-field {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.bloom-settings-field-inline {
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.bloom-settings-field-stacked {
+    flex-direction: column;
+}
+
+.bloom-settings-field-label {
+    font-weight: 500;
+}
+
+.bloom-settings-field-desc {
+    color: var(--bloom-fg-2);
+    font-size: 0.8125rem;
+}
+
+.bloom-settings-popup-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--bloom-border-light);
+}

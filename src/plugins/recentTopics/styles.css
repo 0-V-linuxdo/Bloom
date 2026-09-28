@@ -1,0 +1,71 @@
+/*
+ * Bloom++, a modification for chatgpt.com
+ * Copyright (c) 2026 Bloom contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+.bloom-recent-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2147482500;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 15vh 1rem 1rem;
+    contain: content;
+}
+
+.bloom-recent-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    width: min(32rem, 100%);
+    padding: 0.5rem;
+    border: 1px solid var(--bloom-border);
+    border-radius: 1rem;
+    background: var(--bloom-surface);
+    box-shadow: var(--bloom-shadow);
+    animation: bloom-fade-in 0.12s ease-out;
+}
+
+.bloom-recent-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.625rem;
+    text-align: start;
+}
+
+.bloom-recent-item[aria-selected="true"] {
+    background: var(--bloom-hover);
+}
+
+.bloom-recent-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.bloom-recent-title {
+    flex: 1;
+    min-width: 0;
+    font-weight: 500;
+}
+
+.bloom-recent-project {
+    flex: none;
+    max-width: 40%;
+    overflow: hidden;
+    color: var(--bloom-fg-3);
+    font-size: 0.75rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bloom-recent-preview {
+    color: var(--bloom-fg-2);
+    font-size: 0.8125rem;
+}

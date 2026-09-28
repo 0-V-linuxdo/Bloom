@@ -1,0 +1,106 @@
+/*
+ * Bloom++, a modification for chatgpt.com
+ * Copyright (c) 2026 Bloom contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+.bloom-queue-tray {
+    position: fixed;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    max-height: 40vh;
+    padding: 0.375rem;
+    border: 1px solid var(--bloom-border);
+    border-radius: 1.25rem;
+    background: var(--bloom-surface);
+    box-shadow: var(--bloom-shadow);
+    contain: content;
+}
+
+.bloom-queue-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-inline: 0.5rem;
+}
+
+.bloom-queue-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-height: 1.75rem;
+    color: var(--bloom-fg-2);
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+
+.bloom-queue-toggle .bloom-icon {
+    transition: transform 0.15s ease;
+}
+
+.bloom-queue-collapsed .bloom-queue-toggle .bloom-icon {
+    transform: rotate(-90deg);
+}
+
+.bloom-queue-tip {
+    margin-inline-start: auto;
+    color: var(--bloom-fg-3);
+    font-size: 0.75rem;
+}
+
+.bloom-queue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.bloom-queue-collapsed .bloom-queue-list {
+    display: none;
+}
+
+.bloom-queue-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.375rem 0.375rem 0.75rem;
+    border-radius: 0.875rem;
+    cursor: grab;
+    user-select: none;
+}
+
+.bloom-queue-row:hover {
+    background: var(--bloom-hover);
+}
+
+.bloom-queue-dragging {
+    position: relative;
+    z-index: 1;
+    background: var(--bloom-surface-2);
+    box-shadow: var(--bloom-shadow);
+    cursor: grabbing;
+}
+
+.bloom-queue-text {
+    display: -webkit-box;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: pre-wrap;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow-wrap: anywhere;
+}
+
+.bloom-queue-editor {
+    flex: 1;
+    min-height: 3.5rem;
+    resize: vertical;
+}
+
+.bloom-queue-actions {
+    display: flex;
+    flex: none;
+}

@@ -8,15 +8,17 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": [],
-    "baseUrl": ".",
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["bun"],
     "paths": {
-      "@api/*": ["src/api/*"],
-      "@utils/*": ["src/utils/*"],
-      "@host/*": ["src/host/*"],
-      "@plugins/*": ["src/plugins/*"]
+      "@api/*": ["./src/api/*"],
+      "@components": ["./src/components/index.ts"],
+      "@components/*": ["./src/components/*"],
+      "@host/*": ["./src/host/*"],
+      "@plugins/*": ["./src/plugins/*"],
+      "@utils/*": ["./src/utils/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "test"]
 }

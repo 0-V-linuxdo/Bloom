@@ -1,0 +1,104 @@
+/*
+ * Bloom++, a modification for chatgpt.com
+ * Copyright (c) 2026 Bloom contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+.bloom-nav-root {
+    position: fixed;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    transform: translateY(-50%);
+    contain: layout style;
+}
+
+.bloom-nav-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.375rem;
+    max-height: 60vh;
+    padding: 0.5rem 0.25rem;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.bloom-nav-tick {
+    width: 1.25rem;
+    height: 2px;
+    flex: none;
+    border-radius: 1px;
+    background: color-mix(in srgb, var(--bloom-fg) 40%, transparent);
+    transition: width 0.15s ease, background-color 0.15s ease;
+}
+
+.bloom-nav-tick-assistant {
+    width: 0.875rem;
+}
+
+.bloom-nav-tick-current {
+    width: 1.75rem;
+    background: color-mix(in srgb, var(--bloom-fg) 83%, transparent);
+    box-shadow: 0 0 0.375rem color-mix(in srgb, var(--bloom-fg) 40%, transparent);
+}
+
+.bloom-nav-tick-streaming {
+    background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--bloom-fg) 60%, transparent) 0 3px, transparent 3px 5px);
+}
+
+.bloom-nav-toc {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 0.25rem);
+    display: none;
+    flex-direction: column;
+    gap: 0.25rem;
+    width: min(18rem, 70vw);
+    max-height: 60vh;
+    padding: 0.5rem;
+    border: 1px solid var(--bloom-border);
+    border-radius: 1rem;
+    background: var(--bloom-surface);
+    box-shadow: var(--bloom-shadow);
+    transform: translateY(-50%);
+}
+
+.bloom-nav-root:hover .bloom-nav-toc {
+    display: flex;
+}
+
+.bloom-nav-toc-head {
+    padding: 0 0.5rem;
+    color: var(--bloom-fg-3);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.bloom-nav-toc-list {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.bloom-nav-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    padding: 0.375rem 0.5rem;
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+    text-align: start;
+}
+
+.bloom-nav-row:hover,
+.bloom-nav-row[aria-current="true"] {
+    background: var(--bloom-hover);
+}
+
+.bloom-nav-flash {
+    outline: 2px solid var(--bloom-accent);
+    outline-offset: 0.25rem;
+    border-radius: 0.75rem;
+}

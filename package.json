@@ -1,6 +1,6 @@
 {
   "name": "bloompp",
-    "version": "1.4.117",
+  "version": "2.0.0",
   "description": "Bloom++ — a Void++-style plugin host for chatgpt.com",
   "homepage": "https://github.com/0-V-linuxdo/Bloom#readme",
   "bugs": {
@@ -18,16 +18,26 @@
     "build:dev": "node build.mjs --dev",
     "watch": "node build.mjs --watch",
     "tsc": "tsc --noEmit",
-    "test:csi": "node --experimental-strip-types scripts/csi-face-test.ts && node --experimental-strip-types scripts/csi-bitmap-test.ts && node scripts/csi-avatar-check.mjs && node scripts/csi-replace-check.mjs && node scripts/csi-bake-check.mjs",
-    "test:harvest": "node --experimental-strip-types scripts/harvest-chain-test.ts",
-    "test:shell": "node --experimental-strip-types scripts/shell-selector-test.ts",
-    "test:think": "node --experimental-strip-types scripts/think-status-test.ts",
-    "test:conversation": "node --experimental-strip-types scripts/conversation-test.ts",
+    "lint": "oxlint -c .oxlintrc.json src test",
+    "lint:fix": "oxlint -c .oxlintrc.json --fix src test",
+    "lint:styles": "stylelint \"src/**/*.css\"",
+    "lint:styles:fix": "stylelint \"src/**/*.css\" --fix",
+    "test": "bun test",
+    "e2e": "node test/e2e/run.mjs",
     "check:update-urls": "node scripts/check-update-urls.mjs"
   },
   "devDependencies": {
-    "esbuild": "^0.25.9",
-    "typescript": "^5.9.3"
+    "@happy-dom/global-registrator": "20.0.0",
+    "@stylistic/eslint-plugin": "5.9.0",
+    "@types/bun": "1.3.10",
+    "esbuild": "0.25.9",
+    "eslint-plugin-simple-header": "1.2.2",
+    "eslint-plugin-simple-import-sort": "12.1.1",
+    "oxlint": "1.68.0",
+    "playwright-core": "1.55.0",
+    "stylelint": "17.4.0",
+    "stylelint-config-standard": "40.0.0",
+    "typescript": "5.9.3"
   },
   "engines": {
     "node": ">=22"

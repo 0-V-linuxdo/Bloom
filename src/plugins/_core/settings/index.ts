@@ -1,0 +1,97 @@
+/*
+ * Bloom++, a modification for chatgpt.com
+ * Copyright (c) 2026 Bloom contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+import { icon } from "@components/icons";
+import { accountMenu, type MountKind, sidebarMounts } from "@host/sidebar";
+import { classNameFactory } from "@utils/css";
+import { h, watchBody } from "@utils/dom";
+import definePlugin, { StartAt } from "@utils/types";
+
+import { closePanel, togglePanel } from "./panel";
+import styles from "./styles.css";
+
+const cl = classNameFactory("bloom-entry-");
+
+const entries = new Map<Element, HTMLElement>();
+let menuRegistered = false;
+let unwatch: (() => void) | undefined;
+
+function entry(kind: MountKind) {
+    const trigger = h("button", {
+        class: cl("button"),
+        title: "Bloom++ settings",
+        attrs: { "type": "button", "aria-label": "Bloom++ settings" },
+        on: {
+            click: event => {
+                event.preventDefault();
+                event.stopPropagation();
+                togglePanel();
+            },
+        },
+    }, icon("bloom"), kind !== "rail" && h("span", { class: cl("label"), text: "Bloom++" }));
+    return h("div", { class: `bloom-root ${cl("wrap")} ${cl(kind)}`, attrs: { "data-bloom": "entry" } }, trigger);
+}
+
+function menuEntry(menu: HTMLElement) {
+    const item = h("div", {
+        class: `bloom-root ${cl("menu-item")}`,
+        attrs: { "role": "menuitem", "tabindex": "-1", "data-bloom": "menu-entry" },
+        on: {
+            click: event => {
+                event.preventDefault();
+                event.stopPropagation();
+                menu.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+                togglePanel();
+            },
+        },
+    }, icon("bloom"), h("span", { text: "Bloom++" }));
+    const first = menu.querySelector('[role="menuitem"]');
+    if (first?.parentElement) first.before(item);
+    else menu.prepend(item);
+}
+
+function sync() {
+    const mounts = sidebarMounts();
+    for (const [anchor, node] of entries) {
+        if (anchor.isConnected && mounts.some(mount => mount.anchor === anchor)) continue;
+        node.remove();
+        entries.delete(anchor);
+    }
+    for (const mount of mounts) {
+        const existing = entries.get(mount.anchor);
+        if (existing?.isConnected) continue;
+        const node = existing ?? entry(mount.kind);
+        entries.set(mount.anchor, node);
+        mount.insert(node);
+    }
+    const menu = accountMenu();
+    if (menu && !menu.querySelector('[data-bloom="menu-entry"]')) menuEntry(menu);
+}
+
+export default definePlugin({
+    name: "Settings",
+    description: "Bloom++ settings panel and its sidebar entry.",
+    authors: ["Bloom contributors"],
+    tags: [],
+    icon: "bloom",
+    required: true,
+    hidden: true,
+    startAt: StartAt.HostReady,
+    styles,
+    start() {
+        unwatch = watchBody(sync);
+        if (!menuRegistered && typeof GM_registerMenuCommand === "function") {
+            GM_registerMenuCommand("Bloom++ settings", togglePanel);
+            menuRegistered = true;
+        }
+    },
+    stop() {
+        unwatch?.();
+        for (const node of entries.values()) node.remove();
+        entries.clear();
+        closePanel();
+    },
+});

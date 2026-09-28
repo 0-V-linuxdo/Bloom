@@ -1,0 +1,240 @@
+/*
+ * Bloom++, a modification for chatgpt.com
+ * Copyright (c) 2026 Bloom contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+html {
+    --bloom-fg: var(--color-text-primary, var(--text-primary, #0d0d0d));
+    --bloom-fg-2: var(--color-text-secondary, var(--text-secondary, #5d5d5d));
+    --bloom-fg-3: var(--color-text-tertiary, var(--text-tertiary, #8f8f8f));
+    --bloom-border: var(--color-token-border-default, var(--border-medium, #0000001a));
+    --bloom-border-light: var(--color-token-border-light, var(--border-light, #0000000d));
+    --bloom-hover: var(--color-token-list-hover-background, #0000000d);
+    --bloom-accent: var(--color-chart-blue, #3a83f7);
+    --bloom-surface: #fff;
+    --bloom-surface-2: #f3f3f3;
+    --bloom-input: #fafafa;
+    --bloom-card: #fff;
+    --bloom-shadow: 0 1rem 3rem #00000026, 0 0 0 1px #0000000d;
+    --bloom-danger: #ef4444;
+}
+
+:is(.dark, [data-theme="dark"]) {
+    --bloom-fg: var(--color-text-primary, var(--text-primary, #ededed));
+    --bloom-fg-2: var(--color-text-secondary, var(--text-secondary, #cdcdcd));
+    --bloom-fg-3: var(--color-text-tertiary, var(--text-tertiary, #afafaf));
+    --bloom-border: var(--color-token-border-default, var(--border-medium, #ffffff26));
+    --bloom-border-light: var(--color-token-border-light, var(--border-light, #ffffff0d));
+    --bloom-hover: var(--color-token-list-hover-background, #ffffff1a);
+    --bloom-surface: #2a2a2a;
+    --bloom-surface-2: #212121;
+    --bloom-input: #2f2f2f;
+    --bloom-card: #ffffff0d;
+    --bloom-shadow: 0 1rem 3rem #00000080, 0 0 0 1px #ffffff1a;
+}
+
+:where(.bloom-root, .bloom-root *, .bloom-root ::before, .bloom-root ::after) {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+}
+
+:where(.bloom-root) {
+    color: var(--bloom-fg);
+    font-family: inherit;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+:where(.bloom-root :is(button, input, select, textarea)) {
+    font: inherit;
+    color: inherit;
+}
+
+:where(.bloom-root :is(button, input:not([type="range"]), select, textarea)) {
+    background-color: transparent;
+}
+
+:where(.bloom-root :is(button, select, [role="button"])) {
+    cursor: pointer;
+}
+
+:where(.bloom-root svg) {
+    display: block;
+    flex-shrink: 0;
+}
+
+:where(.bloom-root [hidden]) {
+    display: none;
+}
+
+.bloom-icon {
+    width: 1rem;
+    height: 1rem;
+}
+
+.bloom-switch {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    width: 2rem;
+    height: 1.25rem;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, var(--bloom-fg) 10%, transparent);
+    transition: background-color 0.15s ease-out;
+}
+
+.bloom-switch[aria-checked="true"] {
+    background-color: var(--bloom-accent);
+}
+
+.bloom-switch:focus-visible,
+.bloom-button:focus-visible,
+.bloom-icon-button:focus-visible {
+    outline: 2px solid var(--bloom-accent);
+    outline-offset: 1px;
+}
+
+.bloom-switch::after {
+    content: "";
+    width: 1rem;
+    height: 1rem;
+    border-radius: 9999px;
+    background: #fff;
+    box-shadow: 0 1px 2px #00000029;
+    transform: translateX(0.125rem);
+    transition: transform 0.15s ease-out;
+}
+
+.bloom-switch[aria-checked="true"]::after {
+    transform: translateX(0.875rem);
+}
+
+.bloom-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    min-height: 2rem;
+    padding: 0 0.75rem;
+    border: 1px solid var(--bloom-border);
+    border-radius: 9999px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.bloom-button:hover {
+    background-color: var(--bloom-hover);
+}
+
+.bloom-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.bloom-button-danger {
+    border-color: color-mix(in srgb, var(--bloom-danger) 50%, transparent);
+    color: var(--bloom-danger);
+}
+
+.bloom-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 0.5rem;
+    color: var(--bloom-fg-2);
+}
+
+.bloom-icon-button:hover {
+    background-color: var(--bloom-hover);
+    color: var(--bloom-fg);
+}
+
+.bloom-icon-button[aria-pressed="true"] {
+    color: var(--bloom-accent);
+}
+
+.bloom-input,
+.bloom-select {
+    width: 100%;
+    min-height: 2.25rem;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--bloom-border);
+    border-radius: 0.625rem;
+    background-color: var(--bloom-input);
+}
+
+.bloom-input:focus,
+.bloom-select:focus {
+    outline: none;
+    border-color: var(--bloom-accent);
+}
+
+.bloom-select {
+    appearance: auto;
+}
+
+.bloom-select option {
+    background-color: var(--bloom-surface);
+    color: var(--bloom-fg);
+}
+
+.bloom-slider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.bloom-slider input {
+    flex: 1;
+    accent-color: var(--bloom-accent);
+}
+
+.bloom-slider output {
+    min-width: 3rem;
+    color: var(--bloom-fg-2);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.bloom-muted {
+    color: var(--bloom-fg-2);
+}
+
+.bloom-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@keyframes bloom-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes bloom-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(0.25rem);
+    }
+}
+
+[data-bloom-text] {
+    font-size: 0 !important;
+}
+
+[data-bloom-text] > * {
+    display: none !important;
+}
+
+[data-bloom-text]::before {
+    content: attr(data-bloom-text);
+    font-size: var(--bloom-text-size, 1rem);
+    white-space: pre-wrap;
+}

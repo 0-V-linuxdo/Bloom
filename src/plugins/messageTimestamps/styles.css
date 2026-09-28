@@ -1,0 +1,18 @@
+/*
+ * Bloom++, a modification for chatgpt.com
+ * Copyright (c) 2026 Bloom contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+.bloom-timestamp {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--bloom-fg-3);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+}
+
+.bloom-timestamp-user {
+    text-align: end;
+}

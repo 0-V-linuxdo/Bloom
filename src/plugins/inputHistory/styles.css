@@ -1,0 +1,71 @@
+/*
+ * Bloom++, a modification for chatgpt.com
+ * Copyright (c) 2026 Bloom contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+.bloom-history-hud {
+    position: fixed;
+    z-index: 2147482000;
+    padding: 0.125rem 0.625rem;
+    border: 1px solid var(--bloom-border);
+    border-radius: 9999px;
+    background: var(--bloom-surface);
+    box-shadow: var(--bloom-shadow);
+    color: var(--bloom-fg-2);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    transform: translate(-50%, calc(-100% - 0.5rem));
+}
+
+.bloom-history-manager {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.bloom-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.bloom-history-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.25rem;
+    padding: 0.25rem 0.25rem 0.25rem 0.5rem;
+    border-radius: 0.5rem;
+    background: var(--bloom-hover);
+}
+
+.bloom-history-text {
+    flex: 1;
+    min-width: 0;
+    padding-block: 0.25rem;
+    text-align: start;
+    overflow-wrap: anywhere;
+}
+
+.bloom-history-text-closed {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bloom-history-text-open {
+    white-space: pre-wrap;
+}
+
+.bloom-history-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.bloom-history-pager > span {
+    flex: 1;
+    font-size: 0.75rem;
+}
