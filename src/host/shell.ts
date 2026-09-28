@@ -54,21 +54,26 @@ export const RECENTS_SEL = 'a[href^="/c/"], a[href*="/c/"]';
 /** JS-only. CSS plugins must not copy the :has() clauses. */
 export const COMPOSER_FORM_SEL = [
     'form[data-type="unified-composer"]',
+    '[data-type="unified-composer"]',
     "form.w-full[data-type]",
     "form:has(#prompt-textarea)",
     'form:has([data-testid="prompt-textarea"])',
     'form:has(textarea[name="prompt"])',
     "form:has(#mobile-composer-prompt)",
     'form:has([data-testid="mobile-composer-prompt"])',
+    "#thread-bottom-container form",
+    "#thread-bottom form",
 ].join(", ");
 
 export const EDITOR_SEL = [
-    "#prompt-textarea",
-    '[data-testid="prompt-textarea"]',
-    "[data-mobile-composer-prompt]",
+    'textarea[name="prompt"]',
     "#mobile-composer-prompt",
     '[data-testid="mobile-composer-prompt"]',
-    'textarea[name="prompt"]',
+    "[data-mobile-composer-prompt]",
+    "textarea#prompt-textarea",
+    'textarea[data-testid="prompt-textarea"]',
+    "#prompt-textarea",
+    '[data-testid="prompt-textarea"]',
     'form[data-type="unified-composer"] [contenteditable="true"][role="textbox"]',
     '[contenteditable="true"][role="textbox"]',
 ].join(", ");

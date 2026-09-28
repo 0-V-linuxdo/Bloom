@@ -34,6 +34,8 @@ assert.match(EDITOR_SEL, /mobile-composer-prompt/);
 assert.match(EDITOR_SEL, /textarea\[name="prompt"\]/);
 assert.match(COMPOSER_FORM_SEL, /unified-composer/);
 assert.match(COMPOSER_FORM_SEL, /textarea\[name="prompt"\]/);
+assert.match(COMPOSER_FORM_SEL, /thread-bottom-container form/);
+assert.ok(EDITOR_SEL.indexOf('textarea[name="prompt"]') < EDITOR_SEL.indexOf("#prompt-textarea"));
 assert.match(THREAD_SEL, /#thread/);
 assert.match(THREAD_SEL, /data-chatgpt-conversation-selection-target/);
 assert.match(TURN_SEL, /conversation-turn/);

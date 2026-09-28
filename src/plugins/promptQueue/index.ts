@@ -20,6 +20,7 @@ import {
     COMPOSER_SEL,
     EDITOR_SEL,
     SEND_SEL,
+    draftText,
     editorText,
     getActiveEditor,
     getComposerRoot,
@@ -109,10 +110,12 @@ function normalize(text: string): string {
 }
 
 function queuedText(editor: HTMLElement): string {
+    const live = normalize(draftText(editor));
+    if (live) return live;
     const blocks = normalize(editorText(editor));
     if (blocks) return blocks;
     if (!hasDraftText(editor)) return "";
-    // editorText joins only <p>. A placeholder <p> hides a draft that lives elsewhere.
+    // Placeholder <p> used to hide a draft that lives on textarea[name=prompt].
     try {
         const clone = editor.cloneNode(true) as HTMLElement;
         clone.querySelectorAll('[contenteditable="false"], button, [role="button"]').forEach(node => node.remove());
@@ -208,7 +211,10 @@ function interruptWindow(): boolean {
 
 function editorFromEvent(t: EventTarget | null): HTMLElement | null {
     const el = t instanceof Element ? t : t instanceof Node ? t.parentElement : null;
-    const hit = el?.closest?.(EDITOR_SEL);
+    if (!el) return null;
+    const field = el.closest('textarea[name="prompt"], #mobile-composer-prompt, textarea#prompt-textarea');
+    if (field instanceof HTMLElement) return field;
+    const hit = el.closest(EDITOR_SEL);
     return hit instanceof HTMLElement ? hit : null;
 }
 
@@ -1001,7 +1007,6 @@ function watchLeak() {
 
 function takeDraft(editor: HTMLElement): string {
     if (!interruptWindow()) return "";
-    if (!hasDraftText(editor)) return "";
     return queuedText(editor);
 }
 

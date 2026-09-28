@@ -326,7 +326,8 @@ function unbindDraftRoot() {
 
 function bindDraftRoot() {
     const root = getComposerRoot();
-    const next = root && root !== document.body ? root : null;
+    const editor = getActiveEditor();
+    const next = root && root !== document.body ? root : editor;
     if (draftRoot === next && next?.isConnected) return;
     unbindDraftRoot();
     if (!next) return;
@@ -338,15 +339,16 @@ function bindDraftRoot() {
 
 function observeComposer() {
     const root = getComposerRoot();
-    if (composerObs && composerRoot === root && root.isConnected) return;
+    const next = root && root !== document.body ? root : getActiveEditor();
+    if (composerObs && composerRoot === next && next?.isConnected) return;
     composerObs?.disconnect();
-    composerRoot = root;
-    if (!root || root === document.body) {
+    composerRoot = next;
+    if (!next || next === document.body) {
         composerObs = null;
         return;
     }
     composerObs = new MutationObserver(() => scheduleEvaluate());
-    composerObs.observe(root, {
+    composerObs.observe(next, {
         childList: true,
         subtree: true,
         characterData: true,
@@ -373,8 +375,9 @@ function scheduleEvaluate() {
     });
 }
 
-function onDraftEvent() {
-    if (hasDraftText()) primedReady = true;
+function onDraftEvent(e?: Event) {
+    const node = e?.target instanceof HTMLElement ? e.target : null;
+    if (hasDraftText(node) || hasDraftText()) primedReady = true;
     scheduleEvaluate();
 }
 
