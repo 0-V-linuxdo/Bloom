@@ -4,3 +4,4 @@ dist/
 .DS_Store
 .cache/
 test/e2e/.shots/
+userscript/*.map
