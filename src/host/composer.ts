@@ -102,6 +102,17 @@ function isDraftAtom(el: Element | null, editor: HTMLElement): boolean {
     return !!hit && hit !== editor && editor.contains(hit);
 }
 
+const PROMPT_FIELD_SEL = 'textarea[name="prompt"], #mobile-composer-prompt, [data-testid="mobile-composer-prompt"]';
+
+function promptFieldIn(root: ParentNode | null | undefined): HTMLTextAreaElement | HTMLInputElement | null {
+    if (!root) return null;
+    try {
+        const node = root.querySelector(PROMPT_FIELD_SEL);
+        if (node instanceof HTMLTextAreaElement || node instanceof HTMLInputElement) return node;
+    } catch { /* ignore */ }
+    return null;
+}
+
 function draftTextOf(root: HTMLElement, editor: HTMLElement): string {
     const parts: string[] = [];
     try {
@@ -130,8 +141,7 @@ function isPlainField(el: HTMLElement): el is HTMLTextAreaElement | HTMLInputEle
 export function hasDraftText(el?: HTMLElement | null): boolean {
     const editor = el ?? getActiveEditor();
     if (!editor) return false;
-    if (isPlainField(editor)) return editor.value.replaceAll("\u200B", "").trim().length > 0;
-    return draftTextOf(editor, editor).replaceAll("\u200B", "").trim().length > 0;
+    return editorText(editor).replaceAll("\u200B", "").trim().length > 0;
 }
 
 /** True when the composer has no user-typed draft (chip-only = empty). */
@@ -198,9 +208,20 @@ export function editorText(el: HTMLElement): string {
     if (isPlainField(el)) return el.value;
     const blocks = el.querySelectorAll("p");
     if (blocks.length) {
-        return Array.from(blocks, b => draftTextOf(b, el)).join("\n");
+        const joined = Array.from(blocks, b => draftTextOf(b, el)).join("\n");
+        if (joined.replaceAll("\u200B", "").trim()) return joined;
     }
-    return draftTextOf(el, el);
+    const walked = draftTextOf(el, el);
+    if (walked.replaceAll("\u200B", "").trim()) return walked;
+    // Same composer only. Do not let a page-level textarea win getActiveEditor.
+    const nested = promptFieldIn(el);
+    if (nested?.value.replaceAll("\u200B", "").trim()) return nested.value;
+    const form = el.closest("form");
+    if (form && form.contains(el)) {
+        const field = promptFieldIn(form);
+        if (field?.value.replaceAll("\u200B", "").trim()) return field.value;
+    }
+    return walked;
 }
 
 type PmView = {

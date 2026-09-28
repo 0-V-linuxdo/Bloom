@@ -7,7 +7,8 @@
  * they must not wrap window.fetch themselves. Never intercept the Recents
  * list GET `/backend-api/conversations?offset=`. Windowed detail
  * `GET /conversations/{id}?num_turns=` is not that list. Generate POST is
- * only `/backend-api/conversation` or `/f/conversation` (not init).
+ * only `/backend-api/conversation` or `/f/conversation` (not init,
+ * not `/f/conversation/prepare|resume`).
  * Active-branch turns (cap 480) are the v1.4.97 mapping walk
  * (`d4015b5`): singular GET `/backend-api/conversation/{id}` only.
  * A windowed GET `/conversations/{id}?num_turns=` is harvested for
@@ -23,7 +24,7 @@ import {
     conversationIdFromPayload,
     idFromApiUrl,
     isConversationGet,
-    isConversationList,
+    isGenerateConversationUrl,
     isWindowedConversationGet,
     mergeConversationChain,
     sameChain,
@@ -36,6 +37,7 @@ export {
     idFromApiUrl,
     isConversationGet,
     isConversationList,
+    isGenerateConversationUrl,
     isTruncatedPayload,
     isWindowedConversationGet,
     mergeConversationChain,
@@ -94,8 +96,7 @@ const GENERATE_ACTION = /"action"\s*:\s*"(next|continue|variant)"/i;
 /** POST generate stream only — not /conversation/init or /conversation/{id}. */
 function isConversationPost(url: string, method: string, body?: BodyInit | null): boolean {
     if (method !== "POST") return false;
-    if (isConversationList(url)) return false;
-    if (!/\/backend-api\/(?:f\/)?conversation\/?(?:[?#]|$)/i.test(url)) return false;
+    if (!isGenerateConversationUrl(url)) return false;
     if (typeof body === "string" && /"action"\s*:/.test(body) && !GENERATE_ACTION.test(body)) return false;
     return true;
 }

@@ -30,9 +30,9 @@ import {
     isUserDraftEmpty,
     setEditorText,
 } from "../../host/composer";
-import { contextKeyFromUrl, conversationToken, currentConversationId } from "../../host/conversation";
+import { contextKeyFromUrl, conversationToken } from "../../host/conversation";
 import { ASSISTANT_TURN_SEL } from "../../host/shell";
-import { hasErrorToast, inFlightConversationId, isDraftMigrate, isStreaming, stoppedByUser, streamingSuppressed, watchStreamingEdge } from "../../host/streaming";
+import { generateHeld, hasErrorToast, isDraftMigrate, isStreaming, stoppedByUser, streamingSuppressed, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle } from "../../utils/css";
 import { Logger } from "../../utils/Logger";
@@ -153,14 +153,6 @@ function proThinkingLive(el: HTMLElement): boolean {
         }
     } catch { /* ignore */ }
     return false;
-}
-
-/** This page's generate POST is still held. Cleared on host onFall, not when Send replaces Stop. */
-function generateHeld(): boolean {
-    const flight = inFlightConversationId();
-    if (!flight) return false;
-    const id = currentConversationId();
-    return !id || id === flight;
 }
 
 /**

@@ -60,6 +60,7 @@ export const COMPOSER_FORM_SEL = [
     'form:has(textarea[name="prompt"])',
     "form:has(#mobile-composer-prompt)",
     'form:has([data-testid="mobile-composer-prompt"])',
+    '[data-type="unified-composer"]',
 ].join(", ");
 
 export const EDITOR_SEL = [
@@ -100,6 +101,7 @@ export const ASSISTANT_TURN_SEL = [
     '[data-chatgpt-conversation-selection-target] [data-chatgpt-search-message-ids] [data-message-author-role="assistant"]',
     '[data-chatgpt-search-message-ids] [data-message-author-role="assistant"]',
     '[data-chatgpt-search-message-ids][data-message-author-role="assistant"]',
+    '[data-chatgpt-search-message-ids][aria-busy="true"]',
     '[data-message-author-role="assistant"]',
 ].join(", ");
 

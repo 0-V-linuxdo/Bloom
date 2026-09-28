@@ -33,6 +33,16 @@ export function isConversationList(url: string): boolean {
     return /\/backend-api\/(?:f\/)?conversations\/?(?:[?#]|$)/i.test(url);
 }
 
+/**
+ * Generate POST `/backend-api/conversation` or `/f/conversation` only.
+ * Not `/conversation/init`, not `/f/conversation/prepare|resume`, not the list.
+ */
+export function isGenerateConversationUrl(url: string): boolean {
+    if (isConversationList(url)) return false;
+    if (/\/backend-api\/(?:f\/)?conversation\/(?:init|prepare|resume)(?:[/?#]|$)/i.test(url)) return false;
+    return /\/backend-api\/(?:f\/)?conversation\/?(?:[?#]|$)/i.test(url);
+}
+
 export function isConversationGet(url: string, method: string): boolean {
     if (method !== "GET") return false;
     if (isConversationList(url)) return false;

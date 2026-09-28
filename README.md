@@ -4,7 +4,7 @@ English · [中文](README.zh.md)
 
 A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings pinned next to the account row.
 
-Current release: **[v1.4.114](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.114)** (`userscript/Bloom.update4.user.js`, `@version [20260928] v1.4.114`).
+Current release: **[v1.4.115](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.115)** (`userscript/Bloom.update4.user.js`, `@version [20260928] v1.4.115`).
 
 Plugins:
 
@@ -170,6 +170,8 @@ v1.4.18: **Stop the page freeze.** ChatStateFavicons no longer deletes ChatGPT's
 v1.4.19: **Settings colors match ChatGPT's native Settings dialog.** Panel uses `--bg-primary` + `shadow-long` (white elevated card, not page `--main-surface-primary`). Switches / sliders use `--bg-primary-inverted` (black / white), not `--text-accent` blue. Tabs use the same hover-pill as General. Host token fallbacks follow current chatgpt.com light / dark.
 
 v1.4.20: **Settings dock no longer covers the composer.** The panel is a left-rail-width box (`20rem`, `left: 0.75rem`) instead of a centered `56rem` overlay that sat on the plus / dictation / Voice buttons. Plugin cards stay a single BaseCard column.
+
+v1.4.115: **CSF rotate and PromptQueue steal use host `generateHeld()`, not raw `isStreaming()` alone.** An empty first-message harvest `post-start` now counts (pendingDraft on `/`) and ticks immediately; packed `data-chatgpt-search-message-ids[aria-busy]` is a streaming turn. Same-form `textarea[name=prompt]` is a draft *read* fallback only — `getActiveEditor` is not the 1.4.113 textarea-wins rewrite. Still write `Bloom.update4.user.js` and the older copies.
 
 v1.4.114: **Revert the v1.4.113 `textarea[name=prompt]` draft-read guess.** Helium re-test: ChatStateFavicons still stayed wait; PromptQueue still stole Enter with an empty queue. Host / CSF / PQ logic is back to v1.4.112. `@version` is strictly greater than published 1.4.113 so Tampermonkey will install the revert. Still write `Bloom.update4.user.js` and the older copies. Do not drop the date prefix.
 

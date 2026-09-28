@@ -14,6 +14,7 @@ import {
     idFromApiUrl,
     isConversationGet,
     isConversationList,
+    isGenerateConversationUrl,
     isTruncatedPayload,
     isWindowedConversationGet,
     mergeConversationChain,
@@ -47,6 +48,21 @@ assert.equal(idFromApiUrl(WINDOW), ID);
 assert.equal(idFromApiUrl(SINGULAR), ID);
 assert.equal(idFromApiUrl(F_SINGULAR), ID);
 assert.equal(idFromApiUrl(LIST), "");
+
+const GEN = "https://chatgpt.com/backend-api/conversation";
+const GEN_Q = "https://chatgpt.com/backend-api/conversation?foo=1";
+const F_GEN = "https://chatgpt.com/backend-api/f/conversation";
+const INIT = "https://chatgpt.com/backend-api/conversation/init";
+const PREPARE = "https://chatgpt.com/backend-api/f/conversation/prepare";
+const RESUME = "https://chatgpt.com/backend-api/f/conversation/resume";
+assert.equal(isGenerateConversationUrl(GEN), true);
+assert.equal(isGenerateConversationUrl(GEN_Q), true);
+assert.equal(isGenerateConversationUrl(F_GEN), true);
+assert.equal(isGenerateConversationUrl(INIT), false);
+assert.equal(isGenerateConversationUrl(PREPARE), false);
+assert.equal(isGenerateConversationUrl(RESUME), false);
+assert.equal(isGenerateConversationUrl(LIST), false);
+assert.equal(isGenerateConversationUrl(SINGULAR), false);
 
 const mapping = {
     title: "Long chat",

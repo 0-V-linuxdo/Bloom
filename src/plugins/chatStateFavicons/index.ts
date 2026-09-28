@@ -37,7 +37,7 @@
 
 import { definePluginSettings } from "../../api/Settings";
 import { getComposerRoot } from "../../host/composer";
-import { isDraftMigrate, stoppedByUser, streamingSuppressed, watchStreamingEdge, type StreamingEdge } from "../../host/streaming";
+import { generateHeld, isDraftMigrate, stoppedByUser, streamingSuppressed, watchStreamingEdge, type StreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import {
     applyFavicon,
@@ -167,7 +167,7 @@ function adoptContext(from: string, to: string) {
 
 function getContextKey(): string {
     const key = liveContextKey();
-    const hold = isStreaming() || wasStreaming || justFinished;
+    const hold = isStreaming() || generateHeld() || wasStreaming || justFinished;
     if (!hold) {
         lockedToken = "";
         return key;
@@ -221,7 +221,7 @@ function evaluateState() {
     if (lastContext && live && isDraftMigrate(lastContext, live)) adoptContext(lastContext, live);
     if (live) lastContext = live;
 
-    const rawStreaming = isStreaming();
+    const rawStreaming = isStreaming() || generateHeld();
     const streaming = rawStreaming && !streamingSuppressed();
     if (ignoreStreaming) {
         if (streamingSuppressed()) {

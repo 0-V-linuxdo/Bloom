@@ -20,4 +20,4 @@ export {
     submitIsGray,
 } from "../../host/composer";
 export { contextKeyFromUrl, conversationToken } from "../../host/conversation";
-export { hasErrorToast, isStreaming } from "../../host/streaming";
+export { generateHeld, hasErrorToast, isStreaming } from "../../host/streaming";

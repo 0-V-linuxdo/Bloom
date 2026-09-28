@@ -23,7 +23,10 @@
  * / fallPending are the shared latch — plugins must not each invent one.
  * ChatStateFavicons, ResponseNotification, PromptQueue, ChatListStatus,
  * BetterNavigator, and MessageTimestamps must subscribe instead of each
- * polling isStreaming().
+ * polling isStreaming(). generateHeld() is the harvest latch (inFlight id
+ * or pendingDraft on `/`) — CSF rotate and PQ steal use it; the 400ms
+ * edge engine still keys rise/fall on DOM isStreaming() so inFlight
+ * cannot deadlock the quiet countdown.
  */
 
 import { getStopButton, getSubmitButton, isStopControl, isVisible } from "./composer";
@@ -58,9 +61,11 @@ export function hasImageGenerationSpinner(): boolean {
 
 export function hasStreamingTurn(): boolean {
     try {
-        return !!document.querySelector(
-            '[data-message-author-role="assistant"][aria-busy="true"], .result-streaming[aria-busy="true"]',
-        );
+        return !!document.querySelector([
+            '[data-message-author-role="assistant"][aria-busy="true"]',
+            '.result-streaming[aria-busy="true"]',
+            '[data-chatgpt-search-message-ids][aria-busy="true"]',
+        ].join(", "));
     } catch {
         return false;
     }
@@ -151,6 +156,20 @@ export function fallPending(): boolean {
 /** Conversation id harvested for the send that started here. Empty after a real switch. */
 export function inFlightConversationId(): string {
     return inFlightId;
+}
+
+/**
+ * This page's generate POST is still held. True after harvest post-start
+ * (including an empty first-message id / pendingDraft on `/`) until a
+ * confirmed fall or a real switch. Not raw isStreaming(): Stop may appear
+ * late, and typing a follow-up remounts it as Send.
+ */
+export function generateHeld(): boolean {
+    if (userStopped || ignoreStreaming) return false;
+    if (pendingDraft && !currentConversationId()) return true;
+    if (!inFlightId) return false;
+    const id = currentConversationId();
+    return !id || id === inFlightId;
 }
 
 function pageConversationId(): string {
@@ -249,6 +268,7 @@ function onHarvest(ev: HarvestEvent) {
                 ignoreStreaming = false;
                 userStopped = false;
             }
+            if (pollTimer !== undefined) tick();
             return;
         }
         const known = ev.conversationId === id || ev.conversationId === inFlightId;
@@ -258,6 +278,7 @@ function onHarvest(ev: HarvestEvent) {
         pendingDraft = false;
         ignoreStreaming = false;
         userStopped = false;
+        if (pollTimer !== undefined) tick();
         return;
     }
     if (ev.type !== "post-end") return;
