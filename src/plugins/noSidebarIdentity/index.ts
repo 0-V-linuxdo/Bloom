@@ -27,6 +27,7 @@
  */
 
 import { definePluginSettings } from "../../api/Settings";
+import { PROFILE_SEL } from "../../host/accountMenu";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
 import definePlugin, { OptionType, StartAt } from "../../utils/types";
@@ -34,13 +35,8 @@ import definePlugin, { OptionType, StartAt } from "../../utils/types";
 const STYLE_NAME = "noSidebarIdentity";
 
 const PROFILE = [
-    '[data-testid="accounts-profile-button"]',
-    '[data-testid="profile-button"]',
-    '[data-testid="user-menu-button"]',
-    '[data-testid="account-menu-button"]',
-    'button[aria-label*="profile" i][aria-haspopup]',
-    'button[aria-label*="account" i][aria-haspopup]',
-    '[aria-haspopup="menu"][data-testid*="profile" i]',
+    ...PROFILE_SEL.split(","),
+    "[data-app-navigation-rail] button[aria-haspopup=\"menu\"]",
 ];
 
 const NAME_TRUNCATE = PROFILE.flatMap(root => [

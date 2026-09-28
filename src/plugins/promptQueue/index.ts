@@ -31,6 +31,7 @@ import {
     setEditorText,
 } from "../../host/composer";
 import { contextKeyFromUrl, conversationToken, currentConversationId } from "../../host/conversation";
+import { ASSISTANT_TURN_SEL } from "../../host/shell";
 import { hasErrorToast, inFlightConversationId, isDraftMigrate, isStreaming, stoppedByUser, streamingSuppressed, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle } from "../../utils/css";
@@ -44,7 +45,6 @@ const STYLE_NAME = "promptQueue";
 const QUEUE_CAP = 8;
 const DRAIN_PAUSE_MS = 50;
 const BYPASS_MS = 2000;
-const ASSISTANT_TURN_SEL = '#thread section[data-testid^="conversation-turn-"][data-turn="assistant"], #thread article[data-testid^="conversation-turn-"][data-turn="assistant"]';
 const PRO_LIVE_RE = /^(?:pro thinking|thinking(?:…|\.\.\.)?|正在思考|思考中)$/i;
 const DONE_ACTION_SEL = [
     'button[data-testid="copy-turn-action-button"]',

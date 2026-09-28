@@ -23,6 +23,9 @@ const PILL = [
     `${FORM} [class*="corner-superellipse"]`,
     `${FORM} [class*="bg-token-bg-primary"]`,
     `${FORM} [class*="bg-token-main-surface"]`,
+    'form [class*="corner-superellipse"]',
+    '#thread-bottom-container [class*="corner-superellipse"]',
+    '#thread-bottom [class*="corner-superellipse"]',
 ].join(",");
 const FADE = [
     "#thread-bottom-container::after",
@@ -31,7 +34,7 @@ const FADE = [
     '#thread-bottom [class*="content-fade"]',
 ].join(",");
 const SLAB = "#thread-bottom-container,#thread-bottom";
-const EDITOR = `${FORM} #prompt-textarea,${FORM} [contenteditable="true"]`;
+const EDITOR = `${FORM} #prompt-textarea,${FORM} [contenteditable="true"],#mobile-composer-prompt,textarea[name="prompt"]`;
 const FILL = "var(--bg-primary,var(--main-surface-primary,#ffffff))";
 
 const settings = definePluginSettings({

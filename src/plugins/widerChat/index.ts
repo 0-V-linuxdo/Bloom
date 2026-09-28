@@ -39,7 +39,7 @@ function apply() {
     const cap = `min(100%,${w}rem)`;
     registerStyle(
         STYLE_NAME,
-        `:root,#thread,#thread-bottom-container,#thread-bottom{--thread-content-max-width:${w}rem!important;--thread-content-width:${w}rem!important;--user-chat-width:${w}rem!important;--composer-container-max-width:${w}rem!important;--thread-xl-max-width:${w}rem!important}`
+        `:root,#thread,#thread-bottom-container,#thread-bottom,[data-chatgpt-conversation-selection-target],[data-testid="desktop-app-shell"]{--thread-content-max-width:${w}rem!important;--thread-content-width:${w}rem!important;--user-chat-width:${w}rem!important;--composer-container-max-width:${w}rem!important;--thread-xl-max-width:${w}rem!important}`
         + `[class*="--thread-content-max-width"],[class*="--thread-content-width"]{--thread-content-max-width:${w}rem!important;--thread-content-width:${w}rem!important}`
         + `[class*="thread-content-max-width"],[class*="max-w-(--thread-content-max-width)"],[class*="max-w-[var(--thread-content-max-width)]"]{max-width:${cap}!important}`
         + `#thread [class*="thread-content-max-width"],#thread-bottom-container [class*="thread-content-max-width"],#thread-bottom [class*="thread-content-max-width"]{max-width:${cap}!important}`

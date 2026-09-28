@@ -27,6 +27,9 @@ const CHAT_SELECTORS = [
     '#page-header button[aria-label="分享对话"]',
     'button[aria-label="Share conversation"]',
     'button[aria-label="分享对话"]',
+    'button[aria-label="Share"]',
+    'button[aria-label="Share chat"]',
+    'button[aria-label="分享"]',
 ];
 
 const PROJECT_SELECTORS = [

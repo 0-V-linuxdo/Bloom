@@ -10,15 +10,9 @@
  * direct child of nav / #stage-slideover-sidebar (that blows React hydration).
  */
 
-export const PROFILE_SEL = [
-    '[data-testid="accounts-profile-button"]',
-    '[data-testid="profile-button"]',
-    '[data-testid="user-menu-button"]',
-    '[data-testid="account-menu-button"]',
-    'button[aria-label*="profile" i][aria-haspopup]',
-    'button[aria-label*="account" i][aria-haspopup]',
-    '[aria-haspopup="menu"][data-testid*="profile" i]',
-].join(",");
+import { PROFILE_SEL as SHARED_PROFILE_SEL, RAIL_SEL, isRailPocket, queryFirst } from "./shell";
+
+export const PROFILE_SEL = SHARED_PROFILE_SEL;
 
 const MENU_SEL = [
     '[role="menu"]',
@@ -65,7 +59,19 @@ function visible(el: Element | null): el is HTMLElement {
 function isNavOrStage(el: HTMLElement): boolean {
     return el.tagName === "NAV"
         || el.id === "stage-slideover-sidebar"
-        || el.id === "stage-sidebar-tiny-bar";
+        || el.id === "stage-popover-sidebar"
+        || el.id === "stage-sidebar-tiny-bar"
+        || el.hasAttribute("data-app-navigation-rail")
+        || el.hasAttribute("data-app-action-sidebar-scroll");
+}
+
+function looksLikeProfile(el: HTMLElement): boolean {
+    const testid = el.getAttribute("data-testid") || "";
+    if (/profile|account/i.test(testid)) return true;
+    const label = `${el.getAttribute("aria-label") || ""} ${el.getAttribute("title") || ""}`;
+    if (/profile|account|账号|账户|头像/i.test(label)) return true;
+    if (el.querySelector("img, [data-bloom-csi-slot], [class*='rounded-full']")) return true;
+    return false;
 }
 
 function allProfileButtons(): HTMLElement[] {
@@ -93,18 +99,67 @@ export function isOnscreenRail(el: HTMLElement): boolean {
         && r.bottom > 0;
 }
 
+function railMenuButtons(root: ParentNode): HTMLElement[] {
+    const out: HTMLElement[] = [];
+    try {
+        for (const hit of root.querySelectorAll('button[aria-haspopup="menu"]')) {
+            if (!(hit instanceof HTMLElement) || !hit.isConnected) continue;
+            if (isBloomChrome(hit)) continue;
+            out.push(hit);
+        }
+    } catch { /* ignore */ }
+    return out;
+}
+
 export function findProfileButton(): HTMLElement | null {
     const onscreen = allProfileButtons().filter(isOnscreenRail);
-    return onscreen[0] ?? null;
+    if (onscreen[0]) return onscreen[0];
+
+    const rail = queryFirst("[data-app-navigation-rail]");
+    if (rail) {
+        const menus = railMenuButtons(rail).filter(el => {
+            const r = el.getBoundingClientRect();
+            return r.width > 16 && r.height > 16 && r.left >= 0
+                && r.left < window.innerWidth / 3 && r.bottom > 0;
+        });
+        const profile = menus.find(looksLikeProfile) ?? menus.at(-1);
+        if (profile) return profile;
+    }
+
+    const footer = findSidebarFooter();
+    if (footer) {
+        const menus = railMenuButtons(footer).filter(el => {
+            const r = el.getBoundingClientRect();
+            return r.width > 16 && r.height > 16 && r.left >= 0 && r.bottom > 0;
+        });
+        const profile = menus.find(looksLikeProfile) ?? menus.at(-1);
+        if (profile) return profile;
+    }
+    return null;
 }
 
 export function findTinyBar(): HTMLElement | null {
-    const bar = document.getElementById("stage-sidebar-tiny-bar");
-    if (!(bar instanceof HTMLElement) || !bar.isConnected) return null;
-    if (isBloomChrome(bar)) return null;
-    const r = bar.getBoundingClientRect();
-    if (r.width < 8 || r.height < 40 || r.left < 0 || r.left >= window.innerWidth / 3) return null;
-    return bar;
+    for (const hit of document.querySelectorAll(RAIL_SEL)) {
+        if (!(hit instanceof HTMLElement) || !hit.isConnected) continue;
+        if (isBloomChrome(hit)) continue;
+        const r = hit.getBoundingClientRect();
+        if (r.width < 8 || r.height < 40 || r.left < 0 || r.left >= window.innerWidth / 3) continue;
+        return hit;
+    }
+    return null;
+}
+
+/** Expanded-sidebar footer that holds Help / profile menus (2026-09 rail). */
+export function findSidebarFooter(): HTMLElement | null {
+    const scroll = queryFirst("[data-app-action-sidebar-scroll]");
+    if (!scroll) return null;
+    const candidates = [scroll.nextElementSibling, scroll.parentElement?.nextElementSibling];
+    for (const el of candidates) {
+        if (!(el instanceof HTMLElement) || !el.isConnected) continue;
+        if (isBloomChrome(el) || isNavOrStage(el)) continue;
+        if (el.querySelector('button[aria-haspopup="menu"]')) return el;
+    }
+    return null;
 }
 
 /**
@@ -115,6 +170,13 @@ export function findTinyBar(): HTMLElement | null {
  * that whole row — but only when the row's parent is not nav / stage.
  */
 export function railAnchor(profile: HTMLElement): HTMLElement {
+    const rail = profile.closest(RAIL_SEL);
+    if (rail instanceof HTMLElement) {
+        let row: HTMLElement | null = profile;
+        while (row && row.parentElement !== rail) row = row.parentElement;
+        if (row && row.parentElement === rail) return row;
+    }
+
     let target: HTMLElement = profile;
     const wrap = profile.parentElement;
     if (
@@ -167,9 +229,11 @@ export function findSidebarHost(): HTMLElement | null {
     if (profile) {
         const anchor = railAnchor(profile);
         const parent = anchor.parentElement;
-        if (parent && !isNavOrStage(parent)) return parent;
-        if (!isNavOrStage(anchor)) return anchor;
+        if (parent && (!isNavOrStage(parent) || isRailPocket(parent))) return parent;
+        if (!isNavOrStage(anchor) || isRailPocket(anchor)) return anchor;
     }
+    const footer = findSidebarFooter();
+    if (footer) return footer;
     return findTinyBar();
 }
 

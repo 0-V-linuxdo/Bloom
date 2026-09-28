@@ -28,12 +28,16 @@ const PROFILE = [
     '[data-testid="profile-button"]',
     '[data-testid="user-menu-button"]',
     '[data-testid="account-menu-button"]',
+    '[data-app-navigation-rail] button[aria-haspopup="menu"]',
 ];
 
 const SIDEBAR = [
     "#stage-slideover-sidebar",
+    "#stage-popover-sidebar",
     "nav",
     "#stage-sidebar-tiny-bar",
+    "[data-app-navigation-rail]",
+    "[data-app-action-sidebar-scroll]",
 ];
 
 function under(roots: string[], suffix: string): string[] {
@@ -139,7 +143,8 @@ function apply() {
         + '#page-header [data-testid="share-button"],#page-header [data-testid="share-button"] *,'
         + '#page-header [data-testid="composer-speech-button"],#page-header [data-testid="composer-speech-button"] *,'
         + '#page-header [data-testid="model-switcher-dropdown-button"],#page-header [data-testid="model-switcher-dropdown-button"] *,'
-        + 'form[data-type="unified-composer"],form[data-type="unified-composer"] *'
+        + 'form[data-type="unified-composer"],form[data-type="unified-composer"] *,'
+        + 'textarea[name="prompt"],#mobile-composer-prompt'
         + "{filter:none!important}",
     );
     if (!rules.length) {

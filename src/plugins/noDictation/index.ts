@@ -39,6 +39,18 @@ const BUTTON_SELECTORS = [
     'button[data-testid="composer-speech-to-text-button"]',
     'form[data-type="unified-composer"] button[data-testid="dictation-button"]',
     'form[data-type="unified-composer"] button[aria-label="Dictate message"]',
+    'form button[aria-label="Dictate button"]',
+    'form button[aria-label="Dictate"]',
+    'form button[aria-label="Start dictation"]',
+    'form button[aria-label="Stop dictation"]',
+    'form button[aria-label="Submit dictation"]',
+    'form button[aria-label^="Dictate" i]',
+    'form button[aria-label="听写"]',
+    'form button[aria-label="开始听写"]',
+    'form button[aria-label="停止听写"]',
+    'form button[aria-label="语音输入"]',
+    'form button[data-testid="composer-dictate-button"]',
+    'form button[data-testid="dictation-button"]',
 ];
 
 const SETTINGS_SELECTORS = [

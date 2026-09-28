@@ -24,12 +24,14 @@ import { isPluginEnabled, plugins, togglePlugin } from "../../../api/PluginManag
 import {
     findAccountMenu,
     findProfileButton,
+    findSidebarFooter,
     findSidebarHost,
     findTinyBar,
     isOnscreenRail,
     pathHitsProfile,
     railAnchor,
 } from "../../../host/accountMenu";
+import { isRailPocket } from "../../../host/shell";
 import {
     applySchemeTokens,
     resolveScheme,
@@ -998,7 +1000,10 @@ function syncRailAlign(row: HTMLElement, profile: HTMLElement) {
 function isNavOrStage(el: HTMLElement): boolean {
     return el.tagName === "NAV"
         || el.id === "stage-slideover-sidebar"
-        || el.id === "stage-sidebar-tiny-bar";
+        || el.id === "stage-popover-sidebar"
+        || el.id === "stage-sidebar-tiny-bar"
+        || el.hasAttribute("data-app-navigation-rail")
+        || el.hasAttribute("data-app-action-sidebar-scroll");
 }
 
 function resumeSidebarWatch() {
@@ -1058,16 +1063,27 @@ function pinRail() {
         if (profile) {
             const anchor = railAnchor(profile);
             const parent = anchor.parentElement;
-            if (isNavOrStage(anchor) || (parent && isNavOrStage(parent))) {
+            const pocketParent = !!(parent && isRailPocket(parent));
+            if (isNavOrStage(anchor) && !isRailPocket(anchor)) {
                 /* would become a nav/stage direct child — skip, wait for a pocket */
+                return;
+            }
+            if (parent && isNavOrStage(parent) && !pocketParent) {
                 return;
             }
             if (!(row.isConnected && row.nextElementSibling === anchor)) {
                 anchor.before(row);
                 inserted = true;
             }
-            syncCollapsed(row);
+            syncCollapsed(row, pocketParent || isRailPocket(anchor) ? true : undefined);
             syncRailAlign(row, profile);
+        } else if (findSidebarFooter()) {
+            const footer = findSidebarFooter()!;
+            if (row.parentElement !== footer) {
+                footer.prepend(row);
+                inserted = true;
+            }
+            syncCollapsed(row);
         } else if (tiny) {
             if (row.parentElement !== tiny) {
                 tiny.appendChild(row);

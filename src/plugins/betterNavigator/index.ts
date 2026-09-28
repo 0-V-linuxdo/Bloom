@@ -52,6 +52,7 @@
 import { definePluginSettings } from "../../api/Settings";
 import { getStopButton } from "../../host/composer";
 import { currentConversationId } from "../../host/conversation";
+import { TURN_SEL as HOST_TURN_SEL, messageIdsOf, primaryMessageId, threadRoot as hostThreadRoot } from "../../host/shell";
 import { conversationChain, subscribeHarvest, type ChainTurn, type HarvestEvent } from "../../host/harvest";
 import { getProStopButton, isDraftMigrate, streamingSuppressed, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
@@ -109,20 +110,18 @@ const ARM_HOLD_MS = 2000;
 const HOST_W = 40;
 const COL_CLASS = /thread-content-max-width|thread-content-width|max-w-\(--thread-content|max-w-\[var\(--thread-content|max-w-\[40rem\]|max-w-\[48rem\]/;
 
-const TURN_SEL = [
-    'section[data-testid^="conversation-turn-"][data-turn="user"]',
-    'section[data-testid^="conversation-turn-"][data-turn="assistant"]',
-    'article[data-testid^="conversation-turn-"][data-turn="user"]',
-    'article[data-testid^="conversation-turn-"][data-turn="assistant"]',
-].join(", ");
+const TURN_SEL = HOST_TURN_SEL;
 
 const SKIP = [
     "#thread-bottom-container",
+    "#thread-bottom",
     "#prompt-textarea",
+    "#mobile-composer-prompt",
     "#bloom-root",
     "#bloom-sidebar-panel",
     "#bloom-bn-host",
     "form[data-type='unified-composer']",
+    'textarea[name="prompt"]',
 ].join(", ");
 
 const NOISE = [
@@ -211,9 +210,7 @@ let overMenu = false;
 let hydrateGen = 0;
 
 function threadRoot(): HTMLElement | null {
-    return document.getElementById("thread")
-        || document.querySelector<HTMLElement>('[data-testid="conversation-panel"]')
-        || document.querySelector<HTMLElement>("main");
+    return hostThreadRoot();
 }
 
 function parseCssLen(raw: string): number {
@@ -237,7 +234,7 @@ function contentColumnRect(thread: HTMLElement): DOMRect {
     let wrap: HTMLElement | null = null;
     try {
         const turn = thread.querySelector<HTMLElement>(
-            "[data-message-id], [data-testid^='conversation-turn-']",
+            "[data-message-id], [data-testid^='conversation-turn-'], [data-chatgpt-search-message-ids]",
         );
         const inner = turn?.querySelector<HTMLElement>(
             '[class*="thread-content-max-width"], [class*="max-w-(--thread-content"]',
@@ -310,6 +307,7 @@ function roleOf(el: HTMLElement): Role | null {
 function turnIdOf(el: HTMLElement): string {
     return el.getAttribute("data-turn-id")
         || el.getAttribute("data-message-id")
+        || primaryMessageId(el)
         || el.querySelector("[data-message-id]")?.getAttribute("data-message-id")
         || "";
 }
@@ -796,17 +794,7 @@ function collectNodes(root: HTMLElement): HTMLElement[] {
 }
 
 function nodeIds(el: HTMLElement): string[] {
-    const ids = [
-        el.getAttribute("data-message-id"),
-        el.getAttribute("data-turn-id"),
-        el.querySelector("[data-message-id]")?.getAttribute("data-message-id"),
-        el.querySelector("[data-turn-id]")?.getAttribute("data-turn-id"),
-    ];
-    const out: string[] = [];
-    for (const id of ids) {
-        if (id && !out.includes(id)) out.push(id);
-    }
-    return out;
+    return messageIdsOf(el);
 }
 
 function collectMounted(root: HTMLElement): NavItem[] {
@@ -1038,7 +1026,9 @@ function findTurn(id: string): HTMLElement | null {
         let node: HTMLElement | null = null;
         try {
             const esc = CSS.escape(raw);
-            node = root.querySelector<HTMLElement>(`[data-turn-id="${esc}"], [data-message-id="${esc}"]`);
+            node = root.querySelector<HTMLElement>(
+                `[data-turn-id="${esc}"], [data-message-id="${esc}"], [data-chatgpt-search-message-ids~="${esc}"]`,
+            );
         } catch { /* ignore */ }
         if (!node || skipNode(node)) continue;
         const turn = node.closest(TURN_SEL);

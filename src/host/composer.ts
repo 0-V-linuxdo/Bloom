@@ -13,13 +13,10 @@
  * Plugins must not import InputHistory to fill the editor.
  */
 
-export const COMPOSER_SEL = 'form[data-type="unified-composer"], form.w-full[data-type]';
-export const EDITOR_SEL = [
-    "#prompt-textarea",
-    '[data-testid="prompt-textarea"]',
-    "[data-mobile-composer-prompt]",
-    'form[data-type="unified-composer"] [contenteditable="true"][role="textbox"]',
-].join(", ");
+import { COMPOSER_FORM_SEL, EDITOR_SEL as SHARED_EDITOR_SEL } from "./shell";
+
+export const COMPOSER_SEL = COMPOSER_FORM_SEL;
+export const EDITOR_SEL = SHARED_EDITOR_SEL;
 export const SEND_SEL = [
     'button[data-testid="send-button"]',
     "#composer-submit-button",
@@ -27,6 +24,10 @@ export const SEND_SEL = [
     'form[data-type="unified-composer"] button[aria-label^="Send" i]',
     'form[data-type="unified-composer"] button[aria-label="Send prompt"]',
     'form[data-type="unified-composer"] button[aria-label="发送"]',
+    'form button[aria-label^="Send" i]',
+    'form button[aria-label="Send prompt"]',
+    'form button[aria-label="发送"]',
+    'form button[type="submit"]',
 ].join(", ");
 export const STOP_SEL = [
     'button[data-testid="stop-button"]',
@@ -35,6 +36,10 @@ export const STOP_SEL = [
     'form[data-type="unified-composer"] button[aria-label*="Stop generating" i]',
     'form[data-type="unified-composer"] button[aria-label*="停止生成"]',
     'form[data-type="unified-composer"] button[aria-label*="停止输出"]',
+    'form button[aria-label*="Stop streaming" i]',
+    'form button[aria-label*="Stop generating" i]',
+    'form button[aria-label*="停止生成"]',
+    'form button[aria-label*="停止输出"]',
 ].join(", ");
 export const TRAILING_SEL = [
     '[data-testid="composer-trailing-actions"]',
@@ -118,9 +123,14 @@ function draftTextOf(root: HTMLElement, editor: HTMLElement): string {
  * atom (App/@plugin chip, mention button, contenteditable=false pill).
  * Chip-only leftover after Send counts as empty.
  */
+function isPlainField(el: HTMLElement): el is HTMLTextAreaElement | HTMLInputElement {
+    return el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement;
+}
+
 export function hasDraftText(el?: HTMLElement | null): boolean {
     const editor = el ?? getActiveEditor();
     if (!editor) return false;
+    if (isPlainField(editor)) return editor.value.replaceAll("\u200B", "").trim().length > 0;
     return draftTextOf(editor, editor).replaceAll("\u200B", "").trim().length > 0;
 }
 
@@ -161,7 +171,8 @@ export function getSubmitButton(): HTMLElement | null {
             return !isStopControl(btn);
         }
         const label = controlLabel(btn);
-        return /^(send|send prompt|发送)$/i.test(label) && !isStopControl(btn);
+        if (/^(send|send prompt|发送)$/i.test(label) && !isStopControl(btn)) return true;
+        return btn.getAttribute("type") === "submit" && !isStopControl(btn);
     });
 }
 
@@ -184,6 +195,7 @@ export function getStopButton(): HTMLElement | null {
 }
 
 export function editorText(el: HTMLElement): string {
+    if (isPlainField(el)) return el.value;
     const blocks = el.querySelectorAll("p");
     if (blocks.length) {
         return Array.from(blocks, b => draftTextOf(b, el)).join("\n");
@@ -224,6 +236,20 @@ export function placeCaret(el: HTMLElement, atStart = false) {
  * Never innerHTML. textContent is last-resort only when insertText throws.
  */
 export function setEditorText(el: HTMLElement, text: string, atStart = false) {
+    if (isPlainField(el)) {
+        el.focus();
+        el.value = text;
+        el.dispatchEvent(new InputEvent("input", {
+            bubbles: true,
+            data: text,
+            inputType: text ? "insertText" : "deleteContent",
+        }));
+        try {
+            const pos = atStart ? 0 : text.length;
+            el.setSelectionRange(pos, pos);
+        } catch { /* ignore */ }
+        return;
+    }
     el.focus();
     const sel = window.getSelection();
     if (!sel) return;

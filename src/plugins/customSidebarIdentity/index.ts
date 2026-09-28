@@ -76,6 +76,7 @@ const PROFILE = [
     'button[aria-label*="profile" i][aria-haspopup]',
     'button[aria-label*="account" i][aria-haspopup]',
     '[aria-haspopup="menu"][data-testid*="profile" i]',
+    '[data-app-navigation-rail] button[aria-haspopup="menu"]',
 ];
 
 const MENU = [
@@ -400,6 +401,7 @@ function applyCss() {
     const imgSel = [
         ...under(PROFILE, "img"),
         "#stage-sidebar-tiny-bar img",
+        "[data-app-navigation-rail] img",
     ];
     if (menuOn) imgSel.push(...under(MENU, "> :first-child img"));
 
@@ -414,7 +416,7 @@ function applyCss() {
         ...sizeSels.flatMap(suffix => under(PROFILE, suffix)),
     ].join(","), size));
     rules.push(sizeBox(
-        sizeSels.map(suffix => `#stage-sidebar-tiny-bar ${suffix}`).join(","),
+        sizeSels.map(suffix => `#stage-sidebar-tiny-bar ${suffix}, [data-app-navigation-rail] ${suffix}`).join(","),
         32,
     ));
     if (menuOn) {
@@ -426,7 +428,7 @@ function applyCss() {
 
     if (url) {
         rules.push(faceImgCss(imgSel.join(","), url, size));
-        rules.push(faceImgCss("#stage-sidebar-tiny-bar img", url, 32));
+        rules.push(faceImgCss("#stage-sidebar-tiny-bar img, [data-app-navigation-rail] img", url, 32));
         rules.push(slotCss(url));
     }
     if (name) rules.push(nameCss(nameSel, name));

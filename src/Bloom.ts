@@ -12,6 +12,7 @@ import { Logger } from "./utils/Logger";
 import { VERSION } from "./utils/constants";
 import { stampPluginUpdatedAt } from "./utils/pluginMtime";
 import { flushStyles } from "./utils/css";
+import { hasSidebarShell } from "./host/shell";
 import { hasComposer, hasLateIslands } from "./utils/hydration";
 import { StartAt, type Plugin } from "./utils/types";
 import settingsPlugin, { openSettings } from "./plugins/_core/settings";
@@ -127,10 +128,7 @@ async function waitForHydrated(): Promise<boolean> {
 }
 
 function sidebarPresent(): boolean {
-    return !!(
-        document.getElementById("stage-slideover-sidebar")
-        || document.querySelector('[data-testid="accounts-profile-button"], [data-testid="profile-button"]')
-    );
+    return hasSidebarShell();
 }
 
 /** Sidebar HTML may exist before hydrateRoot finishes — do not pin into it here. */

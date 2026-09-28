@@ -14,6 +14,7 @@
 
 import { definePluginSettings } from "../../api/Settings";
 import { messageCreateTime, subscribeHarvest, type HarvestEvent } from "../../host/harvest";
+import { MESSAGE_NODE_SEL, primaryMessageId, threadRoot as hostThreadRoot } from "../../host/shell";
 import { isDraftMigrate, isStreaming, streamingSuppressed, watchStreamingEdge } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
 import { registerStyle, removeStyle } from "../../utils/css";
@@ -27,7 +28,7 @@ const logger = new Logger("MessageTimestamps");
 const STYLE_NAME = "messageTimestamps";
 const MARK = "bloom-ts";
 const STAMP_MAX = 1500;
-const SKIP = "#thread-bottom-container, #prompt-textarea, #bloom-root, #bloom-sidebar-panel, form[data-type='unified-composer']";
+const SKIP = "#thread-bottom-container, #thread-bottom, #prompt-textarea, #mobile-composer-prompt, #bloom-root, #bloom-sidebar-panel, form[data-type='unified-composer'], textarea[name='prompt']";
 
 const settings = definePluginSettings({
     showDate: {
@@ -60,9 +61,7 @@ let wasStreaming = false;
 let ignoreStreaming = false;
 
 function threadRoot(): HTMLElement | null {
-    return (document.getElementById("thread")
-        || document.querySelector<HTMLElement>('[data-testid="conversation-panel"]')
-        || document.querySelector<HTMLElement>("main")) ?? null;
+    return hostThreadRoot();
 }
 
 function getStamps(): Record<string, number> {
@@ -116,7 +115,7 @@ function messageNodes(): HTMLElement[] {
     if (!root) return [];
     const out: HTMLElement[] = [];
     try {
-        for (const node of root.querySelectorAll<HTMLElement>("[data-message-id]")) {
+        for (const node of root.querySelectorAll<HTMLElement>(MESSAGE_NODE_SEL)) {
             if (node.closest(SKIP)) continue;
             out.push(node);
         }
@@ -147,7 +146,7 @@ function paint() {
     threadObs?.disconnect();
     try {
         nodes.forEach((node, index) => {
-            const id = node.getAttribute("data-message-id") || "";
+            const id = node.getAttribute("data-message-id") || primaryMessageId(node);
             const role = roleOf(node);
             const existing = node.querySelector<HTMLElement>(`:scope > .${MARK}`);
             if (hideOwn && role === "user") {

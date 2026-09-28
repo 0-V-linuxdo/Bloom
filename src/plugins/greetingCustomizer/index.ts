@@ -31,13 +31,18 @@ const CHROME_SEL = [
     "#page-header",
     "nav",
     "#stage-slideover-sidebar",
+    "#stage-popover-sidebar",
     "#stage-sidebar-tiny-bar",
+    "[data-app-navigation-rail]",
+    "[data-app-action-sidebar-scroll]",
     "#bloom-root",
     "#bloom-sidebar-panel",
     "#bloom-plugin-layer",
     "#bloom-plugin-dialog",
     "#thread-bottom-container",
     'form[data-type="unified-composer"]',
+    'textarea[name="prompt"]',
+    "#mobile-composer-prompt",
 ].join(", ");
 
 const H1_SEL = [

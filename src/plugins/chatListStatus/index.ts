@@ -16,6 +16,7 @@
 
 import { getStopButton } from "../../host/composer";
 import { conversationIdFromHref, currentConversationId } from "../../host/conversation";
+import { RECENTS_SEL, sidebarRoot as hostSidebarRoot } from "../../host/shell";
 import { subscribeHarvest, type HarvestEvent } from "../../host/harvest";
 import { getProStopButton, hasErrorToast, inFlightConversationId, isDraftMigrate, streamingSuppressed, watchStreamingEdge, type StreamingTick } from "../../host/streaming";
 import { Devs } from "../../utils/constants";
@@ -63,8 +64,9 @@ function now(): number {
 }
 
 function sidebarRoot(): HTMLElement | null {
-    return (document.getElementById("stage-slideover-sidebar")
-        || document.querySelector<HTMLElement>("nav")) ?? null;
+    return hostSidebarRoot()
+        || document.querySelector<HTMLElement>("nav")
+        || null;
 }
 
 function setStatus(id: string, kind: Kind, source: Row["source"], broadcast = true) {
@@ -107,7 +109,7 @@ function recentsAnchors(): HTMLAnchorElement[] {
     const out: HTMLAnchorElement[] = [];
     const seenIds = new Set<string>();
     try {
-        for (const a of root.querySelectorAll<HTMLAnchorElement>('a[href^="/c/"], a[href*="/c/"]')) {
+        for (const a of root.querySelectorAll<HTMLAnchorElement>(RECENTS_SEL)) {
             if (a.closest(SKIP_HOSTS)) continue;
             const id = conversationIdFromHref(a.getAttribute("href") || "");
             if (!id || seenIds.has(id)) continue;

@@ -221,7 +221,9 @@
 }
 
 #thread [data-message-id],
-#thread [data-testid^="conversation-turn-"] {
+#thread [data-testid^="conversation-turn-"],
+[data-chatgpt-conversation-selection-target] [data-chatgpt-search-message-ids],
+[data-chatgpt-search-message-ids] {
     scroll-margin-top: 72px;
 }
 
