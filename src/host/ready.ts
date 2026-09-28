@@ -21,7 +21,6 @@ const idle = () => new Promise<void>(resolve => {
 
 async function shellMounted() {
     while (!document.querySelector(SHELL_SELECTOR)) await new Promise(resolve => setTimeout(resolve, SHELL_POLL_MS));
-    if (document.hidden) return;
     await idle();
     await idle();
 }

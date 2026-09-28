@@ -17,7 +17,7 @@ chatgpt.com hydrates with `hydrateRoot(document)`. These broke earlier versions:
 2. Touch `<body>` only after `StartAt.HostReady` (shell mounted, then idle, 8 s cap).
 3. Never remove a React-owned node. The official favicon links are parked (`rel` renamed, `media="not all"`), never removed; the Bloom favicon link stays last in `<head>`.
 4. Writes from observers are idempotent and batched per frame (`watchBody`, `frameScheduler`). Ignore mutations of Bloom's own nodes (`hostMutations`).
-5. Hidden tabs get no `requestAnimationFrame` and Chrome throttles their timers to once a minute. `nextFrame` falls back to a microtask; generation state runs on DOM mutations, network events and `every()` (a Worker ticker with a `setInterval` fallback), never on a lone `setTimeout`.
+5. Hidden tabs get no `requestAnimationFrame` and Chrome throttles their timers to once a minute. `nextFrame` falls back to a timer, and HostReady still waits for idle in a hidden tab so nothing is written before hydration; generation state runs on DOM mutations, network events and `every()` (a Worker ticker with a `setInterval` fallback), never on a lone `setTimeout`.
 6. Wrap `fetch` once (`host/network.ts`), read `response.clone()` only, never change requests, never add requests or polling of `/backend-api/conversations`.
 
 ## Generation state

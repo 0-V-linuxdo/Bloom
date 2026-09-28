@@ -42,7 +42,7 @@ export const isVisible = (el: Element | null | undefined): el is HTMLElement =>
 export const visible = <T extends Element>(selector: string, root: ParentNode = document) =>
     [...root.querySelectorAll<T>(selector)].find(isVisible) ?? null;
 
-
+const HIDDEN_FRAME_MS = 16;
 const TICKER_SOURCE = "onmessage=event=>setInterval(()=>postMessage(0),event.data)";
 
 export function every(fn: () => void, ms: number) {
@@ -62,7 +62,7 @@ export function every(fn: () => void, ms: number) {
 }
 
 export function nextFrame(fn: () => void) {
-    if (document.hidden) queueMicrotask(fn);
+    if (document.hidden) setTimeout(fn, HIDDEN_FRAME_MS);
     else requestAnimationFrame(fn);
 }
 
