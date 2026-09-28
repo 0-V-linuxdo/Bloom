@@ -14,6 +14,8 @@ import { accountMenu, conversationLinks, markIdentity, profileChips, projectName
 import { listTurns, outerMessageUnits, turnSummary, unitMessageIds } from "../src/host/thread";
 import { LIVE_SHELL, mount, NEW_SHELL, OLD_SHELL } from "./fixtures";
 
+const textMessage = (id: string, role: string, part: string) => ({ id, author: { role }, create_time: 1, content: { content_type: "text", parts: [part] } });
+
 const CHAT_ID = "11111111-1111-4111-8111-111111111111";
 
 describe("route", () => {
@@ -151,9 +153,8 @@ describe("conversation JSON", () => {
     });
 
     test("keeps only the last of consecutive assistant messages", () => {
-        const text = (id: string, role: string, part: string) => ({ id, author: { role }, create_time: 1, content: { content_type: "text", parts: [part] } });
         const data = parseConversation("44444444-4444-4444-8444-444444444444", {
-            messages: [text("q", "user", "Check this"), text("p1", "assistant", "I'll look"), text("p2", "assistant", "Still looking"), text("r", "assistant", "Result")],
+            messages: [textMessage("q", "user", "Check this"), textMessage("p1", "assistant", "I'll look"), textMessage("p2", "assistant", "Still looking"), textMessage("r", "assistant", "Result")],
         });
         expect(data?.chain.map(m => m.id)).toEqual(["q", "r"]);
     });
