@@ -9,10 +9,25 @@
 
 const CONV_RE = /\/c\/([a-zA-Z0-9_-]{8,})/i;
 
-export function conversationToken(): string {
+/**
+ * New-chat / GPT / project landing — no `/c/{id}` yet.
+ * `/g/{gizmo}/c/{id}` is a real conversation, not a draft.
+ */
+export function isDraftLandingPath(path: string): boolean {
+    const raw = String(path || "").split(/[?#]/)[0] || "";
+    let pathname = raw;
+    try {
+        if (/^https?:/i.test(raw)) pathname = new URL(raw).pathname;
+    } catch { /* keep raw */ }
+    const norm = pathname.replace(/\/$/, "") || "/";
+    if (norm === "/" || norm === "/g") return true;
+    if (!norm.startsWith("/g/")) return false;
+    return !CONV_RE.test(norm);
+}
+
+function queryId(): string {
     const params = new URLSearchParams(location.search || "");
-    const paramId =
-        params.get("conversationId")
+    return params.get("conversationId")
         || params.get("conversation_id")
         || params.get("threadId")
         || params.get("thread_id")
@@ -20,27 +35,20 @@ export function conversationToken(): string {
         || params.get("chat_id")
         || params.get("id")
         || "";
+}
 
-    const parts = location.pathname.split("/").filter(Boolean);
-    const at = (key: string) => {
-        const i = parts.indexOf(key);
-        return i >= 0 ? (parts[i + 1] || "") : "";
-    };
-    const byPrefix = at("c") || at("chat") || at("conversation") || "";
-    const last = parts.slice(-1)[0] || "";
-    const lastId = /^[a-z0-9_-]{8,}$/i.test(last) ? last : "";
-
-    const pickAttr = (sel: string, attr: string) => {
-        try { return document.querySelector(sel)?.getAttribute(attr) || ""; }
-        catch { return ""; }
-    };
-    const dataId =
-        pickAttr("[data-conversation-id]", "data-conversation-id")
-        || pickAttr("[data-thread-id]", "data-thread-id")
-        || pickAttr("[data-chat-id]", "data-chat-id")
-        || "";
-
-    return [dataId, paramId, byPrefix || lastId].filter(Boolean).join("|");
+/**
+ * Stable context token. Path `/c/{id}` wins (including `/g/…/c/{id}`).
+ * Do not join leftover `data-conversation-id` — `id` then `id|id` looks
+ * like a chat switch and ChatStateFavicons drops rotate / ready.
+ * Landings stay empty so the key is `|draft`.
+ */
+export function conversationToken(): string {
+    const pathId = conversationIdFromHref(location.pathname);
+    if (pathId) return pathId;
+    const paramId = queryId();
+    if (paramId) return paramId;
+    return "";
 }
 
 export function contextKeyFromUrl(token: string): string {

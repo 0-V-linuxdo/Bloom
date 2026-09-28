@@ -7,9 +7,13 @@
  * Visible Send is not proof the turn ended: ChatGPT reuses the trailing
  * control and may keep data-testid="send-button" while the label is Stop.
  *
- * Core = Stop union. Assistant aria-busy is next. Token-class Deep Research
- * / image-spinner selectors are last-resort only — they rot when ChatGPT
- * restyles. Do not invent testids here.
+ * Core = Stop union. Assistant aria-busy is next. A *live* Thinking /
+ * Working status (Helium Pro: Stop remounts as Voice while the dropdown
+ * stays) or a last-turn tool spinner is also live. A leftover collapsed
+ * Thinking next to finished markdown is idle. Token-class Deep Research /
+ * image-spinner selectors are last-resort only — they rot when ChatGPT
+ * restyles. Do not invent testids here. `/g/{gizmo}/c/{id}` is a real
+ * conversation, not a draft landing.
  *
  * watchStreamingEdge is the shared falling-edge helper. One 400ms timer
  * (refcounted). 3 quiet ticks + contextKey lock + capture Stop + harvest
@@ -30,9 +34,14 @@
  */
 
 import { getStopButton, getSubmitButton, isStopControl, isVisible } from "./composer";
-import { contextKeyFromUrl, conversationIdFromHref, conversationToken, currentConversationId } from "./conversation";
+import { contextKeyFromUrl, conversationIdFromHref, conversationToken, currentConversationId, isDraftLandingPath } from "./conversation";
 import { subscribeHarvest, type HarvestEvent } from "./harvest";
+import { ASSISTANT_TURN_SEL } from "./shell";
+import { isLiveThinkFlags, isThinkStatusText } from "./thinkStatus";
 import { Logger } from "../utils/Logger";
+
+export { isThinkStatusText } from "./thinkStatus";
+export { isDraftLandingPath } from "./conversation";
 
 const logger = new Logger("Streaming");
 
@@ -63,12 +72,132 @@ export function hasStreamingTurn(): boolean {
     try {
         return !!document.querySelector([
             '[data-message-author-role="assistant"][aria-busy="true"]',
+            '[data-turn="assistant"][aria-busy="true"]',
+            'section[data-testid^="conversation-turn-"][aria-busy="true"]',
             '.result-streaming[aria-busy="true"]',
+            ".result-streaming",
             '[data-chatgpt-search-message-ids][aria-busy="true"]',
         ].join(", "));
     } catch {
         return false;
     }
+}
+
+/**
+ * Helium 2026-09 Pro: the composer Stop remounts as a Voice/Send circle
+ * while the thread still shows a Thinking / Working dropdown. That label
+ * is the live generate — do not wait for Stop. Short status only; a
+ * paragraph that mentions the words does not count.
+ */
+const BLOOM_THINK_CHROME = "#bloom-root, #bloom-bn-host, #bloom-pq-chip, #bloom-rt-host, #bloom-sidebar-panel, #bloom-plugin-layer";
+
+function isThinkLabel(text: string): boolean {
+    return isThinkStatusText(text);
+}
+
+function nodeHasSpinner(el: HTMLElement): boolean {
+    try {
+        return !!el.querySelector("svg.animate-spin, .animate-spin");
+    } catch {
+        return false;
+    }
+}
+
+function thinkFlagsOf(node: HTMLElement, text: string): boolean {
+    const details = node.closest("details");
+    return isLiveThinkFlags({
+        text,
+        ariaLabel: node.getAttribute("aria-label") || "",
+        ariaExpanded: node.getAttribute("aria-expanded"),
+        ariaBusy: node.getAttribute("aria-busy"),
+        detailsOpen: details instanceof HTMLDetailsElement && details.open,
+        hasSpinner: nodeHasSpinner(node),
+    });
+}
+
+function thinkNodes(root: ParentNode): HTMLElement[] {
+    const out: HTMLElement[] = [];
+    try {
+        if (root instanceof Element && root.closest(BLOOM_THINK_CHROME)) return out;
+        if (root instanceof HTMLElement) out.push(root);
+        for (const node of root.querySelectorAll<HTMLElement>('button, [role="button"], [aria-expanded], [class*="thinking"], [class*="reasoning"]')) {
+            if (node.closest(BLOOM_THINK_CHROME)) continue;
+            out.push(node);
+        }
+    } catch { /* ignore */ }
+    return out;
+}
+
+/** Expanded / busy / open / spinning Thinking — leftover collapsed label is idle. */
+function thinkingLiveIn(root: ParentNode): boolean {
+    for (const node of thinkNodes(root)) {
+        const text = node.childElementCount <= 4 ? (node.textContent || "") : "";
+        if (thinkFlagsOf(node, text)) return true;
+    }
+    return false;
+}
+
+function thinkingLabelIn(root: ParentNode): boolean {
+    for (const node of thinkNodes(root)) {
+        if (isThinkLabel(node.getAttribute("aria-label") || "")) return true;
+        if (node.childElementCount > 4) continue;
+        if (isThinkLabel(node.textContent || "")) return true;
+    }
+    return false;
+}
+
+function assistantHasProse(el: HTMLElement): boolean {
+    try {
+        const md = el.querySelector(".markdown");
+        if (!(md instanceof HTMLElement)) return false;
+        return !!(md.innerText || md.textContent || "").replace(/\s+/g, " ").trim();
+    } catch {
+        return false;
+    }
+}
+
+function lastAssistantTurn(): HTMLElement | null {
+    try {
+        const turns = document.querySelectorAll(ASSISTANT_TURN_SEL);
+        const last = turns[turns.length - 1];
+        return last instanceof HTMLElement ? last : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Last assistant or composer slab still in Thinking / Working.
+ * A leftover collapsed "Thinking" next to finished markdown is not live.
+ * Empty assistant + a short Think label is live (Helium drops Stop first).
+ */
+export function hasThinkingStatus(): boolean {
+    try {
+        const last = lastAssistantTurn();
+        if (last) {
+            if (thinkingLiveIn(last)) return true;
+            if (!assistantHasProse(last) && thinkingLabelIn(last)) return true;
+        }
+        const bottom = document.getElementById("thread-bottom-container")
+            ?? document.getElementById("thread-bottom");
+        if (bottom && thinkingLiveIn(bottom)) return true;
+    } catch { /* ignore */ }
+    return false;
+}
+
+/** Tool / agent spinner on the last assistant — not the header options button. */
+export function hasTurnSpinner(): boolean {
+    const last = lastAssistantTurn();
+    if (!last) return false;
+    try {
+        for (const spin of last.querySelectorAll<HTMLElement>("svg.animate-spin, .animate-spin")) {
+            if (spin.closest('button[data-testid="conversation-options-button"], #page-header, nav, [data-testid*="citation"]')) continue;
+            const parent = spin.parentElement;
+            if (!isVisible(spin) && !isVisible(parent)) continue;
+            return true;
+        }
+    } catch { /* ignore */ }
+    return false;
 }
 
 export function hasErrorToast(): boolean {
@@ -78,14 +207,19 @@ export function hasErrorToast(): boolean {
 
 /**
  * ChatGPT streaming: Stop in composer, Pro trailing Stop, reused Send
- * that is currently a Stop, or an aria-busy assistant turn. Token-class
- * Deep Research / image spinner fire only when Send is not a visible
- * non-Stop control.
+ * that is currently a Stop, an aria-busy assistant turn, or a short
+ * Thinking / Working status. Token-class Deep Research / image spinner
+ * fire only when Send is not a visible non-Stop control.
  */
 export function isStreaming(): boolean {
     if (getStopButton()) return true;
     if (getProStopButton()) return true;
     if (hasStreamingTurn()) return true;
+    // Thinking / last-turn tool spinner stay live after Stop remounts as
+    // Send/Voice. Check before the visible-Send short-circuit or CSF/PQ
+    // miss Helium Pro (GPT tool rows have no composer Stop).
+    if (hasThinkingStatus()) return true;
+    if (hasTurnSpinner()) return true;
     const send = getSubmitButton();
     if (send && isVisible(send) && !isStopControl(send)) return false;
     if (hasDeepResearchProgress()) return true;
@@ -194,7 +328,7 @@ function pathOfKey(key: string): string {
 }
 
 function isDraftPath(path: string): boolean {
-    return !path || path === "/" || path.startsWith("/g/");
+    return isDraftLandingPath(path);
 }
 
 /**

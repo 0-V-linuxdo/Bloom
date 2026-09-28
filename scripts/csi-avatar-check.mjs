@@ -63,6 +63,19 @@ writeFileSync(html, `<!doctype html>
     </div>
   </div>
 </button>
+<button id="helium-col" data-testid="accounts-profile-button" type="button">
+  <div class="min-w-0 flex-col" style="display:flex;flex-direction:column;gap:2px">
+    <div class="face-svg" id="col-face" style="width:32px;height:32px;border-radius:999px;background:#0d9488;color:#fff;display:flex;align-items:center;justify-content:center"><svg width="10" height="10" viewBox="0 0 10 10"></svg>18</div>
+    <div class="truncate">1876948535</div>
+    <div class="text-xs">Pro</div>
+  </div>
+</button>
+<button id="helium-img" data-testid="accounts-profile-button" type="button">
+  <div class="min-w-0 flex-col" style="display:flex;flex-direction:column">
+    <img id="col-img" alt="Profile" width="32" height="32" style="width:32px;height:32px;border-radius:999px" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">
+    <div class="truncate">PhotoCol</div>
+  </div>
+</button>
 <script>
 ${js}
 const bake = "data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=";
@@ -84,8 +97,17 @@ const heliumFace = document.getElementById("helium-face");
 const heliumPlan = helium.querySelector(".text-xs");
 const heliumSlot = CsiFace.pickAvatarSlot(helium, null);
 if (heliumSlot) heliumSlot.setAttribute(CsiFace.SLOT_ATTR, "");
+const heliumCol = document.getElementById("helium-col");
+const colFace = document.getElementById("col-face");
+const colPlan = heliumCol.querySelector(".text-xs");
+const colSlot = CsiFace.pickAvatarSlot(heliumCol, null);
+if (colSlot) colSlot.setAttribute(CsiFace.SLOT_ATTR, "");
+const heliumImg = document.getElementById("helium-img");
+const colImg = document.getElementById("col-img");
+const imgSlot = CsiFace.pickAvatarSlot(heliumImg, colImg);
+if (imgSlot) imgSlot.setAttribute(CsiFace.SLOT_ATTR, "");
 const st = document.createElement("style");
-st.textContent = sizeCss("#profile") + sizeCss("#photo") + sizeCss("#helium")
+st.textContent = sizeCss("#profile") + sizeCss("#photo") + sizeCss("#helium") + sizeCss("#helium-col") + sizeCss("#helium-img")
   + "[" + CsiFace.SLOT_ATTR + "]{position:relative!important;color:transparent!important;font-size:0!important}"
   + "[" + CsiFace.SLOT_ATTR + "]::after{content:\\"\\"!important;position:absolute!important;inset:0!important;background-image:url(\\"" + bake + "\\")!important}";
 document.head.appendChild(st);
@@ -99,10 +121,15 @@ const overlay = !!(after && after.backgroundImage.includes("data:image"));
 const photoOk = !!(photoSlot && photoSlot.contains(img) && Math.round(pr.width) === 40 && photoSlot.tagName !== "IMG");
 const heliumOk = !!(heliumSlot && heliumSlot.contains(heliumFace) && heliumSlot !== heliumPlan
   && !heliumSlot.contains(heliumPlan) && Math.round(hr.width) === 40);
-const ok = sized && overlay && photoOk && heliumOk;
+const cr = colFace.getBoundingClientRect();
+const colOk = !!(colSlot && colSlot.contains(colFace) && colSlot !== colPlan
+  && !colSlot.contains(colPlan) && Math.round(cr.width) === 40);
+const ir = imgSlot.getBoundingClientRect();
+const imgOk = !!(imgSlot && imgSlot.contains(colImg) && imgSlot.tagName !== "IMG" && Math.round(ir.width) === 40);
+const ok = sized && overlay && photoOk && heliumOk && colOk && imgOk;
 document.title = ok ? "PASS" : "FAIL";
 document.body.setAttribute("data-result", JSON.stringify({
-  ok, sized, overlay, photoOk, heliumOk, w: Math.round(r.width), photoW: Math.round(pr.width), heliumW: Math.round(hr.width)
+  ok, sized, overlay, photoOk, heliumOk, colOk, imgOk, w: Math.round(r.width), photoW: Math.round(pr.width), heliumW: Math.round(hr.width), colW: Math.round(cr.width), imgW: Math.round(ir.width)
 }));
 </script>
 </body></html>`);

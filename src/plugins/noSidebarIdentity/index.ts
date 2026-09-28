@@ -43,6 +43,8 @@ const PROFILE = [
 const NAME_TRUNCATE = PROFILE.flatMap(root => [
     `${root} .min-w-0 > .truncate`,
     `${root} .min-w-0.flex-1 .truncate`,
+    `${root} .min-w-0.flex-col .truncate`,
+    `${root} .min-w-0.flex .truncate`,
 ]);
 
 const NAME_LOOSE = PROFILE.flatMap(root => [

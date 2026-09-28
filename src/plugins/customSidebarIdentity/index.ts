@@ -9,8 +9,10 @@
  * src (content:url / padding-box on <img> leave replaced-element pixels on top).
  * Initials / no-img chips (Helium): always mark data-bloom-csi-slot on the
  * face wrap — sibling of .min-w-0, or first child of Helium `.min-w-0.flex`
- * (NSI 1.4.14: that child IS the avatar), or h-8/w-8 / size-* / rounded-full
- * / 1–3 char glyph. Never the Plus/Pro/Free plan label. avatarSize matches
+ * / `.min-w-0.flex-col` (that child IS the avatar — img or svg “18”),
+ * or h-8/w-8 / size-* / rounded-full / 1–3 char glyph. Never the
+ * Plus/Pro/Free plan label. Do not skip a face img just because it sits
+ * under `.min-w-0.flex`. avatarSize matches
  * Bloom++ even with no custom image. Custom bake paints the slot background
  * and ::after (official children hidden). Paste bake must not fetch(data:)
  * (Helium throws; gear preview then works while the chip stays official).
@@ -337,7 +339,11 @@ function faceImgs(root: HTMLElement): HTMLImageElement[] {
     const out: HTMLImageElement[] = [];
     for (const img of root.querySelectorAll("img")) {
         if (!(img instanceof HTMLImageElement) || inChrome(img)) continue;
-        if (img.closest(".min-w-0")) continue;
+        if (img.closest(".truncate")) continue;
+        // Skip photos inside a *block* name column. Helium 1.4.111 puts
+        // the face as the first child of `.min-w-0.flex` / `flex-col`.
+        const col = img.closest(".min-w-0");
+        if (col instanceof HTMLElement && !/\bflex\b/.test(col.getAttribute("class") || "")) continue;
         out.push(img);
     }
     return out;
@@ -426,6 +432,8 @@ function applyCss() {
     const nameSel = [
         ...under(PROFILE, ".min-w-0 > .truncate"),
         ...under(PROFILE, ".min-w-0.flex-1 .truncate"),
+        ...under(PROFILE, ".min-w-0.flex-col .truncate"),
+        ...under(PROFILE, ".min-w-0.flex .truncate"),
     ];
     if (menuOn) nameSel.push(...under(MENU, "> :first-child .truncate"));
 

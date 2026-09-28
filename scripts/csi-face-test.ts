@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import { isInitialsText, isPlanLabel, looksLikeAvatarClass } from "../src/plugins/customSidebarIdentity/face.ts";
 
 assert.equal(isInitialsText("18"), true);
+assert.equal(isInitialsText("18\n"), true);
 assert.equal(isInitialsText("P"), true);
 assert.equal(isInitialsText("  AB  "), true);
 assert.equal(isInitialsText("Proffero"), false);

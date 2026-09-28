@@ -35,6 +35,7 @@ export const PROFILE_SEL = [
     'button[aria-label*="profile" i][aria-haspopup]',
     'button[aria-label*="account" i][aria-haspopup]',
     '[aria-haspopup="menu"][data-testid*="profile" i]',
+    "[data-bloom-profile-chip]",
 ].join(",");
 
 export const SIDEBAR_SEL = [
@@ -71,7 +72,12 @@ export const EDITOR_SEL = [
     '[data-testid="mobile-composer-prompt"]',
     'textarea[name="prompt"]',
     'form[data-type="unified-composer"] [contenteditable="true"][role="textbox"]',
+    'form[data-type="unified-composer"] [contenteditable="true"]',
     '[contenteditable="true"][role="textbox"]',
+    '[data-lexical-editor="true"]',
+    'textarea[placeholder*="Ask ChatGPT" i]',
+    'textarea[aria-label*="Ask ChatGPT" i]',
+    'textarea[aria-label*="Message" i]',
 ].join(", ");
 
 export const THREAD_SEL = [

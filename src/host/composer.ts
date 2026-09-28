@@ -27,11 +27,14 @@ export const SEND_SEL = [
     'form button[aria-label^="Send" i]',
     'form button[aria-label="Send prompt"]',
     'form button[aria-label="发送"]',
+    '#thread-bottom-container button[aria-label^="Send" i]',
+    '#thread-bottom button[aria-label^="Send" i]',
     'form button[type="submit"]',
 ].join(", ");
 export const STOP_SEL = [
     'button[data-testid="stop-button"]',
     'button[data-testid="composer-stop-button"]',
+    'button[data-testid*="stop-button" i]',
     'form[data-type="unified-composer"] button[aria-label*="Stop streaming" i]',
     'form[data-type="unified-composer"] button[aria-label*="Stop generating" i]',
     'form[data-type="unified-composer"] button[aria-label*="停止生成"]',
@@ -40,6 +43,10 @@ export const STOP_SEL = [
     'form button[aria-label*="Stop generating" i]',
     'form button[aria-label*="停止生成"]',
     'form button[aria-label*="停止输出"]',
+    '#thread-bottom-container button[aria-label*="Stop streaming" i]',
+    '#thread-bottom-container button[aria-label*="Stop generating" i]',
+    '#thread-bottom button[aria-label*="Stop streaming" i]',
+    '#thread-bottom button[aria-label*="Stop generating" i]',
 ].join(", ");
 export const TRAILING_SEL = [
     '[data-testid="composer-trailing-actions"]',
@@ -87,7 +94,11 @@ export function getComposerRoot(): HTMLElement {
     const visible = forms.find(isVisible);
     if (visible instanceof HTMLElement) return visible;
     const ta = queryAny(document, EDITOR_SEL);
-    const wrap = ta?.closest("form") ?? ta?.parentElement;
+    const wrap = ta?.closest("form")
+        ?? ta?.closest('#thread-bottom-container, #thread-bottom, [data-type="unified-composer"]')
+        ?? document.getElementById("thread-bottom-container")
+        ?? document.getElementById("thread-bottom")
+        ?? ta?.parentElement;
     return wrap instanceof HTMLElement ? wrap : document.body;
 }
 
@@ -138,10 +149,20 @@ function isPlainField(el: HTMLElement): el is HTMLTextAreaElement | HTMLInputEle
     return el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement;
 }
 
+function fieldHasDraft(field: HTMLTextAreaElement | HTMLInputElement | null): boolean {
+    return !!field?.value.replaceAll("\u200B", "").trim();
+}
+
 export function hasDraftText(el?: HTMLElement | null): boolean {
     const editor = el ?? getActiveEditor();
-    if (!editor) return false;
-    return editorText(editor).replaceAll("\u200B", "").trim().length > 0;
+    if (editor && editorText(editor).replaceAll("\u200B", "").trim()) return true;
+    if (el) return false;
+    const root = getComposerRoot();
+    if (root && root !== document.body && fieldHasDraft(promptFieldIn(root))) return true;
+    const slab = document.getElementById("thread-bottom-container")
+        ?? document.getElementById("thread-bottom");
+    if (slab && fieldHasDraft(promptFieldIn(slab))) return true;
+    return false;
 }
 
 /** True when the composer has no user-typed draft (chip-only = empty). */
@@ -220,6 +241,16 @@ export function editorText(el: HTMLElement): string {
     if (form && form.contains(el)) {
         const field = promptFieldIn(form);
         if (field?.value.replaceAll("\u200B", "").trim()) return field.value;
+    }
+    // Same composer slab only. Helium sometimes keeps the live draft on
+    // textarea[name=prompt] beside an empty #prompt-textarea stub, not
+    // necessarily as a descendant of that stub.
+    const wrap = el.closest('#thread-bottom-container, #thread-bottom, [data-type="unified-composer"]');
+    if (wrap instanceof HTMLElement) {
+        const field = promptFieldIn(wrap);
+        if (field && (wrap.contains(el) || el.contains(wrap)) && field.value.replaceAll("\u200B", "").trim()) {
+            return field.value;
+        }
     }
     return walked;
 }

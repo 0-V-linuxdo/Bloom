@@ -45,7 +45,7 @@ const STYLE_NAME = "promptQueue";
 const QUEUE_CAP = 8;
 const DRAIN_PAUSE_MS = 50;
 const BYPASS_MS = 2000;
-const PRO_LIVE_RE = /^(?:pro thinking|thinking(?:…|\.\.\.)?|正在思考|思考中)$/i;
+const PRO_LIVE_RE = /^(?:pro[\s-]*thinking|thinking|working|正在思考|思考中|正在工作)(?:\s*\d+\s*[sm])?(?:…|\.{3})?$/i;
 const DONE_ACTION_SEL = [
     'button[data-testid="copy-turn-action-button"]',
     'button[data-testid="good-response-turn-action-button"]',
@@ -145,8 +145,12 @@ function turnBusy(el: HTMLElement): boolean {
 
 function proThinkingLive(el: HTMLElement): boolean {
     try {
-        for (const node of el.querySelectorAll<HTMLElement>("span, div, p, button")) {
-            if (node.childElementCount > 2) continue;
+        if (PRO_LIVE_RE.test((el.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim())) return true;
+        for (const node of el.querySelectorAll<HTMLElement>('button, [role="button"], [aria-expanded], [class*="thinking"], span, p')) {
+            // Helium Thinking is icon + label + chevron (3). Old cap of 2 missed it.
+            if (node.childElementCount > 4) continue;
+            const label = (node.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
+            if (label && label.length <= 32 && PRO_LIVE_RE.test(label)) return true;
             const text = (node.textContent || "").replace(/\s+/g, " ").trim();
             if (!text || text.length > 32) continue;
             if (PRO_LIVE_RE.test(text)) return true;
@@ -1020,7 +1024,7 @@ function onKeyDown(e: KeyboardEvent) {
 
 function onBeforeInput(e: Event) {
     if (!started || draining) return;
-    if (!(e instanceof InputEvent) || e.inputType !== "insertParagraph") return;
+    if (!(e instanceof InputEvent) || (e.inputType !== "insertParagraph" && e.inputType !== "insertLineBreak")) return;
     if (passNative) {
         passNative = false;
         return;
@@ -1117,7 +1121,12 @@ export default definePlugin({
         bypassIntercept = false;
         passNative = false;
         leak = null;
-        busyLatch = !streamingSuppressed() && !stoppedByUser() && (isStreaming() || generateHeld());
+        const last = lastAssistantTurn();
+        busyLatch = !streamingSuppressed() && !stoppedByUser() && (
+            isStreaming()
+            || generateHeld()
+            || !!(last && (turnBusy(last) || proThinkingLive(last)))
+        );
         tailHold = false;
         sawBusyAfterSend = false;
         editingId = null;

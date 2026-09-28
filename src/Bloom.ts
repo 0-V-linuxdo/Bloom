@@ -215,6 +215,6 @@ export { Settings } from "./api/Settings";
 export { VERSION, REPO_URL } from "./utils/constants";
 export { isDocumentInteractive, hasLateIslands } from "./utils/hydration";
 export { subscribeHarvest, conversationTitle, messageCreateTime, conversationChain, ensureConversationChain } from "./host/harvest";
-export { conversationToken, currentConversationId, contextKeyFromUrl } from "./host/conversation";
+export { conversationToken, currentConversationId, contextKeyFromUrl, isDraftLandingPath } from "./host/conversation";
 export { hasDraftText, isUserDraftEmpty, setEditorText } from "./host/composer";
 export { isStreaming, hasErrorToast, watchStreamingEdge } from "./host/streaming";

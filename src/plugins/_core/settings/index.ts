@@ -1100,6 +1100,7 @@ function pinRail() {
                 inserted = true;
             }
             armRailPointer(row);
+            if (!profile.hasAttribute("data-bloom-profile-chip")) profile.setAttribute("data-bloom-profile-chip", "");
             const railWide = (parent?.getBoundingClientRect().width ?? 0) >= 80;
             const compact = (pocketParent || isRailPocket(anchor)) && !railWide;
             syncCollapsed(row, compact ? true : undefined);

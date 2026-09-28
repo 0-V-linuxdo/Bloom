@@ -4,7 +4,7 @@
 
 面向 `chatgpt.com` 的 [Void++](https://github.com/0-V-linuxdo/Void) 式**插件宿主**：一条油猴脚本、可开关插件、设置钉在侧栏头像旁。
 
-当前版本：**[v1.4.115](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.115)**（`userscript/Bloom.update4.user.js`，`@version [20260928] v1.4.115`）。
+当前版本：**[v1.4.116](https://github.com/0-V-linuxdo/Bloom/releases/tag/v1.4.116)**（`userscript/Bloom.update4.user.js`，`@version [20260928] v1.4.116`）。
 
 插件：
 
@@ -167,6 +167,8 @@ v1.4.20：**设置面板不再挡住输入框。** 改回左侧轨宽停靠（`2
 v1.4.21：**设置弹窗回到居中**（1.4.20 挪到左侧是误改）。**favicon 重新生效：** 官方 `<link rel=icon>` 仍留在树上（不跟 React 对删），但先停用（`media="not all"` / `bloom-host-icon`），Chrome 不再优先站点 SVG，blossom PNG 才能显示。
 
 v1.4.22：**P0 插件。** **Cleaner** 额外隐藏升级入口、锁定模型、首页促销、Free 广告（仍是纯 CSS；永不藏 Voice / Share / 头像 / `#bloom-rail-item` / `#thread-bottom-container`）。**ResponseNotification**（默认开）：`isStreaming()` 下降沿 + 2–3 个静默 tick；响铃 + 浏览器通知；默认 `onlyWhenHidden`；点 Stop / 出错 toast / 切会话不通知。**ChatListStatus**（默认开）：Recents 转圈 / 完成后蓝点 / 出错，来源是本页 streaming、conversation POST/SSE 拦截、`BroadcastChannel`——不轮询 `/conversations`。
+
+v1.4.116：**Helium：CSI 盖住青绿 “18”；Thinking 时 PromptQueue 拦 Enter；GPT `/g/…/c/{id}` 上 ChatStateFavicons 会转。** 2026-09 Pro 作曲器把 Stop 卸成 Voice/Send 圆钮，线程里还挂着 Thinking 下拉或工具手风琴——`isStreaming()` 当成空闲，Enter 走原生打断，标签停在官方结。宿主在可见 Send 短路**之前**认**活的** Thinking / Working（展开 / busy / 打开的 details / 转圈）以及最后一条助手上的工具转圈。收起的 Thinking 旁边已有正文不算。`/g/{gizmo}/c/{id}` 不是草稿着陆；`conversationToken` 只走路径 id，避免残留 `data-conversation-id` 把 `id` 抖成 `id|id` 把 rotate 掐掉。CSI 认 Helium `.min-w-0.flex-col` 的第一个子节点为脸，即使它是 `<img>` 或带 svg 的 “18”，不要因为外层 `.min-w-0` 就跳过。`pinRail` 给账号芯片打 `data-bloom-profile-chip`，没有 `accounts-profile-button` 时 NSI/CSI 的 CSS 仍打得上。同一块里的 `textarea[name=prompt]` 仍只作草稿读兜底，不是 1.4.113 那种 textarea 优先。继续写 `Bloom.update4.user.js` 和旧副本。
 
 v1.4.115：**CSF 转圈和 PromptQueue 拦截走宿主 `generateHeld()`，不单看 `isStreaming()`。** 首条空 id 的 harvest `post-start` 也算在飞（`/` 上的 pendingDraft），并且马上 tick；打包的 `data-chatgpt-search-message-ids[aria-busy]` 算生成中。同一表单里的 `textarea[name=prompt]` 只作草稿*读*兜底，`getActiveEditor` 不再是 1.4.113 那种 textarea 优先。继续写 `Bloom.update4.user.js` 和旧副本。
 

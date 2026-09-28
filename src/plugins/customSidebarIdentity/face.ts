@@ -10,7 +10,7 @@
  *
  *   button[data-testid=accounts-profile-button]
  *     .min-w-0.flex          ← whole row; first child IS the avatar
- *       [face]               ← flex h-8 w-8, teal “18”, no <img>
+ *       [face]               ← flex h-8 w-8, teal “18”, svg ok, or <img>
  *       .truncate            ← display name (NSI visibility:hidden)
  *       .text-xs             ← plan “Pro”
  *
@@ -109,7 +109,8 @@ export function isLaidOutCircle(el: HTMLElement): boolean {
 
 function isInitialsGlyph(el: HTMLElement): boolean {
     if (inChrome(el) || isReplaced(el) || isChipRoot(el) || isPlanish(el)) return false;
-    if (el.querySelector("img, svg, .min-w-0, .truncate")) return false;
+    if (el.querySelector("img, .min-w-0, .truncate")) return false;
+    // Helium often wraps the teal “18” in an svg; the glyph text is still 1–3 chars.
     return isInitialsText(el.textContent || "");
 }
 
@@ -152,7 +153,13 @@ function slotBesideName(root: HTMLElement): HTMLElement | null {
         if (/\bflex\b/.test(classOf(col))) {
             const extras: HTMLElement[] = [];
             for (const child of col.children) {
-                if (!(child instanceof HTMLElement) || !usableChild(child)) continue;
+                if (!(child instanceof HTMLElement) || inChrome(child)) continue;
+                // 1.4.111: first child of Helium `.min-w-0.flex-col` is the
+                // face. That child may be an <img> (usableChild would skip it).
+                if (child instanceof HTMLImageElement) {
+                    return nearestAvatarWrap(child, root) ?? child.parentElement ?? child;
+                }
+                if (!usableChild(child)) continue;
                 if (isAvatarCandidate(child) || looksLikeAvatarClass(classOf(child))) {
                     return nearestAvatarWrap(child, root) ?? child;
                 }
