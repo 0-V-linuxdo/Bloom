@@ -186,6 +186,15 @@ async function newShellSuite(browser) {
     check("Cleaner hides the upgrade link", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="upgrade-button"]')).display === "none"));
     check("Cleaner hides the GPTs migration notice", await page.evaluate(() => !document.querySelector(".gpts-notice aside")?.getClientRects().length));
     check("Cleaner hides the disclaimer", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="thread-disclaimer"]')).display === "none"));
+    check("Cleaner hides the disclaimer on GPT pages", await page.evaluate(() => {
+        const sticky = document.createElement("div");
+        sticky.className = "sticky bottom-0 self-end";
+        sticky.innerHTML = '<div class="text-center text-xs text-pretty text-codex-description select-none" data-markdown-copy>ChatGPT can make mistakes. Check important info.</div>';
+        document.querySelector("[data-app-action-timeline-scroll]").append(sticky);
+        const hidden = getComputedStyle(sticky.firstElementChild).display === "none";
+        sticky.remove();
+        return hidden;
+    }));
     check("WiderChat widens the thread", await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--thread-content-max-width").trim() === "64rem"));
     check("NoSidebarIdentity hides the name", await page.evaluate(() => getComputedStyle(document.querySelector(".chip .truncate .truncate")).visibility === "hidden"));
     check("NoSidebarIdentity enlarges the plan", await page.evaluate(() => getComputedStyle(document.querySelector(".chip .text-xs")).fontSize === "14px"));

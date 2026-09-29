@@ -5,6 +5,7 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
+import { Sel } from "@host/selectors";
 import { hideRule } from "@utils/css";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 
@@ -17,6 +18,7 @@ const GROUPS = {
     hideDisclaimer: [
         '[data-testid*="disclaimer" i]',
         '[class*="vt-disclaimer"]',
+        `${Sel.timelineScroll} [class~="sticky"] [data-markdown-copy][class~="select-none"]`,
     ],
     hideUpgrade: [
         '[data-testid*="upgrade" i]:not([data-testid*="model" i])',

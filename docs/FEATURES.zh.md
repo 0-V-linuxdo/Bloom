@@ -198,7 +198,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 纯 CSS 隐藏，每项一个开关（默认全开）：
 - `hideDownloadApps`：Download apps / Get the app 入口。
-- `hideDisclaimer`：输入框下方 “ChatGPT can make mistakes…” 提示。
+- `hideDisclaimer`：输入框下方 “ChatGPT can make mistakes…” 提示。普通会话里是 `[data-testid*="disclaimer"]`；GPT 页面（`/g/…`）上没有 testid，是对话区里吸底容器（`.sticky`）中的 `[data-markdown-copy].select-none`（消息正文可选中，不会带 `select-none`）。
 - `hideUpgrade`：Upgrade / Get Plus / Get Pro / Try Go 等升级按钮和卡片。
 - `hideLockedModels`：模型选择器里锁定、不可用的模型。
 - `hideHomePromo`：首页的 GPT/应用/Codex 推广横幅。
