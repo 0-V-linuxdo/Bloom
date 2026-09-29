@@ -222,7 +222,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - `Alt+Enter` 放行一次原生行为（直接打断并发送）。
 - 输入框上方的队列托盘（Grok “queued-messages-tray” 骨架、ChatGPT 配色）：
   - 标题按钮 “N Queued messages”（点击折叠/展开列表）。
-  - 每行显示全文（最多两行截断），右侧：Remove from queue、Edit（原地变成 textarea，Enter 保存、空内容即删除、Esc 取消）、Send now（立刻打断并发送这一条，也可在空输入框按 Enter）。
+  - 每行显示全文（最多两行截断），右侧：Remove from queue、Edit（原地变成 textarea，Enter 保存、空内容即删除、Esc 取消）、Send now（立刻打断并发送这一条，也可在空输入框按 Enter；打断后 ChatGPT 要过一会儿才重新启用 Send，所以写入草稿后每 150ms 重试点 Send，直到草稿被发出、开始生成或约 3 秒超时）。Edit 的 Enter/Esc 在 window 捕获阶段处理，因为 ChatGPT 的 React 根会在 document 捕获阶段截停 Esc。标题按钮带 `aria-expanded`。
   - 按住行拖动（超过 6px）重新排序。
   - 按钮悬停提示显示在托盘标题行右侧。
 - 设置：`replacePending`（默认假：Enter 追加；真：只替换最后一条，不丢前面的）。

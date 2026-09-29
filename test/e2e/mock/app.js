@@ -12,6 +12,7 @@ const thread = () => document.querySelector(live ? "[data-chatgpt-conversation-s
 const button = () => document.querySelector("form button:last-of-type");
 const pending = new Map();
 const REACT_FIBER = "__reactFiber$mock";
+const STOP_COOLDOWN_MS = 700;
 let current = null;
 let socket = null;
 
@@ -150,7 +151,7 @@ async function sendOld(text, userId, replyId) {
 
 async function send() {
     const text = readInput();
-    if (!text) return;
+    if (!text || button().disabled) return;
     if (current && !live) return;
     interrupt("Interrupted.");
     clearInput();
@@ -187,6 +188,10 @@ async function send() {
 }
 
 document.addEventListener("keydown", event => {
+    if (event.key === "Escape") event.stopPropagation();
+}, true);
+
+document.addEventListener("keydown", event => {
     if (event.key === "Enter" && !event.shiftKey && event.target === input()) {
         event.preventDefault();
         void send();
@@ -215,7 +220,11 @@ document.addEventListener("click", event => {
     if (formButton) {
         event.preventDefault();
         if (formButton.textContent !== "Stop") void send();
-        else if (live) interrupt("Stopped.");
+        else if (live) {
+            interrupt("Stopped.");
+            button().disabled = true;
+            setTimeout(() => (button().disabled = false), STOP_COOLDOWN_MS);
+        }
         else current?.controller.abort();
         return;
     }

@@ -39,15 +39,19 @@ function setQueue(items: string[]) {
     renderTray(queue(), actions);
 }
 
+function submit(text: string, attempt = 0) {
+    if (attempt >= SEND_ATTEMPTS || generationState().generating || readDraft() !== text) return;
+    submitComposer();
+    setTimeout(() => submit(text, attempt + 1), SEND_RETRY_MS);
+}
+
 function send(text: string, attempt = 0) {
     if (generationState().generating || readDraft()) {
         if (attempt < SEND_ATTEMPTS) setTimeout(() => send(text, attempt + 1), SEND_RETRY_MS);
         return;
     }
     writeDraft(text);
-    nextFrame(() => {
-        if (!submitComposer()) writeDraft("");
-    });
+    nextFrame(() => submit(text));
 }
 
 function dispatchNext() {

@@ -6,6 +6,7 @@
 
 import { iconButton } from "@components/controls";
 import { icon } from "@components/icons";
+import { TIP } from "@components/tooltip";
 import { composerForm } from "@host/composer";
 import { classNameFactory } from "@utils/css";
 import { h, isVisible } from "@utils/dom";
@@ -33,7 +34,7 @@ function tipButton(name: Parameters<typeof iconButton>[0], label: string, onClic
         event.stopPropagation();
         onClick();
     });
-    el.removeAttribute("title");
+    el.removeAttribute(TIP);
     el.addEventListener("mouseenter", () => setTip(label));
     el.addEventListener("mouseleave", () => setTip(""));
     return el;
@@ -48,23 +49,24 @@ function startEdit(row: HTMLElement, index: number, text: string, actions: TrayA
     busy = true;
     const area = h("textarea", { class: `bloom-input ${cl("editor")}`, attrs: { "aria-label": "Edit queued message" } });
     area.value = text;
+    const controller = new AbortController();
     const finish = (save: boolean) => {
+        controller.abort();
         busy = false;
         signature = "";
         if (save) actions.edit(index, area.value);
+        else area.replaceWith(h("div", { class: cl("text"), text }));
     };
-    area.addEventListener("keydown", event => {
-        event.stopPropagation();
-        if (event.isComposing) return;
-        if (event.key === "Enter" && !event.shiftKey) {
-            event.preventDefault();
-            finish(true);
-        } else if (event.key === "Escape") {
-            event.preventDefault();
-            finish(false);
-        }
-    });
-    area.addEventListener("blur", () => busy && finish(true), { once: true });
+    addEventListener("keydown", (event: KeyboardEvent) => {
+        if (event.target !== area || event.isComposing) return;
+        if (event.key === "Enter" && !event.shiftKey) finish(true);
+        else if (event.key === "Escape") finish(false);
+        else return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }, { capture: true, signal: controller.signal });
+    area.addEventListener("keydown", event => event.stopPropagation(), { signal: controller.signal });
+    area.addEventListener("blur", () => finish(true), { signal: controller.signal });
     row.querySelector(`.${cl("text")}`)?.replaceWith(area);
     area.focus();
     area.setSelectionRange(area.value.length, area.value.length);
@@ -135,11 +137,12 @@ export function renderTray(items: string[], actions: TrayActions) {
             h("div", { class: cl("header") },
                 h("button", {
                     class: cl("toggle"),
-                    attrs: { type: "button" },
+                    attrs: { "type": "button", "aria-expanded": String(!collapsed) },
                     on: {
-                        click: () => {
+                        click: event => {
                             collapsed = !collapsed;
                             tray?.classList.toggle(cl("collapsed"), collapsed);
+                            (event.currentTarget as HTMLElement).setAttribute("aria-expanded", String(!collapsed));
                         },
                     },
                 }, h("span", { class: cl("count") }), icon("chevron")),

@@ -24,6 +24,8 @@ const REPLY_DELAY_MS = 1500;
 const RELAY_MS = 800;
 const HYDRATE_MS = 2500;
 const STREAM_MS = 4000;
+const LONG_REPLY_MS = 8000;
+const SEND_NOW_WAIT_MS = 4000;
 const RELAY_EVENTS = ["resume_conversation_token", "input_message", "stream_handoff", "resume_sse_endpoint", "subscribe_ws_topic", "conversation_detail_metadata"];
 const CHAT_A = "11111111-1111-4111-8111-111111111111";
 const CHAT_B = "22222222-2222-4222-8222-222222222222";
@@ -94,7 +96,7 @@ function conversationJson(id) {
     };
 }
 
-async function setup(browser, { shell = "new", theme = "light", settings = null, streamMs = 0, csp = null } = {}) {
+async function setup(browser, { shell = "new", theme = "light", settings = null, streamMs = 0, csp = null, replyMs = REPLY_DELAY_MS } = {}) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await context.newPage();
     page.on("pageerror", error => console.log("pageerror", error.message));
@@ -133,7 +135,7 @@ async function setup(browser, { shell = "new", theme = "light", settings = null,
     await context.route("https://images.example.test/**", route => route.fulfill({ contentType: "image/png", headers: { "Access-Control-Allow-Origin": "*" }, body: Buffer.from(PNG, "base64") }));
     await context.routeWebSocket("wss://chatgpt.com/ws/**", ws => ws.onMessage(message => {
         const { replyId } = JSON.parse(String(message));
-        setTimeout(() => ws.send(JSON.stringify({ replyId, text: "Here is the answer." })), REPLY_DELAY_MS);
+        setTimeout(() => ws.send(JSON.stringify({ replyId, text: "Here is the answer." })), replyMs);
     }));
     await page.exposeFunction("__gmFetch", url => url === SOUND_URL ? { status: 200, body: wav().toString("base64") } : { status: 404, body: "" });
     await page.addInitScript(gmShim(settings));
@@ -430,6 +432,28 @@ async function customSoundSuite(browser) {
     await context.close();
 }
 
+async function queueEditingSuite(browser) {
+    const { context, page, generateRequests } = await setup(browser, { settings: { plugins: { PromptQueue: { enabled: true } } }, replyMs: LONG_REPLY_MS });
+    await page.goto(`https://chatgpt.com/c/${CHAT_A}`);
+    await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
+    await sendPrompt(page, "Write a long answer");
+    await page.waitForSelector(STOP);
+    for (const text of ["Q1 first", "Q2 second"]) await sendPrompt(page, text);
+    await page.waitForFunction(() => document.querySelector(".bloom-queue-count")?.textContent === "2 Queued messages");
+    check("PromptQueue tray toggle reports it is expanded", await page.locator(".bloom-queue-toggle").getAttribute("aria-expanded") === "true");
+    await page.locator(".bloom-queue-row").first().locator('[aria-label="Edit"]').click();
+    await page.keyboard.type(" XXX");
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(100);
+    check("Escape cancels a queued edit and keeps the text", await page.evaluate(() => !document.querySelector(".bloom-queue-editor") && document.querySelector(".bloom-queue-row .bloom-queue-text")?.textContent === "Q1 first"));
+    await page.locator(".bloom-queue-row").nth(1).locator('[aria-label="Send now"]').click();
+    const sent = () => generateRequests.some(request => request.messages?.[0]?.content?.parts?.[0] === "Q2 second");
+    for (let waited = 0; !sent() && waited < SEND_NOW_WAIT_MS; waited += 100) await page.waitForTimeout(100);
+    check("Send now stops the reply and sends the item once Send is ready", sent() && (await page.locator(COMPOSER).textContent()).trim() === "");
+    check("Send now keeps the rest of the queue", await page.locator(".bloom-queue-count").textContent() === "1 Queued message");
+    await context.close();
+}
+
 async function oldShellSuite(browser) {
     const { context, page } = await setup(browser, { shell: "old", theme: "dark" });
     await page.goto(`https://chatgpt.com/c/${CHAT_A}`);
@@ -457,6 +481,7 @@ try {
     await projectPageSuite(browser);
     await customIdentitySuite(browser);
     await customSoundSuite(browser);
+    await queueEditingSuite(browser);
     await oldShellSuite(browser);
 } finally {
     await browser.close();

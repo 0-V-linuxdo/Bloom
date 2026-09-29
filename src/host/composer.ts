@@ -82,14 +82,11 @@ export const sendButton = () => {
 
 export function submitComposer() {
     const button = sendButton();
-    if (button && !button.disabled) {
-        button.click();
-        return true;
+    if (button) {
+        if (!button.disabled) button.click();
+        return;
     }
-    const input = composerInput();
-    if (!input) return false;
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true, cancelable: true }));
-    return true;
+    composerInput()?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true, cancelable: true }));
 }
 
 export const isStopVisible = () => isVisible(stopButton());
