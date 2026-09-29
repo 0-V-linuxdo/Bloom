@@ -56,7 +56,7 @@
 - 第一条消息发出后 URL 从 `/` 或 `/g/…` 变成 `/c/{新id}`：这是**同一次对话的迁移**，不是切会话（状态、队列、计时都要跟过去）。
 - 点另一条 Recents、点 New chat：这是**真切会话**，离开时正在生成的回复不算“完成”（不响通知、不画完成图标、不发队列）。
 - 新对话第一条消息：URL 先变成 `/c/local-{uuid}`（本地占位，按草稿处理），拿到真实 id 后再变成 `/c/{id}`；只有后一步才是迁移。
-- 临时聊天：`?temporary-chat=true`；发出第一条后变成 `/c/{id}?temporary-chat=true`。RecentTopics 不记录临时聊天。
+- 临时聊天：`?temporary-chat=true`；发出第一条后变成 `/c/{id}?temporary-chat=true`。RecentTopics 不记录临时聊天。GPT 页面（`/g/…`）上 ChatGPT 会忽略这个参数，那里没有临时聊天。
 
 ### 2.4 生成状态（流式）
 
@@ -342,7 +342,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | 两种侧栏共存 | 展开侧栏和 rail **同时挂载**，用 `inert` 隐藏其中一个；入口要在两处各放一个 |
 | 侧栏目的地 | `[data-sidebar-destination="builtin:automations"]` 等 |
 | 会话链接 | `a[href*="/c/{id}"]`，GPT 内会话 `/g/{gizmo}/c/{id}` |
-| 对话区 | 滚动容器 `[data-app-action-timeline-scroll]`，**反向滚动**（`scrollTop` 底部为 0，越往上越负）；对话目标 `[data-chatgpt-conversation-selection-target]` |
+| 对话区 | 滚动容器 `[data-app-action-timeline-scroll]`，**反向滚动**（`scrollTop` 底部为 0，越往上越负）；对话目标 `[data-chatgpt-conversation-selection-target]`。切换会话（侧栏、浏览器前进后退）后 ChatGPT 会把上一个会话留在 DOM 里，放在 `display: none` 的 `div[class*="Workspace"]` 下（没有 `inert` / `aria-hidden`），所以页面上会同时有两个滚动容器。读回合的地方（目录、时间戳、切换器预览、生成状态里的忙碌回合）都只在**可见的**那个滚动容器里找；旧壳没有这个容器，仍在整个文档里找 |
 | 回合 | 虚拟列表，只挂载视口附近；每个回合 `[data-turn-key]`；内容 `[data-virtualized-turn-content]`（`content-visibility`） |
 | 消息块 | `[data-chatgpt-search-message-ids="id1 id2 …"]`（一个块可含多条消息，最后一个 id 是用户看到的那条；块可嵌套，取最外层） |
 | 历史分页 | 列表顶部有 `[role="status"]` 转圈，滚到顶才加载更早的回合 |

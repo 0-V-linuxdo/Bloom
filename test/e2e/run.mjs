@@ -603,6 +603,23 @@ async function navigatorHistorySuite(browser) {
     await context.close();
 }
 
+async function hiddenWorkspaceSuite(browser) {
+    const { context, page } = await setup(browser);
+    await page.goto(`https://chatgpt.com/c/${CHAT_B}`);
+    await page.waitForSelector("[data-turn-key]");
+    await page.evaluate(() => {
+        const workspace = document.createElement("div");
+        workspace.className = "Workspace-IfYAxV";
+        workspace.style.display = "none";
+        workspace.innerHTML = '<div data-app-action-timeline-scroll><div data-chatgpt-conversation-selection-target><div data-turn-key="stale"><div data-chatgpt-search-unit-key="stale:user" data-chatgpt-search-message-ids="stale-u"><div class="whitespace-pre-wrap">Stale question</div></div><div data-chatgpt-search-unit-key="stale:assistant" data-chatgpt-search-message-ids="stale-a"><div class="markdown">Stale answer</div></div></div></div></div>';
+        document.querySelector("main").prepend(workspace);
+    });
+    await page.waitForTimeout(400);
+    const rows = await page.locator(".bloom-nav-row").allTextContents();
+    check("BetterNavigator ignores the chat ChatGPT keeps mounted but hidden", await page.locator(".bloom-nav-tick").count() === 2 && !rows.join(" ").includes("Stale"), rows.join(" | "));
+    await context.close();
+}
+
 const NAV_TURNS = 10;
 const INTERMEDIATE_TURN = 1;
 
@@ -684,6 +701,7 @@ try {
     await navigatorSuite(browser);
     await navigatorSeekSuite(browser);
     await navigatorHistorySuite(browser);
+    await hiddenWorkspaceSuite(browser);
     await oldShellSuite(browser);
 } finally {
     await browser.close();

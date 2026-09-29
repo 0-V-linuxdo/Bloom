@@ -12,6 +12,7 @@ import { type GenerateEnd, network } from "./network";
 import { whenDomReady } from "./ready";
 import { currentConversationId, onRouteChange, type RouteChange } from "./route";
 import { Sel } from "./selectors";
+import { threadRoot } from "./thread";
 
 const TICK_MS = 250;
 const FALL_SETTLE_MS = 400;
@@ -47,7 +48,7 @@ let started = false;
 
 export const generationState = (): GenerationState => ({ generating, conversationId: currentConversationId() });
 
-const domGenerating = () => isStopVisible() || !!document.querySelector(BUSY_TURN);
+const domGenerating = () => isStopVisible() || !!threadRoot()?.querySelector(BUSY_TURN);
 
 function rawGenerating() {
     const dom = domGenerating();

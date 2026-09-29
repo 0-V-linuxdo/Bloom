@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { visible } from "@utils/dom";
 import { normalizeText } from "@utils/misc";
 
 import { generationState } from "./generation";
@@ -24,9 +25,12 @@ const MESSAGE_UNIT = `${Sel.messageUnit}, ${Sel.oldMessage}`;
 
 export const isRole = (value: string | null | undefined): value is Role => value === "user" || value === "assistant";
 
+const hasTimeline = () => !!document.querySelector(Sel.timelineScroll);
+
+export const threadRoot = (): ParentNode | null => hasTimeline() ? visible(Sel.timelineScroll) : document;
+
 export function threadScroller(): HTMLElement | null {
-    const timeline = document.querySelector<HTMLElement>(Sel.timelineScroll);
-    if (timeline) return timeline;
+    if (hasTimeline()) return visible<HTMLElement>(Sel.timelineScroll);
     const turn = document.querySelector(Sel.turn);
     for (let el = turn?.parentElement; el; el = el.parentElement) {
         const { overflowY } = getComputedStyle(el);
@@ -48,7 +52,8 @@ export function unitMessageIds(unit: Element) {
     return own.length ? own : [...new Set([...unit.querySelectorAll(MESSAGE_UNIT)].flatMap(ownMessageIds))];
 }
 
-export function outerMessageUnits(root: ParentNode = document) {
+export function outerMessageUnits(root = threadRoot()) {
+    if (!root) return [];
     const units = roleUnits(root);
     return units.length ? units : [...root.querySelectorAll<HTMLElement>(MESSAGE_UNIT)].filter(unit => !unit.parentElement?.closest(MESSAGE_UNIT));
 }
@@ -74,7 +79,7 @@ const isOuterTurn = (el: HTMLElement) => !el.parentElement?.closest(Sel.turn);
 
 export function listTurns(): Turn[] {
     const chain = conversationData(currentConversationId())?.chain ?? [];
-    const parts = [...document.querySelectorAll<HTMLElement>(Sel.turn)].filter(isOuterTurn).flatMap(el => {
+    const parts = [...threadRoot()?.querySelectorAll<HTMLElement>(Sel.turn) ?? []].filter(isOuterTurn).flatMap(el => {
         const units = roleUnits(el);
         return units.length ? units.map(unit => ({ el: unit, known: searchUnitRole(unit) })) : [{ el, known: null }];
     });
