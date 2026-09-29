@@ -65,7 +65,7 @@ export function historyManager(host: HTMLElement) {
                 iconButton("trash", "Delete", () => saveEntries(settings.store.entries.filter(item => item !== entry)))));
         list.replaceChildren(...rows.length ? rows : [h("div", { class: "bloom-muted", text: needle ? "No matching prompts." : "No saved prompts yet." })]);
         pager.replaceChildren(
-            h("span", { class: "bloom-muted", text: `${matches.length} saved · page ${page + 1} of ${pages}` }),
+            h("span", { class: "bloom-muted", text: `${matches.length} ${needle ? "matching" : "saved"} · page ${page + 1} of ${pages}` }),
             button("Previous", () => {
                 page--;
                 render();
