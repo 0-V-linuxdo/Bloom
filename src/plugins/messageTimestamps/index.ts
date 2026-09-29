@@ -7,6 +7,7 @@
 import { definePluginSettings } from "@api/Settings";
 import { generation, generationState } from "@host/generation";
 import { conversationData, network } from "@host/network";
+import { isHydrated } from "@host/ready";
 import { currentConversationId } from "@host/route";
 import { Sel } from "@host/selectors";
 import { isRole, outerMessageUnits, searchUnitRole, unitMessageIds } from "@host/thread";
@@ -71,7 +72,7 @@ function unitRole(unit: HTMLElement) {
 
 function stamp(unit: HTMLElement) {
     const ids = unitMessageIds(unit);
-    if (!ids.length || unit.querySelector("time:not([data-bloom])")) return;
+    if (!ids.length || !isHydrated(unit) || unit.querySelector("time:not([data-bloom])")) return;
     let time = timeFor(ids);
     if (!time && isLive()) {
         time = Date.now();

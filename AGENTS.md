@@ -14,10 +14,10 @@ Plugin host for chatgpt.com in the style of Void++ (`definePlugin`, `definePlugi
 chatgpt.com hydrates with `hydrateRoot(document)`. These broke earlier versions:
 
 1. Never append to `<html>` and never insert into `<head>` before hydration. Styles go in `document.adoptedStyleSheets` (see `registerStyle`; a `<style>` after parsing is only the fallback), UI goes in `<body>`.
-2. Touch `<body>` only after `StartAt.HostReady` (shell mounted, then idle, 8 s cap).
+2. Touch `<body>` only after `StartAt.HostReady` (React has hydrated `<body>`, 8 s cap). A node inserted into or before a host element that React has not hydrated yet is an extra node: React 19 throws #418, client-renders the whole root, strips `<html>` attributes (the dark theme flashes light) and rebuilds the sidebar. Every insert into a host element checks `isHydrated(el)` first (`host/ready.ts`, reads the `__reactFiber$` expando) and retries on the next mutation.
 3. Never remove a React-owned node. The official favicon links are parked (`rel` renamed, `media="not all"`), never removed; the Bloom favicon link stays last in `<head>`.
 4. Writes from observers are idempotent and batched per frame (`watchBody`, `frameScheduler`). Ignore mutations of Bloom's own nodes (`hostMutations`).
-5. Hidden tabs get no `requestAnimationFrame` and Chrome throttles their timers to once a minute. `nextFrame` falls back to a timer, and HostReady still waits for idle in a hidden tab so nothing is written before hydration; generation state runs on DOM mutations, network events and `every()` (a Worker ticker with a `setInterval` fallback), never on a lone `setTimeout`.
+5. Hidden tabs get no `requestAnimationFrame` and Chrome throttles their timers to once a minute. `nextFrame` falls back to a timer, and HostReady still waits for hydration in a hidden tab; generation state runs on DOM mutations, network events and `every()` (a Worker ticker with a `setInterval` fallback), never on a lone `setTimeout`.
 6. Wrap `fetch` once (`host/network.ts`), read `response.clone()` only, never change requests, never add requests or polling of `/backend-api/conversations`.
 
 ## Generation state

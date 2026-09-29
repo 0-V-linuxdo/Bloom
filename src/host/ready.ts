@@ -5,27 +5,22 @@
  */
 
 const HOST_READY_CAP_MS = 8000;
-const IDLE_TIMEOUT_MS = 1500;
-const SHELL_POLL_MS = 100;
-const SHELL_SELECTOR = "main, nav, [data-app-action-sidebar-scroll], [data-app-navigation-rail]";
+const HYDRATION_POLL_MS = 100;
+const REACT_ROOT = "__reactContainer$";
+const REACT_FIBER = "__reactFiber$";
 
 export function whenDomReady() {
     if (document.readyState !== "loading") return Promise.resolve();
     return new Promise<void>(resolve => document.addEventListener("DOMContentLoaded", () => resolve(), { once: true }));
 }
 
-const idle = () => new Promise<void>(resolve => {
-    if (typeof requestIdleCallback === "function") requestIdleCallback(() => resolve(), { timeout: IDLE_TIMEOUT_MS });
-    else setTimeout(resolve, SHELL_POLL_MS);
-});
+const hasExpando = (target: object, prefix: string) =>
+    Object.keys((target as { wrappedJSObject?: object; }).wrappedJSObject ?? target).some(key => key.startsWith(prefix));
 
-async function shellMounted() {
-    while (!document.querySelector(SHELL_SELECTOR)) await new Promise(resolve => setTimeout(resolve, SHELL_POLL_MS));
-    await idle();
-    await idle();
-}
+export const isHydrated = (el: Element) => !hasExpando(document, REACT_ROOT) || hasExpando(el, REACT_FIBER);
 
 export async function whenHostReady() {
     await whenDomReady();
-    await Promise.race([shellMounted(), new Promise(resolve => setTimeout(resolve, HOST_READY_CAP_MS))]);
+    const deadline = Date.now() + HOST_READY_CAP_MS;
+    while (!hasExpando(document.body, REACT_FIBER) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, HYDRATION_POLL_MS));
 }

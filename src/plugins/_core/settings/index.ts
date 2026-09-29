@@ -5,6 +5,7 @@
  */
 
 import { icon } from "@components/icons";
+import { isHydrated } from "@host/ready";
 import { accountMenu, type MountKind, sidebarMounts } from "@host/sidebar";
 import { classNameFactory } from "@utils/css";
 import { h, watchBody } from "@utils/dom";
@@ -62,7 +63,7 @@ function sync() {
     }
     for (const mount of mounts) {
         const existing = entries.get(mount.anchor);
-        if (existing?.isConnected) continue;
+        if (existing?.isConnected || !isHydrated(mount.anchor)) continue;
         const node = existing ?? entry(mount.kind);
         entries.set(mount.anchor, node);
         mount.insert(node);

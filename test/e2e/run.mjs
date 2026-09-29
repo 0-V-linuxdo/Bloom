@@ -22,6 +22,7 @@ mkdirSync(shots, { recursive: true });
 const CHROMIUM = ["/opt/pw-browsers/chromium", process.env.CHROMIUM_PATH].find(path => path && existsSync(path));
 const REPLY_DELAY_MS = 1500;
 const RELAY_MS = 800;
+const HYDRATE_MS = 2500;
 const RELAY_EVENTS = ["resume_conversation_token", "input_message", "stream_handoff", "resume_sse_endpoint", "subscribe_ws_topic", "conversation_detail_metadata"];
 const CHAT_A = "11111111-1111-4111-8111-111111111111";
 const CHAT_B = "22222222-2222-4222-8222-222222222222";
@@ -244,6 +245,22 @@ async function throttledTimersSuite(browser) {
     await context.close();
 }
 
+async function slowHydrationSuite(browser) {
+    const { context, page } = await setup(browser);
+    await page.addInitScript(ms => {
+        window.__hydrateDelay = ms;
+    }, HYDRATE_MS);
+    await page.goto(`https://chatgpt.com/c/${CHAT_A}`);
+    await page.waitForTimeout(HYDRATE_MS / 2);
+    check("nothing is inserted into the sidebar before React hydrates it", await page.locator('[data-bloom="entry"]').count() === 0);
+    const errors = await (await page.waitForFunction(() => window.__hydrationErrors)).jsonValue();
+    check("React finds no Bloom nodes inside its tree when it hydrates", errors.length === 0, errors.join(", "));
+    await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
+    await page.waitForTimeout(400);
+    check("the entry and timestamps appear after hydration", await page.locator('[data-bloom="entry"]').count() === 2 && await page.locator('time[data-bloom="timestamp"]').count() === 2);
+    await context.close();
+}
+
 async function oldShellSuite(browser) {
     const { context, page } = await setup(browser, { shell: "old", theme: "dark" });
     await page.goto(`https://chatgpt.com/c/${CHAT_A}`);
@@ -266,6 +283,7 @@ try {
     await newShellSuite(browser);
     await stopAndSwitchSuite(browser);
     await throttledTimersSuite(browser);
+    await slowHydrationSuite(browser);
     await oldShellSuite(browser);
 } finally {
     await browser.close();

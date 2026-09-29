@@ -6,6 +6,7 @@
 
 import { icon } from "@components/icons";
 import { generation, generationState } from "@host/generation";
+import { isHydrated } from "@host/ready";
 import { currentConversationId } from "@host/route";
 import { conversationLinks } from "@host/sidebar";
 import { classNameFactory } from "@utils/css";
@@ -57,6 +58,7 @@ function render() {
     const keep = new Set<Element>();
     for (const [id, status] of wanted) {
         for (const link of conversationLinks(id)) {
+            if (!isHydrated(link)) continue;
             const existing = link.querySelector<HTMLElement>(':scope > [data-bloom="cls"]');
             if (existing?.dataset.status === status) {
                 keep.add(existing);

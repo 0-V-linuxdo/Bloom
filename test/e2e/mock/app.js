@@ -11,6 +11,7 @@ const input = () => document.querySelector("form .ProseMirror");
 const thread = () => document.querySelector(live ? "[data-chatgpt-conversation-selection-target]" : "#thread");
 const button = () => document.querySelector("form button:last-of-type");
 const pending = new Map();
+const REACT_FIBER = "__reactFiber$mock";
 let current = null;
 let socket = null;
 
@@ -241,4 +242,20 @@ async function openConversation() {
     for (let i = 0; i < chain.length; i += 2) thread().append(...turn(chain.slice(i, i + 2)));
 }
 
+function markHydrated(root) {
+    for (const el of [root, ...root.querySelectorAll("*")]) el[REACT_FIBER] ??= {};
+}
+
+function hydrate() {
+    window.__hydrationErrors = [...document.body.querySelectorAll("[data-bloom]")]
+        .filter(el => el.parentElement !== document.body && !el.parentElement.closest("[data-bloom]"))
+        .map(el => el.getAttribute("data-bloom"));
+    markHydrated(document.body);
+    new MutationObserver(records => {
+        for (const { addedNodes } of records) for (const node of addedNodes) if (node instanceof Element) markHydrated(node);
+    }).observe(document.body, { childList: true, subtree: true });
+}
+
+document.__reactContainer$mock = {};
+setTimeout(hydrate, window.__hydrateDelay ?? 0);
 void openConversation();

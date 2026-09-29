@@ -8,6 +8,7 @@ import { describe, expect, test } from "bun:test";
 
 import { readDraft, sendButton, stopButton, writeDraft } from "../src/host/composer";
 import { parseConversation } from "../src/host/network";
+import { isHydrated } from "../src/host/ready";
 import { conversationIdFromHref, currentConversationId } from "../src/host/route";
 import { Sel } from "../src/host/selectors";
 import { accountMenu, conversationLinks, markIdentity, profileChips, projectName, sidebarMounts } from "../src/host/sidebar";
@@ -29,6 +30,18 @@ describe("route", () => {
         history.pushState(null, "", "/c/local-3f2a9c1e-0000-4000-8000-000000000000");
         expect(currentConversationId()).toBeNull();
         history.pushState(null, "", "/");
+    });
+});
+
+describe("hydration", () => {
+    test("holds writes until React has hydrated the element", () => {
+        const el = document.createElement("div");
+        expect(isHydrated(el)).toBe(true);
+        Object.assign(document, { __reactContainer$test: {} });
+        expect(isHydrated(el)).toBe(false);
+        Object.assign(el, { __reactFiber$test: {} });
+        expect(isHydrated(el)).toBe(true);
+        Reflect.deleteProperty(document, "__reactContainer$test");
     });
 });
 

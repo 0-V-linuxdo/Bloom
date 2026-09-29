@@ -36,14 +36,10 @@ export function expandedFooters() {
 export function sidebarMounts(): SidebarMount[] {
     const profiles = [...document.querySelectorAll(Sel.oldProfile)];
     if (profiles.length) {
-        return profiles.map(anchor => ({
-            kind: "profile",
-            anchor,
-            insert: node => {
-                const wrapper = anchor.parentElement?.children.length === 1 ? anchor.parentElement : anchor;
-                wrapper.before(node);
-            },
-        }));
+        return profiles.map(button => {
+            const anchor = button.parentElement?.children.length === 1 ? button.parentElement : button;
+            return { kind: "profile", anchor, insert: node => anchor.before(node) };
+        });
     }
     const mounts: SidebarMount[] = expandedFooters().map(footer => ({ kind: "expanded", anchor: footer, insert: node => footer.prepend(node) }));
     for (const rail of document.querySelectorAll(Sel.rail)) {
