@@ -118,10 +118,10 @@ function openPluginSettings(plugin: Plugin) {
     const rows = Object.entries(definition(plugin)).filter(([, setting]) => setting.type !== OptionType.CUSTOM).map(([key, setting]) => {
         const control = settingControl(plugin, key, setting);
         const inline = setting.type === OptionType.BOOLEAN;
+        const label = setting.type !== OptionType.COMPONENT && h("div", { class: cl("field-label"), text: humanize(key) });
+        const description = setting.description && h("div", { class: cl("field-desc"), text: setting.description });
         return h("div", { class: cl("field", inline ? "field-inline" : "field-stacked") },
-            h("div", { class: cl("field-text") },
-                setting.type !== OptionType.COMPONENT && h("div", { class: cl("field-label"), text: humanize(key) }),
-                setting.description && h("div", { class: cl("field-desc"), text: setting.description })),
+            (label || description) && h("div", { class: cl("field-text") }, label, description),
             control);
     });
     let armed: ReturnType<typeof setTimeout> | undefined;

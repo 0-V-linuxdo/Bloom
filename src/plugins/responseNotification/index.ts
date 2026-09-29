@@ -23,8 +23,8 @@ const ATTACK_S = 0.02;
 const settings = definePluginSettings({
     sound: { type: OptionType.BOOLEAN, description: "Play a sound when a reply finishes.", default: true },
     soundUrl: { type: OptionType.STRING, description: "Custom sound URL. Leave empty for the built-in chime.", default: "", placeholder: "https://…/sound.mp3" },
-    preview: { type: OptionType.COMPONENT, description: "Try the sound.", render: host => {
-        host.append(button("Play", playSound));
+    preview: { type: OptionType.COMPONENT, render: host => {
+        host.append(button("Preview", playSound));
         return () => host.replaceChildren();
     } },
     browserNotification: { type: OptionType.BOOLEAN, description: "Show a browser notification when a reply finishes.", default: true },

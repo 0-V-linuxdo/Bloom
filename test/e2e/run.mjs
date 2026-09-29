@@ -176,6 +176,13 @@ async function newShellSuite(browser) {
     check("slider changes apply live", await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--thread-content-max-width").trim() === "80rem"));
     await page.screenshot({ path: resolve(shots, "panel-popup-light.png") });
     await page.keyboard.press("Escape");
+    await page.locator(".bloom-settings-card", { hasText: "ResponseNotification" }).locator('[aria-label="Settings"]').click();
+    check("ResponseNotification offers one Preview button for the sound", await page.evaluate(() => {
+        const popup = document.querySelector(".bloom-settings-popup");
+        const component = popup?.querySelector(".bloom-settings-component");
+        return component?.textContent === "Preview" && !component.closest(".bloom-settings-field")?.querySelector(".bloom-settings-field-text");
+    }));
+    await page.keyboard.press("Escape");
     await page.screenshot({ path: resolve(shots, "panel-light.png") });
     await page.keyboard.press("Escape");
     check("Escape closes the panel", await page.locator('[data-bloom="settings"]').count() === 0);
