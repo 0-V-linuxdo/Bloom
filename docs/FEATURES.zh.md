@@ -152,7 +152,7 @@
 
 默认关｜`Init`｜ui, privacy｜Void++ 同名
 
-纯 CSS。设置：`hideShareChat`（会话头部 Share，默认真）、`hideShareProject`（项目页 Share，默认真）。
+CSS 为主。设置：`hideShareChat`（会话头部 Share，默认真）、`hideShareProject`（项目页 Share，默认真）。新版项目页（`/g/g-p-…/project`）的 Share 是没有 aria-label、没有 testid 的 `button[aria-haspopup=dialog]`，只能靠文字识别：在项目页（非会话路由）上把文字恰为 Share / 分享 的这种按钮标成 `data-bloom-share="project"`，再由 CSS 隐藏；离开项目页或停用插件时清掉标记。
 
 ### 4.4 NoDictation — 隐藏听写按钮
 

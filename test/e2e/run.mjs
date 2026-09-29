@@ -297,6 +297,28 @@ async function streamedLoadSuite(browser) {
     await context.close();
 }
 
+async function projectPageSuite(browser) {
+    const { context, page } = await setup(browser, { settings: { plugins: { NoShareLink: { enabled: true } } } });
+    const shareHidden = () => page.evaluate(async () => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.setAttribute("aria-haspopup", "dialog");
+        button.innerHTML = "<svg></svg> Share";
+        document.querySelector("main").prepend(button);
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const hidden = getComputedStyle(button).display === "none";
+        button.remove();
+        return hidden;
+    });
+    await page.goto("https://chatgpt.com/g/g-p-0123abcd-trip/project");
+    await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
+    check("NoShareLink hides the unlabeled project Share button", await shareHidden());
+    await page.goto(`https://chatgpt.com/c/${CHAT_A}`);
+    await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
+    check("NoShareLink leaves an unlabeled Share outside projects to the chat rules", !await shareHidden());
+    await context.close();
+}
+
 async function oldShellSuite(browser) {
     const { context, page } = await setup(browser, { shell: "old", theme: "dark" });
     await page.goto(`https://chatgpt.com/c/${CHAT_A}`);
@@ -321,6 +343,7 @@ try {
     await throttledTimersSuite(browser);
     await slowHydrationSuite(browser);
     await streamedLoadSuite(browser);
+    await projectPageSuite(browser);
     await oldShellSuite(browser);
 } finally {
     await browser.close();
