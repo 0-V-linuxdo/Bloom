@@ -34,7 +34,7 @@ export function iconButton(name: IconName, label: string, onClick: (event: Mouse
 export function slider(value: number, min: number, max: number, step: number, unit: string, onChange: (value: number) => void) {
     const input = h("input", { attrs: { type: "range", min: String(min), max: String(max), step: String(step) } });
     input.value = String(value);
-    const output = h("output", { text: `${value}${unit}` });
+    const output = h("output", { text: `${input.value}${unit}` });
     input.addEventListener("input", () => {
         output.textContent = `${input.value}${unit}`;
         onChange(Number(input.value));
