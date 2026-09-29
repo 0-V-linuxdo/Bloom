@@ -14,7 +14,7 @@ const SIDEBAR = `:is(${Sel.sidebars})`;
 
 const GROUPS = {
     conversations: { selectors: [`${SIDEBAR} a[href*="/c/"]`, ".bloom-recent-title", ".bloom-recent-preview"], hover: true },
-    projects: { selectors: [`${SIDEBAR} a:is([href*="/project"], [href*="/g/g-p-"])`, ".bloom-recent-project"], hover: true },
+    projects: { selectors: [`${SIDEBAR} a:is([href*="/project"], [href*="/g/g-p-"])`, "[data-app-action-sidebar-project-row]", ".bloom-recent-project"], hover: true },
     accountAvatar: { selectors: ["[data-bloom-profile-avatar]", "[data-bloom-menu-avatar]", "[data-bloom-profile] img", "[data-bloom-csi-avatar]"], hover: false },
     accountName: { selectors: ["[data-bloom-profile-name]", "[data-bloom-menu-name]"], hover: false },
     accountEmail: { selectors: ["[data-bloom-profile-email]", "[data-bloom-menu-email]", '[role="menu"] a[href^="mailto:"]'], hover: false },

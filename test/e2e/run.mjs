@@ -480,6 +480,26 @@ async function composerOpacitySuite(browser) {
     await context.close();
 }
 
+async function streamerModeSuite(browser) {
+    const { context, page } = await setup(browser, { settings: { plugins: { StreamerMode: { enabled: true } } } });
+    await page.goto("https://chatgpt.com/");
+    await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
+    await page.evaluate(() => {
+        const section = document.createElement("section");
+        section.dataset.appActionSidebarSection = "";
+        section.dataset.appActionSidebarSectionHeading = "Projects";
+        section.innerHTML = '<div role="button" tabindex="0" aria-expanded="true" data-app-action-sidebar-project-row data-app-action-sidebar-project-id="g-p-6a68" data-app-action-sidebar-project-label="Trip" aria-labelledby="_r_8k_"><span id="_r_8k_"><span data-marquee-text><span data-marquee-content>Trip</span></span></span></div><a href="/g/g-p-6a68-trip/c/33333333-3333-4333-8333-333333333333">Trip chat</a>';
+        document.querySelector("[data-app-action-sidebar-scroll]").append(section);
+    });
+    const filters = () => page.evaluate(() => ["[data-app-action-sidebar-project-row]", 'a[href*="/g/g-p-6a68-trip/c/"]'].map(selector => getComputedStyle(document.querySelector(selector)).filter));
+    const blurred = await filters();
+    check("StreamerMode blurs new-shell project rows and their chats", blurred.every(filter => filter === "blur(6px)"), blurred.join(" "));
+    await page.locator("[data-app-action-sidebar-project-row]").hover();
+    await page.waitForTimeout(300);
+    check("StreamerMode clears a project row on hover", (await filters())[0] === "none");
+    await context.close();
+}
+
 const NAV_TURNS = 10;
 const INTERMEDIATE_TURN = 1;
 
@@ -557,6 +577,7 @@ try {
     await customSoundSuite(browser);
     await queueEditingSuite(browser);
     await composerOpacitySuite(browser);
+    await streamerModeSuite(browser);
     await navigatorSuite(browser);
     await oldShellSuite(browser);
 } finally {

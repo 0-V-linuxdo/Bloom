@@ -279,11 +279,11 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 纯 CSS 模糊（`blur(6px)`），每项一个开关（默认全开）：
 - `conversations`：侧栏 Recents 会话标题，以及 RecentTopics 切换器里的标题和预览（悬停该项时取消模糊）。
-- `projects`：侧栏项目名、切换器里的项目名（悬停取消）。
+- `projects`：侧栏项目名、切换器里的项目名（悬停取消）。旧壳的项目是 `a[href*="/g/g-p-"]` 链接；新壳侧栏没有项目链接，项目行是 `div[role=button][data-app-action-sidebar-project-row]`（带 `data-app-action-sidebar-project-label`），整行模糊，悬停该行取消。项目下的会话是 `/g/g-p-…/c/…` 链接，归 `conversations` 管。
 - `accountAvatar`：账号头像（含自定义头像）。
 - `accountName`：账号显示名。
-- `accountEmail`：账号芯片和下拉菜单里的邮箱。
-- `headerTitle`：页面顶部当前会话标题。
+- `accountEmail`：账号芯片和下拉菜单里的邮箱。新壳（2026-09 实机）的账号芯片和菜单里都不显示邮箱，这一项只对旧壳生效。
+- `headerTitle`：页面顶部当前会话标题。新壳顶栏没有会话标题，这一项只对旧壳生效。两项都保留，因为 ChatGPT 仍在 A/B，旧壳用户还会看到这两处。
 
 不模糊 Bloom++ 行、Bloom++ 面板、输入框、模型选择器、Voice、Share。
 
