@@ -101,6 +101,17 @@ describe("signed-in shell 2026-09", () => {
         expect([...document.querySelectorAll("[data-bloom-profile-avatar]")].map(el => el.tagName)).toEqual(["IMG", "SPAN"]);
     });
 
+    test("keeps the avatar mark inside the chip and moves it when the image loads", () => {
+        mount('<div class="contents" style="border-radius:0px"><nav>Chats</nav><div class="footer"><button aria-label="Open profile menu"></button><div class="chip"><span class="rounded-full">GG</span><span>Grace Green</span><span>Plus</span></div></div></div>');
+        const chip = document.querySelector(".chip") as HTMLElement;
+        markIdentity(chip, "profile");
+        expect(document.querySelector(".contents")?.hasAttribute("data-bloom-profile-avatar")).toBe(false);
+        expect(document.querySelector("[data-bloom-profile-avatar]")?.textContent).toBe("GG");
+        chip.prepend(document.createElement("img"));
+        markIdentity(chip, "profile");
+        expect([...document.querySelectorAll("[data-bloom-profile-avatar]")].map(el => el.tagName)).toEqual(["IMG"]);
+    });
+
     test("finds the account menu the profile button opened", () => {
         mount(LIVE_SHELL);
         expect(accountMenu()?.id).toBe("profile-menu");

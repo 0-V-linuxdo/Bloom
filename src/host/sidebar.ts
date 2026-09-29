@@ -74,34 +74,38 @@ export function textLeaves(root: Element) {
 }
 
 const isRoundish = (el: Element) => {
-    const style = getComputedStyle(el);
-    return style.borderRadius.includes("%") || Number.parseFloat(style.borderRadius) >= el.clientWidth / 2 || /rounded-full/.test(el.getAttribute("class") ?? "");
+    if (/rounded-full/.test(el.getAttribute("class") ?? "")) return true;
+    if (!el.clientWidth) return false;
+    const { borderRadius } = getComputedStyle(el);
+    return borderRadius.includes("%") || Number.parseFloat(borderRadius) >= el.clientWidth / 2;
 };
 
-function setMark(el: Element | null | undefined, name: string) {
+function setMark(root: Element, name: string, el: Element | null | undefined) {
+    for (const stale of root.querySelectorAll(`[${name}]`)) if (stale !== el) stale.removeAttribute(name);
     if (el && !el.hasAttribute(name)) el.setAttribute(name, "");
 }
 
-function initialsCircle(leaf: HTMLElement) {
+function initialsCircle(leaf: HTMLElement, root: HTMLElement) {
     if (normalizeText(leaf.textContent ?? "").length > INITIALS_MAX) return null;
-    for (let el: HTMLElement | null = leaf; el && el !== leaf.closest("button"); el = el.parentElement) if (isRoundish(el)) return el;
+    const button = leaf.closest("button");
+    for (let el: HTMLElement | null = leaf; el && el !== root && el !== button; el = el.parentElement) if (isRoundish(el)) return el;
     return null;
 }
 
 export function markIdentity(root: HTMLElement, prefix: "profile" | "menu") {
-    setMark(root, `data-bloom-${prefix}`);
+    if (!root.hasAttribute(`data-bloom-${prefix}`)) root.setAttribute(`data-bloom-${prefix}`, "");
     const image = root.querySelector("img:not([data-bloom] img)");
     const leaves = textLeaves(root);
-    const initials = image ? null : leaves.map(initialsCircle).find(el => el != null);
+    const initials = image ? null : leaves.map(leaf => initialsCircle(leaf, root)).find(el => el != null);
     const round = image?.closest("[class*=rounded-full]");
     const avatar = (round && round !== root && root.contains(round) ? round : image ?? initials) ?? root.querySelector("[class*=rounded-full]:not([data-bloom] *)");
-    setMark(avatar, `data-bloom-${prefix}-avatar`);
+    setMark(root, `data-bloom-${prefix}-avatar`, avatar);
     const text = leaves.filter(leaf => !avatar?.contains(leaf) && !isScreenReaderOnly(leaf));
     const plan = text.find(leaf => PLAN.test(normalizeText(leaf.textContent ?? "")));
     const email = text.find(leaf => EMAIL.test(leaf.textContent ?? ""));
-    setMark(plan, `data-bloom-${prefix}-plan`);
-    setMark(email, `data-bloom-${prefix}-email`);
-    setMark(text.find(leaf => leaf !== plan && leaf !== email), `data-bloom-${prefix}-name`);
+    setMark(root, `data-bloom-${prefix}-plan`, plan);
+    setMark(root, `data-bloom-${prefix}-email`, email);
+    setMark(root, `data-bloom-${prefix}-name`, text.find(leaf => leaf !== plan && leaf !== email));
 }
 
 function openedMenu(button: HTMLElement) {
