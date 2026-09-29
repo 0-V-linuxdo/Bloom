@@ -16,7 +16,7 @@
 | 运行时机 | `@run-at document-idle`，只在顶层窗口运行（`window === window.top`） |
 | 权限 | `GM_addStyle` `GM_getValue` `GM_setValue` `GM_setClipboard` `GM_registerMenuCommand` `GM_notification` `GM_xmlhttpRequest`；`@connect raw.githubusercontent.com`、`cdn.jsdelivr.net` |
 | 版本号 | `@version X.Y.Z`，只写数字，和 `package.json` 完全一致；新版本必须严格大于 `main` 上已发布版本。不能加日期或 `v` 前缀：Violentmonkey 按 `.` 切开后逐段 `parseInt`，`[20260929] v2.0.36` 的第一段读成 0，等于 0.0.36，于是 `main` 上的 `[20260928] v1.4.117`（0.4.117）被当成更新，自动更新把 2.x 换回了 1.4.117（F-22，2.0.37 修；`check:update-urls` 和发布流程都要求纯数字）。 |
-| 更新地址 | `@updateURL` / `@downloadURL` = `raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update4.user.js`；构建同时写 `Bloom.user.js`、`Bloom.latest.user.js`、`Bloom.update.user.js`、`Bloom.update2.user.js`、`Bloom.update3.user.js`（Fastly 缓存卡旧版时换文件名，旧文件继续写） |
+| 更新地址 | `@updateURL` / `@downloadURL` = `raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update5.user.js`；构建同时写 `Bloom.user.js`、`Bloom.latest.user.js`、`Bloom.update.user.js`、`Bloom.update2.user.js`、`Bloom.update3.user.js`、`Bloom.update4.user.js`（Fastly 缓存卡旧版时换文件名，旧文件继续写，旧安装从旧文件升到 2.x 后改走 update5）。2.0.38 起从 update4 换到 update5：update4 在 `main` 上是 1.4.117，Violentmonkey 右键/长按「更新」是强制更新（`force`，不比版本，直接下载 `@downloadURL`），所以只要地址指向 update4，2.x 就可能被装回 1.4.117；update5 只有 2.x 构建写过，合并前请求它是 404（「获取更新信息失败」，不会降级），合并后正常更新（F-22） |
 | 发布 | 推到 `main` 后需要同名 tag `vX.Y.Z` 与 GitHub Release（附 `Bloom.latest.user.js`），CI `release-userscript.yml` 缺 tag 时自动补 |
 
 与 Void++ 的关系：沿用 Void++ 的插件模型（`definePlugin`、`definePluginSettings`、PluginManager、SettingsStore、`registerStyle`、设置面板卡片布局），但 ChatGPT 没有 Grok 的 turbopack 模块，不能打补丁、不能读 Zustand store，所以 Bloom++ 全部通过 **DOM + 网络旁路（fetch 包装）** 实现。

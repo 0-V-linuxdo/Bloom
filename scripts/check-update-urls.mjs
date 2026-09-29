@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Guard the install / in-place update path:
- *   - header @updateURL / @downloadURL stay on Bloom.update4.user.js (refs/heads/main raw)
+ *   - header @updateURL / @downloadURL stay on Bloom.update5.user.js (refs/heads/main raw); only 2.x
+ *     builds ever write that path, so an update check can never fetch main's old 1.4.117
  *   - never github.com/.../raw (HTML) or jsDelivr @heads/main
  *   - @version is exactly the package.json version: Violentmonkey reads a prefix such as
  *     "[20260929] v2.0.36" as 0.0.36, so main's 1.4.117 looked newer and replaced 2.x
@@ -19,7 +20,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 const pkg = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
 const REQUIRED_UPDATE =
-    "https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update4.user.js";
+    "https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update5.user.js";
 
 function fail(message) {
     console.error(`[Bloom++] check-update-urls: ${message}`);
@@ -71,6 +72,7 @@ checkFile("userscript/Bloom.update.user.js");
 checkFile("userscript/Bloom.update2.user.js");
 checkFile("userscript/Bloom.update3.user.js");
 checkFile("userscript/Bloom.update4.user.js");
+checkFile("userscript/Bloom.update5.user.js");
 
 if (!process.argv.includes("--fetch")) {
     process.exit(0);
