@@ -93,7 +93,9 @@ function parseWindow(entry: ConversationData, items: unknown[]) {
     for (const raw of raws) if (raw.id && raw.create_time) entry.times.set(raw.id, raw.create_time * SECONDS_TO_MS);
     const chain = raws.map(toChainMessage).filter(message => message != null);
     const ids = new Set(chain.map(message => message.id));
-    entry.chain = visibleChain([...entry.chain.filter(message => !ids.has(message.id)), ...chain]);
+    const rest = entry.chain.filter(message => !ids.has(message.id));
+    const older = (chain.at(-1)?.createTime ?? 0) < (rest[0]?.createTime ?? 0);
+    entry.chain = visibleChain(older ? [...chain, ...rest] : [...rest, ...chain]);
     return entry;
 }
 

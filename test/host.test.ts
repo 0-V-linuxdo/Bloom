@@ -15,7 +15,7 @@ import { accountMenu, conversationLinks, markIdentity, profileChips, projectName
 import { listTurns, outerMessageUnits, turnSummary, unitMessageIds } from "../src/host/thread";
 import { LIVE_SHELL, mount, NEW_SHELL, OLD_SHELL } from "./fixtures";
 
-const textMessage = (id: string, role: string, part: string) => ({ id, author: { role }, create_time: 1, content: { content_type: "text", parts: [part] } });
+const textMessage = (id: string, role: string, part: string, time = 1) => ({ id, author: { role }, create_time: time, content: { content_type: "text", parts: [part] } });
 
 const CHAT_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -174,6 +174,13 @@ describe("conversation JSON", () => {
         });
         expect(data?.chain.map(m => [m.role, m.text])).toEqual([["user", "Hi"], ["assistant", "Hello"]]);
         expect(data?.times.get("w1")).toBe(10_000);
+    });
+
+    test("puts an older window before the messages already read", () => {
+        const id = "55555555-5555-4555-8555-555555555555";
+        parseConversation(id, { messages: [textMessage("u2", "user", "Second", 30), textMessage("a2", "assistant", "Two", 40)] });
+        const data = parseConversation(id, { messages: [textMessage("u1", "user", "First", 10), textMessage("a1", "assistant", "One", 20)] });
+        expect(data?.chain.map(m => m.id)).toEqual(["u1", "a1", "u2", "a2"]);
     });
 
     test("keeps only the last of consecutive assistant messages", () => {
