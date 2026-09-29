@@ -31,6 +31,11 @@ export const settings = definePluginSettings({
 
 let unsubscribers: (() => void)[] = [];
 
+function unmark(el: Element) {
+    el.removeAttribute(AVATAR);
+    el.removeAttribute(SIZED);
+}
+
 function targets(kind: "avatar" | "name") {
     const scopes = settings.store.applyToMenu ? ["profile", "menu"] : ["profile"];
     return scopes.flatMap(scope => [...document.querySelectorAll<HTMLElement>(`[data-bloom-${scope}-${kind}]`)]);
@@ -44,7 +49,7 @@ function apply(mutations: MutationRecord[] = []) {
     for (const el of document.querySelectorAll<HTMLElement>(NAMED)) if (!names.has(el)) overlayText(el, null);
     for (const el of names) overlayText(el, name);
     const wanted = new Set(avatar ? targets("avatar") : []);
-    for (const el of document.querySelectorAll(`[${AVATAR}]`)) if (!wanted.has(el as HTMLElement)) el.removeAttribute(AVATAR);
+    for (const el of document.querySelectorAll(`[${AVATAR}]`)) if (!wanted.has(el as HTMLElement)) unmark(el);
     for (const el of wanted) {
         if (!el.hasAttribute(AVATAR)) el.setAttribute(AVATAR, "");
         el.toggleAttribute(SIZED, !el.closest(`${Sel.rail}, ${Sel.oldRail}, [role="menu"]`));
@@ -69,7 +74,7 @@ export default definePlugin({
     },
     stop() {
         for (const unsubscribe of unsubscribers) unsubscribe();
-        for (const el of document.querySelectorAll<HTMLElement>(`[${AVATAR}]`)) el.removeAttribute(AVATAR);
+        for (const el of document.querySelectorAll(`[${AVATAR}]`)) unmark(el);
         for (const el of document.querySelectorAll<HTMLElement>(NAMED)) overlayText(el, null);
     },
     onSettingsChange() {
