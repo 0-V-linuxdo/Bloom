@@ -36,7 +36,7 @@
 1. 安装 [Violentmonkey](https://violentmonkey.github.io/) 或 Tampermonkey。
 2. 打开 [`userscript/Bloom.update4.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update4.user.js)。
 3. 确认安装后刷新 `chatgpt.com`。
-4. 点左侧栏头像，账号菜单第一项就是 **Bloom++**。油猴菜单 **Bloom++ settings** 也会打开同一块面板（再点一次关闭）。面板以居中对话框打开。和 Void++ 一样，侧栏平时没有按钮；指针移到头像上时，头像上方会立即出现 **Bloom++**（展开侧栏和收起的窄栏都是）。在 **Settings → showSidebarEntry** 打开后一直显示。
+4. 点左侧栏头像，账号菜单第一项就是 **Bloom++**。油猴菜单 **Bloom++ settings** 也会打开同一块面板（再点一次关闭）。面板以居中对话框打开。和 Void++ 一样，侧栏平时没有按钮；指针移到头像上时，账号行正上方会立即出现 **Bloom++**（展开侧栏和收起的窄栏都是）。可以按住它左右拖动（默认靠右），**Settings → Reset position** 恢复原位。在 **Settings → showSidebarEntry** 打开后一直显示。
 
 优先用油猴的**检查更新**（同一脚本 UUID，配置还在）。自动更新走 `Bloom.update4.user.js`（`raw.githubusercontent.com/.../refs/heads/main/...`）。如果仪表盘是红字「获取更新信息失败」，或提示「脚本已更新」但 `@version` 还是旧的，那是 Fastly 把 `Bloom.update3.user.js` / `Bloom.update2.user.js` / `Bloom.update.user.js` / `Bloom.latest.user.js` / `Bloom.user.js` 卡在旧稿或不可读：改点 `Bloom.update4.user.js` raw 或 [`releases/latest/download/Bloom.update4.user.js`](https://github.com/0-V-linuxdo/Bloom/releases/latest/download/Bloom.update4.user.js)。只有同时装着两条 Bloom++ 时才卸旧的。卸载会清掉油猴 GM 存储；Bloom++ 会尝试从当前站点的 IndexedDB / `localStorage` 救回。不要用 `.../Bloom/main/userscript/Bloom.user.js`、`.../refs/heads/main/userscript/Bloom.user.js`、`Bloom.latest.user.js`、`Bloom.update.user.js`、`Bloom.update2.user.js` 或 `Bloom.update3.user.js`（Fastly 会卡住旧脚本）。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
 

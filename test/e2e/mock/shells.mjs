@@ -20,7 +20,8 @@ body { margin: 0; font-family: system-ui, sans-serif; display: flex; height: 100
 html[data-theme="dark"] .sidebar { background: #181818; }
 [data-app-action-sidebar-scroll], #stage-slideover-sidebar nav { flex: 1; overflow: auto; display: flex; flex-direction: column; padding: 8px; }
 [data-app-navigation-rail] { position: fixed; left: 0; top: 0; bottom: 0; width: 52px; display: none; pointer-events: none; }
-[data-app-navigation-rail].open { display: block; }
+[data-app-navigation-rail].open { display: flex; flex-direction: column; }
+.rail-spacer { flex: 1; }
 .rail-overlay { position: absolute; inset: 0; pointer-events: auto; }
 [data-app-navigation-rail] > .row { position: relative; pointer-events: auto; }
 input[type="range"] { appearance: none; background-color: transparent; }
@@ -67,6 +68,7 @@ export const newShell = theme => `${HEAD(theme)}
 <div data-app-navigation-rail inert>
   <button aria-label="Show sidebar" class="rail-overlay"></button>
   <div class="row"><a href="/">+</a></div>
+  <div class="rail-spacer"></div>
   <div class="row"><button aria-haspopup="menu" aria-busy="true"><span class="rounded-full"></span><span class="sr-only">Loading profile</span></button></div>
 </div>
 <main>

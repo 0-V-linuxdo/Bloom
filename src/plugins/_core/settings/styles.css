@@ -55,20 +55,38 @@
     padding: 0;
 }
 
+:has(> .bloom-entry-hover) {
+    anchor-scope: --bloom-account;
+}
+
+:has(> .bloom-entry-hover) :is([data-bloom-profile]:is(button), :has(> [data-bloom-profile]) > button[aria-haspopup="menu"]) {
+    anchor-name: --bloom-account;
+}
+
 .bloom-entry-hover {
     position: absolute;
+    position-anchor: --bloom-account;
+    inset: auto anchor(right) anchor(top) anchor(left);
     z-index: 1;
-    padding-block: 0 0.25rem;
-    transform: translateY(-100%);
+    display: block;
+    padding: 0;
+    pointer-events: none;
 }
 
 .bloom-entry-rail.bloom-entry-hover {
-    inset-inline: 0;
+    --bloom-entry-x: 0.5;
 }
 
 .bloom-entry-hover .bloom-entry-button {
+    position: relative;
+    left: calc(var(--bloom-entry-x) * 100%);
+    width: max-content;
+    min-width: 2.25rem;
     background-color: var(--bloom-surface);
     box-shadow: 0 0 0 1px var(--bloom-border-light), 0 0.25rem 0.75rem #0000001a;
+    transform: translateX(calc(var(--bloom-entry-x) * -100%));
+    pointer-events: auto;
+    touch-action: none;
 }
 
 .bloom-entry-hover .bloom-entry-button:hover {

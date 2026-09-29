@@ -5,18 +5,24 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
+import { button } from "@components/controls";
 import { icon } from "@components/icons";
 import { useTooltips } from "@components/tooltip";
+import { useIdentityMarks } from "@host/identity";
 import { isHydrated } from "@host/ready";
 import { accountMenu, type MountKind, sidebarMounts } from "@host/sidebar";
 import { classNameFactory } from "@utils/css";
 import { h, watchBody } from "@utils/dom";
+import { clamp } from "@utils/misc";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 
 import { closePanel, togglePanel } from "./panel";
 import styles from "./styles.css";
 
 const cl = classNameFactory("bloom-entry-");
+const DRAG_PX = 4;
+const POSITION_VAR = "--bloom-entry-x";
+const RIGHT = 1;
 
 const settings = definePluginSettings({
     showSidebarEntry: {
@@ -29,13 +35,49 @@ const settings = definePluginSettings({
         description: "Show the Bloom++ button while the pointer is over the account row in the sidebar.",
         default: true,
     },
+    resetEntryPosition: {
+        type: OptionType.COMPONENT,
+        description: "Drag the hover button sideways to move it. Reset puts it back on the right.",
+        render: host => {
+            host.append(button("Reset position", () => {
+                settings.store.entryPosition = RIGHT;
+            }));
+            return () => host.replaceChildren();
+        },
+    },
+    entryPosition: { type: OptionType.CUSTOM, default: RIGHT },
 });
 
 const entries = new Map<Element, HTMLElement>();
 let menuRegistered = false;
 let unsubscribers: (() => void)[] = [];
 
+function drag(event: PointerEvent, wrap: HTMLElement, onMove: () => void) {
+    const trigger = event.currentTarget as HTMLElement;
+    const travel = wrap.clientWidth - trigger.offsetWidth;
+    if (event.button !== 0 || travel <= 0 || !wrap.classList.contains(cl("hover"))) return;
+    const start = settings.store.entryPosition;
+    let position = start;
+    let moved = false;
+    const controller = new AbortController();
+    trigger.setPointerCapture(event.pointerId);
+    trigger.addEventListener("pointermove", move => {
+        if (!moved && Math.abs(move.clientX - event.clientX) < DRAG_PX) return;
+        moved = true;
+        onMove();
+        position = clamp(start + (move.clientX - event.clientX) / travel, 0, RIGHT);
+        wrap.style.setProperty(POSITION_VAR, String(position));
+    }, { signal: controller.signal });
+    trigger.addEventListener("lostpointercapture", () => {
+        controller.abort();
+        if (!moved) return;
+        settings.store.entryPosition = position;
+        wrap.style.removeProperty(POSITION_VAR);
+    }, { signal: controller.signal });
+}
+
 function entry(kind: MountKind) {
+    let dragged = false;
     const trigger = h("button", {
         class: cl("button"),
         title: "Bloom++ settings",
@@ -44,11 +86,19 @@ function entry(kind: MountKind) {
             click: event => {
                 event.preventDefault();
                 event.stopPropagation();
-                togglePanel();
+                if (!dragged) togglePanel();
+                dragged = false;
+            },
+            pointerdown: event => {
+                dragged = false;
+                if (kind !== "rail") drag(event, wrap, () => {
+                    dragged = true;
+                });
             },
         },
     }, icon("bloom"), kind !== "rail" && h("span", { class: cl("label"), text: "Bloom++" }));
-    return h("div", { class: `bloom-root ${cl("wrap")} ${cl(kind)}`, attrs: { "data-bloom": "entry" } }, trigger);
+    const wrap = h("div", { class: `bloom-root ${cl("wrap")} ${cl(kind)}`, attrs: { "data-bloom": "entry" } }, trigger);
+    return wrap;
 }
 
 function menuEntry(menu: HTMLElement) {
@@ -98,9 +148,9 @@ export default definePlugin({
     required: true,
     startAt: StartAt.HostReady,
     settings,
-    styles,
+    styles: () => `${styles}.${cl("hover")}{${POSITION_VAR}:${settings.store.entryPosition}}`,
     start() {
-        unsubscribers = [watchBody(sync), useTooltips()];
+        unsubscribers = [watchBody(sync), useTooltips(), useIdentityMarks()];
         if (!menuRegistered && typeof GM_registerMenuCommand === "function") {
             GM_registerMenuCommand("Bloom++ settings", togglePanel);
             menuRegistered = true;

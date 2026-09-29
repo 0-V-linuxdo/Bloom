@@ -637,11 +637,37 @@ async function defaultEntrySuite(browser) {
     await page.locator(".footer .relative").hover();
     check("hovering the account row shows the sidebar entry at once", await expanded.isVisible());
     await page.locator(".sidebar").screenshot({ path: resolve(shots, "entry-hover.png") });
-    check("the revealed sidebar entry floats above the account row without resizing the sidebar", await layout() === before && await page.evaluate(() =>
-        Math.abs(document.querySelector('.footer [data-bloom="entry"]').getBoundingClientRect().bottom - document.querySelector(".footer").getBoundingClientRect().top) < 1));
-    await expanded.hover();
+    const pill = () => page.evaluate(() => {
+        const [entry, row] = ['.footer [data-bloom="entry"] button', ".footer .profile-overlay"].map(selector => document.querySelector(selector).getBoundingClientRect());
+        return { gap: entry.bottom - row.top, left: entry.left - row.left, right: row.right - entry.right };
+    });
+    const flush = await pill();
+    check("the revealed sidebar entry sits flush on the account row, right-aligned, without resizing the sidebar", await layout() === before && Math.abs(flush.gap) < 1 && Math.abs(flush.right) < 1, JSON.stringify(flush));
+    await expanded.locator("button").hover();
     check("the sidebar entry stays while the pointer is on it", await expanded.isVisible());
     check("the floating sidebar entry stays opaque on hover", await expanded.locator("button").evaluate(button => getComputedStyle(button).backgroundColor === "rgb(255, 255, 255)"));
+    const box = await expanded.locator("button").boundingBox();
+    const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x - 40, y, { steps: 4 });
+    await page.mouse.move(x - 80, y + 30, { steps: 4 });
+    check("the sidebar entry stays shown while it is dragged", await expanded.isVisible());
+    await page.mouse.up();
+    const moved = await pill();
+    check("dragging the sidebar entry moves it sideways without opening the panel", Math.abs(moved.right - flush.right - 80) < 2 && Math.abs(moved.gap) < 1 && await page.locator('[data-bloom="settings"]').count() === 0, JSON.stringify(moved));
+    await page.mouse.move(700, 300);
+    await page.waitForTimeout(400);
+    await page.locator(".footer .relative").hover();
+    check("the dragged position is kept after the entry hides and shows again", Math.abs((await pill()).right - moved.right) < 1);
+    await expanded.locator("button").hover();
+    await page.mouse.down();
+    await page.mouse.move(0, y, { steps: 4 });
+    await page.mouse.up();
+    check("dragging stops at the left edge of the account row", Math.abs((await pill()).left) < 1);
+    await expanded.locator("button").click();
+    check("a click on the sidebar entry after a drag still opens the panel", await page.locator('[data-bloom="settings"]').count() === 1);
+    await page.keyboard.press("Escape");
     await page.mouse.move(700, 300);
     check("the sidebar entry lingers briefly so the pointer can cross gaps", await expanded.isVisible());
     await page.waitForTimeout(400);
@@ -654,10 +680,11 @@ async function defaultEntrySuite(browser) {
     const railBefore = await layout();
     await page.locator("[data-app-navigation-rail] [aria-haspopup]").hover();
     check("hovering the rail avatar shows the rail entry", await rail.isVisible());
-    check("the revealed rail entry floats above the avatar without moving the rail", await layout() === railBefore && await page.evaluate(() => {
-        const [entry, row] = ['[data-app-navigation-rail] [data-bloom="entry"]', "[data-app-navigation-rail] > .row:has([aria-haspopup])"].map(selector => document.querySelector(selector).getBoundingClientRect());
-        return Math.abs(entry.bottom - row.top) < 1;
-    }));
+    const railPill = await page.evaluate(() => {
+        const [entry, avatar] = ['[data-app-navigation-rail] [data-bloom="entry"] button', "[data-app-navigation-rail] [aria-haspopup]"].map(selector => document.querySelector(selector).getBoundingClientRect());
+        return { gap: entry.bottom - avatar.top, center: entry.left + entry.width / 2 - avatar.left - avatar.width / 2 };
+    });
+    check("the revealed rail entry sits flush on the avatar, centred, without moving the rail", await layout() === railBefore && Math.abs(railPill.gap) < 1 && Math.abs(railPill.center) < 1, JSON.stringify(railPill));
     await rail.locator("button").click();
     check("the revealed rail entry opens the panel", await page.locator('[data-bloom="settings"]').count() === 1);
     await page.keyboard.press("Escape");
@@ -670,6 +697,8 @@ async function defaultEntrySuite(browser) {
     await page.locator('[data-bloom="menu-entry"]').click();
     check("the account menu entry opens the panel", await page.locator('[data-bloom="settings"]').count() === 1);
     await page.locator(".bloom-settings-card", { hasText: "Settings" }).first().locator('[aria-label="Settings"]').click();
+    await page.locator(".bloom-settings-popup button", { hasText: "Reset position" }).click();
+    check("Reset position puts the sidebar entry back on the right", await expanded.evaluate(wrap => getComputedStyle(wrap).getPropertyValue("--bloom-entry-x").trim() === "1"));
     const [always, onHover] = [0, 1].map(index => page.locator('.bloom-settings-popup [role="switch"]').nth(index));
     await always.click();
     check("showSidebarEntry keeps the sidebar entry shown", await expanded.isVisible());
