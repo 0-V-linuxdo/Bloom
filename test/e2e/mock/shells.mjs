@@ -70,6 +70,7 @@ export const newShell = theme => `${HEAD(theme)}
 </main>
 <script>document.documentElement.dataset.shell = "new";</script>
 <script src="/mock/app.js"></script>
+<script src="/mock/slow.js"></script>
 </body></html>`;
 
 export const oldShell = theme => `${HEAD(theme)}

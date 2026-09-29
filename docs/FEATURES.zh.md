@@ -31,12 +31,13 @@
 | --- | --- | --- |
 | `Init` | 脚本执行、设置加载完成后立即 | 纯 CSS 插件（隐藏类、宽度、透明度、模糊），越早越好，避免闪一下原样 |
 | `DOMContentLoaded` | DOM 就绪 | 无（ChatStateFavicons 改到 HostReady，水合前不碰 `<head>` 里的图标链接） |
-| `HostReady` | React 已水合 `<body>`（读 `__reactFiber$` 标记），最长 8 秒兜底 | 所有会往 `<body>` 里插节点的插件、设置入口 |
+| `HostReady` | React 已水合 `<body>`（读 `__reactFiber$` 标记），最长 8 秒兜底；不等 DOMContentLoaded（chatgpt.com 流式输出 HTML，实测 DOMContentLoaded 比水合晚约 2 秒、比首屏晚约 4 秒） | 所有会往 `<body>` 里插节点的插件、设置入口 |
 
 硬约束（历史卡死教训）：
 - chatgpt.com 用 `hydrateRoot(document)`。水合结束前不要往 `<body>` 里插节点；任何时候都**不要**给 `<html>` 挂子节点，水合前也不要往 `<head>` 插节点：样式走 `document.adoptedStyleSheets`（不支持时才在解析完后放 `<style>`），UI 只进 `<body>`。往 React 还没水合的元素里（或它前面）插节点，React 19 会报 #418 并把整个根改为客户端重渲染：`<html>` 上的属性被清掉（暗色先变亮再变暗），侧栏内容先出现再被重建。所以每次往宿主元素里插节点前都先查 `isHydrated(el)`，没水合就跳过，等下一次 DOM 变化再试。
 - 不要删除 React 管的节点（例如官方 favicon `<link>`），React 会补回，再删再补 → 死循环卡死。
 - 观察回调里不要同步改 DOM 然后又触发自己；写入必须幂等（值相同就不写），并合并到下一帧。
+- 账号区的身份标记（`data-bloom-profile-*`、`data-bloom-menu-*`）只是属性，生产版 React 水合时不比对属性，所以 `<body>` 一出现就开始打标记，隐藏名字、直播模式模糊从首屏起就生效，不等 HostReady。
 - 水合检测失败也必须触发 `HostReady`，默认开启的插件不能“死掉”。
 - 同一页面出现第二个实例（重复安装）时替换 `window.Bloom` 并正常初始化，不能静默跳过。
 

@@ -19,8 +19,20 @@ const hasExpando = (target: object, prefix: string) =>
 
 export const isHydrated = (el: Element) => !hasExpando(document, REACT_ROOT) || hasExpando(el, REACT_FIBER);
 
+export function whenBody() {
+    if (document.body) return Promise.resolve();
+    return new Promise<void>(resolve => {
+        const observer = new MutationObserver(() => {
+            if (!document.body) return;
+            observer.disconnect();
+            resolve();
+        });
+        observer.observe(document, { childList: true, subtree: true });
+    });
+}
+
 export async function whenHostReady() {
-    await whenDomReady();
+    await whenBody();
     const deadline = Date.now() + HOST_READY_CAP_MS;
     while (!hasExpando(document.body, REACT_FIBER) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, HYDRATION_POLL_MS));
 }

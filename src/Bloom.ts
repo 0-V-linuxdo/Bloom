@@ -31,9 +31,10 @@ export async function init() {
     registerStyle("base", baseCss);
     startGeneration();
     startPhase(StartAt.Init);
-    await whenDomReady();
-    mountPendingStyles();
-    startPhase(StartAt.DOMContentLoaded);
+    void whenDomReady().then(() => {
+        mountPendingStyles();
+        startPhase(StartAt.DOMContentLoaded);
+    });
     await whenHostReady();
     startPhase(StartAt.HostReady);
     logger.info(`Bloom++ ${VERSION} ready`);

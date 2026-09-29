@@ -23,6 +23,7 @@ const CHROMIUM = ["/opt/pw-browsers/chromium", process.env.CHROMIUM_PATH].find(p
 const REPLY_DELAY_MS = 1500;
 const RELAY_MS = 800;
 const HYDRATE_MS = 2500;
+const STREAM_MS = 4000;
 const RELAY_EVENTS = ["resume_conversation_token", "input_message", "stream_handoff", "resume_sse_endpoint", "subscribe_ws_topic", "conversation_detail_metadata"];
 const CHAT_A = "11111111-1111-4111-8111-111111111111";
 const CHAT_B = "22222222-2222-4222-8222-222222222222";
@@ -65,7 +66,7 @@ function conversationJson(id) {
     };
 }
 
-async function setup(browser, { shell = "new", theme = "light", settings = null } = {}) {
+async function setup(browser, { shell = "new", theme = "light", settings = null, streamMs = 0 } = {}) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await context.newPage();
     page.on("pageerror", error => console.log("pageerror", error.message));
@@ -74,6 +75,10 @@ async function setup(browser, { shell = "new", theme = "light", settings = null 
     await context.route("https://chatgpt.com/**", async route => {
         const url = new URL(route.request().url());
         if (url.pathname === "/mock/app.js") return route.fulfill({ contentType: "text/javascript", body: appJs });
+        if (url.pathname === "/mock/slow.js") {
+            await new Promise(resolve => setTimeout(resolve, streamMs));
+            return route.fulfill({ contentType: "text/javascript", body: "" }).catch(() => {});
+        }
         if (url.pathname === "/favicon.ico") return route.fulfill({ contentType: "image/x-icon", body: "" });
         if (url.pathname === "/backend-api/f/conversation" && shell === "new") {
             generateRequests.push(JSON.parse(route.request().postData() ?? "{}"));
@@ -261,6 +266,16 @@ async function slowHydrationSuite(browser) {
     await context.close();
 }
 
+async function streamedLoadSuite(browser) {
+    const { context, page } = await setup(browser, { streamMs: STREAM_MS });
+    await page.goto("https://chatgpt.com/", { waitUntil: "commit" });
+    await page.waitForTimeout(STREAM_MS / 3);
+    check("page is still loading", await page.evaluate(() => document.readyState === "loading"));
+    check("NoSidebarIdentity hides the name while the page is still loading", await page.evaluate(() => getComputedStyle(document.querySelector(".chip .truncate .truncate")).visibility === "hidden"));
+    check("the entry appears once React hydrates, before DOMContentLoaded", await page.locator('[data-bloom="entry"]').count() === 2);
+    await context.close();
+}
+
 async function oldShellSuite(browser) {
     const { context, page } = await setup(browser, { shell: "old", theme: "dark" });
     await page.goto(`https://chatgpt.com/c/${CHAT_A}`);
@@ -284,6 +299,7 @@ try {
     await stopAndSwitchSuite(browser);
     await throttledTimersSuite(browser);
     await slowHydrationSuite(browser);
+    await streamedLoadSuite(browser);
     await oldShellSuite(browser);
 } finally {
     await browser.close();

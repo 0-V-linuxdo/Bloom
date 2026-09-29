@@ -6,7 +6,7 @@
 
 import { hostMutations, watchBody } from "@utils/dom";
 
-import { whenHostReady } from "./ready";
+import { whenBody } from "./ready";
 import { accountMenu, markIdentity, profileChips } from "./sidebar";
 
 let users = 0;
@@ -22,7 +22,7 @@ function mark(mutations: MutationRecord[]) {
 export function useIdentityMarks() {
     users++;
     let active = true;
-    void whenHostReady().then(() => {
+    void whenBody().then(() => {
         if (active && users && !unwatch) unwatch = watchBody(mark);
     });
     return () => {
