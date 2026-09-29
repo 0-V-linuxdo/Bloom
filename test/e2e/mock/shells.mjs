@@ -36,6 +36,8 @@ form { max-width: var(--thread-content-max-width); margin: 8px auto; width: 100%
 .ComposerLayoutRoot-XCKS7O { --composer-layout-surface-background: #fff; background: var(--composer-layout-surface-background); }
 html[data-theme="dark"] .ComposerLayoutRoot-XCKS7O { --composer-layout-surface-background: rgb(27, 27, 27); }
 .relative { position: relative; }
+.footer { position: relative; z-index: 20; }
+.hairline { position: absolute; left: 0; right: 0; top: 0; z-index: 10; border-top: 1px solid #f00; pointer-events: none; }
 .profile-overlay { position: absolute; inset: 0; opacity: 0; }
 .pointer-events-none { pointer-events: none; display: flex; gap: 8px; align-items: center; padding: 8px; }
 .invisible { visibility: hidden; position: absolute; }
@@ -58,6 +60,7 @@ export const newShell = theme => `${HEAD(theme)}
     </div>
   </nav>
   <div class="footer">
+    <div class="hairline"></div>
     <button aria-haspopup="menu" aria-label="Help">?</button>
     <div class="relative">
       <button aria-label="Open profile menu" aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu" class="profile-overlay"></button>

@@ -134,12 +134,7 @@ function sync() {
         entries.set(mount.anchor, node);
         mount.insert(node);
     }
-    const popover = showSidebarEntry ? null : "manual";
-    for (const node of entries.values()) {
-        node.classList.toggle(cl("hover"), !showSidebarEntry);
-        if (node.popover !== popover) node.popover = popover;
-        if (popover && !node.matches(":popover-open")) node.showPopover();
-    }
+    for (const node of entries.values()) node.classList.toggle(cl("hover"), !showSidebarEntry);
     const menu = accountMenu();
     if (menu && !menu.querySelector('[data-bloom="menu-entry"]')) menuEntry(menu);
 }
