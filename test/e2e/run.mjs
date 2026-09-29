@@ -30,9 +30,11 @@ const RELAY_EVENTS = ["resume_conversation_token", "input_message", "stream_hand
 const CHAT_A = "11111111-1111-4111-8111-111111111111";
 const CHAT_B = "22222222-2222-4222-8222-222222222222";
 const CHAT_LONG = "44444444-4444-4444-8444-444444444444";
+const CHAT_PAGED = "55555555-5555-4555-8555-555555555555";
 const LONG_TURNS = 10;
 const MOUNTED_TURNS = 3;
 const LOAD_OLDER_MS = 1000;
+const NEAR_TOP_PX = 100;
 const IMAGE_URL = "https://images.example.test/avatar.png";
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 const HOST_CSP = "connect-src 'self' wss://chatgpt.com; media-src 'self' blob:";
@@ -89,7 +91,7 @@ function wav() {
 
 function conversationJson(id) {
     const now = Date.now() / 1000;
-    if (id === CHAT_LONG) {
+    if (id === CHAT_LONG || id === CHAT_PAGED) {
         const messages = Array.from({ length: LONG_TURNS * 2 }, (_, index) => ({
             id: `long-${index}`,
             author: { role: index % 2 ? "assistant" : "user" },
@@ -144,7 +146,9 @@ async function setup(browser, { shell = "new", theme = "light", settings = null,
         const conversation = url.pathname.match(/^\/backend-api\/conversations?\/([\w-]+)$/);
         if (conversation) {
             const data = conversationJson(conversation[1]);
-            const windowed = url.pathname.startsWith("/backend-api/conversations/") ? { title: data.title, messages: Object.values(data.mapping).map(node => node.message).filter(Boolean) } : data;
+            const messages = Object.values(data.mapping).map(node => node.message).filter(Boolean);
+            const split = conversation[1] === CHAT_PAGED ? messages.length - MOUNTED_TURNS * 2 : 0;
+            const windowed = url.pathname.startsWith("/backend-api/conversations/") ? { title: data.title, messages: url.searchParams.has("older") ? messages.slice(0, split) : messages.slice(split) } : data;
             return route.fulfill({ contentType: "application/json", body: JSON.stringify(windowed) });
         }
         return route.fulfill({ contentType: "text/html", headers: csp ? { "Content-Security-Policy": csp } : {}, body: shell === "new" ? newShell(theme) : oldShell(theme) });
@@ -550,6 +554,55 @@ async function navigatorSeekSuite(browser) {
     await context.close();
 }
 
+async function navigatorHistorySuite(browser) {
+    const { context, page } = await setup(browser);
+    await page.goto(`https://chatgpt.com/c/${CHAT_PAGED}`);
+    await page.waitForFunction(count => document.querySelectorAll("[data-turn-key]").length === count, MOUNTED_TURNS, { timeout: 10_000 });
+    await page.evaluate(({ id, delay, near }) => {
+        const scroller = document.querySelector("[data-app-action-timeline-scroll]");
+        const column = document.querySelector("[data-chatgpt-conversation-selection-target]");
+        let loaded = false;
+        scroller.addEventListener("scroll", async () => {
+            if (loaded || scroller.scrollTop > scroller.clientHeight - scroller.scrollHeight + near) return;
+            loaded = true;
+            const spinner = document.createElement("div");
+            spinner.setAttribute("role", "status");
+            column.prepend(spinner);
+            const { messages } = await (await fetch(`/backend-api/conversations/${id}?older=1`)).json();
+            await new Promise(resolve => setTimeout(resolve, delay));
+            spinner.replaceWith(...Array.from({ length: messages.length / 2 }, (_, index) => {
+                const key = `older-${index}`;
+                const turn = document.createElement("div");
+                turn.dataset.turnKey = key;
+                for (const message of messages.slice(index * 2, index * 2 + 2)) {
+                    const el = document.createElement("div");
+                    el.dataset.chatgptSearchUnitKey = `${key}:${message.author.role}`;
+                    el.dataset.chatgptSearchMessageIds = message.id;
+                    const body = document.createElement("div");
+                    body.className = message.author.role === "user" ? "whitespace-pre-wrap" : "markdown";
+                    body.textContent = message.content.parts[0];
+                    el.append(body);
+                    turn.append(el);
+                }
+                return turn;
+            }));
+            scroller.scrollTop = 0;
+        });
+    }, { id: CHAT_PAGED, delay: LOAD_OLDER_MS, near: NEAR_TOP_PX });
+    await page.waitForTimeout(300);
+    check("BetterNavigator starts with the turns ChatGPT has loaded", await page.locator(".bloom-nav-tick").count() === MOUNTED_TURNS * 2);
+    await page.locator("[data-app-action-timeline-scroll]").click({ position: { x: 5, y: 5 } });
+    await page.keyboard.press("Home");
+    const landed = await page.waitForFunction(() => {
+        const first = document.querySelector('[data-chatgpt-search-message-ids="long-0"]');
+        const { top } = document.querySelector("[data-app-action-timeline-scroll]").getBoundingClientRect();
+        return first && Math.abs(first.getBoundingClientRect().top - top) < 40;
+    }, null, { timeout: 8000 }).then(() => true, () => false);
+    const head = await page.locator(".bloom-nav-toc-head").textContent();
+    check("BetterNavigator Home follows older turns ChatGPT loads later and lands on the first", landed && head === `1 / ${LONG_TURNS * 2}`, head);
+    await context.close();
+}
+
 const NAV_TURNS = 10;
 const INTERMEDIATE_TURN = 1;
 
@@ -630,6 +683,7 @@ try {
     await streamerModeSuite(browser);
     await navigatorSuite(browser);
     await navigatorSeekSuite(browser);
+    await navigatorHistorySuite(browser);
     await oldShellSuite(browser);
 } finally {
     await browser.close();

@@ -22,7 +22,8 @@ const cl = classNameFactory("bloom-nav-");
 const SUMMARY_CHARS = 80;
 const HIGHLIGHT_MS = 1200;
 const NEAR_SCREENS = 2;
-const SEEK_MS = 8000;
+const SEEK_MS = 30_000;
+const SEEK_POLL_MS = 200;
 const SEEK_PAGE = 0.9;
 const READING_LINE = 0.3;
 const RAIL_GAP_PX = 12;
@@ -51,6 +52,7 @@ let root: HTMLElement | null = null;
 let entries: Entry[] = [];
 let current = -1;
 let aim = -1;
+let home: { chat: string | null; first: string | undefined; until: number; } | null = null;
 let signature = "";
 let seeking = 0;
 let unsubscribers: (() => void)[] = [];
@@ -71,15 +73,27 @@ function collect(): Entry[] {
     if (!chain.length) return fromDom;
     const chainIds = new Set(chain.map(message => message.id));
     const byId = new Map(fromDom.flatMap(entry => entry.ids.map(id => [id, entry] as const)));
+    const before = new Map<Entry, Entry[]>();
+    let loose: Entry[] = [];
+    for (const entry of fromDom) {
+        if (!entry.ids.some(id => chainIds.has(id))) loose.push(entry);
+        else {
+            before.set(entry, loose);
+            loose = [];
+        }
+    }
     const used = new Set<Entry>();
     const merged: Entry[] = [];
     for (const message of chain) {
         const dom = byId.get(message.id);
         if (dom && used.has(dom)) continue;
-        if (dom) used.add(dom);
+        if (dom) {
+            used.add(dom);
+            merged.push(...before.get(dom) ?? []);
+        }
         merged.push(dom ?? { role: message.role, summary: chainSummary(message), ids: [message.id], turn: null, streaming: false });
     }
-    return [...merged, ...fromDom.filter(entry => !entry.ids.some(id => chainIds.has(id)))];
+    return [...merged, ...loose];
 }
 
 function readingIndex(scroller: HTMLElement) {
@@ -104,6 +118,7 @@ function jump(index: number) {
     const scroller = threadScroller();
     if (!entry || !scroller) return;
     aim = index;
+    home = index ? null : { chat: currentConversationId(), first: entry.ids[0], until: Date.now() + SEEK_MS };
     markCurrent();
     const el = entry.turn?.el;
     if (el?.isConnected) {
@@ -117,16 +132,21 @@ function jump(index: number) {
     const token = ++seeking;
     const deadline = Date.now() + SEEK_MS;
     const seek = () => {
-        if (token !== seeking || Date.now() > deadline) return;
+        const pane = threadScroller();
+        if (token !== seeking || Date.now() > deadline || !pane) return;
         entries = collect();
         const found = entries.find(item => item.ids.some(id => entry.ids.includes(id)))?.turn?.el;
         if (found) {
             found.scrollIntoView({ block: "start" });
             highlight(found);
+            aim = entries.findIndex(item => item.turn?.el === found);
+            markCurrent();
             return;
         }
-        scroller.scrollBy({ top: direction * scroller.clientHeight * SEEK_PAGE, behavior: "instant" });
-        requestAnimationFrame(seek);
+        const top = pane.scrollTop;
+        pane.scrollBy({ top: direction * pane.clientHeight * SEEK_PAGE, behavior: "instant" });
+        if (pane.scrollTop === top) setTimeout(seek, SEEK_POLL_MS);
+        else requestAnimationFrame(seek);
     };
     seek();
 }
@@ -168,6 +188,7 @@ function render() {
         signature = next;
         aim = -1;
         rebuild();
+        if (home && Date.now() < home.until && home.chat === currentConversationId() && entries[0]?.ids[0] !== home.first) jump(0);
     } else {
         patch();
     }
@@ -212,6 +233,7 @@ const update = frameScheduler(render);
 
 function release() {
     aim = -1;
+    home = null;
     seeking++;
 }
 
