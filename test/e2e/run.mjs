@@ -619,14 +619,42 @@ async function defaultEntrySuite(browser) {
     await page.goto("https://chatgpt.com/");
     await page.waitForFunction(() => window.__menu.length > 0, null, { timeout: 10_000 });
     await page.waitForTimeout(300);
-    check("the sidebar entry is hidden by default", await page.locator('[data-bloom="entry"]').count() === 0);
+    const expanded = page.locator('.footer [data-bloom="entry"]');
+    const rail = page.locator('[data-app-navigation-rail] [data-bloom="entry"]');
+    check("the sidebar entry is hidden by default", await page.locator('[data-bloom="entry"]').count() === 2 && !await expanded.isVisible());
+    await page.locator(".footer .relative").hover();
+    check("hovering the account row shows the sidebar entry at once", await expanded.isVisible());
+    await expanded.hover();
+    check("the sidebar entry stays while the pointer is on it", await expanded.isVisible());
+    await page.mouse.move(700, 300);
+    check("the sidebar entry lingers briefly so the pointer can cross gaps", await expanded.isVisible());
+    await page.waitForTimeout(400);
+    check("the sidebar entry hides once the pointer leaves", !await expanded.isVisible());
+    await page.evaluate(() => {
+        const node = document.querySelector("[data-app-navigation-rail]");
+        node.classList.add("open");
+        node.inert = false;
+    });
+    await page.locator("[data-app-navigation-rail] [aria-haspopup]").hover();
+    check("hovering the rail avatar shows the rail entry", await rail.isVisible());
+    await rail.locator("button").click();
+    check("the revealed rail entry opens the panel", await page.locator('[data-bloom="settings"]').count() === 1);
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => {
+        const node = document.querySelector("[data-app-navigation-rail]");
+        node.classList.remove("open");
+        node.inert = true;
+    });
     await page.locator(".profile-overlay").click();
     await page.locator('[data-bloom="menu-entry"]').click();
     check("the account menu entry opens the panel", await page.locator('[data-bloom="settings"]').count() === 1);
     await page.locator(".bloom-settings-card", { hasText: "Settings" }).first().locator('[aria-label="Settings"]').click();
-    await page.locator('.bloom-settings-popup [role="switch"]').click();
-    await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 2000 }).catch(() => {});
-    check("showSidebarEntry brings the sidebar entry back", await page.locator('[data-bloom="entry"]').count() === 2);
+    const [always, onHover] = [0, 1].map(index => page.locator('.bloom-settings-popup [role="switch"]').nth(index));
+    await always.click();
+    check("showSidebarEntry keeps the sidebar entry shown", await expanded.isVisible());
+    await always.click();
+    await onHover.click();
+    check("turning both entry settings off removes the sidebar entry", await page.locator('[data-bloom="entry"]').count() === 0);
     await context.close();
 }
 

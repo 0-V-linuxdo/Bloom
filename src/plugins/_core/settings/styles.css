@@ -21,6 +21,12 @@
     pointer-events: auto;
 }
 
+.bloom-entry-expanded.bloom-entry-hover:not(:hover > *),
+.bloom-entry-hover:not(.bloom-entry-expanded, :hover, :has(~ :hover)) {
+    display: none;
+    transition: display 0s 0.2s allow-discrete;
+}
+
 .bloom-entry-button {
     display: flex;
     align-items: center;

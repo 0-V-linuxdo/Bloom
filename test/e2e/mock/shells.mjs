@@ -22,6 +22,7 @@ html[data-theme="dark"] .sidebar { background: #181818; }
 [data-app-navigation-rail] { position: fixed; left: 0; top: 0; bottom: 0; width: 52px; display: none; pointer-events: none; }
 [data-app-navigation-rail].open { display: block; }
 .rail-overlay { position: absolute; inset: 0; pointer-events: auto; }
+[data-app-navigation-rail] > .row { position: relative; pointer-events: auto; }
 input[type="range"] { appearance: none; background-color: transparent; }
 a { color: inherit; padding: 6px 10px; text-decoration: none; }
 main { flex: 1; display: flex; flex-direction: column; min-width: 0; }

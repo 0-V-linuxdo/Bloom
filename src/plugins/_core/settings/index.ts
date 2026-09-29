@@ -21,8 +21,13 @@ const cl = classNameFactory("bloom-entry-");
 const settings = definePluginSettings({
     showSidebarEntry: {
         type: OptionType.BOOLEAN,
-        description: "Show the Bloom++ button above the account row in the sidebar. The account menu and the userscript menu always open the panel.",
+        description: "Always show the Bloom++ button above the account row in the sidebar. The account menu and the userscript menu always open the panel.",
         default: false,
+    },
+    showSidebarEntryOnHover: {
+        type: OptionType.BOOLEAN,
+        description: "Show the Bloom++ button while the pointer is over the account row in the sidebar.",
+        default: true,
     },
 });
 
@@ -65,7 +70,8 @@ function menuEntry(menu: HTMLElement) {
 }
 
 function sync() {
-    const mounts = settings.store.showSidebarEntry ? sidebarMounts() : [];
+    const { showSidebarEntry, showSidebarEntryOnHover } = settings.store;
+    const mounts = showSidebarEntry || showSidebarEntryOnHover ? sidebarMounts() : [];
     for (const [anchor, node] of entries) {
         if (anchor.isConnected && mounts.some(mount => mount.anchor === anchor)) continue;
         node.remove();
@@ -78,6 +84,7 @@ function sync() {
         entries.set(mount.anchor, node);
         mount.insert(node);
     }
+    for (const node of entries.values()) node.classList.toggle(cl("hover"), !showSidebarEntry);
     const menu = accountMenu();
     if (menu && !menu.querySelector('[data-bloom="menu-entry"]')) menuEntry(menu);
 }

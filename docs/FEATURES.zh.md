@@ -99,7 +99,7 @@
 ## 3. 设置入口与设置面板（核心插件 `Settings`，必需，面板里有卡片但不能关，同 Void++）
 
 入口：
-- 侧栏账号区上方一行 **Bloom++**（花形图标 + 文字），点开/关设置面板。**默认隐藏**（对齐 Void++：Void++ 没有侧栏按钮，只在头像菜单里放入口）；在 Settings 卡片里打开 `showSidebarEntry` 才显示，改动即时生效。展开侧栏和收起的窄 rail 两处都放；窄 rail 里只显示图标。rail 第一个子元素是铺满整条的 `button[aria-label="Show sidebar"]`（`absolute inset-0`），rail 入口必须 `position:relative` 叠在它上面，否则点击落到展开侧栏按钮上。
+- 侧栏账号区上方一行 **Bloom++**（花形图标 + 文字），点开/关设置面板。**默认隐藏**（对齐 Void++：Void++ 没有侧栏按钮，只在头像菜单里放入口），指针移到账号区时立即显示（`showSidebarEntryOnHover`，默认真；无延迟、无淡入）。展开侧栏里指针在整个账号区（footer，入口也在里面）内就一直显示；rail 和旧壳里指针在入口或它后面的账号行上时显示。离开后 0.2 s 才隐藏（`transition: display 0s 0.2s allow-discrete`），让指针能越过入口和账号行之间的空隙。`showSidebarEntry`（默认假）打开后一直显示；两项都关则不挂入口。改动即时生效。展开侧栏和收起的窄 rail 两处都放；窄 rail 里只显示图标。rail 第一个子元素是铺满整条的 `button[aria-label="Show sidebar"]`（`absolute inset-0`），rail 入口必须 `position:relative` 叠在它上面，否则点击落到展开侧栏按钮上。
 - 账号下拉菜单（点头像弹出的小菜单）第一项 **Bloom++**，一直都有，是默认的入口。
 - 油猴菜单命令 “Bloom++ settings”，任何时候都能打开面板（侧栏找不到时的保底）。
 
@@ -307,7 +307,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 | 插件 | 可见设置 | 隐藏数据 |
 | --- | --- | --- |
-| Settings | `showSidebarEntry`（默认假） | `pinnedPlugins` `starredPlugins` |
+| Settings | `showSidebarEntry`（默认假）`showSidebarEntryOnHover`（默认真） | `pinnedPlugins` `starredPlugins` |
 | ChatStateFavicons | `style` | — |
 | InputHistory | `maxEntries` | `entries` |
 | NoShareLink | `hideShareChat` `hideShareProject` | — |
