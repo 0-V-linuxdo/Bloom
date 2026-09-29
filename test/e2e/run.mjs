@@ -428,7 +428,12 @@ async function customSoundSuite(browser) {
     await page.locator(".bloom-settings-card", { hasText: "ResponseNotification" }).locator('[aria-label="Settings"]').click();
     await page.locator(".bloom-settings-component button", { hasText: "Preview" }).click();
     await page.waitForFunction(() => window.__played.length > 0, null, { timeout: 3000 }).catch(() => {});
-    check("a custom sound URL plays under the host media-src", await page.evaluate(() => window.__played[0] > 0));
+    check("a custom sound URL plays under the host media-src", await page.evaluate(seconds => Math.abs(window.__played[0] - seconds) < 0.01, SOUND_SAMPLES / SOUND_RATE));
+    await page.locator('.bloom-settings-popup input[placeholder^="https://"]').fill("");
+    await page.locator('.bloom-settings-popup input[placeholder^="https://"]').press("Enter");
+    await page.locator(".bloom-settings-component button", { hasText: "Preview" }).click();
+    await page.waitForFunction(() => window.__played.length > 1, null, { timeout: 3000 }).catch(() => {});
+    check("the default sound is the Void++ done chime", await page.evaluate(() => window.__played[1] > 0.3), await page.evaluate(() => String(window.__played[1])));
     await context.close();
 }
 

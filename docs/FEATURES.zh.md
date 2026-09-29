@@ -210,7 +210,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 默认开｜`HostReady`｜chat｜Void++ 同名
 
 - 本页回复正常结束时（不是用户中止、不是出错、不是离开会话）播放提示音 + 浏览器通知 “<会话标题> finished answering.”（标题 “Bloom++”，点击通知聚焦标签页）。
-- 设置：`sound`（默认真）、`soundUrl`（自定义音频 URL，空则用内置两音符提示音；chatgpt.com 的 CSP media-src 会拦 `<audio>`，所以用 `GM_xmlhttpRequest`（`@connect *`）下载，再用 Web Audio 解码播放，按 URL 缓存；下载或解码失败时退回内置提示音）、组件 “Preview” 试听按钮（单独一个按钮，无说明行）、`browserNotification`（默认真；优先 `GM_notification`，否则 Web Notification，首次点击页面时请求权限）、`onlyWhenHidden`（仅在标签页隐藏时通知，默认真）。
+- 设置：`sound`（默认真）、`soundUrl`（自定义音频 URL，空则用与 Void++ 相同的默认完成音 `done1`（内嵌 MP3 data URI，Web Audio 解码，音量 0.5；1.4.117 的两音符振荡器提示音已弃用）；chatgpt.com 的 CSP media-src 会拦 `<audio>`，所以用 `GM_xmlhttpRequest`（`@connect *`）下载，再用 Web Audio 解码播放，按 URL 缓存；下载或解码失败时退回默认完成音）、组件 “Preview” 试听按钮（单独一个按钮，无说明行）、`browserNotification`（默认真；优先 `GM_notification`，否则 Web Notification，首次点击页面时请求权限）、`onlyWhenHidden`（仅在标签页隐藏时通知，默认真）。
 
 ### 4.10 PromptQueue — 生成中排队追问
 

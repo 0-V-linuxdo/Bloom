@@ -11,20 +11,17 @@ import { generation } from "@host/generation";
 import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType } from "@utils/types";
 
+import { DEFAULT_CHIME } from "./done1";
+
 const logger = new Logger("ResponseNotification");
 
-const NOTES = [880, 1318.5];
-const NOTE_GAP_S = 0.14;
-const NOTE_LENGTH_S = 0.22;
-const PEAK_GAIN = 0.08;
-const MIN_GAIN = 0.0001;
-const ATTACK_S = 0.02;
+const SAMPLE_VOLUME = 0.5;
 const HTTP_OK = 200;
 const HTTP_REDIRECT = 300;
 
 const settings = definePluginSettings({
     sound: { type: OptionType.BOOLEAN, description: "Play a sound when a reply finishes.", default: true },
-    soundUrl: { type: OptionType.STRING, description: "Custom sound URL. Leave empty for the built-in chime.", default: "", placeholder: "https://…/sound.mp3" },
+    soundUrl: { type: OptionType.STRING, description: "Custom sound URL. Leave empty for the default done chime.", default: "", placeholder: "https://…/sound.mp3" },
     preview: { type: OptionType.COMPONENT, render: host => {
         host.append(button("Preview", playSound));
         return () => host.replaceChildren();
@@ -34,27 +31,9 @@ const settings = definePluginSettings({
 });
 
 let audio: AudioContext | null = null;
-let customSound: { url: string; buffer: Promise<AudioBuffer>; } | undefined;
+const buffers = new Map<string, Promise<AudioBuffer>>();
 let unsubscribe: (() => void) | undefined;
 let controller: AbortController | undefined;
-
-function chime() {
-    audio ??= new AudioContext();
-    const start = audio.currentTime;
-    NOTES.forEach((frequency, index) => {
-        const ctx = audio as AudioContext;
-        const at = start + index * NOTE_GAP_S;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.value = frequency;
-        gain.gain.setValueAtTime(MIN_GAIN, at);
-        gain.gain.exponentialRampToValueAtTime(PEAK_GAIN, at + ATTACK_S);
-        gain.gain.exponentialRampToValueAtTime(MIN_GAIN, at + NOTE_LENGTH_S);
-        osc.connect(gain).connect(ctx.destination);
-        osc.start(at);
-        osc.stop(at + NOTE_LENGTH_S);
-    });
-}
 
 function download(url: string) {
     return new Promise<ArrayBuffer>((resolve, reject) => GM_xmlhttpRequest({
@@ -66,26 +45,35 @@ function download(url: string) {
     }));
 }
 
-async function playUrl(url: string) {
+const dataBytes = (url: string) => Uint8Array.from(atob(url.slice(url.indexOf(",") + 1)), char => char.charCodeAt(0)).buffer;
+
+function loadBuffer(ctx: AudioContext, url: string) {
+    let buffer = buffers.get(url);
+    if (!buffer) {
+        buffer = (url.startsWith("data:") ? Promise.resolve(dataBytes(url)) : download(url)).then(data => ctx.decodeAudioData(data));
+        buffer.catch(() => buffers.delete(url));
+        buffers.set(url, buffer);
+    }
+    return buffer;
+}
+
+async function play(url: string) {
     audio ??= new AudioContext();
     const ctx = audio;
-    if (customSound?.url !== url) customSound = { url, buffer: download(url).then(data => ctx.decodeAudioData(data)) };
+    if (ctx.state === "suspended") void ctx.resume();
     const source = ctx.createBufferSource();
-    source.buffer = await customSound.buffer;
-    source.connect(ctx.destination);
+    const gain = ctx.createGain();
+    source.buffer = await loadBuffer(ctx, url);
+    gain.gain.value = SAMPLE_VOLUME;
+    source.connect(gain).connect(ctx.destination);
     source.start();
 }
 
 function playSound() {
     const url = settings.store.soundUrl.trim();
-    if (!url) {
-        chime();
-        return;
-    }
-    playUrl(url).catch(e => {
-        logger.warn("Custom sound failed, playing the chime", e);
-        customSound = undefined;
-        chime();
+    play(url || DEFAULT_CHIME).catch(e => {
+        logger.warn("Sound failed", e);
+        if (url) play(DEFAULT_CHIME).catch(error => logger.warn("Default chime failed", error));
     });
 }
 
