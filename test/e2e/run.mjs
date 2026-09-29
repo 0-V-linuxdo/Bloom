@@ -201,6 +201,13 @@ async function newShellSuite(browser) {
     check("NoSidebarIdentity hides the name", await page.evaluate(() => getComputedStyle(document.querySelector(".chip .truncate .truncate")).visibility === "hidden"));
     check("NoSidebarIdentity enlarges the plan", await page.evaluate(() => getComputedStyle(document.querySelector(".chip .text-xs")).fontSize === "14px"));
     check("GreetingCustomizer replaces the visible home heading", await page.evaluate(() => (document.querySelector(".home-heading")?.getAttribute("data-bloom-text") ?? "").length > 0 && !document.querySelector('h1[aria-hidden="true"][data-bloom-text]')));
+    const greeted = () => page.evaluate(() => document.querySelector(".home-heading").hasAttribute("data-bloom-text"));
+    await page.evaluate(() => history.pushState(null, "", "/?temporary-chat=true"));
+    await page.waitForTimeout(600);
+    check("GreetingCustomizer leaves the temporary chat heading alone", !await greeted());
+    await page.evaluate(() => history.pushState(null, "", "/"));
+    await page.waitForTimeout(600);
+    check("GreetingCustomizer comes back after leaving the temporary chat", await greeted());
     check("NoDictation hides the Dictation row on the settings page", await page.evaluate(() => {
         const row = document.createElement("div");
         row.className = "@container/settings-row flex";

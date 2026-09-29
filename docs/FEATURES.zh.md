@@ -295,7 +295,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 默认关｜`HostReady`｜ui｜Void++ CustomGreeting
 
-- 只在新对话首页（`/`）把大标题（“What can I help with?” / “有什么可以帮忙的？”等）换成自己的文案；项目页、GPT 页、会话页不动。不修改 React 节点的文字，用 CSS 覆盖显示。
+- 只在新对话首页（`/`）把大标题（“What can I help with?” / “有什么可以帮忙的？”等）换成自己的文案；项目页、GPT 页、会话页不动；临时聊天（`/?temporary-chat=true`，包括在页面里切换进出临时模式）也不动，保留原生的 “Temporary chat” 标题，此时也不计为一次到访、不跑定时轮换。不修改 React 节点的文字，用 CSS 覆盖显示。
 - 轮换：`mode` = `refresh`（每次回到首页换一条，默认）/ `interval`（停留首页时每 `intervalSec` 秒换一条）/ `manual`（点标题换一条，有选中文字时不换）。`order` = `sequential`（默认）/ `random`（不连续重复同一条）。
 - 文案管理组件：新增、编辑、删除，最多 30 条，每条最多 100 字，支持换行；列表为空时提示 “No greetings. The official heading stays.”。
 - 设置：`mode`、`order`、`intervalSec`（1–3600，默认 10）；隐藏 `greetings: string[]`（默认 3 条名言）、`index`、`lastRandom`。

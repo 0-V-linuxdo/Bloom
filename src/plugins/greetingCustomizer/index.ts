@@ -5,7 +5,7 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
-import { isHomePath, onRouteChange } from "@host/route";
+import { isHomePath, isTemporaryChat, onRouteChange } from "@host/route";
 import { Sel } from "@host/selectors";
 import { hostMutations, overlayText, visible, watchBody } from "@utils/dom";
 import definePlugin, { OptionType } from "@utils/types";
@@ -50,6 +50,8 @@ let timer: ReturnType<typeof setInterval> | undefined;
 let unsubscribers: (() => void)[] = [];
 let controller: AbortController | undefined;
 
+const onHome = () => isHomePath() && !isTemporaryChat();
+
 const greetings = () => settings.store.greetings.filter(text => typeof text === "string" && text.trim());
 
 function advance() {
@@ -66,7 +68,7 @@ function advance() {
 }
 
 function heading() {
-    return isHomePath() ? visible<HTMLElement>(Sel.homeHeading) : null;
+    return onHome() ? visible<HTMLElement>(Sel.homeHeading) : null;
 }
 
 function clear() {
@@ -91,7 +93,7 @@ function apply() {
 function schedule() {
     clearInterval(timer);
     timer = undefined;
-    if (settings.store.mode === "interval" && isHomePath()) {
+    if (settings.store.mode === "interval" && onHome()) {
         timer = setInterval(() => {
             advance();
             apply();
@@ -107,7 +109,7 @@ function onClick(event: MouseEvent) {
 }
 
 function onRoute() {
-    if (isHomePath() && settings.store.mode === "refresh") advance();
+    if (onHome() && settings.store.mode === "refresh") advance();
     schedule();
     apply();
 }
@@ -123,7 +125,7 @@ export default definePlugin({
     start() {
         controller = new AbortController();
         document.addEventListener("click", onClick, { signal: controller.signal });
-        if (isHomePath() && settings.store.mode === "refresh") advance();
+        if (onHome() && settings.store.mode === "refresh") advance();
         schedule();
         unsubscribers = [watchBody(mutations => hostMutations(mutations) && apply()), onRouteChange(onRoute)];
     },
