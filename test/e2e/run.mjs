@@ -473,7 +473,9 @@ async function composerOpacitySuite(browser) {
     await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
     const blurred = await page.evaluate(() => [...document.querySelectorAll("form *")].map(el => ({ el, style: getComputedStyle(el) })).filter(({ style }) => style.backdropFilter !== "none")
         .map(({ el, style }) => ({ name: el.className, background: style.backgroundColor, blur: style.backdropFilter })));
-    check("ComposerOpacity blurs only the new composer's layout root", blurred.length === 1 && blurred[0].name.startsWith("ComposerLayoutRoot") && blurred[0].blur === "blur(4px)" && blurred[0].background.endsWith("0.6)"), JSON.stringify(blurred));
+    const [red, alpha] = [...blurred[0]?.background.matchAll(/[\d.]+/g) ?? []].map(Number).filter((_, index) => index === 0 || index === 3);
+    check("ComposerOpacity blurs only the new composer's layout root", blurred.length === 1 && blurred[0].name.startsWith("ComposerLayoutRoot") && blurred[0].blur === "blur(4px)", JSON.stringify(blurred));
+    check("ComposerOpacity keeps the composer's own dark fill, only translucent", red < 0.2 && alpha === 0.6, blurred[0]?.background);
     await page.locator(COMPOSER).click();
     await page.keyboard.type("See-through");
     check("ComposerOpacity keeps the composer typable", (await page.locator(COMPOSER).textContent()).trim() === "See-through");

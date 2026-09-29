@@ -13,7 +13,7 @@ const LAYOUT_ROOT = '[class*="ComposerLayoutRoot"]';
 const PILL = `:is(${FORM}) ${LAYOUT_ROOT}, :is(${FORM}):not(:has(${LAYOUT_ROOT})) :is([class*="corner-superellipse"], [class*="bg-token-bg-primary"], [class*="bg-token-main-surface"], [class*="shadow-short"])`;
 const SLAB = '#thread-bottom-container, #thread-bottom, :has(> form textarea[name="prompt"])';
 const FADE = '#thread-bottom-container::after, #thread-bottom::after, [class*="content-fade"]';
-const FILL = "var(--color-bg-primary, var(--bg-primary, var(--main-surface-primary, #fff)))";
+const FILL = "var(--composer-layout-surface-background, var(--color-bg-primary, var(--bg-primary, var(--main-surface-primary, Canvas))))";
 
 const settings = definePluginSettings({
     opacity: { type: OptionType.SLIDER, description: "Composer background opacity. 100 keeps ChatGPT's own fill.", min: 0, max: 100, default: 100, unit: "%" },
