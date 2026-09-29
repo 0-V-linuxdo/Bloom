@@ -152,7 +152,7 @@
 
 默认关｜`Init`｜ui, privacy｜Void++ 同名
 
-CSS 为主。设置：`hideShareChat`（会话头部 Share，默认真）、`hideShareProject`（项目页 Share，默认真）。新版项目页（`/g/g-p-…/project`）的 Share 是没有 aria-label、没有 testid 的 `button[aria-haspopup=dialog]`，只能靠文字识别：在项目页（非会话路由）上把文字恰为 Share / 分享 的这种按钮标成 `data-bloom-share="project"`，再由 CSS 隐藏；离开项目页或停用插件时清掉标记。
+CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作栏的 Share prompt，默认真）、`hideShareProject`（项目页 Share，默认真）。新版项目页（`/g/g-p-…/project`）的 Share 是没有 aria-label、没有 testid 的 `button[aria-haspopup=dialog]`，只能靠文字识别：在项目页（非会话路由）上把文字恰为 Share / 分享 的这种按钮标成 `data-bloom-share="project"`，再由 CSS 隐藏；离开项目页或停用插件时清掉标记。
 
 ### 4.4 NoDictation — 隐藏听写按钮
 
@@ -173,8 +173,8 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share，默认真）、`hid
 默认关｜`HostReady`｜ui｜Void++ 同名
 
 - 替换侧栏账号芯片的头像和显示名；字段为空则保留官方值。只影响本地显示。
-- 头像来源：https 图片 URL、`data:image…`、粘贴图片、拖入/选择文件。圆形裁剪器：拖动平移、滚轮或滑块缩放（1–4×），Reset 复位裁剪，Clear 清除图片。裁剪结果烘焙成 256px PNG data URL 保存。
-- 设置：`displayName`（字符串）、`avatarSize`（展开侧栏里的头像直径 24–64，默认 40；收起的 rail 保持 32）、`applyToMenu`（同时替换账号下拉菜单顶部的头像和名字，默认真）；隐藏：`avatarUrl`（烘焙结果）、`avatarSource`（原图，用于重新裁剪）、`cropX` `cropY`（0–1，默认 0.5）、`cropZoom`（默认 1）。
+- 头像来源：https 图片 URL、`data:image…`、粘贴图片、拖入/选择文件。https URL 用 `crossOrigin="anonymous"` 的 `<img>` 直接载入画布（chatgpt.com 的 CSP connect-src 会拦 `fetch`，img-src 不拦），要求图床带 CORS 头；`avatarSource` 存原 URL 或 data URL。圆形裁剪器：拖动平移、滚轮或滑块缩放（1–4×），Reset 复位裁剪，Clear 清除图片。裁剪结果烘焙成 256px PNG data URL 保存。
+- 设置：`displayName`（字符串）、`avatarSize`（展开侧栏里的头像直径 24–64，默认 40；收起的 rail 固定 32，官方原生是 24）、`applyToMenu`（同时替换账号下拉菜单顶部的头像和名字，默认真）；隐藏：`avatarUrl`（烘焙结果）、`avatarSource`（原图，用于重新裁剪）、`cropX` `cropY`（0–1，默认 0.5）、`cropZoom`（默认 1）。
 - 官方头像可能是 `<img>`，也可能是无图片的首字母圆（如青绿色 “18”）；两种都要盖住。
 - 不改邮箱、不改套餐文字；StreamerMode 开着时自定义头像同样被模糊。
 

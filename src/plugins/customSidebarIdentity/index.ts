@@ -16,6 +16,7 @@ import styles from "./styles.css";
 const AVATAR = "data-bloom-csi-avatar";
 const SIZED = "data-bloom-csi-sized";
 const NAMED = "[data-bloom-text]:is([data-bloom-profile-name], [data-bloom-menu-name])";
+const RAIL_AVATAR_PX = 32;
 
 export const settings = definePluginSettings({
     displayName: { type: OptionType.STRING, description: "Name shown in the sidebar. Leave empty to keep yours.", default: "", placeholder: "Display name" },
@@ -52,13 +53,15 @@ function apply(mutations: MutationRecord[] = []) {
     for (const el of document.querySelectorAll(`[${AVATAR}]`)) if (!wanted.has(el as HTMLElement)) unmark(el);
     for (const el of wanted) {
         if (!el.hasAttribute(AVATAR)) el.setAttribute(AVATAR, "");
-        el.toggleAttribute(SIZED, !el.closest(`${Sel.rail}, ${Sel.oldRail}, [role="menu"]`));
+        el.toggleAttribute(SIZED, !el.closest('[role="menu"]'));
     }
 }
 
 function css() {
     const url = settings.store.avatarUrl;
-    return url ? `:root{--bloom-csi-url:url("${url.replaceAll(/["\\\n]/g, "")}");--bloom-csi-size:${settings.store.avatarSize}px}` : "";
+    return url
+        ? `:root{--bloom-csi-url:url("${url.replaceAll(/["\\\n]/g, "")}");--bloom-csi-size:${settings.store.avatarSize}px}:is(${Sel.rail}, ${Sel.oldRail}) [${SIZED}]{--bloom-csi-size:${RAIL_AVATAR_PX}px}`
+        : "";
 }
 
 export default definePlugin({

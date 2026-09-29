@@ -27,6 +27,9 @@ const STREAM_MS = 4000;
 const RELAY_EVENTS = ["resume_conversation_token", "input_message", "stream_handoff", "resume_sse_endpoint", "subscribe_ws_topic", "conversation_detail_metadata"];
 const CHAT_A = "11111111-1111-4111-8111-111111111111";
 const CHAT_B = "22222222-2222-4222-8222-222222222222";
+const IMAGE_URL = "https://images.example.test/avatar.png";
+const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+const HOST_CSP = "connect-src 'self' wss://chatgpt.com";
 
 const results = [];
 const check = (name, ok, detail = "") => {
@@ -66,7 +69,7 @@ function conversationJson(id) {
     };
 }
 
-async function setup(browser, { shell = "new", theme = "light", settings = null, streamMs = 0 } = {}) {
+async function setup(browser, { shell = "new", theme = "light", settings = null, streamMs = 0, csp = null } = {}) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await context.newPage();
     page.on("pageerror", error => console.log("pageerror", error.message));
@@ -100,8 +103,9 @@ async function setup(browser, { shell = "new", theme = "light", settings = null,
             const windowed = url.pathname.startsWith("/backend-api/conversations/") ? { title: data.title, messages: Object.values(data.mapping).map(node => node.message).filter(Boolean) } : data;
             return route.fulfill({ contentType: "application/json", body: JSON.stringify(windowed) });
         }
-        return route.fulfill({ contentType: "text/html", body: shell === "new" ? newShell(theme) : oldShell(theme) });
+        return route.fulfill({ contentType: "text/html", headers: csp ? { "Content-Security-Policy": csp } : {}, body: shell === "new" ? newShell(theme) : oldShell(theme) });
     });
+    await context.route("https://images.example.test/**", route => route.fulfill({ contentType: "image/png", headers: { "Access-Control-Allow-Origin": "*" }, body: Buffer.from(PNG, "base64") }));
     await context.routeWebSocket("wss://chatgpt.com/ws/**", ws => ws.onMessage(message => {
         const { replyId } = JSON.parse(String(message));
         setTimeout(() => ws.send(JSON.stringify({ replyId, text: "Here is the answer." })), REPLY_DELAY_MS);
@@ -316,6 +320,51 @@ async function projectPageSuite(browser) {
     await page.goto(`https://chatgpt.com/c/${CHAT_A}`);
     await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
     check("NoShareLink leaves an unlabeled Share outside projects to the chat rules", !await shareHidden());
+    check("NoShareLink hides Share prompt on messages", await page.evaluate(() => {
+        const button = document.createElement("button");
+        button.setAttribute("aria-label", "Share prompt");
+        document.querySelector("main").append(button);
+        const hidden = getComputedStyle(button).display === "none";
+        button.remove();
+        return hidden;
+    }));
+    await context.close();
+}
+
+async function customIdentitySuite(browser) {
+    const image = `data:image/png;base64,${PNG}`;
+    const { context, page } = await setup(browser, {
+        settings: { plugins: { CustomSidebarIdentity: { enabled: true, avatarUrl: image, avatarSource: image, cropZoom: 1.2999999999999996 } } },
+        csp: HOST_CSP,
+    });
+    await page.goto("https://chatgpt.com/");
+    await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
+    await page.waitForTimeout(300);
+    const sizes = await page.evaluate(() => {
+        const rail = document.querySelector("[data-app-navigation-rail]");
+        rail.classList.add("open");
+        rail.inert = false;
+        const [chip, railAvatar] = [".footer", "[data-app-navigation-rail]"].map(scope => document.querySelector(`${scope} [data-bloom-csi-avatar]`)?.getBoundingClientRect().width);
+        rail.classList.remove("open");
+        rail.inert = true;
+        return { chip, rail: railAvatar };
+    });
+    check("custom avatar follows avatarSize in the sidebar and stays 32px in the rail", sizes.chip === 40 && sizes.rail === 32, JSON.stringify(sizes));
+    await page.locator(".footer [data-bloom=entry] button").click();
+    await page.locator(".bloom-settings-card", { hasText: "CustomSidebarIdentity" }).locator('[aria-label="Settings"]').click();
+    const zoomLabel = () => page.locator(".bloom-csi-zoom output").textContent({ timeout: 3000 }).catch(() => null);
+    const rounded = /^\d(?:\.\d)?×$/;
+    const stored = await zoomLabel();
+    check("stored crop zoom shows a rounded label", rounded.test(stored ?? ""), stored);
+    await page.locator(".bloom-csi-canvas").hover();
+    await page.mouse.wheel(0, -133);
+    await page.waitForTimeout(100);
+    const wheeled = await zoomLabel();
+    check("wheel zoom shows a rounded label", rounded.test(wheeled ?? ""), wheeled);
+    await page.locator('.bloom-csi-controls input[type="url"]').fill(IMAGE_URL);
+    await page.locator('.bloom-csi-controls input[type="url"]').press("Enter");
+    await page.waitForTimeout(500);
+    check("CustomSidebarIdentity loads an https image under the host connect-src", !await page.locator(".bloom-csi-status").textContent(), await page.locator(".bloom-csi-status").textContent());
     await context.close();
 }
 
@@ -344,6 +393,7 @@ try {
     await slowHydrationSuite(browser);
     await streamedLoadSuite(browser);
     await projectPageSuite(browser);
+    await customIdentitySuite(browser);
     await oldShellSuite(browser);
 } finally {
     await browser.close();

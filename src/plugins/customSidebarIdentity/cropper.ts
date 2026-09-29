@@ -39,6 +39,7 @@ function readDataUrl(blob: Blob) {
 function loadImage(src: string) {
     return new Promise<HTMLImageElement>((resolve, reject) => {
         const img = new Image();
+        img.crossOrigin = "anonymous";
         img.onload = () => resolve(img);
         img.onerror = () => reject(new Error("Image failed to load"));
         img.src = src;
@@ -66,13 +67,6 @@ function bake(img: HTMLImageElement, crop: Crop) {
     canvas.width = canvas.height = OUTPUT_PX;
     draw(canvas, img, crop);
     return canvas.toDataURL("image/png");
-}
-
-async function toDataUrl(source: string) {
-    if (source.startsWith("data:image/")) return source;
-    const response = await fetch(source);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return readDataUrl(await response.blob());
 }
 
 export function avatarCropper(host: HTMLElement) {
@@ -108,10 +102,9 @@ export function avatarCropper(host: HTMLElement) {
     async function setSource(source: string, fresh: boolean) {
         status.textContent = "";
         try {
-            const dataUrl = await toDataUrl(source);
-            img = await loadImage(dataUrl);
+            img = await loadImage(source);
             if (fresh) {
-                settings.store.avatarSource = dataUrl;
+                settings.store.avatarSource = source;
                 crop = { x: 0.5, y: 0.5, zoom: MIN_ZOOM };
             }
             host.classList.add(cl("has-image"));
