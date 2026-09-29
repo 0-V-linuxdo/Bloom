@@ -31,6 +31,10 @@ chatgpt.com hydrates with `hydrateRoot(document)`. These broke earlier versions:
 - CSS classes use the `bloom-` prefix through `classNameFactory`. rem for spacing.
 - Keep settings keys and defaults compatible with the table in `docs/FEATURES.zh.md` section 5.
 
+## Live tests
+
+Live tests on chatgpt.com use the Instant model, never Pro. Pick Instant in the model picker before sending any test message.
+
 ## Checks before a push
 
 ```bash
