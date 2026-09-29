@@ -98,7 +98,6 @@ export default definePlugin({
     authors: ["Bloom contributors"],
     tags: ["chat", "ui"],
     icon: "list",
-    enabledByDefault: true,
     styles,
     start() {
         channel = typeof BroadcastChannel === "function" ? new BroadcastChannel(CHANNEL) : null;

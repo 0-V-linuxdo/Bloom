@@ -229,7 +229,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 ### 4.11 ChatListStatus — 侧栏当前会话状态
 
-默认开｜`HostReady`｜chat, ui｜Void++ 同名
+默认关（ChatGPT 新版侧栏已原生显示当前会话的生成状态）｜`HostReady`｜chat, ui｜Void++ 同名
 
 - 当前打开的会话正在生成时，在侧栏 Recents 里它那一行显示转圈；以错误结束时显示错误标记。其他行 ChatGPT 自己会画状态，不重复画，也不画“完成点”。
 - 打开一个已结束的会话不能转圈；切走的那一行立刻回到空闲。

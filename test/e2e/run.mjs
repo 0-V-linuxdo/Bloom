@@ -125,7 +125,7 @@ async function sendPrompt(page, text) {
 
 async function newShellSuite(browser) {
     const { context, page, generateRequests } = await setup(browser, {
-        settings: { plugins: { PromptQueue: { enabled: true }, ResponseNotification: { onlyWhenHidden: false }, GreetingCustomizer: { enabled: true }, NoDictation: { enabled: true } } },
+        settings: { plugins: { PromptQueue: { enabled: true }, ResponseNotification: { onlyWhenHidden: false }, GreetingCustomizer: { enabled: true }, NoDictation: { enabled: true }, ChatListStatus: { enabled: true } } },
     });
     await page.goto("https://chatgpt.com/");
     await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });

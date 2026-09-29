@@ -20,7 +20,7 @@ Plugins:
 | Cleaner | On | Hide Download apps, the composer “can make mistakes” notice, upgrade CTAs, locked models, home GPT promo, and Free ads. CSS-only. |
 | ResponseNotification | On | Sound + browser notification when a reply finishes. Default: only when the tab is hidden. |
 | PromptQueue | Off | Queue follow-up prompts while a reply is streaming. Enter appends; the head sends after this turn. |
-| ChatListStatus | On | Spinner on the **open** Recents row while this chat is answering, an error mark if it fails. Synced across tabs. |
+| ChatListStatus | Off | Spinner on the **open** Recents row while this chat is answering, an error mark if it fails. Synced across tabs. |
 | WiderChat | On | Widen the thread and composer (slider 40–96 rem, default 64). CSS-only. |
 | ComposerOpacity | On | Composer background opacity and blur, so the thread can show through the input bar. CSS-only. |
 | BetterNavigator | On | Notion-style outline of the open chat, including turns ChatGPT has not mounted yet. Hover the ticks, click or ↑/↓ to jump. A dashed tick marks the reply still streaming. |

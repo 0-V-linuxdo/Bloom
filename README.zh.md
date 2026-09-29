@@ -20,7 +20,7 @@
 | Cleaner | 开 | 隐藏 Download apps、「也会犯错」提示、升级入口、锁定模型、首页促销、Free 广告。纯 CSS。 |
 | ResponseNotification | 开 | 回复结束时响铃 / 浏览器通知。默认只在标签隐藏时通知。 |
 | PromptQueue | 关 | 生成中排队后续提示。Enter 追加；队头在本轮结束后再发。 |
-| ChatListStatus | 开 | 当前打开的会话生成中时在 Recents 行转圈，出错时显示错误标记；多个标签页同步。 |
+| ChatListStatus | 关 | 当前打开的会话生成中时在 Recents 行转圈，出错时显示错误标记；多个标签页同步。 |
 | WiderChat | 开 | 加宽对话和输入栏（滑块 40–96 rem，默认 64）。纯 CSS。 |
 | ComposerOpacity | 开 | 输入栏背景透明度和模糊，让对话内容能透过输入条。纯 CSS。 |
 | BetterNavigator | 开 | 当前对话的 Notion 式目录，包含 ChatGPT 还没挂上的轮。悬停 tick，点击或 ↑/↓ 跳转。正在输出的回复用虚线 tick 标出。 |
