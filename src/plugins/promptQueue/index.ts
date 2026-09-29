@@ -9,14 +9,19 @@ import { isComposerInput, readDraft, stopButton, submitComposer, writeDraft } fr
 import { generation, generationState } from "@host/generation";
 import { currentConversationId } from "@host/route";
 import { nextFrame } from "@utils/dom";
+import { Logger } from "@utils/Logger";
+import { isRecord, parseJson } from "@utils/misc";
 import definePlugin, { OptionType } from "@utils/types";
 
 import styles from "./styles.css";
 import { removeTray, renderTray, type TrayActions } from "./tray";
 
+const logger = new Logger("PromptQueue");
+
 const MAX_QUEUE = 8;
 const SEND_RETRY_MS = 150;
 const SEND_ATTEMPTS = 20;
+const STORAGE_KEY = "BloomPromptQueue";
 
 const settings = definePluginSettings({
     replacePending: { type: OptionType.BOOLEAN, description: "Enter replaces the last queued message instead of adding another.", default: false },
@@ -33,9 +38,26 @@ const DRAFT = "draft";
 const queueKey = () => currentConversationId() ?? DRAFT;
 const queue = () => queues.get(queueKey()) ?? [];
 
+function restoreQueues() {
+    const saved = parseJson(sessionStorage.getItem(STORAGE_KEY) ?? "");
+    if (!isRecord(saved)) return;
+    for (const [id, items] of Object.entries(saved)) {
+        if (Array.isArray(items) && items.length && items.every(item => typeof item === "string")) queues.set(id, items);
+    }
+}
+
+function saveQueues() {
+    try {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(Object.fromEntries([...queues].filter(([id]) => id !== DRAFT))));
+    } catch (e) {
+        logger.warn("Could not save the queue", e);
+    }
+}
+
 function setQueue(items: string[]) {
     if (items.length) queues.set(queueKey(), items);
     else queues.delete(queueKey());
+    saveQueues();
     renderTray(queue(), actions);
 }
 
@@ -135,6 +157,7 @@ export default definePlugin({
     styles,
     start() {
         controller = new AbortController();
+        restoreQueues();
         document.addEventListener("keydown", onKeydown, { capture: true, signal: controller.signal });
         unsubscribers = [
             generation.on("fall", ({ outcome }) => {
@@ -147,6 +170,7 @@ export default definePlugin({
                 queues.delete(DRAFT);
                 if (migrated && !prevId && id && draft) queues.set(id, draft);
                 if (!migrated) armed = false;
+                saveQueues();
                 renderTray(queue(), actions);
             }),
             generation.on("tick", () => {

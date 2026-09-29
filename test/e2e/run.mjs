@@ -504,6 +504,17 @@ async function queueEditingSuite(browser) {
     for (let waited = 0; !sent() && waited < SEND_NOW_WAIT_MS; waited += 100) await page.waitForTimeout(100);
     check("Send now stops the reply and sends the item once Send is ready", sent() && (await page.locator(COMPOSER).textContent()).trim() === "");
     check("Send now keeps the rest of the queue", await page.locator(".bloom-queue-count").textContent() === "1 Queued message");
+    await sendPrompt(page, "Q3 third");
+    await page.waitForFunction(() => document.querySelector(".bloom-queue-count")?.textContent === "2 Queued messages");
+    const before = generateRequests.length;
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector(".bloom-queue-count")?.textContent === "2 Queued messages", null, { timeout: 5000 }).catch(() => {});
+    const restored = await page.locator(".bloom-queue-row .bloom-queue-text").allTextContents();
+    check("PromptQueue restores the queue in order after a reload", restored.join("|") === "Q1 first|Q3 third" && generateRequests.length === before, restored.join("|"));
+    await page.locator(".bloom-queue-row").first().locator('[aria-label="Send now"]').click();
+    const resent = () => generateRequests.some(request => request.messages?.[0]?.content?.parts?.[0] === "Q1 first");
+    for (let waited = 0; !resent() && waited < SEND_NOW_WAIT_MS; waited += 100) await page.waitForTimeout(100);
+    check("a restored queue item sends with Send now", resent() && await page.locator(".bloom-queue-row .bloom-queue-text").allTextContents().then(rows => rows.join("|")) === "Q3 third");
     await context.close();
 }
 
