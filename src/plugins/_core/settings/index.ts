@@ -5,6 +5,7 @@
  */
 
 import { icon } from "@components/icons";
+import { useTooltips } from "@components/tooltip";
 import { isHydrated } from "@host/ready";
 import { accountMenu, type MountKind, sidebarMounts } from "@host/sidebar";
 import { classNameFactory } from "@utils/css";
@@ -18,7 +19,7 @@ const cl = classNameFactory("bloom-entry-");
 
 const entries = new Map<Element, HTMLElement>();
 let menuRegistered = false;
-let unwatch: (() => void) | undefined;
+let unsubscribers: (() => void)[] = [];
 
 function entry(kind: MountKind) {
     const trigger = h("button", {
@@ -83,14 +84,14 @@ export default definePlugin({
     startAt: StartAt.HostReady,
     styles,
     start() {
-        unwatch = watchBody(sync);
+        unsubscribers = [watchBody(sync), useTooltips()];
         if (!menuRegistered && typeof GM_registerMenuCommand === "function") {
             GM_registerMenuCommand("Bloom++ settings", togglePanel);
             menuRegistered = true;
         }
     },
     stop() {
-        unwatch?.();
+        for (const unsubscribe of unsubscribers) unsubscribe();
         for (const node of entries.values()) node.remove();
         entries.clear();
         closePanel();

@@ -8,6 +8,7 @@ import { isPluginEnabled, onPluginStateChange, plugins, setPluginEnabled } from 
 import { defaultValue, pinnedPlugins, readSetting, starredPlugins, writeSetting } from "@api/Settings";
 import { button, iconButton, select, slider, switchControl, textInput } from "@components/controls";
 import { icon } from "@components/icons";
+import { TIP } from "@components/tooltip";
 import { classNameFactory } from "@utils/css";
 import { h } from "@utils/dom";
 import { Logger } from "@utils/Logger";
@@ -235,7 +236,7 @@ export function openPanel() {
             h("div", { class: cl("header") },
                 h("div", { class: cl("logo") }, icon("bloom")),
                 h("h2", { class: cl("title"), text: "Bloom++" }),
-                h("span", { class: cl("hint"), title: HINT, attrs: { "aria-label": HINT, "tabindex": "0" } }, icon("info")),
+                h("span", { class: cl("hint"), attrs: { "aria-label": HINT, "tabindex": "0", [TIP]: HINT } }, icon("info")),
                 h("span", { class: cl("version"), text: `v${BLOOM_VERSION}` }),
                 iconButton("close", "Close", closePanel)),
             h("div", { class: cl("tabs"), attrs: { role: "tablist" } }),

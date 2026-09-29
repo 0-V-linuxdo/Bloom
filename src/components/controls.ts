@@ -9,6 +9,7 @@ import { h } from "@utils/dom";
 import type { SelectOption } from "@utils/types";
 
 import { icon, type IconName } from "./icons";
+import { TIP } from "./tooltip";
 
 export function switchControl(checked: boolean, onChange: (checked: boolean) => void, label: string) {
     const el = h("button", { class: "bloom-switch", attrs: { "type": "button", "role": "switch", "aria-checked": String(checked), "aria-label": label } });
@@ -26,7 +27,7 @@ export function button(label: string, onClick: () => void, variant?: "danger") {
 }
 
 export function iconButton(name: IconName, label: string, onClick: (event: MouseEvent) => void, pressed?: boolean) {
-    const el = h("button", { class: "bloom-icon-button", title: label, attrs: { "type": "button", "aria-label": label }, on: { click: onClick } }, icon(name));
+    const el = h("button", { class: "bloom-icon-button", attrs: { "type": "button", "aria-label": label, [TIP]: label }, on: { click: onClick } }, icon(name));
     if (pressed != null) el.setAttribute("aria-pressed", String(pressed));
     return el;
 }
