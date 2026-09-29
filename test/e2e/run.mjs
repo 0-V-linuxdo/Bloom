@@ -480,6 +480,54 @@ async function composerOpacitySuite(browser) {
     await context.close();
 }
 
+const NAV_TURNS = 10;
+const INTERMEDIATE_TURN = 1;
+
+async function navigatorSuite(browser) {
+    for (const showAssistant of [true, false]) {
+        const { context, page } = await setup(browser, { settings: { plugins: { BetterNavigator: { showAssistant } } } });
+        await page.goto("https://chatgpt.com/");
+        await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
+        await page.evaluate(({ turns, intermediate }) => {
+            document.querySelector("[data-chatgpt-conversation-selection-target]").replaceChildren(...Array.from({ length: turns }, (_, index) => {
+                const key = `nav-${index}`;
+                const turn = document.createElement("div");
+                turn.dataset.turnKey = key;
+                const units = [["user", `u${index}`, `Question ${index + 1}`], ...index === intermediate ? [["assistant", `p${index}`, "Progress has advanced to 174"]] : [], ["assistant", `a${index}`, `Answer ${index + 1}`]];
+                for (const [role, id, text] of units) {
+                    const el = document.createElement("div");
+                    el.dataset.chatgptSearchUnitKey = `${key}:${role}`;
+                    el.dataset.chatgptSearchMessageIds = id;
+                    const body = document.createElement("div");
+                    body.className = role === "user" ? "whitespace-pre-wrap" : "markdown";
+                    body.textContent = text;
+                    el.append(body);
+                    turn.append(el);
+                }
+                return turn;
+            }));
+        }, { turns: NAV_TURNS, intermediate: INTERMEDIATE_TURN });
+        await page.waitForTimeout(300);
+        const total = showAssistant ? NAV_TURNS * 2 : NAV_TURNS;
+        const mode = showAssistant ? "with replies" : "without replies";
+        const head = () => page.locator(".bloom-nav-toc-head").textContent();
+        check(`BetterNavigator ${mode}: one tick per visible message, intermediate replies folded`, await page.locator(".bloom-nav-tick").count() === total && !(await page.locator(".bloom-nav-row").allTextContents()).join(" ").includes("Progress"));
+        check(`BetterNavigator ${mode}: the count covers only listed messages`, (await head()).endsWith(`/ ${total}`), await head());
+        await page.locator("[data-app-action-timeline-scroll]").click({ position: { x: 5, y: 5 } });
+        await page.keyboard.press("Home");
+        await page.waitForTimeout(600);
+        await page.keyboard.press("ArrowDown");
+        await page.waitForTimeout(600);
+        const stepped = await page.evaluate(() => [...document.querySelectorAll(".bloom-nav-tick")].findIndex(tick => tick.classList.contains("bloom-nav-tick-current")));
+        check(`BetterNavigator ${mode}: ArrowDown after Home steps to the second message`, stepped === 1 && (await head()).startsWith("2 /"), `${stepped} ${await head()}`);
+        await page.mouse.move(640, 300);
+        await page.mouse.wheel(0, 400);
+        await page.waitForTimeout(400);
+        check(`BetterNavigator ${mode}: scrolling hands the marker back to the reading position`, !(await head()).startsWith("2 /"), await head());
+        await context.close();
+    }
+}
+
 async function oldShellSuite(browser) {
     const { context, page } = await setup(browser, { shell: "old", theme: "dark" });
     await page.goto(`https://chatgpt.com/c/${CHAT_A}`);
@@ -509,6 +557,7 @@ try {
     await customSoundSuite(browser);
     await queueEditingSuite(browser);
     await composerOpacitySuite(browser);
+    await navigatorSuite(browser);
     await oldShellSuite(browser);
 } finally {
     await browser.close();
