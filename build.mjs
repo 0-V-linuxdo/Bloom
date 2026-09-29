@@ -14,16 +14,13 @@ const here = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(resolve(here, "package.json"), "utf8"));
 const isDev = process.argv.includes("--dev");
 const isWatch = process.argv.includes("--watch");
-const date = new Date();
-const stamp = `${date.getUTCFullYear()}${String(date.getUTCMonth() + 1).padStart(2, "0")}${String(date.getUTCDate()).padStart(2, "0")}`;
-const displayVersion = `[${stamp}] v${pkg.version}`;
 const repo = "https://github.com/0-V-linuxdo/Bloom";
 const raw = "https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main";
 
 const header = `// ==UserScript==
 // @name         Bloom++
 // @namespace    ${repo}
-// @version      ${displayVersion}
+// @version      ${pkg.version}
 // @description  Void++-style plugin host for chatgpt.com. Tab favicon, input history, recent chats, reply notify, next-prompt queue, Recents status, wider thread, thread outline, message times, streamer blur, custom home greeting, custom sidebar identity, hide Share, Dictation, sidebar name, Download apps, upgrade CTAs, and ads.
 // @author       ${pkg.author}
 // @homepageURL  ${repo}
@@ -142,7 +139,7 @@ ${body}
 
 
 const banner = `${header}
-/* Bloom++ ${displayVersion}. SPDX-License-Identifier: GPL-3.0-or-later */
+/* Bloom++ v${pkg.version}. SPDX-License-Identifier: GPL-3.0-or-later */
 `;
 
 const options = {

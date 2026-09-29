@@ -6,7 +6,8 @@
  * Guard the install / in-place update path:
  *   - header @updateURL / @downloadURL stay on Bloom.update4.user.js (refs/heads/main raw)
  *   - never github.com/.../raw (HTML) or jsDelivr @heads/main
- *   - @version vX.Y.Z matches package.json
+ *   - @version is exactly the package.json version: Violentmonkey reads a prefix such as
+ *     "[20260929] v2.0.36" as 0.0.36, so main's 1.4.117 looked newer and replaced 2.x
  *   - optional --fetch checks the live raw body is JS with that same version
  */
 
@@ -43,8 +44,8 @@ function checkFile(rel) {
     const version = headerValue(header, "version");
     const updateURL = headerValue(header, "updateURL");
     const downloadURL = headerValue(header, "downloadURL");
-    if (!version.includes(`v${pkg.version}`)) {
-        fail(`${rel} @version ${version} does not contain v${pkg.version}`);
+    if (version !== pkg.version) {
+        fail(`${rel} @version ${version} must be exactly ${pkg.version}`);
     }
     if (updateURL !== REQUIRED_UPDATE) {
         fail(`${rel} @updateURL must be ${REQUIRED_UPDATE} (got ${updateURL})`);
@@ -91,7 +92,7 @@ if (body.includes("<!DOCTYPE") || body.includes("<html")) {
     fail(`GET ${REQUIRED_UPDATE} body is HTML`);
 }
 const remoteVersion = headerValue(headerBlock(body), "version");
-if (!remoteVersion.includes(`v${pkg.version}`)) {
-    fail(`live ${REQUIRED_UPDATE} is ${remoteVersion}, expected v${pkg.version}`);
+if (remoteVersion !== pkg.version) {
+    fail(`live ${REQUIRED_UPDATE} is ${remoteVersion}, expected ${pkg.version}`);
 }
 console.log(`[Bloom++] live update URL ok (${remoteVersion}, ${body.length} bytes)`);

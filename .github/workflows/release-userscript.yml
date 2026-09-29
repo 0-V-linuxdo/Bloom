@@ -40,7 +40,7 @@ jobs:
       - name: Confirm header matches this release
         run: |
           set -euo pipefail
-          grep -m1 '@version' userscript/Bloom.update4.user.js | grep -Fq "v${{ steps.ver.outputs.ver }}"
+          grep -Eq "^// @version +${{ steps.ver.outputs.ver }}$" userscript/Bloom.update4.user.js
           cmp -s userscript/Bloom.user.js userscript/Bloom.latest.user.js
           cmp -s userscript/Bloom.user.js userscript/Bloom.update.user.js
           cmp -s userscript/Bloom.user.js userscript/Bloom.update2.user.js

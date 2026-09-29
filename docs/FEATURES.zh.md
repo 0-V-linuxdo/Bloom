@@ -15,7 +15,7 @@
 | 目标站点 | `https://chatgpt.com/*`、`https://*.chatgpt.com/*`、`https://chat.openai.com/*`，以及镜像 `free.share-ai.top`、`chatgpt.aicnm.cc` |
 | 运行时机 | `@run-at document-idle`，只在顶层窗口运行（`window === window.top`） |
 | 权限 | `GM_addStyle` `GM_getValue` `GM_setValue` `GM_setClipboard` `GM_registerMenuCommand` `GM_notification` `GM_xmlhttpRequest`；`@connect raw.githubusercontent.com`、`cdn.jsdelivr.net` |
-| 版本号 | `@version [YYYYMMDD] vX.Y.Z`，日期前缀仅显示用；新版本必须严格大于 `main` 上已发布版本（油猴不降级） |
+| 版本号 | `@version X.Y.Z`，只写数字，和 `package.json` 完全一致；新版本必须严格大于 `main` 上已发布版本。不能加日期或 `v` 前缀：Violentmonkey 按 `.` 切开后逐段 `parseInt`，`[20260929] v2.0.36` 的第一段读成 0，等于 0.0.36，于是 `main` 上的 `[20260928] v1.4.117`（0.4.117）被当成更新，自动更新把 2.x 换回了 1.4.117（F-22，2.0.37 修；`check:update-urls` 和发布流程都要求纯数字）。 |
 | 更新地址 | `@updateURL` / `@downloadURL` = `raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update4.user.js`；构建同时写 `Bloom.user.js`、`Bloom.latest.user.js`、`Bloom.update.user.js`、`Bloom.update2.user.js`、`Bloom.update3.user.js`（Fastly 缓存卡旧版时换文件名，旧文件继续写） |
 | 发布 | 推到 `main` 后需要同名 tag `vX.Y.Z` 与 GitHub Release（附 `Bloom.latest.user.js`），CI `release-userscript.yml` 缺 tag 时自动补 |
 
