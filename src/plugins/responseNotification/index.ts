@@ -19,6 +19,8 @@ const NOTE_LENGTH_S = 0.22;
 const PEAK_GAIN = 0.08;
 const MIN_GAIN = 0.0001;
 const ATTACK_S = 0.02;
+const HTTP_OK = 200;
+const HTTP_REDIRECT = 300;
 
 const settings = definePluginSettings({
     sound: { type: OptionType.BOOLEAN, description: "Play a sound when a reply finishes.", default: true },
@@ -32,6 +34,7 @@ const settings = definePluginSettings({
 });
 
 let audio: AudioContext | null = null;
+let customSound: { url: string; buffer: Promise<AudioBuffer>; } | undefined;
 let unsubscribe: (() => void) | undefined;
 let controller: AbortController | undefined;
 
@@ -53,10 +56,37 @@ function chime() {
     });
 }
 
+function download(url: string) {
+    return new Promise<ArrayBuffer>((resolve, reject) => GM_xmlhttpRequest({
+        url,
+        responseType: "arraybuffer",
+        onload: ({ status, response }) => status >= HTTP_OK && status < HTTP_REDIRECT ? resolve(response) : reject(new Error(`HTTP ${status}`)),
+        onerror: () => reject(new Error("Request failed")),
+        ontimeout: () => reject(new Error("Request timed out")),
+    }));
+}
+
+async function playUrl(url: string) {
+    audio ??= new AudioContext();
+    const ctx = audio;
+    if (customSound?.url !== url) customSound = { url, buffer: download(url).then(data => ctx.decodeAudioData(data)) };
+    const source = ctx.createBufferSource();
+    source.buffer = await customSound.buffer;
+    source.connect(ctx.destination);
+    source.start();
+}
+
 function playSound() {
     const url = settings.store.soundUrl.trim();
-    if (url) new Audio(url).play().catch(e => logger.warn("Custom sound failed", e));
-    else chime();
+    if (!url) {
+        chime();
+        return;
+    }
+    playUrl(url).catch(e => {
+        logger.warn("Custom sound failed, playing the chime", e);
+        customSound = undefined;
+        chime();
+    });
 }
 
 function notify(title: string | null) {

@@ -41,7 +41,9 @@ const header = `// ==UserScript==
 // @grant        GM_setClipboard
 // @grant        GM_registerMenuCommand
 // @grant        GM_notification
+// @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
+// @connect      *
 // @compatible   chrome
 // @compatible   firefox
 // @compatible   edge
