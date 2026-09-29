@@ -5,10 +5,11 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
+import { composerForm } from "@host/composer";
 import { generation } from "@host/generation";
 import { conversationData, network, type Role } from "@host/network";
 import { currentConversationId, onRouteChange } from "@host/route";
-import { chainSummary, listTurns, threadColumn, threadScroller, type Turn, turnSummary } from "@host/thread";
+import { chainSummary, listTurns, threadScroller, type Turn, turnSummary } from "@host/thread";
 import { classes, classNameFactory } from "@utils/css";
 import { frameScheduler, h, hostMutations, watchBody } from "@utils/dom";
 import { truncate } from "@utils/misc";
@@ -127,9 +128,8 @@ function row(entry: Entry, index: number) {
 
 function render() {
     const scroller = threadScroller();
-    const column = threadColumn() ?? scroller;
     entries = collect();
-    if (!entries.length || !scroller || !column) {
+    if (!entries.length || !scroller) {
         root?.remove();
         root = null;
         signature = "";
@@ -145,10 +145,10 @@ function render() {
         h("div", { class: cl("rail") }),
         h("div", { class: cl("toc") }, h("div", { class: cl("toc-head") }), h("div", { class: cl("toc-list") })));
     if (!root.isConnected) document.body.append(root);
-    const box = column.getBoundingClientRect();
     const scrollBox = scroller.getBoundingClientRect();
-    root.style.left = `${Math.min(box.right + RAIL_GAP_PX, scrollBox.right - RAIL_GAP_PX * 2)}px`;
-    root.style.top = `${scrollBox.top + scrollBox.height / 2}px`;
+    const bottom = Math.min(scrollBox.bottom, composerForm()?.getBoundingClientRect().top ?? scrollBox.bottom);
+    root.style.right = `${document.documentElement.clientWidth - scrollBox.left - scroller.clientLeft - scroller.clientWidth + RAIL_GAP_PX}px`;
+    root.style.top = `${(scrollBox.top + bottom) / 2}px`;
     const next = JSON.stringify([settings.store.showAssistant, entries.map(entry => [entry.role, entry.summary, entry.streaming])]);
     if (next !== signature) {
         signature = next;

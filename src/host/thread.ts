@@ -35,9 +35,6 @@ export function threadScroller(): HTMLElement | null {
     return document.scrollingElement as HTMLElement | null;
 }
 
-export const threadColumn = () =>
-    document.querySelector<HTMLElement>(Sel.conversationTarget) ?? document.querySelector<HTMLElement>(Sel.oldThread);
-
 export const searchUnitRole = (unit: Element) => (unit.getAttribute("data-chatgpt-search-unit-key")?.match(UNIT_ROLE)?.[1] ?? null) as Role | null;
 
 const roleUnits = (root: ParentNode) => [...root.querySelectorAll<HTMLElement>(Sel.searchUnit)]
