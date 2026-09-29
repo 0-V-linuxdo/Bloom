@@ -72,6 +72,28 @@ describe("generation", () => {
         expect(events).toEqual(["rise", "fall:done"]);
     });
 
+    test("a relay handed off before the page shows the reply holds generating", async () => {
+        const end = stream();
+        end({ handoff: true });
+        await wait(SETTLE_MS);
+        expect(events).toEqual(["rise"]);
+        const done = busyTurn();
+        await wait(SETTLE_MS);
+        done();
+        await wait(SETTLE_MS);
+        expect(events).toEqual(["rise", "fall:done"]);
+    });
+
+    test("a relay ending after the page finished a short reply falls without the hold", async () => {
+        const end = stream();
+        const done = busyTurn();
+        await wait(SETTLE_MS);
+        done();
+        end({ handoff: true });
+        await wait(SETTLE_MS);
+        expect(events).toEqual(["rise", "fall:done"]);
+    });
+
     test("clicking Stop falls as stopped and an error as error", async () => {
         document.querySelector("form")?.insertAdjacentHTML("beforeend", '<button aria-label="Stop"></button>');
         const end = stream();

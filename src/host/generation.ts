@@ -41,6 +41,7 @@ let quietSince: number | null = null;
 let stopRequested = false;
 let staleDom = false;
 let holdUntil = 0;
+let domSeen = false;
 let lastEnd: GenerateEnd | null = null;
 let started = false;
 
@@ -51,7 +52,10 @@ const domGenerating = () => isStopVisible() || !!document.querySelector(BUSY_TUR
 function rawGenerating() {
     const dom = domGenerating();
     if (!dom) staleDom = false;
-    else if (!staleDom) holdUntil = 0;
+    else if (!staleDom) {
+        holdUntil = 0;
+        domSeen = true;
+    }
     return [...activeRequests].some(id => !ignoredRequests.has(id)) || (dom && !staleDom) || Date.now() < holdUntil;
 }
 
@@ -63,6 +67,7 @@ function outcome(): FallOutcome {
 function settle() {
     quietSince = null;
     generating = false;
+    domSeen = false;
     generation.emit("fall", { conversationId: currentConversationId(), outcome: outcome() });
     stopRequested = false;
     lastEnd = null;
@@ -94,6 +99,7 @@ function onRoute({ prevId, id }: RouteChange) {
         for (const request of activeRequests) ignoredRequests.add(request);
         staleDom = domGenerating();
         holdUntil = 0;
+        domSeen = false;
         quietSince = null;
         generating = false;
         stopRequested = false;
@@ -122,7 +128,7 @@ export function startGeneration() {
         activeRequests.delete(end.requestId);
         if (ignoredRequests.delete(end.requestId)) return;
         lastEnd = end;
-        holdUntil = end.handoff && !end.error && !stopRequested ? Date.now() + HANDOFF_HOLD_MS : 0;
+        holdUntil = end.handoff && !end.error && !stopRequested && !domSeen ? Date.now() + HANDOFF_HOLD_MS : 0;
         evaluateGeneration();
     });
     onRouteChange(onRoute);

@@ -29,7 +29,10 @@ const CHAT_A = "11111111-1111-4111-8111-111111111111";
 const CHAT_B = "22222222-2222-4222-8222-222222222222";
 const IMAGE_URL = "https://images.example.test/avatar.png";
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-const HOST_CSP = "connect-src 'self' wss://chatgpt.com";
+const HOST_CSP = "connect-src 'self' wss://chatgpt.com; media-src 'self' blob:";
+const SOUND_URL = "https://sounds.example.test/ding.wav";
+const SOUND_SAMPLES = 800;
+const SOUND_RATE = 8000;
 
 const results = [];
 const check = (name, ok, detail = "") => {
@@ -48,6 +51,10 @@ const gmShim = settings => `
     window.GM_registerMenuCommand = (name, fn) => window.__menu.push({ name, fn });
     window.__notifications = [];
     window.GM_notification = details => window.__notifications.push(details.text);
+    window.GM_xmlhttpRequest = details => void window.__gmFetch(details.url).then(
+        ({ status, body }) => details.onload({ status, response: Uint8Array.from(atob(body), c => c.charCodeAt(0)).buffer }),
+        () => details.onerror(),
+    );
     window.__favicons = [];
     new MutationObserver(() => {
         const link = document.getElementById("bloom-chat-state-favicon");
@@ -55,6 +62,24 @@ const gmShim = settings => `
         if (href && window.__favicons.at(-1) !== href) window.__favicons.push(href);
     }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["href"] });
 })();`;
+
+function wav() {
+    const data = SOUND_SAMPLES * 2;
+    const buf = Buffer.alloc(44 + data);
+    buf.write("RIFF", 0);
+    buf.writeUInt32LE(36 + data, 4);
+    buf.write("WAVEfmt ", 8);
+    buf.writeUInt32LE(16, 16);
+    buf.writeUInt16LE(1, 20);
+    buf.writeUInt16LE(1, 22);
+    buf.writeUInt32LE(SOUND_RATE, 24);
+    buf.writeUInt32LE(SOUND_RATE * 2, 28);
+    buf.writeUInt16LE(2, 32);
+    buf.writeUInt16LE(16, 34);
+    buf.write("data", 36);
+    buf.writeUInt32LE(data, 40);
+    return buf;
+}
 
 function conversationJson(id) {
     const now = Date.now() / 1000;
@@ -110,6 +135,7 @@ async function setup(browser, { shell = "new", theme = "light", settings = null,
         const { replyId } = JSON.parse(String(message));
         setTimeout(() => ws.send(JSON.stringify({ replyId, text: "Here is the answer." })), REPLY_DELAY_MS);
     }));
+    await page.exposeFunction("__gmFetch", url => url === SOUND_URL ? { status: 200, body: wav().toString("base64") } : { status: 404, body: "" });
     await page.addInitScript(gmShim(settings));
     await page.addInitScript(script);
     return { context, page, generateRequests };
@@ -165,6 +191,9 @@ async function newShellSuite(browser) {
 
     await page.locator(".footer [data-bloom=entry] button").click();
     await page.waitForSelector('[data-bloom="settings"]');
+    await page.locator(".bloom-settings-hint").hover();
+    check("panel hint tooltip shows at once on hover", (await page.locator(".bloom-tooltip").textContent({ timeout: 300 }).catch(() => "")).includes("Some need a reload"));
+    await page.screenshot({ path: resolve(shots, "panel-hint-light.png"), clip: { x: 0, y: 0, width: 1280, height: 260 } });
     check("panel lists 17 plugins", await page.locator(".bloom-settings-card").count() === 17);
     await page.locator('[data-bloom="settings"] input[type=search]').fill("queue");
     check("panel search filters", await page.locator(".bloom-settings-card").count() === 1);
@@ -381,6 +410,26 @@ async function customIdentitySuite(browser) {
     await context.close();
 }
 
+async function customSoundSuite(browser) {
+    const { context, page } = await setup(browser, { settings: { plugins: { ResponseNotification: { soundUrl: SOUND_URL } } }, csp: HOST_CSP });
+    await page.addInitScript(() => {
+        window.__played = [];
+        const { start } = AudioBufferSourceNode.prototype;
+        AudioBufferSourceNode.prototype.start = function (...args) {
+            window.__played.push(this.buffer?.duration ?? 0);
+            return start.apply(this, args);
+        };
+    });
+    await page.goto("https://chatgpt.com/");
+    await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
+    await page.locator(".footer [data-bloom=entry] button").click();
+    await page.locator(".bloom-settings-card", { hasText: "ResponseNotification" }).locator('[aria-label="Settings"]').click();
+    await page.locator(".bloom-settings-component button", { hasText: "Preview" }).click();
+    await page.waitForFunction(() => window.__played.length > 0, null, { timeout: 3000 }).catch(() => {});
+    check("a custom sound URL plays under the host media-src", await page.evaluate(() => window.__played[0] > 0));
+    await context.close();
+}
+
 async function oldShellSuite(browser) {
     const { context, page } = await setup(browser, { shell: "old", theme: "dark" });
     await page.goto(`https://chatgpt.com/c/${CHAT_A}`);
@@ -407,6 +456,7 @@ try {
     await streamedLoadSuite(browser);
     await projectPageSuite(browser);
     await customIdentitySuite(browser);
+    await customSoundSuite(browser);
     await oldShellSuite(browser);
 } finally {
     await browser.close();

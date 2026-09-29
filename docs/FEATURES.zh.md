@@ -67,7 +67,7 @@
 - `tick`：周期性状态快照（隐藏标签页也要跑：Chrome 在后台不跑 rAF，后台超过约 5 分钟后普通定时器每分钟才醒一次，所以用 Worker 计时，并在页面 DOM 变化时直接重新判定）。
 
 判定来源：
-1. 网络：生成请求 `POST /backend-api/f/conversation`（旧路径 `/backend-api/conversation`）一开始即生成中；响应出错或 SSE 里有 `error` 即 `error`。`/conversation/init`、`/prepare` 不是生成。2026-09 实测：这个请求只是“接力”流（`stream_handoff`、`resume_sse_endpoint`、`subscribe_ws_topic` 等事件后 `[DONE]`，约 1.6 秒后被页面中止），真正的回复走 WebSocket，所以接力流结束或被中止都不算结束，也不算用户中止，只保持几秒“生成中”等 DOM 接手。
+1. 网络：生成请求 `POST /backend-api/f/conversation`（旧路径 `/backend-api/conversation`）一开始即生成中；响应出错或 SSE 里有 `error` 即 `error`。`/conversation/init`、`/prepare` 不是生成。2026-09 实测：这个请求只是“接力”流（`stream_handoff`、`resume_sse_endpoint`、`subscribe_ws_topic` 等事件后 `[DONE]`，约 1.6 秒后被页面中止），真正的回复走 WebSocket，所以接力流结束或被中止都不算结束，也不算用户中止，只在 DOM 还没显示过这条回复时保持 5 秒“生成中”等 DOM 接手；短回复（如 Instant）接力流常在 DOM 结束的同时才结束，这时不再保持，否则“完成”会晚约 5 秒。
 2. DOM（新版的主判据）：输入框 form 内可见的 Stop 按钮（新版 aria-label 就是 `Stop`，无 `data-testid`），回合内的 `span[role=status][aria-busy=true]`（sr-only “ChatGPT is responding”）。全局的 `aria-busy` 不能用：rail 的头像按钮常驻 `aria-busy="true"`。
 3. 用户点 Stop → `userStopped`。只有点了 Stop 才算中止。
 
@@ -102,7 +102,7 @@
 - 油猴菜单命令 “Bloom++ settings”，任何时候都能打开面板（侧栏找不到时的保底）。
 
 面板（挂在 `document.body`，居中卡片，Void++ 设置的外观）：
-- 头部：花形图标 + 标题 **Bloom++** + ⓘ 提示（悬停显示 “Toggle features. Some need a reload. Click the sliders icon to configure.”）+ 右上角关闭。
+- 头部：花形图标 + 标题 **Bloom++** + ⓘ 提示（悬停或键盘聚焦立即显示 “Toggle features. Some need a reload. Click the sliders icon to configure.”）+ 右上角关闭。ⓘ 和所有图标按钮的提示用 Bloom 自己的提示气泡（`data-bloom-tip`），不用浏览器 `title`（后者约 1 秒才出现）。
 - 分类标签（下划线式）：Favorites / Recent / All / Chat / UI / Privacy / Other。Recent = 最近 7 天有功能性提交的插件（构建时从 git 记录盖章，跳过 chore/docs/ci/style/test/build/brand），按时间倒序；Other = 没有 chat/ui/privacy 标签的插件，没有就不显示该标签。
 - 搜索框（占位 “Search N plugins...”）+ 过滤下拉 All / Enabled / Disabled。
 - 插件卡片：图标块、名称、两行描述、作者页脚；右上角 ☆收藏、📌置顶（置顶的排最前）、⚙设置（有可见设置项才出现）、开关。
@@ -210,7 +210,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 默认开｜`HostReady`｜chat｜Void++ 同名
 
 - 本页回复正常结束时（不是用户中止、不是出错、不是离开会话）播放提示音 + 浏览器通知 “<会话标题> finished answering.”（标题 “Bloom++”，点击通知聚焦标签页）。
-- 设置：`sound`（默认真）、`soundUrl`（自定义音频 URL，空则用内置两音符提示音）、组件 “Preview” 试听按钮（单独一个按钮，无说明行）、`browserNotification`（默认真；优先 `GM_notification`，否则 Web Notification，首次点击页面时请求权限）、`onlyWhenHidden`（仅在标签页隐藏时通知，默认真）。
+- 设置：`sound`（默认真）、`soundUrl`（自定义音频 URL，空则用内置两音符提示音；chatgpt.com 的 CSP media-src 会拦 `<audio>`，所以用 `GM_xmlhttpRequest`（`@connect *`）下载，再用 Web Audio 解码播放，按 URL 缓存；下载或解码失败时退回内置提示音）、组件 “Preview” 试听按钮（单独一个按钮，无说明行）、`browserNotification`（默认真；优先 `GM_notification`，否则 Web Notification，首次点击页面时请求权限）、`onlyWhenHidden`（仅在标签页隐藏时通知，默认真）。
 
 ### 4.10 PromptQueue — 生成中排队追问
 
