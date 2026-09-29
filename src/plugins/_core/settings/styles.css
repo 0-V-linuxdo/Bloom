@@ -64,13 +64,20 @@
 }
 
 .bloom-entry-hover {
-    position: absolute;
+    position: fixed;
     position-anchor: --bloom-account;
     inset: auto anchor(right) anchor(top) anchor(left);
-    z-index: 1;
     display: block;
+    width: auto;
     padding: 0;
+    overflow: visible;
+    background: none;
     pointer-events: none;
+}
+
+:has(> .bloom-entry-hover):has(button[aria-haspopup="menu"][aria-expanded="true"]) > .bloom-entry-hover,
+body:has(> [data-bloom="settings"]) .bloom-entry-hover {
+    display: none;
 }
 
 .bloom-entry-rail.bloom-entry-hover {

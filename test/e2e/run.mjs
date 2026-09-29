@@ -645,6 +645,15 @@ async function defaultEntrySuite(browser) {
     check("the revealed sidebar entry sits flush on the account row, right-aligned, without resizing the sidebar", await layout() === before && Math.abs(flush.gap) < 1 && Math.abs(flush.right) < 1, JSON.stringify(flush));
     await expanded.locator("button").hover();
     check("the sidebar entry stays while the pointer is on it", await expanded.isVisible());
+    check("the floating sidebar entry stays above a divider that ChatGPT stacks over the footer", await expanded.locator("button").evaluate(button => {
+        const { left, top, width } = button.getBoundingClientRect();
+        const line = document.createElement("div");
+        line.style.cssText = `position:fixed;left:0;right:0;top:${top + 4}px;height:2px;z-index:2147483647;background:red`;
+        document.body.append(line);
+        const hit = document.elementFromPoint(left + width / 2, top + 5);
+        line.remove();
+        return button.contains(hit);
+    }));
     check("the floating sidebar entry stays opaque on hover", await expanded.locator("button").evaluate(button => getComputedStyle(button).backgroundColor === "rgb(255, 255, 255)"));
     const box = await expanded.locator("button").boundingBox();
     const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
@@ -667,6 +676,7 @@ async function defaultEntrySuite(browser) {
     check("dragging stops at the left edge of the account row", Math.abs((await pill()).left) < 1);
     await expanded.locator("button").click();
     check("a click on the sidebar entry after a drag still opens the panel", await page.locator('[data-bloom="settings"]').count() === 1);
+    check("the floating sidebar entry hides while the panel is open", !await expanded.isVisible());
     await page.keyboard.press("Escape");
     await page.mouse.move(700, 300);
     check("the sidebar entry lingers briefly so the pointer can cross gaps", await expanded.isVisible());
@@ -694,6 +704,7 @@ async function defaultEntrySuite(browser) {
         node.inert = true;
     });
     await page.locator(".profile-overlay").click();
+    check("the floating sidebar entry hides while the account menu is open", !await expanded.isVisible());
     await page.locator('[data-bloom="menu-entry"]').click();
     check("the account menu entry opens the panel", await page.locator('[data-bloom="settings"]').count() === 1);
     await page.locator(".bloom-settings-card", { hasText: "Settings" }).first().locator('[aria-label="Settings"]').click();
