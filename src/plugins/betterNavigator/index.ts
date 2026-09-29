@@ -22,7 +22,8 @@ const cl = classNameFactory("bloom-nav-");
 const SUMMARY_CHARS = 80;
 const HIGHLIGHT_MS = 1200;
 const NEAR_SCREENS = 2;
-const SEEK_STEPS = 40;
+const SEEK_MS = 8000;
+const SEEK_PAGE = 0.9;
 const READING_LINE = 0.3;
 const RAIL_GAP_PX = 12;
 const EMOJI: Record<Role, string> = { user: "❓", assistant: "🤖" };
@@ -111,12 +112,12 @@ function jump(index: number) {
         highlight(el);
         return;
     }
-    const mounted = entries.map((item, i) => item.turn ? i : -1).filter(i => i >= 0);
-    const direction = mounted.length && index < mounted[0] ? -1 : 1;
+    const mounted = entries.findIndex(item => item.turn);
+    const direction = mounted >= 0 && index < mounted ? -1 : 1;
     const token = ++seeking;
-    let steps = 0;
+    const deadline = Date.now() + SEEK_MS;
     const seek = () => {
-        if (token !== seeking || steps++ > SEEK_STEPS) return;
+        if (token !== seeking || Date.now() > deadline) return;
         entries = collect();
         const found = entries.find(item => item.ids.some(id => entry.ids.includes(id)))?.turn?.el;
         if (found) {
@@ -124,7 +125,7 @@ function jump(index: number) {
             highlight(found);
             return;
         }
-        scroller.scrollBy({ top: direction * scroller.clientHeight * 0.9 });
+        scroller.scrollBy({ top: direction * scroller.clientHeight * SEEK_PAGE, behavior: "instant" });
         requestAnimationFrame(seek);
     };
     seek();
@@ -211,6 +212,7 @@ const update = frameScheduler(render);
 
 function release() {
     aim = -1;
+    seeking++;
 }
 
 const isEditable = (el: Element | null) => !!el && (el.matches("input, textarea, select, [contenteditable=''], [contenteditable='true']") || !!el.closest("[contenteditable='true']"));

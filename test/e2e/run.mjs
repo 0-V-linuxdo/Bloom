@@ -29,6 +29,10 @@ const SEND_NOW_WAIT_MS = 4000;
 const RELAY_EVENTS = ["resume_conversation_token", "input_message", "stream_handoff", "resume_sse_endpoint", "subscribe_ws_topic", "conversation_detail_metadata"];
 const CHAT_A = "11111111-1111-4111-8111-111111111111";
 const CHAT_B = "22222222-2222-4222-8222-222222222222";
+const CHAT_LONG = "44444444-4444-4444-8444-444444444444";
+const LONG_TURNS = 10;
+const MOUNTED_TURNS = 3;
+const LOAD_OLDER_MS = 1000;
 const IMAGE_URL = "https://images.example.test/avatar.png";
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 const HOST_CSP = "connect-src 'self' wss://chatgpt.com; media-src 'self' blob:";
@@ -85,6 +89,19 @@ function wav() {
 
 function conversationJson(id) {
     const now = Date.now() / 1000;
+    if (id === CHAT_LONG) {
+        const messages = Array.from({ length: LONG_TURNS * 2 }, (_, index) => ({
+            id: `long-${index}`,
+            author: { role: index % 2 ? "assistant" : "user" },
+            create_time: now - 3600 + index,
+            content: { content_type: "text", parts: [index % 2 ? `Answer ${(index + 1) / 2}. ${"Long reply line. ".repeat(60)}` : `Question ${index / 2 + 1}`] },
+        }));
+        return {
+            title: "Long chat",
+            current_node: messages.at(-1).id,
+            mapping: Object.fromEntries([["root", { message: null, parent: null }], ...messages.map((message, index) => [message.id, { message, parent: index ? messages[index - 1].id : "root" }])]),
+        };
+    }
     return {
         title: id === CHAT_A ? "Everest height" : "Pasta recipe",
         current_node: `${id}-a`,
@@ -502,6 +519,37 @@ async function streamerModeSuite(browser) {
     await context.close();
 }
 
+async function navigatorSeekSuite(browser) {
+    const { context, page } = await setup(browser);
+    await page.goto(`https://chatgpt.com/c/${CHAT_LONG}`);
+    await page.waitForFunction(count => document.querySelectorAll("[data-turn-key]").length === count, LONG_TURNS, { timeout: 10_000 });
+    await page.evaluate(({ mounted, delay }) => {
+        const scroller = document.querySelector("[data-app-action-timeline-scroll]");
+        const column = document.querySelector("[data-chatgpt-conversation-selection-target]");
+        const older = [...column.children].slice(0, -mounted);
+        for (const turn of older) turn.remove();
+        scroller.scrollTop = 0;
+        scroller.addEventListener("scroll", () => {
+            if (!older.length || column.querySelector("[role=status]") || scroller.scrollTop > scroller.clientHeight - scroller.scrollHeight + 2) return;
+            const spinner = document.createElement("div");
+            spinner.setAttribute("role", "status");
+            column.prepend(spinner);
+            setTimeout(() => spinner.replaceWith(...older.splice(0)), delay);
+        });
+    }, { mounted: MOUNTED_TURNS, delay: LOAD_OLDER_MS });
+    await page.waitForTimeout(300);
+    check("BetterNavigator lists turns ChatGPT has not mounted yet", await page.locator(".bloom-nav-tick").count() === LONG_TURNS * 2);
+    await page.locator("[data-app-action-timeline-scroll]").click({ position: { x: 5, y: 5 } });
+    await page.keyboard.press("Home");
+    const landed = await page.waitForFunction(() => {
+        const first = document.querySelector('[data-chatgpt-search-message-ids="long-0"]');
+        const { top } = document.querySelector("[data-app-action-timeline-scroll]").getBoundingClientRect();
+        return first && Math.abs(first.getBoundingClientRect().top - top) < 40;
+    }, null, { timeout: 6000 }).then(() => true, () => false);
+    check("BetterNavigator scrolls up until ChatGPT mounts an older turn, then lands on it", landed && (await page.locator(".bloom-nav-toc-head").textContent()).startsWith("1 /"));
+    await context.close();
+}
+
 const NAV_TURNS = 10;
 const INTERMEDIATE_TURN = 1;
 
@@ -581,6 +629,7 @@ try {
     await composerOpacitySuite(browser);
     await streamerModeSuite(browser);
     await navigatorSuite(browser);
+    await navigatorSeekSuite(browser);
     await oldShellSuite(browser);
 } finally {
     await browser.close();
