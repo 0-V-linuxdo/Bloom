@@ -68,12 +68,14 @@ function drag(event: PointerEvent, wrap: HTMLElement, onMove: () => void) {
         position = clamp(start + (move.clientX - event.clientX) / travel, 0, RIGHT);
         wrap.style.setProperty(POSITION_VAR, String(position));
     }, { signal: controller.signal });
-    trigger.addEventListener("lostpointercapture", () => {
+    const finish = () => {
         controller.abort();
         if (!moved) return;
         settings.store.entryPosition = position;
         wrap.style.removeProperty(POSITION_VAR);
-    }, { signal: controller.signal });
+    };
+    trigger.addEventListener("pointerup", finish, { signal: controller.signal });
+    trigger.addEventListener("lostpointercapture", finish, { signal: controller.signal });
 }
 
 function entry(kind: MountKind) {

@@ -660,11 +660,18 @@ async function defaultEntrySuite(browser) {
     await page.mouse.move(x, y);
     await page.mouse.down();
     await page.mouse.move(x - 40, y, { steps: 4 });
-    await page.mouse.move(x - 80, y + 30, { steps: 4 });
-    check("the sidebar entry stays shown while it is dragged", await expanded.isVisible());
+    await page.mouse.move(x - 80, 300, { steps: 4 });
+    await page.waitForTimeout(400);
+    check("the sidebar entry stays shown while it is dragged outside the account area", await expanded.isVisible());
     await page.mouse.up();
     const moved = await pill();
     check("dragging the sidebar entry moves it sideways without opening the panel", Math.abs(moved.right - flush.right - 80) < 2 && Math.abs(moved.gap) < 1 && await page.locator('[data-bloom="settings"]').count() === 0, JSON.stringify(moved));
+    const savedPosition = () => page.evaluate(async () => {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        return JSON.parse(localStorage.getItem("BloomSettings")).plugins.Settings.entryPosition;
+    });
+    const dragged = await savedPosition();
+    check("the dragged position is saved to the settings store", dragged > 0 && dragged < 1, String(dragged));
     await page.mouse.move(700, 300);
     await page.waitForTimeout(400);
     await page.locator(".footer .relative").hover();
@@ -674,6 +681,15 @@ async function defaultEntrySuite(browser) {
     await page.mouse.move(0, y, { steps: 4 });
     await page.mouse.up();
     check("dragging stops at the left edge of the account row", Math.abs((await pill()).left) < 1);
+    await expanded.locator("button").evaluate(button => {
+        const { left, top } = button.getBoundingClientRect();
+        const fire = (type, clientX) => button.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, composed: true, pointerId: 1, pointerType: "mouse", isPrimary: true, button: 0, buttons: type === "pointerup" ? 0 : 1, clientX, clientY: top + 4 }));
+        fire("pointerdown", left + 4);
+        for (let step = 1; step <= 10; step++) fire("pointermove", left + 4 + step * 4);
+        fire("pointerup", left + 44);
+    });
+    const synthetic = await savedPosition();
+    check("a drag made of dispatched pointer events is saved too", synthetic > 0 && synthetic < dragged && Math.abs((await pill()).left - 40) < 1, String(synthetic));
     await expanded.locator("button").click();
     check("a click on the sidebar entry after a drag still opens the panel", await page.locator('[data-bloom="settings"]').count() === 1);
     await page.keyboard.press("Escape");
