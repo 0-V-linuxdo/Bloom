@@ -149,10 +149,12 @@ function render() {
     const bottom = Math.min(scrollBox.bottom, composerForm()?.getBoundingClientRect().top ?? scrollBox.bottom);
     root.style.right = `${document.documentElement.clientWidth - scrollBox.left - scroller.clientLeft - scroller.clientWidth + RAIL_GAP_PX}px`;
     root.style.top = `${(scrollBox.top + bottom) / 2}px`;
-    const next = JSON.stringify([settings.store.showAssistant, entries.map(entry => [entry.role, entry.summary, entry.streaming])]);
+    const next = JSON.stringify([settings.store.showAssistant, entries.map(entry => [entry.role, entry.ids])]);
     if (next !== signature) {
         signature = next;
         rebuild();
+    } else {
+        patch();
     }
     markCurrent();
 }
@@ -166,10 +168,24 @@ function markCurrent() {
     if (head) head.textContent = `${current + 1} / ${entries.length}`;
 }
 
+function patch() {
+    root?.querySelectorAll<HTMLElement>(`.${cl("tick")}`).forEach((tick, index) => {
+        const entry = entries[index];
+        const title = truncate(entry.summary, SUMMARY_CHARS);
+        if (tick.title !== title) tick.title = title;
+        tick.classList.toggle(cl("tick-streaming"), entry.streaming);
+    });
+    root?.querySelectorAll<HTMLElement>(`.${cl("row")}`).forEach(row => {
+        const label = row.lastElementChild;
+        const text = truncate(entries[Number(row.dataset.index)].summary || "…", SUMMARY_CHARS);
+        if (label && label.textContent !== text) label.textContent = text;
+    });
+}
+
 function rebuild() {
     root?.querySelector(`.${cl("rail")}`)?.replaceChildren(...entries.map((entry, index) =>
         h("button", {
-            class: classes(cl("tick"), cl(`tick-${entry.role}`), entry.streaming && cl("tick-streaming")),
+            class: classes(cl("tick"), cl(`tick-${entry.role}`), entry.streaming && cl("tick-streaming"), index === current && cl("tick-current")),
             title: truncate(entry.summary, SUMMARY_CHARS),
             attrs: { "type": "button", "aria-label": `Jump to message ${index + 1}` },
             on: { click: () => jump(index) },

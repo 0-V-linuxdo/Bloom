@@ -256,6 +256,14 @@ async function newShellSuite(browser) {
         const rail = document.querySelector(".bloom-nav-root").getBoundingClientRect();
         return Math.abs(left + scroller.clientLeft + scroller.clientWidth - 12 - rail.right) < 1;
     }));
+    check("BetterNavigator keeps its ticks when a message's text changes", await page.evaluate(async () => {
+        const before = [...document.querySelectorAll(".bloom-nav-tick")];
+        const markdown = [...document.querySelectorAll('[data-chatgpt-search-unit-key$=":assistant"] .markdown')].at(-1);
+        markdown.textContent = "A longer streamed answer";
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const after = [...document.querySelectorAll(".bloom-nav-tick")];
+        return after.length === before.length && after.every((tick, index) => tick === before[index]) && after.at(-1).title.includes("A longer streamed answer");
+    }));
     check("BetterNavigator draws one tick per message", await page.locator(".bloom-nav-tick").count() === await page.locator("[data-chatgpt-search-unit-key]").count());
 
     await page.locator(COMPOSER).focus();
