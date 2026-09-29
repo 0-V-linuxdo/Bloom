@@ -6,7 +6,7 @@
 
 import { Logger } from "@utils/Logger";
 import { isRecord, parseJson } from "@utils/misc";
-import { readAllCopies, writeAllCopies } from "@utils/storage";
+import { readAllCopies, watchCopies, writeAllCopies } from "@utils/storage";
 import { type DefinedSettings, OptionType, type SettingDef, type SettingsDefinition, type SettingsValues } from "@utils/types";
 
 const logger = new Logger("Settings");
@@ -25,6 +25,7 @@ type Listener = (plugin: string, key: string) => void;
 
 const bag: SettingsBag = { plugins: {} };
 const listeners = new Set<Listener>();
+const unsaved = new Set<string>();
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 
 export function parseBag(raw: unknown): SettingsBag | null {
@@ -89,9 +90,29 @@ export async function loadSettings() {
     logger.info("Loaded settings from", picked.source);
 }
 
+const unsavedKey = (plugin: string, key: string) => `${plugin}\n${key}`;
+
 function save() {
     saveTimer = undefined;
+    unsaved.clear();
     writeAllCopies(STORAGE_KEY, bag);
+}
+
+function adopt(raw: unknown) {
+    const next = parseBag(raw);
+    if (!next) return;
+    const changed: [string, string][] = [];
+    for (const plugin of new Set([...Object.keys(bag.plugins), ...Object.keys(next.plugins)])) {
+        const row = bag.plugins[plugin] ??= {};
+        const incoming = isRecord(next.plugins[plugin]) ? next.plugins[plugin] : {};
+        for (const key of new Set([...Object.keys(row), ...Object.keys(incoming)])) {
+            if (unsaved.has(unsavedKey(plugin, key)) || JSON.stringify(row[key]) === JSON.stringify(incoming[key])) continue;
+            if (incoming[key] === undefined) delete row[key];
+            else row[key] = incoming[key];
+            changed.push([plugin, key]);
+        }
+    }
+    for (const [plugin, key] of changed) for (const listener of listeners) listener(plugin, key);
 }
 
 export function flushSettings() {
@@ -108,6 +129,7 @@ export function writeSetting(plugin: string, key: string, value?: unknown) {
     const row = bag.plugins[plugin] ??= {};
     if (value === undefined) delete row[key];
     else row[key] = value;
+    unsaved.add(unsavedKey(plugin, key));
     clearTimeout(saveTimer);
     saveTimer = setTimeout(save, SAVE_DELAY_MS);
     for (const listener of listeners) listener(plugin, key);
@@ -161,3 +183,4 @@ export const pinnedPlugins = listSetting("pinnedPlugins");
 export const starredPlugins = listSetting("starredPlugins");
 
 addEventListener("pagehide", flushSettings);
+watchCopies(STORAGE_KEY, adopt);

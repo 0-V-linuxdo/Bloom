@@ -35,6 +35,7 @@ const header = `// ==UserScript==
 // @run-at       document-start
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_addValueChangeListener
 // @grant        GM_setClipboard
 // @grant        GM_registerMenuCommand
 // @grant        GM_notification

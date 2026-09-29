@@ -14,7 +14,7 @@
 | 形态 | 单个油猴脚本（Tampermonkey / Violentmonkey），GPL-3.0-or-later |
 | 目标站点 | `https://chatgpt.com/*`、`https://*.chatgpt.com/*`、`https://chat.openai.com/*`，以及镜像 `free.share-ai.top`、`chatgpt.aicnm.cc` |
 | 运行时机 | `@run-at document-idle`，只在顶层窗口运行（`window === window.top`） |
-| 权限 | `GM_addStyle` `GM_getValue` `GM_setValue` `GM_setClipboard` `GM_registerMenuCommand` `GM_notification` `GM_xmlhttpRequest`；`@connect raw.githubusercontent.com`、`cdn.jsdelivr.net` |
+| 权限 | `GM_addStyle` `GM_getValue` `GM_setValue` `GM_addValueChangeListener` `GM_setClipboard` `GM_registerMenuCommand` `GM_notification` `GM_xmlhttpRequest`；`@connect raw.githubusercontent.com`、`cdn.jsdelivr.net` |
 | 版本号 | `@version X.Y.Z`，只写数字，和 `package.json` 完全一致；新版本必须严格大于 `main` 上已发布版本。不能加日期或 `v` 前缀：Violentmonkey 按 `.` 切开后逐段 `parseInt`，`[20260929] v2.0.36` 的第一段读成 0，等于 0.0.36，于是 `main` 上的 `[20260928] v1.4.117`（0.4.117）被当成更新，自动更新把 2.x 换回了 1.4.117（F-22，2.0.37 修；`check:update-urls` 和发布流程都要求纯数字）。 |
 | 更新地址 | `@updateURL` / `@downloadURL` = `raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update5.user.js`；构建同时写 `Bloom.user.js`、`Bloom.latest.user.js`、`Bloom.update.user.js`、`Bloom.update2.user.js`、`Bloom.update3.user.js`、`Bloom.update4.user.js`（Fastly 缓存卡旧版时换文件名，旧文件继续写，旧安装从旧文件升到 2.x 后改走 update5）。2.0.38 起从 update4 换到 update5：update4 在 `main` 上是 1.4.117，Violentmonkey 右键/长按「更新」是强制更新（`force`，不比版本，直接下载 `@downloadURL`），所以只要地址指向 update4，2.x 就可能被装回 1.4.117；update5 只有 2.x 构建写过，合并前请求它是 404（「获取更新信息失败」，不会降级），合并后正常更新（F-22） |
 | 发布 | 推到 `main` 后需要同名 tag `vX.Y.Z` 与 GitHub Release（附 `Bloom.latest.user.js`），CI `release-userscript.yml` 缺 tag 时自动补 |
@@ -45,6 +45,7 @@
 
 - 存储键 `BloomSettings`，**不能改名**。结构：`{ plugins: { [插件名]: { enabled?: boolean, ...设置项 } } }`。
 - 同时写三处：`GM_setValue`、IndexedDB（库 `bloompp`，表 `kv`）、`localStorage`。
+- 多个标签页共用这份设置，每次保存都写整份。所以每个标签页都要跟上别的标签页的保存：监听 `GM_addValueChangeListener`（只处理 `remote`）和 `localStorage` 的 `storage` 事件，把收到的整份逐键合并进内存，并对变了的键触发设置变更。本标签页改了、还没存盘的键不被覆盖。2.0.39 及以前各标签页只拿启动时读到的旧副本整份覆盖，一个标签页里拖好的按钮位置、改的开关，会被另一个标签页的任何一次保存（例如 GreetingCustomizer 换问候语、RecentTopics 记访问）改回去（F-24，2.0.40 修）。
 - 读取时三处都读，取“内容最丰富”的一份为主（按设置项数量和数组/对象长度打分，`enabled` 不计分），其余只补缺的键；较薄的一份里的 `enabled:false` 不能盖住较厚的一份。
 - 启动过程不落盘，只有用户真正改了设置才写。
 - 缺 `enabled` 时取插件的 `enabledByDefault`；不要在启动时替用户写 `enabled`。
@@ -99,7 +100,7 @@
 ## 3. 设置入口与设置面板（核心插件 `Settings`，必需，面板里有卡片但不能关，同 Void++）
 
 入口：
-- 侧栏账号区上方一行 **Bloom++**（花形图标 + 文字），点开/关设置面板。**默认隐藏**（对齐 Void++：Void++ 没有侧栏按钮，只在头像菜单里放入口），指针移到账号区时立即显示（`showSidebarEntryOnHover`，默认真；无延迟、无淡入）。展开侧栏里指针在整个账号区（footer，入口也在里面）内就一直显示；rail 和旧壳里指针在入口或它后面的账号行上时显示。离开后 0.2 s 才隐藏（`transition: display 0s 0.2s allow-discrete`），让指针能越过入口和账号行之间的空隙。悬停出现的入口不占布局：用 CSS 锚点定位（`position-anchor`）贴在账号按钮上方。锚点是展开侧栏里盖住整行的账号菜单按钮（`[data-bloom-profile]` 旁边的 `button[aria-haspopup=menu]`），rail 和旧壳里是带 `[data-bloom-profile]` 的按钮本身；入口的父元素设 `anchor-scope`，展开侧栏和 rail 各找各的。入口 `bottom: anchor(top)`，与账号行之间没有空隙，横向铺满账号行（`left/right: anchor(...)`），里面的按钮是带面板底色和阴影的小胶囊，盖住列表最下面一点；侧栏和滚动区的高度不变，滚动条不跳。入口 `z-index: 30`：展开侧栏的 footer（`absolute bottom-0 z-20`）自成层叠上下文，顶边有一条 `z-10` 的分隔线（`border-t-hairline`），正好横穿胶囊下部；2.0.33 用 `z-index: 1`，这条线露在胶囊上（2.0.35 修）。2.0.28 里入口在文档流里，出现和消失会让滚动区高度来回变。2.0.31 改用静态位置加 `translateY(-100%)`，实机上入口和账号行之间留了约 11 px 空隙；rail 是 flex 容器，静态位置落在 rail 顶部，入口被移到屏幕外（F-20）。展开侧栏和旧壳里可以按住胶囊左右拖动：位移小于 4 px 算点击，照常打开面板；超过就算拖动，松手（`pointerup`，或指针捕获丢失 `lostpointercapture`）时保存位置，不打开面板。2.0.33–2.0.35 只在 `lostpointercapture` 时保存，脚本派发的指针事件不会释放捕获，位置没存下，刷新后回到右边（F-21，2.0.36 修）。位置存成 0–1 的比例 `entryPosition`（0 靠左，1 靠右，默认 1），按钮用 `left: x·100%` 加 `translateX(-x·100%)` 定位，所以侧栏宽度变了也不会越界。Settings 卡片里有 “Reset position” 按钮，恢复到靠右。rail 里固定居中，不能拖。`showSidebarEntry` 常显时入口仍在文档流里。`showSidebarEntry`（默认假）打开后一直显示；两项都关则不挂入口。改动即时生效。展开侧栏和收起的窄 rail 两处都放；窄 rail 里只显示图标。rail 第一个子元素是铺满整条的 `button[aria-label="Show sidebar"]`（`absolute inset-0`），rail 入口必须 `position:relative` 叠在它上面，否则点击落到展开侧栏按钮上。
+- 侧栏账号区上方一行 **Bloom++**（花形图标 + 文字），点开/关设置面板。**默认隐藏**（对齐 Void++：Void++ 没有侧栏按钮，只在头像菜单里放入口），指针移到账号区时立即显示（`showSidebarEntryOnHover`，默认真；无延迟、无淡入）。展开侧栏里指针在整个账号区（footer，入口也在里面）内就一直显示；rail 和旧壳里指针在入口或它后面的账号行上时显示。离开后 0.2 s 才隐藏（`transition: display 0s 0.2s allow-discrete`），让指针能越过入口和账号行之间的空隙。同一个账号区里有菜单打开时（`button[aria-haspopup=menu][aria-expanded=true]`，比如账号菜单），悬停入口立即隐藏，否则它会从菜单底边下面露出约 6 px；账号菜单里本来就有 Bloom++ 入口。悬停出现的入口不占布局：用 CSS 锚点定位（`position-anchor`）贴在账号按钮上方。锚点是展开侧栏里盖住整行的账号菜单按钮（`[data-bloom-profile]` 旁边的 `button[aria-haspopup=menu]`），rail 和旧壳里是带 `[data-bloom-profile]` 的按钮本身；入口的父元素设 `anchor-scope`，展开侧栏和 rail 各找各的。入口 `bottom: anchor(top)`，与账号行之间没有空隙，横向铺满账号行（`left/right: anchor(...)`），里面的按钮是带面板底色和阴影的小胶囊，盖住列表最下面一点；侧栏和滚动区的高度不变，滚动条不跳。入口 `z-index: 30`：展开侧栏的 footer（`absolute bottom-0 z-20`）自成层叠上下文，顶边有一条 `z-10` 的分隔线（`border-t-hairline`），正好横穿胶囊下部；2.0.33 用 `z-index: 1`，这条线露在胶囊上（2.0.35 修）。2.0.28 里入口在文档流里，出现和消失会让滚动区高度来回变。2.0.31 改用静态位置加 `translateY(-100%)`，实机上入口和账号行之间留了约 11 px 空隙；rail 是 flex 容器，静态位置落在 rail 顶部，入口被移到屏幕外（F-20）。展开侧栏和旧壳里可以按住胶囊左右拖动：位移小于 4 px 算点击，照常打开面板；超过就算拖动，松手（`pointerup`，或指针捕获丢失 `lostpointercapture`）时保存位置，不打开面板。2.0.33–2.0.35 只在 `lostpointercapture` 时保存，脚本派发的指针事件不会释放捕获，位置没存下，刷新后回到右边（F-21，2.0.36 修）。位置存成 0–1 的比例 `entryPosition`（0 靠左，1 靠右，默认 1），按钮用 `left: x·100%` 加 `translateX(-x·100%)` 定位，所以侧栏宽度变了也不会越界。Settings 卡片里有 “Reset position” 按钮，恢复到靠右。rail 里固定居中，不能拖。`showSidebarEntry` 常显时入口仍在文档流里。`showSidebarEntry`（默认假）打开后一直显示；两项都关则不挂入口。改动即时生效。展开侧栏和收起的窄 rail 两处都放；窄 rail 里只显示图标。rail 第一个子元素是铺满整条的 `button[aria-label="Show sidebar"]`（`absolute inset-0`），rail 入口必须 `position:relative` 叠在它上面，否则点击落到展开侧栏按钮上。
 - 账号下拉菜单（点头像弹出的小菜单）第一项 **Bloom++**，一直都有，是默认的入口。
 - 油猴菜单命令 “Bloom++ settings”，任何时候都能打开面板（侧栏找不到时的保底）。
 
@@ -356,7 +357,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | 日期分隔 | `[role="separator"]`（如 “Yesterday 10:08 AM”） |
 | 回合操作条 | `.turn-action-controls`；代码块复制 `[data-markdown-copy="code-block"]`；复制按钮 `[data-testid="copy-turn-action-button"]` |
 | 生成图片 | `[class~="group/generated-image-preview"]`、`img[alt="Generated image"]` |
-| 输入框 | `textarea[name="prompt"]` 或 `#mobile-composer-prompt`（仍可能是 ProseMirror `#prompt-textarea`） |
+| 输入框 | `textarea[name="prompt"]` 或 `#mobile-composer-prompt`；旧版是 ProseMirror `#prompt-textarea`，2026-09 新版没有这个 id，只有 `form` 里的 `div.ProseMirror[contenteditable]` |
 | 生成请求 | `POST /backend-api/f/conversation`（接力 SSE，回复走 WebSocket） |
 | 回合 | 一个 `[data-turn-key]` 同时含用户和助手两条消息，各在 `[data-chatgpt-search-unit-key$=":user"|":assistant"]` 里 |
 | 账号芯片 | `button[aria-haspopup=menu]`（英文 aria-label “Open profile menu”）是空的覆盖按钮，旁边的 `div.pointer-events-none` 里才是头像 img、名字、套餐；打开的菜单是按钮 `aria-controls` 指向的 `[role=menu]` |

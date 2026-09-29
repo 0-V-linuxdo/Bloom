@@ -64,6 +64,17 @@ export async function readAllCopies(key: string): Promise<unknown[]> {
     return Promise.all([readGm(key), readIdb(key), readLocal(key)]);
 }
 
+export function watchCopies(key: string, onChange: (value: unknown) => void) {
+    if (typeof GM_addValueChangeListener === "function") {
+        GM_addValueChangeListener(key, (_key, _old, value, remote) => {
+            if (remote) onChange(value);
+        });
+    }
+    addEventListener("storage", (event: StorageEvent) => {
+        if (event.key === key) onChange(event.newValue);
+    });
+}
+
 export function writeAllCopies(key: string, value: object) {
     const json = JSON.stringify(value);
     if (typeof GM_setValue === "function") {

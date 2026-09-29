@@ -22,6 +22,7 @@ interface GMXhrDetails {
 
 declare function GM_getValue(key: string, defaultValue?: unknown): unknown;
 declare function GM_setValue(key: string, value: unknown): void;
+declare function GM_addValueChangeListener(key: string, listener: (key: string, oldValue: unknown, newValue: unknown, remote: boolean) => void): number;
 declare function GM_setClipboard(text: string, type?: string): void;
 declare function GM_registerMenuCommand(caption: string, onClick: () => void): void;
 declare function GM_notification(details: GMNotificationDetails): void;
