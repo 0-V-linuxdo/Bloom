@@ -26,6 +26,7 @@ Plugins:
 | BetterNavigator | On | Notion-style outline of the open chat, including turns ChatGPT has not mounted yet. Hover the ticks, click or ↑/↓ to jump. A dashed tick marks the reply still streaming. |
 | MessageTimestamps | On | Show when each turn was sent, from the conversation JSON ChatGPT already loads. |
 | StreamerMode | Off | Blur Recents titles, the header chat name, project names, and the account chip. CSS-only. Hover a Recents / switcher row to peek. |
+| SidebarIdentityOpacity | On | Fade the account row in the bottom-left of the sidebar (default 50%). Hover brings it back to full opacity. CSS-only. |
 | GreetingCustomizer | Off | Replace the home greeting with your own texts. Rotate on each visit, a timer, or a click. |
 
 The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in the brand string is `ChatGPT`.

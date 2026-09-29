@@ -301,6 +301,12 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 设置：`mode`、`order`、`intervalSec`（1–3600，默认 10）；隐藏 `greetings: string[]`（默认 3 条名言）、`index`、`lastRandom`。
 - 列表为空、离开首页、停用时恢复原标题。
 
+### 4.18 SidebarIdentityOpacity — 左下角账号区透明度
+
+默认开｜`Init`｜ui｜Bloom++ 独有（Void++ 没有同类插件）
+
+纯 CSS：降低侧栏左下角账号区的不透明度，指针移上去时立即恢复 100%（无过渡）。展开侧栏里作用于整个账号区（footer：滚动区或其父元素的下一个兄弟、里面有 `button[aria-haspopup="menu"]`），入口 Bloom++ 行在它里面，一起淡化；rail 里作用于带 `button[aria-haspopup="menu"]` 的那一行；旧壳作用于 `[data-testid="accounts-profile-button"]`。用元素 `opacity`，不改背景色，不影响点击；下拉菜单挂在别处，不受影响。设置：`opacity` 0–100 %（默认 50；100 = 原生，不注入任何样式）。
+
 ---
 
 ## 5. 设置键总表（兼容性清单）
@@ -324,6 +330,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | BetterNavigator | `showAssistant` `jumpEffect` | — |
 | MessageTimestamps | `showDate` `hideOwnMessages` | `stamps` |
 | StreamerMode | `conversations` `projects` `accountAvatar` `accountName` `accountEmail` `headerTitle` | — |
+| SidebarIdentityOpacity | `opacity` | — |
 | GreetingCustomizer | `mode` `order` `intervalSec` | `greetings` `index` `lastRandom` |
 
 ---

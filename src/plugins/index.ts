@@ -22,6 +22,7 @@ import NoSidebarIdentity from "./noSidebarIdentity";
 import PromptQueue from "./promptQueue";
 import RecentTopics from "./recentTopics";
 import ResponseNotification from "./responseNotification";
+import SidebarIdentityOpacity from "./sidebarIdentityOpacity";
 import StreamerMode from "./streamerMode";
 import WiderChat from "./widerChat";
 
@@ -42,6 +43,7 @@ const list: Plugin[] = [
     PromptQueue,
     RecentTopics,
     ResponseNotification,
+    SidebarIdentityOpacity,
     StreamerMode,
     WiderChat,
 ];

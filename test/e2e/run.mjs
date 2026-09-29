@@ -228,7 +228,7 @@ async function newShellSuite(browser) {
     await page.locator(".bloom-settings-hint").hover();
     check("panel hint tooltip shows at once on hover", (await page.locator(".bloom-tooltip").textContent({ timeout: 300 }).catch(() => "")).includes("Some need a reload"));
     await page.screenshot({ path: resolve(shots, "panel-hint-light.png"), clip: { x: 0, y: 0, width: 1280, height: 260 } });
-    check("panel lists 18 plugins", await page.locator(".bloom-settings-card").count() === 18);
+    check("panel lists 19 plugins", await page.locator(".bloom-settings-card").count() === 19);
     await page.locator('[data-bloom="settings"] input[type=search]').fill("queue");
     check("panel search filters", await page.locator(".bloom-settings-card").count() === 1);
     await page.locator('[data-bloom="settings"] input[type=search]').fill("");
@@ -658,6 +658,24 @@ async function defaultEntrySuite(browser) {
     await context.close();
 }
 
+async function sidebarIdentityOpacitySuite(browser) {
+    const { context, page } = await setup(browser);
+    await page.goto("https://chatgpt.com/");
+    await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
+    const opacities = () => page.evaluate(() => {
+        const rail = document.querySelector("[data-app-navigation-rail]");
+        rail.classList.add("open");
+        const values = [".footer", "[data-app-navigation-rail] > .row:has([aria-haspopup])", "[data-app-navigation-rail] > .row"].map(selector => getComputedStyle(document.querySelector(selector)).opacity);
+        rail.classList.remove("open");
+        return values;
+    });
+    const [footer, railRow, railTop] = await opacities();
+    check("SidebarIdentityOpacity fades the account row in the sidebar and the rail by default", footer === "0.5" && railRow === "0.5" && railTop === "1", `${footer} ${railRow} ${railTop}`);
+    await page.locator(".footer .relative").hover();
+    check("SidebarIdentityOpacity restores the account row on hover", (await opacities())[0] === "1");
+    await context.close();
+}
+
 async function hiddenWorkspaceSuite(browser) {
     const { context, page } = await setup(browser);
     await page.goto(`https://chatgpt.com/c/${CHAT_B}`);
@@ -732,6 +750,7 @@ async function oldShellSuite(browser) {
     await page.waitForTimeout(400);
     check("old shell: navigator ticks", await page.locator(".bloom-nav-tick").count() === 2);
     check("old shell: timestamps", await page.locator('time[data-bloom="timestamp"]').count() === 2, await page.evaluate(() => document.querySelector("#thread")?.innerHTML.slice(0, 400)));
+    check("old shell: SidebarIdentityOpacity fades the profile button", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="accounts-profile-button"]')).opacity === "0.5"));
     check("old shell: name hidden", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="accounts-profile-button"] .truncate')).visibility === "hidden"));
     await page.locator('[data-bloom="entry"] button').click();
     await page.waitForSelector('[data-bloom="settings"]');
@@ -758,6 +777,7 @@ try {
     await navigatorHistorySuite(browser);
     await hiddenWorkspaceSuite(browser);
     await defaultEntrySuite(browser);
+    await sidebarIdentityOpacitySuite(browser);
     await oldShellSuite(browser);
 } finally {
     await browser.close();
