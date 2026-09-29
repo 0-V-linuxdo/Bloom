@@ -2,7 +2,7 @@
 
 English · [中文](README.zh.md)
 
-A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings next to the account row.
+A [Void++](https://github.com/0-V-linuxdo/Void)-style **plugin host** for `chatgpt.com`. One userscript, toggleable plugins, settings in the account menu.
 
 Version **2.0.0** is a clean-room rewrite for ChatGPT's 2026-09 redesign. It supports both the redesigned shell and the older one that is still in A/B. The feature spec it was written against is [docs/FEATURES.zh.md](docs/FEATURES.zh.md). Settings from 1.4.x are kept (same `BloomSettings` store and keys).
 
@@ -35,7 +35,7 @@ The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in th
 1. Install [Violentmonkey](https://violentmonkey.github.io/) or Tampermonkey.
 2. Open [`userscript/Bloom.update4.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update4.user.js).
 3. Confirm install. Reload `chatgpt.com`.
-4. Look for **Bloom++** above your profile in the left sidebar. Tampermonkey / Violentmonkey → **Bloom++ settings** also opens the panel (second click closes it). The entry shows in both the expanded sidebar and the collapsed rail, and at the top of the account menu. The panel opens as a centered dialog.
+4. Click your avatar in the left sidebar and pick **Bloom++** at the top of the account menu. Tampermonkey / Violentmonkey → **Bloom++ settings** also opens the panel (second click closes it). The panel opens as a centered dialog. Like Void++, there is no sidebar button by default; turn on **Settings → showSidebarEntry** to show **Bloom++** above your profile in both the expanded sidebar and the collapsed rail.
 
 Prefer Tampermonkey / Violentmonkey **Check for updates** after this install — that keeps the same script UUID and the settings store. Auto-update uses `Bloom.update4.user.js` on `raw.githubusercontent.com/.../refs/heads/main/...`. If the dashboard shows red “获取更新信息失败”, or “脚本已更新” stays on an older `@version`, Fastly is serving a stale or unreadable `Bloom.update3.user.js` / `Bloom.update2.user.js` / `Bloom.update.user.js` / `Bloom.latest.user.js` / `Bloom.user.js`: open the `Bloom.update4.user.js` raw link or [`releases/latest/download/Bloom.update4.user.js`](https://github.com/0-V-linuxdo/Bloom/releases/latest/download/Bloom.update4.user.js). Only remove an old copy if you have two Bloom++ entries. Uninstall wipes the userscript store; Bloom++ will try to restore from this site’s IndexedDB / `localStorage`. Do not use `.../Bloom/main/userscript/Bloom.user.js`, `.../refs/heads/main/userscript/Bloom.user.js`, `.../Bloom.latest.user.js`, `.../Bloom.update.user.js`, `.../Bloom.update2.user.js`, or `.../Bloom.update3.user.js` (Fastly can keep an old script). Do not use jsDelivr `@heads/main` (7-day cache). Do not use `github.com/.../raw/refs/heads/...` (returns HTML).
 

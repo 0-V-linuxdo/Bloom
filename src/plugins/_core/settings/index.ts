@@ -4,18 +4,27 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { definePluginSettings } from "@api/Settings";
 import { icon } from "@components/icons";
 import { useTooltips } from "@components/tooltip";
 import { isHydrated } from "@host/ready";
 import { accountMenu, type MountKind, sidebarMounts } from "@host/sidebar";
 import { classNameFactory } from "@utils/css";
 import { h, watchBody } from "@utils/dom";
-import definePlugin, { StartAt } from "@utils/types";
+import definePlugin, { OptionType, StartAt } from "@utils/types";
 
 import { closePanel, togglePanel } from "./panel";
 import styles from "./styles.css";
 
 const cl = classNameFactory("bloom-entry-");
+
+const settings = definePluginSettings({
+    showSidebarEntry: {
+        type: OptionType.BOOLEAN,
+        description: "Show the Bloom++ button above the account row in the sidebar. The account menu and the userscript menu always open the panel.",
+        default: false,
+    },
+});
 
 const entries = new Map<Element, HTMLElement>();
 let menuRegistered = false;
@@ -56,7 +65,7 @@ function menuEntry(menu: HTMLElement) {
 }
 
 function sync() {
-    const mounts = sidebarMounts();
+    const mounts = settings.store.showSidebarEntry ? sidebarMounts() : [];
     for (const [anchor, node] of entries) {
         if (anchor.isConnected && mounts.some(mount => mount.anchor === anchor)) continue;
         node.remove();
@@ -75,13 +84,13 @@ function sync() {
 
 export default definePlugin({
     name: "Settings",
-    description: "Bloom++ settings panel and its sidebar entry.",
+    description: "Bloom++ settings panel and its entries in the account menu and sidebar.",
     authors: ["Bloom contributors"],
     tags: [],
     icon: "bloom",
     required: true,
-    hidden: true,
     startAt: StartAt.HostReady,
+    settings,
     styles,
     start() {
         unsubscribers = [watchBody(sync), useTooltips()];
@@ -96,4 +105,5 @@ export default definePlugin({
         entries.clear();
         closePanel();
     },
+    onSettingsChange: sync,
 });

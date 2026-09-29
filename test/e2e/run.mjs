@@ -48,6 +48,8 @@ const check = (name, ok, detail = "") => {
     console.log(`${ok ? "PASS" : "FAIL"} ${name}${detail ? ` (${detail})` : ""}`);
 };
 
+const seedSettings = (settings, entry) => entry ? { ...settings, plugins: { Settings: { showSidebarEntry: true }, ...settings?.plugins } } : settings;
+
 const gmShim = settings => `
 (() => {
     const store = new Map(Object.entries(${JSON.stringify(settings ? { BloomSettings: settings } : {})}));
@@ -115,7 +117,7 @@ function conversationJson(id) {
     };
 }
 
-async function setup(browser, { shell = "new", theme = "light", settings = null, streamMs = 0, csp = null, replyMs = REPLY_DELAY_MS } = {}) {
+async function setup(browser, { shell = "new", theme = "light", settings = null, streamMs = 0, csp = null, replyMs = REPLY_DELAY_MS, entry = true } = {}) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await context.newPage();
     page.on("pageerror", error => console.log("pageerror", error.message));
@@ -159,7 +161,7 @@ async function setup(browser, { shell = "new", theme = "light", settings = null,
         setTimeout(() => ws.send(JSON.stringify({ replyId, text: "Here is the answer." })), replyMs);
     }));
     await page.exposeFunction("__gmFetch", url => url === SOUND_URL ? { status: 200, body: wav().toString("base64") } : { status: 404, body: "" });
-    await page.addInitScript(gmShim(settings));
+    await page.addInitScript(gmShim(seedSettings(settings, entry)));
     await page.addInitScript(script);
     return { context, page, generateRequests };
 }
@@ -226,7 +228,7 @@ async function newShellSuite(browser) {
     await page.locator(".bloom-settings-hint").hover();
     check("panel hint tooltip shows at once on hover", (await page.locator(".bloom-tooltip").textContent({ timeout: 300 }).catch(() => "")).includes("Some need a reload"));
     await page.screenshot({ path: resolve(shots, "panel-hint-light.png"), clip: { x: 0, y: 0, width: 1280, height: 260 } });
-    check("panel lists 17 plugins", await page.locator(".bloom-settings-card").count() === 17);
+    check("panel lists 18 plugins", await page.locator(".bloom-settings-card").count() === 18);
     await page.locator('[data-bloom="settings"] input[type=search]').fill("queue");
     check("panel search filters", await page.locator(".bloom-settings-card").count() === 1);
     await page.locator('[data-bloom="settings"] input[type=search]').fill("");
@@ -612,6 +614,22 @@ async function navigatorHistorySuite(browser) {
     await context.close();
 }
 
+async function defaultEntrySuite(browser) {
+    const { context, page } = await setup(browser, { entry: false });
+    await page.goto("https://chatgpt.com/");
+    await page.waitForFunction(() => window.__menu.length > 0, null, { timeout: 10_000 });
+    await page.waitForTimeout(300);
+    check("the sidebar entry is hidden by default", await page.locator('[data-bloom="entry"]').count() === 0);
+    await page.locator(".profile-overlay").click();
+    await page.locator('[data-bloom="menu-entry"]').click();
+    check("the account menu entry opens the panel", await page.locator('[data-bloom="settings"]').count() === 1);
+    await page.locator(".bloom-settings-card", { hasText: "Settings" }).first().locator('[aria-label="Settings"]').click();
+    await page.locator('.bloom-settings-popup [role="switch"]').click();
+    await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 2000 }).catch(() => {});
+    check("showSidebarEntry brings the sidebar entry back", await page.locator('[data-bloom="entry"]').count() === 2);
+    await context.close();
+}
+
 async function hiddenWorkspaceSuite(browser) {
     const { context, page } = await setup(browser);
     await page.goto(`https://chatgpt.com/c/${CHAT_B}`);
@@ -711,6 +729,7 @@ try {
     await navigatorSeekSuite(browser);
     await navigatorHistorySuite(browser);
     await hiddenWorkspaceSuite(browser);
+    await defaultEntrySuite(browser);
     await oldShellSuite(browser);
 } finally {
     await browser.close();
