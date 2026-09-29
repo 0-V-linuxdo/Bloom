@@ -467,6 +467,19 @@ async function queueEditingSuite(browser) {
     await context.close();
 }
 
+async function composerOpacitySuite(browser) {
+    const { context, page } = await setup(browser, { theme: "dark", settings: { plugins: { ComposerOpacity: { opacity: 60, blur: 4 } } } });
+    await page.goto("https://chatgpt.com/");
+    await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
+    const blurred = await page.evaluate(() => [...document.querySelectorAll("form *")].map(el => ({ el, style: getComputedStyle(el) })).filter(({ style }) => style.backdropFilter !== "none")
+        .map(({ el, style }) => ({ name: el.className, background: style.backgroundColor, blur: style.backdropFilter })));
+    check("ComposerOpacity blurs only the new composer's layout root", blurred.length === 1 && blurred[0].name.startsWith("ComposerLayoutRoot") && blurred[0].blur === "blur(4px)" && blurred[0].background.endsWith("0.6)"), JSON.stringify(blurred));
+    await page.locator(COMPOSER).click();
+    await page.keyboard.type("See-through");
+    check("ComposerOpacity keeps the composer typable", (await page.locator(COMPOSER).textContent()).trim() === "See-through");
+    await context.close();
+}
+
 async function oldShellSuite(browser) {
     const { context, page } = await setup(browser, { shell: "old", theme: "dark" });
     await page.goto(`https://chatgpt.com/c/${CHAT_A}`);
@@ -495,6 +508,7 @@ try {
     await customIdentitySuite(browser);
     await customSoundSuite(browser);
     await queueEditingSuite(browser);
+    await composerOpacitySuite(browser);
     await oldShellSuite(browser);
 } finally {
     await browser.close();

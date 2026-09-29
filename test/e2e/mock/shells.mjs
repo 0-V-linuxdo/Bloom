@@ -30,6 +30,9 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 [data-turn-key], article { padding: 16px; min-height: 120px; }
 form { max-width: var(--thread-content-max-width); margin: 8px auto; width: 100%; display: flex; gap: 8px; }
 .ProseMirror { flex: 1; min-height: 40px; border: 1px solid #ccc; }
+.ComposerLayoutRoot-XCKS7O, .ComposerLayoutInput-KwIAr_ { flex: 1; display: flex; }
+.ComposerLayoutRoot-XCKS7O { background: #fff; }
+html[data-theme="dark"] .ComposerLayoutRoot-XCKS7O { background: rgb(27, 27, 27); }
 .relative { position: relative; }
 .profile-overlay { position: absolute; inset: 0; opacity: 0; }
 .pointer-events-none { pointer-events: none; display: flex; gap: 8px; align-items: center; padding: 8px; }
@@ -69,7 +72,7 @@ export const newShell = theme => `${HEAD(theme)}
   <h1 aria-hidden="true" class="heading-xl invisible">Ready when you are.</h1>
   <div class="heading-xl"><div class="relative inline-block"><h1 class="inline home-heading">What’s on your mind today?</h1></div></div>
   <div class="timeline" data-app-action-timeline-scroll><div class="column" data-chatgpt-conversation-selection-target></div></div>
-  <form class="relative flex flex-col gap-2" data-chatgpt-composer><div class="empty:hidden gpts-notice"><div class="mx-auto mb-3"><aside><div><h3>Migrate your GPTs to plugins by December 11</h3></div><button>Migrate to plugin</button><button aria-label="Dismiss migration notice">×</button></aside></div></div><div class="ProseMirror" contenteditable="true" aria-label="Ask ChatGPT"><p></p></div><button type="button" aria-label="Dictate">Mic</button><button aria-label="Send">Send</button></form>
+  <form class="relative flex flex-col gap-2" data-chatgpt-composer><div class="empty:hidden gpts-notice"><div class="mx-auto mb-3"><aside><div><h3>Migrate your GPTs to plugins by December 11</h3></div><button>Migrate to plugin</button><button aria-label="Dismiss migration notice">×</button></aside></div></div><div class="ComposerLayoutRoot-XCKS7O"><div class="ComposerLayoutInput-KwIAr_"><div class="ProseMirror" contenteditable="true" aria-label="Ask ChatGPT"><p></p></div></div></div><button type="button" class="hover:bg-token-bg-primary" aria-label="Dictate">Mic</button><button aria-label="Send">Send</button></form>
   <div data-testid="thread-disclaimer">ChatGPT can make mistakes.</div>
 </main>
 <script>document.documentElement.dataset.shell = "new";</script>

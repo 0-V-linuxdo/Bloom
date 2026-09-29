@@ -8,8 +8,9 @@ import { definePluginSettings } from "@api/Settings";
 import { Sel } from "@host/selectors";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 
-const FORM = `form:has(${Sel.composerInput}), ${Sel.oldComposerForm}`;
-const PILL = `:is(${FORM}) :is([class*="corner-superellipse"], [class*="bg-token-bg-primary"], [class*="bg-token-main-surface"], [class*="shadow-short"])`;
+const FORM = `form:has(:is(${Sel.composerInput})), ${Sel.oldComposerForm}`;
+const LAYOUT_ROOT = '[class*="ComposerLayoutRoot"]';
+const PILL = `:is(${FORM}) ${LAYOUT_ROOT}, :is(${FORM}):not(:has(${LAYOUT_ROOT})) :is([class*="corner-superellipse"], [class*="bg-token-bg-primary"], [class*="bg-token-main-surface"], [class*="shadow-short"])`;
 const SLAB = '#thread-bottom-container, #thread-bottom, :has(> form textarea[name="prompt"])';
 const FADE = '#thread-bottom-container::after, #thread-bottom::after, [class*="content-fade"]';
 const FILL = "var(--color-bg-primary, var(--bg-primary, var(--main-surface-primary, #fff)))";
