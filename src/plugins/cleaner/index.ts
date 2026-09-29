@@ -36,8 +36,8 @@ const GROUPS = {
         ':is([data-testid*="promo" i], [data-testid*="marketing-banner" i], [data-testid="welcome-banner"], [data-testid*="app-banner" i], [data-testid="try-codex"])',
     ],
     hideNotices: [
-        'div:has(> div > aside button[aria-label="Dismiss migration notice"])',
         'aside:has(button[aria-label="Dismiss migration notice"])',
+        'div:is(:has(> aside:only-child), :has(> div:only-child > aside:only-child)):has(button[aria-label="Dismiss migration notice"])',
     ],
     hideAds: [
         ':is([data-testid="ad"], [data-testid^="ad-"], [data-testid*="ad-slot"], [data-testid*="sponsored" i], [data-ad-slot])',

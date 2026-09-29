@@ -186,7 +186,17 @@ async function newShellSuite(browser) {
     check("styles are adopted, not inserted into <head>", await page.evaluate(() => !document.querySelector('style[id^="bloom-style-"]') && document.adoptedStyleSheets.length > 0));
     check("new shell: menu command registered", await page.evaluate(() => window.__menu.some(item => item.name === "Bloom++ settings")));
     check("Cleaner hides the upgrade link", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="upgrade-button"]')).display === "none"));
-    check("Cleaner hides the GPTs migration notice", await page.evaluate(() => !document.querySelector(".gpts-notice aside")?.getClientRects().length));
+    check("Cleaner hides the GPTs migration notice and its empty wrappers", await page.evaluate(() => !document.querySelector(".gpts-notice").getClientRects().length));
+    check("Cleaner keeps the composer when the notice sits right beside it", await page.evaluate(async () => {
+        const notice = document.createElement("div");
+        notice.append(document.querySelector(".gpts-notice aside").cloneNode(true));
+        document.querySelector(".ComposerLayoutRoot-XCKS7O").prepend(notice);
+        await new Promise(requestAnimationFrame);
+        const visible = ["[data-chatgpt-composer]", ".ComposerLayoutRoot-XCKS7O", ".ProseMirror"].every(selector => document.querySelector(selector).getClientRects().length);
+        const hidden = !notice.getClientRects().length;
+        notice.remove();
+        return visible && hidden;
+    }));
     check("Cleaner hides the disclaimer", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="thread-disclaimer"]')).display === "none"));
     check("Cleaner hides the disclaimer on GPT pages", await page.evaluate(() => {
         const sticky = document.createElement("div");
