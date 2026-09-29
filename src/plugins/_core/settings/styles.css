@@ -59,6 +59,10 @@
     anchor-scope: --bloom-account;
 }
 
+:has(> .bloom-entry-hover):has(button[aria-haspopup="menu"][aria-expanded="true"]) > .bloom-entry-hover {
+    display: none;
+}
+
 :has(> .bloom-entry-hover) :is([data-bloom-profile]:is(button), :has(> [data-bloom-profile]) > button[aria-haspopup="menu"]) {
     anchor-name: --bloom-account;
 }

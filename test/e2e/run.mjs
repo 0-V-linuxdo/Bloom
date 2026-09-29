@@ -720,6 +720,7 @@ async function defaultEntrySuite(browser) {
         node.inert = true;
     });
     await page.locator(".profile-overlay").click();
+    check("the hover entry hides while the account menu is open", !await expanded.isVisible());
     await page.locator('[data-bloom="menu-entry"]').click();
     check("the account menu entry opens the panel", await page.locator('[data-bloom="settings"]').count() === 1);
     await page.locator(".bloom-settings-card", { hasText: "Settings" }).first().locator('[aria-label="Settings"]').click();
