@@ -20,7 +20,7 @@ const CHAT = [
     '[data-testid="share-chat-button"]',
     '[data-testid="share-button"]',
     '[data-testid="conversation-share-button"]',
-    'button:is([aria-label="Share" i], [aria-label="Share chat" i], [aria-label="Share conversation" i], [aria-label="分享"], [aria-label="分享对话"])',
+    'button:is([aria-label="Share" i], [aria-label="Share chat" i], [aria-label="Share conversation" i], [aria-label="Share prompt" i], [aria-label="分享"], [aria-label="分享对话"])',
 ];
 
 const PROJECT = [
