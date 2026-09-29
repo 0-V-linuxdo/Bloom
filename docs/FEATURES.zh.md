@@ -305,7 +305,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 默认开｜`Init`｜ui｜Bloom++ 独有（Void++ 没有同类插件）
 
-纯 CSS：降低侧栏左下角账号区的不透明度，指针移上去时立即恢复 100%（无过渡）。展开侧栏里作用于整个账号区（footer：滚动区或其父元素的下一个兄弟、里面有 `button[aria-haspopup="menu"]`），入口 Bloom++ 行在它里面，一起淡化；rail 里作用于带 `button[aria-haspopup="menu"]` 的那一行；旧壳作用于 `[data-testid="accounts-profile-button"]`。用元素 `opacity`，不改背景色，不影响点击；下拉菜单挂在别处，不受影响。设置：`opacity` 0–100 %（默认 50；100 = 原生，不注入任何样式）。
+纯 CSS：降低侧栏左下角账号区的不透明度，指针移上去时立即恢复 100%（无过渡）。账号区指：展开侧栏里的整个账号区（footer：滚动区或其父元素的下一个兄弟、里面有 `button[aria-haspopup="menu"]`，入口 Bloom++ 行也在里面）；rail 里带 `button[aria-haspopup="menu"]` 的那一行；旧壳的 `[data-testid="accounts-profile-button"]`。**头像默认不淡化**（原生头像和 CustomSidebarIdentity 的自定义头像都一样）：元素 `opacity` 在子元素上撤不回来，所以不给账号区整体设 `opacity`，而是沿“账号区 → 头像”这条祖先链，给链上每个元素的其他子元素设 `opacity`（选择器 `:is(账号区, 账号区 :has(头像)) > :not(头像, :has(头像))`）。头像靠身份标记 `[data-bloom-profile-avatar]` 识别（插件自己启用 `useIdentityMarks`）。这条链上元素自己的背景不淡化。不改背景色，不影响点击；下拉菜单挂在别处，不受影响。设置：`opacity` 0–100 %（默认 50；100 = 原生，不注入任何样式）、`fadeAvatar`（头像也淡化，此时整个账号区统一设 `opacity`，默认假）。
 
 ---
 
@@ -330,7 +330,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | BetterNavigator | `showAssistant` `jumpEffect` | — |
 | MessageTimestamps | `showDate` `hideOwnMessages` | `stamps` |
 | StreamerMode | `conversations` `projects` `accountAvatar` `accountName` `accountEmail` `headerTitle` | — |
-| SidebarIdentityOpacity | `opacity` | — |
+| SidebarIdentityOpacity | `opacity` `fadeAvatar` | — |
 | GreetingCustomizer | `mode` `order` `intervalSec` | `greetings` `index` `lastRandom` |
 
 ---

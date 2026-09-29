@@ -659,21 +659,26 @@ async function defaultEntrySuite(browser) {
 }
 
 async function sidebarIdentityOpacitySuite(browser) {
-    const { context, page } = await setup(browser);
-    await page.goto("https://chatgpt.com/");
-    await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
-    const opacities = () => page.evaluate(() => {
-        const rail = document.querySelector("[data-app-navigation-rail]");
-        rail.classList.add("open");
-        const values = [".footer", "[data-app-navigation-rail] > .row:has([aria-haspopup])", "[data-app-navigation-rail] > .row"].map(selector => getComputedStyle(document.querySelector(selector)).opacity);
-        rail.classList.remove("open");
-        return values;
-    });
-    const [footer, railRow, railTop] = await opacities();
-    check("SidebarIdentityOpacity fades the account row in the sidebar and the rail by default", footer === "0.5" && railRow === "0.5" && railTop === "1", `${footer} ${railRow} ${railTop}`);
-    await page.locator(".footer .relative").hover();
-    check("SidebarIdentityOpacity restores the account row on hover", (await opacities())[0] === "1");
-    await context.close();
+    const image = `data:image/png;base64,${PNG}`;
+    for (const fadeAvatar of [false, true]) {
+        const { context, page } = await setup(browser, {
+            settings: { plugins: { CustomSidebarIdentity: { enabled: true, avatarUrl: image }, SidebarIdentityOpacity: { fadeAvatar } } },
+            csp: HOST_CSP,
+        });
+        await page.goto("https://chatgpt.com/");
+        await page.waitForSelector(".footer [data-bloom-csi-avatar]", { state: "attached", timeout: 10_000 });
+        const opacities = () => page.evaluate(selectors => selectors.map(selector => {
+            let value = 1;
+            for (let node = document.querySelector(selector); node; node = node.parentElement) value *= Number(getComputedStyle(node).opacity);
+            return value;
+        }), [".footer [data-bloom-csi-avatar]", ".footer .chip .truncate", '.footer [aria-label="Help"]', "[data-app-navigation-rail] [data-bloom-profile-avatar]", "[data-app-navigation-rail] .sr-only", '[data-app-navigation-rail] a[href="/"]']);
+        const [avatar, name, help, railAvatar, railLabel, railTop] = await opacities();
+        const faded = fadeAvatar ? 0.5 : 1;
+        check(`SidebarIdentityOpacity fades the account row${fadeAvatar ? " and the avatar" : " but not the custom avatar"}`, avatar === faded && name === 0.5 && help === 0.5 && railAvatar === faded && railLabel === 0.5 && railTop === 1, JSON.stringify({ avatar, name, help, railAvatar, railLabel, railTop }));
+        await page.locator(".footer .relative").hover();
+        check(`SidebarIdentityOpacity restores the account row on hover${fadeAvatar ? " with fadeAvatar" : ""}`, (await opacities()).slice(0, 3).every(value => value === 1));
+        await context.close();
+    }
 }
 
 async function hiddenWorkspaceSuite(browser) {
@@ -750,7 +755,7 @@ async function oldShellSuite(browser) {
     await page.waitForTimeout(400);
     check("old shell: navigator ticks", await page.locator(".bloom-nav-tick").count() === 2);
     check("old shell: timestamps", await page.locator('time[data-bloom="timestamp"]').count() === 2, await page.evaluate(() => document.querySelector("#thread")?.innerHTML.slice(0, 400)));
-    check("old shell: SidebarIdentityOpacity fades the profile button", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="accounts-profile-button"]')).opacity === "0.5"));
+    check("old shell: SidebarIdentityOpacity fades the profile text, not the avatar", await page.evaluate(() => [".min-w-0", ".rounded-full"].map(selector => getComputedStyle(document.querySelector(`[data-testid="accounts-profile-button"] ${selector}`)).opacity).join() === "0.5,1"));
     check("old shell: name hidden", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="accounts-profile-button"] .truncate')).visibility === "hidden"));
     await page.locator('[data-bloom="entry"] button').click();
     await page.waitForSelector('[data-bloom="settings"]');

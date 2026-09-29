@@ -26,7 +26,7 @@
 | BetterNavigator | 开 | 当前对话的 Notion 式目录，包含 ChatGPT 还没挂上的轮。悬停 tick，点击或 ↑/↓ 跳转。正在输出的回复用虚线 tick 标出。 |
 | MessageTimestamps | 开 | 每条消息显示发送时间，读 ChatGPT 已有的会话 JSON。 |
 | StreamerMode | 关 | 模糊 Recents 标题、顶栏会话名、项目名和账号芯片。纯 CSS。悬停 Recents / 切换器可看一眼。 |
-| SidebarIdentityOpacity | 开 | 降低侧栏左下角账号区的不透明度（默认 50%），指针移上去立即恢复。纯 CSS。 |
+| SidebarIdentityOpacity | 开 | 降低侧栏左下角账号区的不透明度（默认 50%）。头像（包括自定义头像）默认不变淡，打开 fadeAvatar 才一起淡化。指针移上去立即恢复。纯 CSS。 |
 | GreetingCustomizer | 关 | 用自己的文案替换首页问候语。可按访问、定时或点击轮播。 |
 
 品牌名是 **Bloom++**，仓库名是 `Bloom`，都不含 `ChatGPT`。
