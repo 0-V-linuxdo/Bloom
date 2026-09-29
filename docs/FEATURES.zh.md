@@ -99,7 +99,7 @@
 ## 3. 设置入口与设置面板（核心插件 `Settings`，必需，面板里有卡片但不能关，同 Void++）
 
 入口：
-- 侧栏账号区上方一行 **Bloom++**（花形图标 + 文字），点开/关设置面板。**默认隐藏**（对齐 Void++：Void++ 没有侧栏按钮，只在头像菜单里放入口），指针移到账号区时立即显示（`showSidebarEntryOnHover`，默认真；无延迟、无淡入）。展开侧栏里指针在整个账号区（footer，入口也在里面）内就一直显示；rail 和旧壳里指针在入口或它后面的账号行上时显示。离开后 0.2 s 才隐藏（`transition: display 0s 0.2s allow-discrete`），让指针能越过入口和账号行之间的空隙。`showSidebarEntry`（默认假）打开后一直显示；两项都关则不挂入口。改动即时生效。展开侧栏和收起的窄 rail 两处都放；窄 rail 里只显示图标。rail 第一个子元素是铺满整条的 `button[aria-label="Show sidebar"]`（`absolute inset-0`），rail 入口必须 `position:relative` 叠在它上面，否则点击落到展开侧栏按钮上。
+- 侧栏账号区上方一行 **Bloom++**（花形图标 + 文字），点开/关设置面板。**默认隐藏**（对齐 Void++：Void++ 没有侧栏按钮，只在头像菜单里放入口），指针移到账号区时立即显示（`showSidebarEntryOnHover`，默认真；无延迟、无淡入）。展开侧栏里指针在整个账号区（footer，入口也在里面）内就一直显示；rail 和旧壳里指针在入口或它后面的账号行上时显示。离开后 0.2 s 才隐藏（`transition: display 0s 0.2s allow-discrete`），让指针能越过入口和账号行之间的空隙。悬停出现的入口不占布局：`position:absolute` 且不设上下偏移（停在原本插入的静态位置），再 `translateY(-100%)` 浮到账号区上方，带面板底色和阴影，盖住列表最下面一点；侧栏和滚动区的高度不变，滚动条不跳（2.0.28 里入口在文档流里，出现和消失会让滚动区高度来回变，滚动条跟着抖）。rail 里用 `inset-inline:0` 横向铺满 rail 再居中。`showSidebarEntry` 常显时入口仍在文档流里。`showSidebarEntry`（默认假）打开后一直显示；两项都关则不挂入口。改动即时生效。展开侧栏和收起的窄 rail 两处都放；窄 rail 里只显示图标。rail 第一个子元素是铺满整条的 `button[aria-label="Show sidebar"]`（`absolute inset-0`），rail 入口必须 `position:relative` 叠在它上面，否则点击落到展开侧栏按钮上。
 - 账号下拉菜单（点头像弹出的小菜单）第一项 **Bloom++**，一直都有，是默认的入口。
 - 油猴菜单命令 “Bloom++ settings”，任何时候都能打开面板（侧栏找不到时的保底）。
 

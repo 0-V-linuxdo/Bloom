@@ -55,6 +55,26 @@
     padding: 0;
 }
 
+.bloom-entry-hover {
+    position: absolute;
+    z-index: 1;
+    padding-block: 0 0.25rem;
+    transform: translateY(-100%);
+}
+
+.bloom-entry-rail.bloom-entry-hover {
+    inset-inline: 0;
+}
+
+.bloom-entry-hover .bloom-entry-button {
+    background-color: var(--bloom-surface);
+    box-shadow: 0 0 0 1px var(--bloom-border-light), 0 0.25rem 0.75rem #0000001a;
+}
+
+.bloom-entry-hover .bloom-entry-button:hover {
+    background-image: linear-gradient(var(--bloom-hover), var(--bloom-hover));
+}
+
 .bloom-entry-menu-item {
     display: flex;
     align-items: center;

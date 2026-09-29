@@ -622,10 +622,19 @@ async function defaultEntrySuite(browser) {
     const expanded = page.locator('.footer [data-bloom="entry"]');
     const rail = page.locator('[data-app-navigation-rail] [data-bloom="entry"]');
     check("the sidebar entry is hidden by default", await page.locator('[data-bloom="entry"]').count() === 2 && !await expanded.isVisible());
+    const layout = () => page.evaluate(() => {
+        const rail = document.querySelector("[data-app-navigation-rail]");
+        return JSON.stringify([document.querySelector(".footer"), document.querySelector("[data-app-action-sidebar-scroll]"), ...rail.querySelectorAll(":scope > :not([data-bloom])")].map(el => el.getBoundingClientRect().toJSON()));
+    });
+    const before = await layout();
     await page.locator(".footer .relative").hover();
     check("hovering the account row shows the sidebar entry at once", await expanded.isVisible());
+    await page.locator(".sidebar").screenshot({ path: resolve(shots, "entry-hover.png") });
+    check("the revealed sidebar entry floats above the account row without resizing the sidebar", await layout() === before && await page.evaluate(() =>
+        Math.abs(document.querySelector('.footer [data-bloom="entry"]').getBoundingClientRect().bottom - document.querySelector(".footer").getBoundingClientRect().top) < 1));
     await expanded.hover();
     check("the sidebar entry stays while the pointer is on it", await expanded.isVisible());
+    check("the floating sidebar entry stays opaque on hover", await expanded.locator("button").evaluate(button => getComputedStyle(button).backgroundColor === "rgb(255, 255, 255)"));
     await page.mouse.move(700, 300);
     check("the sidebar entry lingers briefly so the pointer can cross gaps", await expanded.isVisible());
     await page.waitForTimeout(400);
@@ -635,8 +644,13 @@ async function defaultEntrySuite(browser) {
         node.classList.add("open");
         node.inert = false;
     });
+    const railBefore = await layout();
     await page.locator("[data-app-navigation-rail] [aria-haspopup]").hover();
     check("hovering the rail avatar shows the rail entry", await rail.isVisible());
+    check("the revealed rail entry floats above the avatar without moving the rail", await layout() === railBefore && await page.evaluate(() => {
+        const [entry, row] = ['[data-app-navigation-rail] [data-bloom="entry"]', "[data-app-navigation-rail] > .row:has([aria-haspopup])"].map(selector => document.querySelector(selector).getBoundingClientRect());
+        return Math.abs(entry.bottom - row.top) < 1;
+    }));
     await rail.locator("button").click();
     check("the revealed rail entry opens the panel", await page.locator('[data-bloom="settings"]').count() === 1);
     await page.keyboard.press("Escape");
