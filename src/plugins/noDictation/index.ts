@@ -14,6 +14,7 @@ const BUTTONS = [
 ];
 
 const SETTINGS_ROWS = [
+    '[class*="settings-row"]:has([role="switch"]:is([aria-label*="Dictation" i], [aria-label*="听写"]))',
     '[role="dialog"] :is([data-testid*="dictation" i], [data-testid*="speech-to-text" i], [aria-label*="Dictation" i], [aria-label*="听写"])',
 ];
 

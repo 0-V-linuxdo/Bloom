@@ -190,8 +190,9 @@ html {
     gap: 0.75rem;
 }
 
-.bloom-slider input {
+.bloom-slider input[type="range"] {
     flex: 1;
+    appearance: auto;
     accent-color: var(--bloom-accent);
 }
 

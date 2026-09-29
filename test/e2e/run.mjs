@@ -121,7 +121,7 @@ async function sendPrompt(page, text) {
 
 async function newShellSuite(browser) {
     const { context, page, generateRequests } = await setup(browser, {
-        settings: { plugins: { PromptQueue: { enabled: true }, ResponseNotification: { onlyWhenHidden: false }, GreetingCustomizer: { enabled: true } } },
+        settings: { plugins: { PromptQueue: { enabled: true }, ResponseNotification: { onlyWhenHidden: false }, GreetingCustomizer: { enabled: true }, NoDictation: { enabled: true } } },
     });
     await page.goto("https://chatgpt.com/");
     await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
@@ -137,6 +137,26 @@ async function newShellSuite(browser) {
     check("NoSidebarIdentity hides the name", await page.evaluate(() => getComputedStyle(document.querySelector(".chip .truncate .truncate")).visibility === "hidden"));
     check("NoSidebarIdentity enlarges the plan", await page.evaluate(() => getComputedStyle(document.querySelector(".chip .text-xs")).fontSize === "14px"));
     check("GreetingCustomizer replaces the visible home heading", await page.evaluate(() => (document.querySelector(".home-heading")?.getAttribute("data-bloom-text") ?? "").length > 0 && !document.querySelector('h1[aria-hidden="true"][data-bloom-text]')));
+    check("NoDictation hides the Dictation row on the settings page", await page.evaluate(() => {
+        const row = document.createElement("div");
+        row.className = "@container/settings-row flex";
+        row.innerHTML = '<div>Dictation</div><button role="switch" aria-label="Enable Dictation"></button>';
+        document.body.append(row);
+        const hidden = getComputedStyle(row).display === "none";
+        row.remove();
+        return hidden;
+    }));
+    check("rail entry sits above the Show sidebar overlay", await page.evaluate(() => {
+        const rail = document.querySelector("[data-app-navigation-rail]");
+        rail.classList.add("open");
+        rail.inert = false;
+        const button = rail.querySelector('[data-bloom="entry"] button');
+        const { x, y, width, height } = button.getBoundingClientRect();
+        const hit = document.elementFromPoint(x + width / 2, y + height / 2);
+        rail.classList.remove("open");
+        rail.inert = true;
+        return !!hit && button.contains(hit);
+    }));
     check("ChatStateFavicons parks the official icon", await page.evaluate(() => document.querySelector('link[href="/favicon.ico"]')?.media === "not all" && document.head.lastElementChild?.id === "bloom-chat-state-favicon"));
 
     await page.locator(".footer [data-bloom=entry] button").click();
@@ -147,6 +167,7 @@ async function newShellSuite(browser) {
     await page.locator('[data-bloom="settings"] input[type=search]').fill("");
     await page.locator(".bloom-settings-card", { hasText: "WiderChat" }).locator('[aria-label="Settings"]').click();
     check("plugin settings popup opens", await page.locator(".bloom-settings-popup").isVisible());
+    check("slider track is drawn over the host range reset", await page.evaluate(() => getComputedStyle(document.querySelector('.bloom-settings-popup input[type="range"]')).appearance === "auto"));
     await page.locator('.bloom-settings-popup input[type="range"]').fill("80");
     check("slider changes apply live", await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--thread-content-max-width").trim() === "80rem"));
     await page.screenshot({ path: resolve(shots, "panel-popup-light.png") });

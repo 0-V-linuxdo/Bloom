@@ -97,7 +97,7 @@
 ## 3. 设置入口与设置面板（核心插件 `Settings`，必需、隐藏）
 
 入口：
-- 侧栏账号区上方一行 **Bloom++**（花形图标 + 文字），点开/关设置面板。展开侧栏和收起的窄 rail 两处都放；窄 rail 里只显示图标。
+- 侧栏账号区上方一行 **Bloom++**（花形图标 + 文字），点开/关设置面板。展开侧栏和收起的窄 rail 两处都放；窄 rail 里只显示图标。rail 第一个子元素是铺满整条的 `button[aria-label="Show sidebar"]`（`absolute inset-0`），rail 入口必须 `position:relative` 叠在它上面，否则点击落到展开侧栏按钮上。
 - 账号下拉菜单（点头像弹出的小菜单）第一项 **Bloom++**。
 - 油猴菜单命令 “Bloom++ settings”，任何时候都能打开面板（侧栏找不到时的保底）。
 
@@ -158,7 +158,7 @@
 
 默认关｜`Init`｜chat, ui｜Void++ 同名
 
-纯 CSS。隐藏输入框的 Dictation（语音转文字、中文“听写”）按钮；**绝不隐藏** Voice（语音对话）按钮。设置：`hideDictationSettings`（默认真）同时隐藏 ChatGPT 设置窗口里的听写相关行。
+纯 CSS。隐藏输入框的 Dictation（语音转文字、中文“听写”）按钮；**绝不隐藏** Voice（语音对话）按钮。设置：`hideDictationSettings`（默认真）同时隐藏 ChatGPT 设置里整行听写开关（新版是独立页面 `/settings/…`，行容器 class 含 `settings-row`；旧版设置对话框同样适用）。
 
 ### 4.5 NoSidebarIdentity — 隐藏侧栏显示名
 
