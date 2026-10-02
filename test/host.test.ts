@@ -126,6 +126,19 @@ describe("signed-in shell 2026-09", () => {
         expect(outerMessageUnits().map(unitMessageIds)).toEqual([["u1"], ["a1"], ["u2"], ["a2"]]);
     });
 
+    test("lists agent activity that ChatGPT left inside the user turn", () => {
+        mount(`<main><div data-app-action-timeline-scroll><div data-turn-key="t">
+            <div data-chatgpt-search-unit-key="fallback-turn-0:0:user" data-chatgpt-search-message-ids="u1"><div class="whitespace-pre-wrap">continue where you left</div></div>
+            <div class="group/activity-header"><span>Analyzed</span></div>
+            <div class="group/activity-header"><span>Analysis paused</span></div>
+            <div class="group/activity-header"><span>Analyzing</span></div>
+        </div></div></main>`);
+        const turns = listTurns();
+        expect(turns.map(turn => turn.role)).toEqual(["user", "assistant"]);
+        expect(turns[0]?.messageIds).toEqual(["u1"]);
+        expect(turnSummary(turns[1]!)).toBe("Analyzing");
+    });
+
     test("summaries skip Bloom's timestamp and screen-reader labels", () => {
         mount(LIVE_SHELL);
         const unit = document.querySelector('[data-chatgpt-search-unit-key="t1:assistant"] [data-chatgpt-search-message-ids]');

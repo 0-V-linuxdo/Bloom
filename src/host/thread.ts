@@ -81,7 +81,12 @@ export function listTurns(): Turn[] {
     const chain = conversationData(currentConversationId())?.chain ?? [];
     const parts = [...threadRoot()?.querySelectorAll<HTMLElement>(Sel.turn) ?? []].filter(isOuterTurn).flatMap(el => {
         const units = roleUnits(el);
-        return units.length ? units.map(unit => ({ el: unit, known: searchUnitRole(unit) })) : [{ el, known: null }];
+        const pieces = units.length ? units.map(unit => ({ el: unit, known: searchUnitRole(unit) })) : [{ el, known: null as Role | null }];
+        if (units.length && !pieces.some(piece => piece.known === "assistant")) {
+            const activity = [...el.querySelectorAll<HTMLElement>(Sel.activityHeader)].findLast(node => !units.some(unit => unit.contains(node)));
+            if (activity) pieces.push({ el: activity, known: "assistant" });
+        }
+        return pieces;
     });
     const { generating } = generationState();
     return parts.map(({ el, known }, index) => {
