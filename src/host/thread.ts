@@ -83,7 +83,7 @@ export function listTurns(): Turn[] {
         const units = roleUnits(el);
         const pieces = units.length ? units.map(unit => ({ el: unit, known: searchUnitRole(unit) })) : [{ el, known: null as Role | null }];
         if (units.length && !pieces.some(piece => piece.known === "assistant")) {
-            const activity = [...el.querySelectorAll<HTMLElement>(Sel.activityHeader)].findLast(node => !units.some(unit => unit.contains(node)));
+            const activity = [...el.querySelectorAll<HTMLElement>(Sel.activityHeader)].findLast(node => !units.some(unit => unit.contains(node)) && normalizeText(node.textContent ?? ""));
             if (activity) pieces.push({ el: activity, known: "assistant" });
         }
         return pieces;

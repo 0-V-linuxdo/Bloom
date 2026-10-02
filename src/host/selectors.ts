@@ -27,7 +27,7 @@ export const Sel = {
     generatedImage: '[class~="group/generated-image-preview"], img[alt="Generated image"]',
     markdown: ".markdown, .prose",
     searchUnit: "[data-chatgpt-search-unit-key]",
-    activityHeader: '[class*="activity-header"]',
+    activityHeader: '[class*="group/activity-header"]',
     turnBusy: '[role="status"][aria-busy="true"], .result-streaming',
 
     composerInput: 'textarea[name="prompt"], #mobile-composer-prompt, #prompt-textarea, form [contenteditable="true"].ProseMirror',
