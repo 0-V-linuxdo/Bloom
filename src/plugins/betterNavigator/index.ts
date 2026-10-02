@@ -6,10 +6,10 @@
 
 import { definePluginSettings } from "@api/Settings";
 import { composerForm } from "@host/composer";
-import { generation } from "@host/generation";
+import { generation, generationState } from "@host/generation";
 import { conversationData, network, type Role } from "@host/network";
 import { currentConversationId, onRouteChange } from "@host/route";
-import { chainSummary, listTurns, threadScroller, type Turn, turnSummary } from "@host/thread";
+import { chainSummary, isReversedScroller, listTurns, threadScroller, type Turn, turnSummary } from "@host/thread";
 import { classes, classNameFactory } from "@utils/css";
 import { frameScheduler, h, hostMutations, watchBody } from "@utils/dom";
 import { truncate } from "@utils/misc";
@@ -61,7 +61,7 @@ let controller: AbortController | undefined;
 
 const shown = (item: { role: Role; }) => settings.store.showAssistant || item.role === "user";
 
-function collect(): Entry[] {
+function listed(): Entry[] {
     const fromDom = listTurns().reduce<Entry[]>((out, turn) => {
         const entry = { role: turn.role, summary: turnSummary(turn), ids: turn.messageIds, turn, streaming: turn.streaming };
         const previous = out.at(-1);
@@ -96,6 +96,20 @@ function collect(): Entry[] {
     return [...merged, ...loose];
 }
 
+function markOpenTurn(items: Entry[]) {
+    if (!generationState().generating || items.some(item => item.streaming)) return;
+    const tail = items.at(-1);
+    if (!tail) return;
+    if (tail.role === "assistant" || !settings.store.showAssistant) tail.streaming = true;
+    else items.push({ role: "assistant", summary: "", ids: [], turn: null, streaming: true });
+}
+
+function collect(): Entry[] {
+    const items = listed();
+    markOpenTurn(items);
+    return items;
+}
+
 function readingIndex(scroller: HTMLElement) {
     const box = scroller.getBoundingClientRect();
     const line = box.top + box.height * READING_LINE;
@@ -117,6 +131,12 @@ function jump(index: number) {
     const entry = entries[index];
     const scroller = threadScroller();
     if (!entry || !scroller) return;
+    if (!entry.turn && !entry.ids.length) {
+        aim = index;
+        markCurrent();
+        scroller.scrollTo({ top: isReversedScroller(scroller) ? 0 : scroller.scrollHeight });
+        return;
+    }
     aim = index;
     home = index ? null : { chat: currentConversationId(), first: entry.ids[0], until: Date.now() + SEEK_MS };
     markCurrent();
@@ -272,6 +292,7 @@ export default definePlugin({
         ];
         addEventListener("keydown", onKeydown, true);
         addEventListener("resize", update, { passive: true });
+        update();
     },
     stop() {
         for (const unsubscribe of unsubscribers) unsubscribe();

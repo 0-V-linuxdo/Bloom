@@ -1,0 +1,63 @@
+/*
+ * Bloom++, a modification for chatgpt.com
+ * Copyright (c) 2026 Bloom contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+import { afterEach, beforeAll, describe, expect, test } from "bun:test";
+
+import { startGeneration } from "../src/host/generation";
+import navigator from "../src/plugins/betterNavigator";
+
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const OPEN_USER = `
+<main>
+  <div data-app-action-timeline-scroll style="overflow:auto;height:240px;width:480px">
+    <div data-chatgpt-conversation-selection-target>
+      <div data-turn-key="t1">
+        <div data-chatgpt-search-unit-key="t1:user" data-chatgpt-search-message-ids="u1">
+          <div class="whitespace-pre-wrap">continue where you left</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <form><textarea name="prompt"></textarea><button aria-label="Stop">Stop</button></form>
+</main>`;
+
+beforeAll(() => {
+    HTMLElement.prototype.getClientRects = function () {
+        return (this.isConnected ? [new DOMRect(0, 0, 120, 40)] : []) as unknown as DOMRectList;
+    };
+    startGeneration();
+});
+
+afterEach(() => {
+    navigator.stop?.();
+    document.body.replaceChildren();
+});
+
+describe("BetterNavigator open turn", () => {
+    test("draws a dashed assistant tick when the reply is open but not mounted", async () => {
+        navigator.start?.();
+        document.body.innerHTML = OPEN_USER;
+        await wait(100);
+        const ticks = [...document.querySelectorAll(".bloom-nav-tick")];
+        expect(ticks).toHaveLength(2);
+        expect(ticks[0]?.classList.contains("bloom-nav-tick-user")).toBe(true);
+        expect(ticks[0]?.classList.contains("bloom-nav-tick-streaming")).toBe(false);
+        expect(ticks[1]?.classList.contains("bloom-nav-tick-assistant")).toBe(true);
+        expect(ticks[1]?.classList.contains("bloom-nav-tick-streaming")).toBe(true);
+    });
+
+    test("removes the dashed tick after generation settles", async () => {
+        navigator.start?.();
+        document.body.innerHTML = OPEN_USER;
+        await wait(100);
+        document.querySelector("button")?.setAttribute("aria-label", "Send");
+        await wait(900);
+        expect(document.querySelectorAll(".bloom-nav-tick")).toHaveLength(1);
+        expect(document.querySelector(".bloom-nav-tick-user")).not.toBeNull();
+        expect(document.querySelector(".bloom-nav-tick-streaming")).toBeNull();
+    });
+});

@@ -267,6 +267,7 @@ async function newShellSuite(browser) {
     await page.waitForTimeout(300);
     const rotating = await page.evaluate(() => document.getElementById("bloom-chat-state-favicon")?.href ?? "");
     check("favicon shows generating", rotating.startsWith("data:image/png"));
+    check("BetterNavigator dashes the open assistant tick", await page.locator(".bloom-nav-tick-streaming").count() === 1);
     check("new chat first sits on a local id", page.url().includes("/c/local-"), page.url());
     await page.locator(COMPOSER).fill("Queued follow-up");
     await page.locator(COMPOSER).press("Enter");

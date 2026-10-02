@@ -15,7 +15,7 @@ const pkg = JSON.parse(readFileSync(resolve(here, "package.json"), "utf8"));
 const isDev = process.argv.includes("--dev");
 const isWatch = process.argv.includes("--watch");
 const repo = "https://github.com/0-V-linuxdo/Bloom";
-const raw = "https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main";
+const raw = "https://raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/v2";
 
 const header = `// ==UserScript==
 // @name         Bloom++
