@@ -41,6 +41,36 @@ describe("Continue", () => {
         expect(readDraft()).toBe("");
     });
 
+    test("does not send while the interrupted reply is still growing", async () => {
+        plugin.start?.();
+        document.body.innerHTML = shell("Connection interrupted. Waiting for the complete answer", true);
+        const turn = document.createElement("article");
+        turn.dataset.turnKey = "late";
+        turn.textContent = "Analyzing";
+        document.body.append(turn);
+        const timer = setInterval(() => { turn.textContent += "."; }, 400);
+        await wait(3000);
+        clearInterval(timer);
+        expect(readDraft()).toBe("");
+    });
+
+    test("stops a stalled interrupted reply and sends continue", async () => {
+        plugin.start?.();
+        document.body.innerHTML = shell("Connection interrupted. Waiting for the complete answer", true);
+        const turn = document.createElement("article");
+        turn.dataset.turnKey = "late";
+        turn.textContent = "Analyzing";
+        document.body.append(turn);
+        document.querySelector("button")?.addEventListener("click", event => {
+            if ((event.currentTarget as HTMLButtonElement).getAttribute("aria-label") === "Stop") {
+                (event.currentTarget as HTMLButtonElement).remove();
+            }
+        });
+        await wait(10_000);
+        expect(readDraft()).toBe("continue where you left");
+        expect(document.querySelector('button[aria-label="Stop"]')).toBeNull();
+    }, 15_000);
+
     test("sends the continue prompt after a delivery timeout", async () => {
         let clicks = 0;
         plugin.start?.();

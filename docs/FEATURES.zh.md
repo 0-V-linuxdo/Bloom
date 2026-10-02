@@ -314,7 +314,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 默认开｜`HostReady`｜chat｜Bloom++ 独有
 
 - 回复停在投递错误（`.text-chatgpt-recovery` 里出现 “Message delivery timed out” / “Please try again”，且生成已经结束、输入框是空的）并稳定约 1.2 秒后，自动把 `prompt` 写入输入框并发送。默认文案是 “continue where you left”。
-- “Connection interrupted. Waiting for the complete answer” 不算：这时回复还在恢复，Stop 往往还在，不发送。用户点了 Stop，或切走会话，这次错误也不发送。
+- “Connection interrupted. Waiting for the complete answer” 且 Stop 还在、正文仍在变长时不发送。若这条提示还在，并且最后一条回复的长度连续约 8 秒不变，视为卡住：点 Stop 结束这次挂起（这次不算用户取消），再发送。横幅先消失后才会重新计时，避免续写刚发出、旧横幅还在时把新回复停掉。用户自己点了 Stop，或切走会话，这次也不发送。
 - 同一次错误只发一条。发出去之后如果又停在新的投递错误上，再发，直到这次成功结束，或同一会话里已经连着发了 6 条。正常结束（`done` 且错误条已消失）后计数清零。输入框里已有草稿时不覆盖。
 - 设置：`prompt`（默认 “continue where you left”）。
 
