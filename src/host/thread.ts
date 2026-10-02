@@ -83,8 +83,11 @@ export function listTurns(): Turn[] {
         const units = roleUnits(el);
         const pieces = units.length ? units.map(unit => ({ el: unit, known: searchUnitRole(unit) })) : [{ el, known: null as Role | null }];
         if (units.length && !pieces.some(piece => piece.known === "assistant")) {
-            const activity = [...el.querySelectorAll<HTMLElement>(Sel.activityHeader)].findLast(node => !units.some(unit => unit.contains(node)) && normalizeText(node.textContent ?? ""));
-            if (activity) pieces.push({ el: activity, known: "assistant" });
+            const outside = (node: HTMLElement) => !units.some(unit => unit.contains(node)) && normalizeText(node.textContent ?? "");
+            const title = [...el.querySelectorAll<HTMLElement>(Sel.assistantMarkdown)].find(node => outside(node) && !STATUS_LINE.test(normalizeText(node.textContent ?? "")));
+            const activity = [...el.querySelectorAll<HTMLElement>(Sel.activityHeader)].findLast(outside);
+            const assistant = title ?? activity;
+            if (assistant) pieces.push({ el: assistant, known: "assistant" });
         }
         return pieces;
     });
@@ -92,18 +95,22 @@ export function listTurns(): Turn[] {
     return parts.map(({ el, known }, index) => {
         const messageIds = known ? unitMessageIds(el) : outerMessageUnits(el).flatMap(unitMessageIds);
         const role = known ?? domRole(el) ?? chainRole(messageIds, chain) ?? (index % 2 ? "assistant" : "user");
-        const streaming = role === "assistant" && (el.matches(Sel.turnBusy) || !!el.querySelector(Sel.turnBusy) || (generating && index === parts.length - 1));
+        const host = el.closest(Sel.turn) ?? el;
+        const activityBusy = !el.closest(Sel.searchUnit) && !!host.querySelector(Sel.turnBusy);
+        const streaming = role === "assistant" && (el.matches(Sel.turnBusy) || !!el.querySelector(Sel.turnBusy) || activityBusy || (generating && index === parts.length - 1));
         return { el, role, messageIds, streaming };
     });
 }
 
 const NOT_CONTENT = "[data-bloom], .sr-only";
 const SKIP_LINE = /^(?:\d+\s+sources?|web search|searched|thought for|worked for|reasoned|thinking)\b/i;
+const STATUS_LINE = /^(?:analyzed|analyzing|analysis paused|analysis errored|analysis error)$/i;
 
 const summaries = new WeakMap<HTMLElement, { length: number; summary: string; }>();
 
 export function turnSummary(turn: Turn) {
-    const length = turn.el.textContent?.length ?? 0;
+    const scope = turn.el.closest(Sel.turn) ?? turn.el;
+    const length = scope.textContent?.length ?? 0;
     const cached = summaries.get(turn.el);
     if (cached?.length === length) return cached.summary;
     const summary = computeSummary(turn);
@@ -111,14 +118,38 @@ export function turnSummary(turn: Turn) {
     return summary;
 }
 
+function groupTitles(scope: ParentNode) {
+    const seen = new Set<string>();
+    const titles: string[] = [];
+    for (const node of scope.querySelectorAll<HTMLElement>(Sel.assistantMarkdown)) {
+        if (node.closest(Sel.searchUnit)) continue;
+        const text = normalizeText(node.textContent ?? "");
+        if (!text || STATUS_LINE.test(text) || SKIP_LINE.test(text) || seen.has(text)) continue;
+        seen.add(text);
+        titles.push(text);
+    }
+    return titles;
+}
+
 function computeSummary(turn: Turn) {
     const images = turn.el.querySelectorAll(Sel.generatedImage).length;
     if (turn.role === "assistant" && images) return images > 1 ? `Image ×${images}` : "Image";
+    const scope = turn.el.closest(Sel.turn);
+    if (turn.role === "assistant" && scope && turn.el.matches(Sel.assistantMarkdown) && !turn.el.closest(Sel.searchUnit)) {
+        const titles = groupTitles(scope);
+        if (titles.length) return titles.join(" · ");
+    }
     const body = turn.el.querySelector<HTMLElement>(turn.role === "assistant" ? Sel.markdown : ".whitespace-pre-wrap") ?? turn.el;
     const extras = [...body.querySelectorAll<HTMLElement>(NOT_CONTENT)].map(el => normalizeText(el.textContent ?? "")).filter(Boolean);
     const text = extras.reduce((rest, extra) => rest.replace(extra, "\n"), body.innerText || body.textContent || "");
-    const lines = text.split("\n").map(normalizeText).filter(line => line && !SKIP_LINE.test(line));
+    const lines = text.split("\n").map(normalizeText).filter(line => line && !SKIP_LINE.test(line) && !STATUS_LINE.test(line));
     if (lines.length) return lines.join(" ");
+    if (turn.role === "assistant" && scope) {
+        const titles = groupTitles(scope);
+        if (titles.length) return titles.join(" · ");
+    }
+    const status = text.split("\n").map(normalizeText).filter(line => STATUS_LINE.test(line));
+    if (status.length) return status.at(-1) ?? "";
     return turn.role === "user" && turn.el.querySelector("img, a[download], [data-testid*=file]") ? "File" : "";
 }
 

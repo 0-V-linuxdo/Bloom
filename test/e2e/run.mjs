@@ -236,7 +236,7 @@ async function newShellSuite(browser) {
     await page.locator(".bloom-settings-hint").hover();
     check("panel hint tooltip shows at once on hover", (await page.locator(".bloom-tooltip").textContent({ timeout: 300 }).catch(() => "")).includes("Some need a reload"));
     await page.screenshot({ path: resolve(shots, "panel-hint-light.png"), clip: { x: 0, y: 0, width: 1280, height: 260 } });
-    check("panel lists 19 plugins", await page.locator(".bloom-settings-card").count() === 19);
+    check("panel lists 20 plugins", await page.locator(".bloom-settings-card").count() === 20);
     await page.locator('[data-bloom="settings"] input[type=search]').fill("queue");
     check("panel search filters", await page.locator(".bloom-settings-card").count() === 1);
     await page.locator('[data-bloom="settings"] input[type=search]').fill("");

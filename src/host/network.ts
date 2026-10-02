@@ -88,14 +88,35 @@ function toChainMessage(raw: RawMessage): ChainMessage | null {
 const visibleChain = (chain: ChainMessage[]) =>
     chain.filter((message, index) => message.role === "user" || chain[index + 1]?.role !== "assistant");
 
+const timesOf = (messages: ChainMessage[]) => messages.map(message => message.createTime).filter((time): time is number => time != null);
+
+function windowIsOlder(incoming: ChainMessage[], existing: ChainMessage[]) {
+    const incomingTimes = timesOf(incoming);
+    const existingTimes = timesOf(existing);
+    if (!incomingTimes.length || !existingTimes.length) return false;
+    return Math.max(...incomingTimes) < Math.min(...existingTimes);
+}
+
+function sortByTime(messages: ChainMessage[]) {
+    const known = timesOf(messages);
+    if (known.length < 2) return messages;
+    const [earliest] = known;
+    let last = earliest - messages.length;
+    const stamped = messages.map((message, index) => {
+        if (message.createTime != null) last = message.createTime;
+        return { message, index, time: message.createTime ?? last };
+    });
+    return stamped.toSorted((a, b) => a.time - b.time || a.index - b.index).map(item => item.message);
+}
+
 function parseWindow(entry: ConversationData, items: unknown[]) {
     const raws = items.filter(isRecord).map(item => (isRecord(item.message) ? item.message : item) as RawMessage);
     for (const raw of raws) if (raw.id && raw.create_time) entry.times.set(raw.id, raw.create_time * SECONDS_TO_MS);
     const chain = raws.map(toChainMessage).filter(message => message != null);
     const ids = new Set(chain.map(message => message.id));
     const rest = entry.chain.filter(message => !ids.has(message.id));
-    const older = (chain.at(-1)?.createTime ?? 0) < (rest[0]?.createTime ?? 0);
-    entry.chain = visibleChain(older ? [...chain, ...rest] : [...rest, ...chain]);
+    const merged = windowIsOlder(chain, rest) ? [...chain, ...rest] : [...rest, ...chain];
+    entry.chain = visibleChain(sortByTime(merged));
     return entry;
 }
 

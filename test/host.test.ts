@@ -139,6 +139,20 @@ describe("signed-in shell 2026-09", () => {
         expect(turnSummary(turns[1]!)).toBe("Analyzing");
     });
 
+    test("summarizes an agent turn by its group titles, not the status chip", () => {
+        mount(`<main><div data-app-action-timeline-scroll><div data-turn-key="t">
+            <div data-chatgpt-search-unit-key="fallback-turn-0:0:user" data-chatgpt-search-message-ids="u1"><div class="whitespace-pre-wrap">continue where you left</div></div>
+            <div data-markdown-text-style="assistant-message">Continued translating the screenplay</div>
+            <div data-markdown-text-style="assistant-message">Addressing translation continuity</div>
+            <div class="group/activity-header"><span>Analyzed</span></div>
+            <div class="group/activity-header"><span>Analysis paused</span></div>
+        </div></div></main>`);
+        const turns = listTurns();
+        expect(turns.map(turn => turn.role)).toEqual(["user", "assistant"]);
+        expect(turnSummary(turns[1]!)).toBe("Continued translating the screenplay · Addressing translation continuity");
+        expect(turns[1]?.el.getAttribute("data-markdown-text-style")).toBe("assistant-message");
+    });
+
     test("summaries skip Bloom's timestamp and screen-reader labels", () => {
         mount(LIVE_SHELL);
         const unit = document.querySelector('[data-chatgpt-search-unit-key="t1:assistant"] [data-chatgpt-search-message-ids]');
@@ -194,6 +208,27 @@ describe("conversation JSON", () => {
         parseConversation(id, { messages: [textMessage("u2", "user", "Second", 30), textMessage("a2", "assistant", "Two", 40)] });
         const data = parseConversation(id, { messages: [textMessage("u1", "user", "First", 10), textMessage("a1", "assistant", "One", 20)] });
         expect(data?.chain.map(m => m.id)).toEqual(["u1", "a1", "u2", "a2"]);
+    });
+
+    test("does not prepend a newer window whose last message has no time", () => {
+        const id = "66666666-6666-4666-8666-666666666666";
+        parseConversation(id, { messages: [textMessage("u0", "user", "zh-cn", 10), textMessage("a0", "assistant", "STATUS", 20)] });
+        const data = parseConversation(id, {
+            messages: [
+                textMessage("u1", "user", "continue where you left", 30),
+                textMessage("a1", "assistant", "STATUS 5", 40),
+                { id: "tool", author: { role: "assistant" }, content: { content_type: "text", parts: ["tail"] } },
+            ],
+        });
+        expect(data?.chain.map(m => m.id)).toEqual(["u0", "a0", "u1", "tool"]);
+    });
+
+    test("sorts a newest-first window into time order", () => {
+        const id = "77777777-7777-4777-8777-777777777777";
+        const data = parseConversation(id, {
+            messages: [textMessage("a1", "assistant", "Later", 40), textMessage("u1", "user", "continue where you left", 30), textMessage("u0", "user", "zh-cn", 10)],
+        });
+        expect(data?.chain.map(m => m.id)).toEqual(["u0", "u1", "a1"]);
     });
 
     test("keeps only the last of consecutive assistant messages", () => {

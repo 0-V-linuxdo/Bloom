@@ -12,6 +12,7 @@ import ChatListStatus from "./chatListStatus";
 import ChatStateFavicons from "./chatStateFavicons";
 import Cleaner from "./cleaner";
 import ComposerOpacity from "./composerOpacity";
+import Continue from "./continue";
 import CustomSidebarIdentity from "./customSidebarIdentity";
 import GreetingCustomizer from "./greetingCustomizer";
 import InputHistory from "./inputHistory";
@@ -33,6 +34,7 @@ const list: Plugin[] = [
     ChatStateFavicons,
     Cleaner,
     ComposerOpacity,
+    Continue,
     CustomSidebarIdentity,
     GreetingCustomizer,
     InputHistory,

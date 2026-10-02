@@ -7,6 +7,7 @@
 import { afterEach, beforeAll, describe, expect, test } from "bun:test";
 
 import { startGeneration } from "../src/host/generation";
+import { parseConversation } from "../src/host/network";
 import navigator from "../src/plugins/betterNavigator";
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -59,5 +60,40 @@ describe("BetterNavigator open turn", () => {
         expect(document.querySelectorAll(".bloom-nav-tick")).toHaveLength(1);
         expect(document.querySelector(".bloom-nav-tick-user")).not.toBeNull();
         expect(document.querySelector(".bloom-nav-tick-streaming")).toBeNull();
+    });
+
+    test("lists the first message before later continues and uses the agent title", async () => {
+        const id = "88888888-8888-4888-8888-888888888888";
+        history.pushState(null, "", `/c/${id}`);
+        parseConversation(id, {
+            messages: [
+                { id: "u1", author: { role: "user" }, create_time: 30, content: { content_type: "text", parts: ["continue where you left"] } },
+                { id: "u0", author: { role: "user" }, create_time: 10, content: { content_type: "text", parts: ["zh-cn"] } },
+                { id: "a0", author: { role: "assistant" }, create_time: 20, content: { content_type: "text", parts: ["STATUS"] } },
+            ],
+        });
+        navigator.start?.();
+        document.body.innerHTML = `
+<main>
+  <div data-app-action-timeline-scroll style="overflow:auto;height:240px;width:480px">
+    <div data-turn-key="t0">
+      <div data-chatgpt-search-unit-key="t0:user" data-chatgpt-search-message-ids="u0"><div class="whitespace-pre-wrap">zh-cn</div></div>
+      <div data-chatgpt-search-unit-key="t0:assistant" data-chatgpt-search-message-ids="a0"><div class="markdown">STATUS</div></div>
+    </div>
+    <div data-turn-key="t1">
+      <div data-chatgpt-search-unit-key="t1:user" data-chatgpt-search-message-ids="u1"><div class="whitespace-pre-wrap">continue where you left</div></div>
+      <div data-markdown-text-style="assistant-message">Continued translating the screenplay</div>
+      <div class="group/activity-header"><span>Analysis paused</span></div>
+    </div>
+  </div>
+</main>`;
+        await wait(100);
+        const rows = [...document.querySelectorAll(".bloom-nav-row")].map(row => row.textContent?.replaceAll(/\s+/g, " ").trim());
+        expect(rows[0]).toContain("zh-cn");
+        expect(rows[1]).toContain("STATUS");
+        expect(rows[2]).toContain("continue where you left");
+        expect(rows[3]).toContain("Continued translating the screenplay");
+        expect(rows.some(row => row?.includes("Analysis paused"))).toBe(false);
+        history.pushState(null, "", "/");
     });
 });

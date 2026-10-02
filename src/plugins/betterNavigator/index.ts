@@ -61,6 +61,27 @@ let controller: AbortController | undefined;
 
 const shown = (item: { role: Role; }) => settings.store.showAssistant || item.role === "user";
 
+function orderEntries(items: Entry[]) {
+    const times = conversationData(currentConversationId())?.times;
+    if (!times?.size) return items;
+    const groups: { items: Entry[]; index: number; time: number | null; }[] = [];
+    for (const item of items) {
+        const time = item.ids.reduce<number | null>((best, id) => {
+            const value = times.get(id);
+            return value != null && (best == null || value < best) ? value : best;
+        }, null);
+        if (item.role === "user" || !groups.length) groups.push({ items: [item], index: groups.length, time });
+        else {
+            const group = groups[groups.length - 1]!;
+            group.items.push(item);
+            if (group.time == null && time != null) group.time = time;
+        }
+    }
+    return groups
+        .toSorted((a, b) => a.time == null || b.time == null ? a.index - b.index : a.time - b.time || a.index - b.index)
+        .flatMap(group => group.items);
+}
+
 function listed(): Entry[] {
     const fromDom = listTurns().reduce<Entry[]>((out, turn) => {
         const entry = { role: turn.role, summary: turnSummary(turn), ids: turn.messageIds, turn, streaming: turn.streaming };
@@ -93,7 +114,7 @@ function listed(): Entry[] {
         }
         merged.push(dom ?? { role: message.role, summary: chainSummary(message), ids: [message.id], turn: null, streaming: false });
     }
-    return [...merged, ...loose];
+    return orderEntries([...merged, ...loose]);
 }
 
 function markOpenTurn(items: Entry[]) {

@@ -260,9 +260,9 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 鼠标悬停刻度列展开目录卡片：每行 emoji + 回合摘要（最多 80 字）；顶部显示 “N / M”。
 - 点击刻度或目录行跳转到该回合（近的平滑滚动，远的瞬间），跳转后给目标加一个短暂边框高亮（`jumpEffect` = border / none）。
 - 焦点不在输入框时 `↑` / `↓` / `Home` / `End` 在回合间跳。跳转（键盘、点刻度或目录行）后当前标记直接落在目标上，`↑` / `↓` 从这个目标往前后走，而不是从阅读线位置算，否则短消息会被跳过（Home 后按 ↓ 曾直接到第 4 条）；用户自己滚动（滚轮、触摸、按住滚动条、翻页键）后标记重新跟随阅读位置。
-- 同一回合里连续的多条助手消息（GPT 调用工具时的中间消息，ChatGPT 只显示成折叠的 “Analyzed” 步骤）合成一条，摘要和跳转目标取最后一条（真正显示的回复），与会话主链“连续助手消息只留最后一条”的规则一致。这些步骤有时只画在用户回合内部、没有单独的助手 search unit：这时仍在该用户回合后补一条助手刻度，摘要和跳转取最后一个 activity header（Analyzing、Analyzed、Analysis paused、Analysis errored）。
+- 同一回合里连续的多条助手消息（GPT 调用工具时的中间消息，ChatGPT 只显示成折叠的 “Analyzed” 步骤）合成一条，摘要和跳转目标取最后一条（真正显示的回复），与会话主链“连续助手消息只留最后一条”的规则一致。这些步骤有时只画在用户回合内部、没有单独的助手 search unit：这时仍在该用户回合后补一条助手刻度。摘要优先取该回合里、不在 search unit 中的助手说明（`data-markdown-text-style="assistant-message"`，例如 “Continued translating the screenplay”），多条用 “ · ” 连接，跳转落到第一条说明；没有说明时才退回最后一个 activity header（Analyzing、Analyzed、Analysis paused、Analysis errored）。目录里不再把每条都显示成一样的 “Analyzed” / “Analysis paused”。
 - 长对话里 ChatGPT 只挂载视口附近的回合（虚拟列表）：目录仍列出已知的全部回合（来自网络采集的会话主链），点未挂载的回合时逐步滚动直到它挂载再定位。新壳的滚动容器是反向的（`flex-direction: column-reverse`，`scrollTop` ≤ 0），ChatGPT 只在滚到顶时才挂载更早的回合（先显示 `[role=status]` 转圈，实机上可能要近 10 秒）；所以按时间（最多 30 秒）而不是按步数等待：还能滚时每帧以 `behavior: "instant"` 往目标方向翻 0.9 屏，滚不动（到顶）时每 200 ms 查一次，不逐帧空转；每步重新取滚动容器。用户自己滚动（滚轮、触摸、按住滚动条、其他按键）会取消寻找。
-- 新壳首次打开长对话时只加载最近几轮，更早的消息要滚到顶才分页取回（同一个 `/backend-api/conversations/{id}` 接口）。会话主链合并新窗口时，如果新窗口整体早于已有消息就放在前面，否则接在后面；只在 DOM 里、不在主链里的回合按 DOM 顺序插在它后面第一个主链回合之前，而不是统一放到最后，否则后加载的较早回合会排到目录末尾（实机曾在底部显示 “8 / 13”）。
+- 新壳首次打开长对话时只加载最近几轮，更早的消息要滚到顶才分页取回（同一个 `/backend-api/conversations/{id}` 接口）。会话主链合并新窗口时，已知 `create_time` 的消息按时间排序；时间从新到旧的窗口先反转。只有新窗口里的时间全部早于已有消息才放在前面。缺 `create_time` 的窗口不再被当成最旧整段插到最前（实机会把后面几条 “continue where you left” 排到第一条用户消息之前，人看的是开头，目录却显示 “6 / 17”）。只在 DOM 里、不在主链里的回合仍按 DOM 顺序插在它后面第一个主链回合之前；主链顺序和 DOM 不一致时，有时间的回合再按时间排，没有消息 id 的活动刻度留在它前面那条用户消息后面。
 - `Home`（或点第一行）跳到第一条后 30 秒内，如果 ChatGPT 又在前面加载了更早的回合（目录第一条变了），且用户没有自己滚动，就重新跳到新的第一条：ChatGPT 加载完会把视图甩回底部，这样最终仍落在整个会话的第一条上，并带跳转高亮。
 - 正在生成的助手回合刻度画成虚线，结束（出现复制/点赞按钮或生成图片）后恢复实线。助手气泡还没挂上、目录里只有刚发出的用户回合时，末尾仍补一条虚线助手刻度；生成结束就去掉。关掉助手回合后，虚线落在最后一条用户刻度上。
 - 摘要规则：用户回合取正文；带文件的用户回合取文件下面的正文，没有正文则 “File”；图片生成回合 “Image” 或 “Image ×N”；助手回合取正文，跳过 “N sources” / “Web search” / 工具行。
@@ -309,6 +309,15 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 纯 CSS：降低侧栏左下角账号区的不透明度，指针移上去时立即恢复 100%（无过渡）。账号区指：展开侧栏里的整个账号区（footer：滚动区或其父元素的下一个兄弟、里面有 `button[aria-haspopup="menu"]`，入口 Bloom++ 行也在里面）；rail 里带 `button[aria-haspopup="menu"]` 的那一行；旧壳的 `[data-testid="accounts-profile-button"]`。**头像默认不淡化**（原生头像和 CustomSidebarIdentity 的自定义头像都一样）：元素 `opacity` 在子元素上撤不回来，所以不给账号区整体设 `opacity`，而是沿“账号区 → 头像”这条祖先链，给链上每个元素的其他子元素设 `opacity`（选择器 `:is(账号区, 账号区 :has(头像)) > :not(头像, :has(头像))`）。头像靠身份标记 `[data-bloom-profile-avatar]` 识别（插件自己启用 `useIdentityMarks`）。这条链上元素自己的背景不淡化。不改背景色，不影响点击；下拉菜单挂在别处，不受影响。设置：`opacity` 0–100 %（默认 50；100 = 原生，不注入任何样式）、`fadeAvatar`（头像也淡化，此时整个账号区统一设 `opacity`，默认假）。
 
+### 4.19 Continue — 回复中断后自动续写
+
+默认开｜`HostReady`｜chat｜Bloom++ 独有
+
+- 回复停在投递错误（`.text-chatgpt-recovery` 里出现 “Message delivery timed out” / “Please try again”，且生成已经结束、输入框是空的）并稳定约 1.2 秒后，自动把 `prompt` 写入输入框并发送。默认文案是 “continue where you left”。
+- “Connection interrupted. Waiting for the complete answer” 不算：这时回复还在恢复，Stop 往往还在，不发送。用户点了 Stop，或切走会话，这次错误也不发送。
+- 同一次错误只发一条。发出去之后如果又停在新的投递错误上，再发，直到这次成功结束，或同一会话里已经连着发了 6 条。正常结束（`done` 且错误条已消失）后计数清零。输入框里已有草稿时不覆盖。
+- 设置：`prompt`（默认 “continue where you left”）。
+
 ---
 
 ## 5. 设置键总表（兼容性清单）
@@ -329,6 +338,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | ChatListStatus | — | — |
 | WiderChat | `width` | — |
 | ComposerOpacity | `opacity` `blur` | — |
+| Continue | `prompt` | — |
 | BetterNavigator | `showAssistant` `jumpEffect` | — |
 | MessageTimestamps | `showDate` `hideOwnMessages` | `stamps` |
 | StreamerMode | `conversations` `projects` `accountAvatar` `accountName` `accountEmail` `headerTitle` | — |
