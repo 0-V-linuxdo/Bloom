@@ -38,6 +38,7 @@ let releasing = false;
 let stallArmed = true;
 let stallKey = "";
 let stallAt = 0;
+let ownSend = false;
 
 const promptText = () => settings.store.prompt.trim() || DEFAULT_PROMPT;
 
@@ -81,6 +82,7 @@ function send(text: string) {
         return;
     }
     writeDraft(text);
+    ownSend = true;
     nextFrame(() => {
         if (ticket === session) submit(text, 0, ticket);
     });
@@ -143,6 +145,7 @@ function resetConversation() {
     stallArmed = true;
     stallKey = "";
     stallAt = 0;
+    ownSend = false;
 }
 
 export default definePlugin({
@@ -160,6 +163,8 @@ export default definePlugin({
                 held = false;
                 handled = "";
                 sending = false;
+                if (!ownSend) return;
+                ownSend = false;
                 stallArmed = false;
                 stallKey = "";
             }),

@@ -56,6 +56,7 @@ describe("Continue", () => {
 
     test("stops a stalled interrupted reply and sends continue", async () => {
         plugin.start?.();
+        await wait(400);
         document.body.innerHTML = shell("Connection interrupted. Waiting for the complete answer", true);
         const turn = document.createElement("article");
         turn.dataset.turnKey = "late";
