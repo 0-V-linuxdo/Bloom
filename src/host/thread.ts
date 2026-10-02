@@ -7,7 +7,6 @@
 import { visible } from "@utils/dom";
 import { normalizeText } from "@utils/misc";
 
-import { generationState } from "./generation";
 import { type ChainMessage, conversationData, type Role } from "./network";
 import { currentConversationId } from "./route";
 import { Sel } from "./selectors";
@@ -91,13 +90,12 @@ export function listTurns(): Turn[] {
         }
         return pieces;
     });
-    const { generating } = generationState();
     return parts.map(({ el, known }, index) => {
         const messageIds = known ? unitMessageIds(el) : outerMessageUnits(el).flatMap(unitMessageIds);
         const role = known ?? domRole(el) ?? chainRole(messageIds, chain) ?? (index % 2 ? "assistant" : "user");
         const host = el.closest(Sel.turn) ?? el;
         const activityBusy = !el.closest(Sel.searchUnit) && !!host.querySelector(Sel.turnBusy);
-        const streaming = role === "assistant" && (el.matches(Sel.turnBusy) || !!el.querySelector(Sel.turnBusy) || activityBusy || (generating && index === parts.length - 1));
+        const streaming = role === "assistant" && (el.matches(Sel.turnBusy) || !!el.querySelector(Sel.turnBusy) || activityBusy);
         return { el, role, messageIds, streaming };
     });
 }

@@ -96,4 +96,64 @@ describe("BetterNavigator open turn", () => {
         expect(rows.some(row => row?.includes("Analysis paused"))).toBe(false);
         history.pushState(null, "", "/");
     });
+
+    test("does not repeat chain continues in front of the mounted thread", async () => {
+        const id = "99999999-9999-4999-8999-999999999999";
+        history.pushState(null, "", `/c/${id}`);
+        parseConversation(id, {
+            messages: [1, 2, 3, 4, 5, 6].map(index => ({
+                id: `server-${index}`,
+                author: { role: "user" },
+                create_time: 30 + index,
+                content: { content_type: "text", parts: ["continue where you left"] },
+            })),
+        });
+        navigator.start?.();
+        document.body.innerHTML = `
+<main>
+  <div data-app-action-timeline-scroll style="overflow:auto;height:240px;width:480px">
+    <div data-turn-key="c0">
+      <div data-chatgpt-search-unit-key="c0:user" data-chatgpt-search-message-ids="c0"><div class="whitespace-pre-wrap">zh-cn</div></div>
+      <div data-markdown-text-style="assistant-message">STATUS</div>
+    </div>
+    <div data-turn-key="c1">
+      <div data-chatgpt-search-unit-key="c1:user" data-chatgpt-search-message-ids="c1"><div class="whitespace-pre-wrap">continue where you left</div></div>
+    </div>
+  </div>
+</main>`;
+        await wait(100);
+        const rows = [...document.querySelectorAll(".bloom-nav-row")].map(row => row.textContent?.replaceAll(/\s+/g, " ").trim());
+        expect(rows[0]).toContain("zh-cn");
+        expect(rows.filter(row => row?.includes("continue where you left"))).toHaveLength(1);
+        history.pushState(null, "", "/");
+    });
+
+    test("keeps turns after the virtual list unmounts them", async () => {
+        navigator.start?.();
+        const pane = (body: string) => `<main><div data-app-action-timeline-scroll style="overflow:auto;height:240px;width:480px">${body}</div></main>`;
+        const turn = (key: string, text: string) => `<div data-turn-key="${key}"><div data-chatgpt-search-unit-key="${key}:user" data-chatgpt-search-message-ids="${key}"><div class="whitespace-pre-wrap">${text}</div></div></div>`;
+        document.body.innerHTML = pane(turn("a", "alpha") + turn("b", "beta"));
+        await wait(100);
+        document.body.innerHTML = pane(turn("b", "beta") + turn("c", "gamma"));
+        await wait(100);
+        document.body.innerHTML = pane(turn("a", "alpha") + turn("b", "beta"));
+        await wait(100);
+        const rows = [...document.querySelectorAll(".bloom-nav-row")].map(row => row.textContent?.replaceAll(/\s+/g, " ").trim() ?? "");
+        expect(rows.map(row => row.replace(/^❓/, ""))).toEqual(["alpha", "beta", "gamma"]);
+    });
+
+    test("keeps the dashed tick on the generating tail after it unmounts", async () => {
+        navigator.start?.();
+        const pane = (body: string) => `<main><div data-app-action-timeline-scroll style="overflow:auto;height:240px;width:480px">${body}</div><form><button aria-label="Stop">Stop</button></form></main>`;
+        const turn = (key: string, text: string, title: string) => `<div data-turn-key="${key}"><div data-chatgpt-search-unit-key="${key}:user" data-chatgpt-search-message-ids="${key}"><div class="whitespace-pre-wrap">${text}</div></div><div data-markdown-text-style="assistant-message">${title}</div></div>`;
+        document.body.innerHTML = pane(turn("early", "early", "Early title") + turn("late", "late", "Late title"));
+        await wait(100);
+        document.body.innerHTML = pane(turn("early", "early", "Early title"));
+        await wait(100);
+        const ticks = [...document.querySelectorAll(".bloom-nav-tick")];
+        const dashed = ticks.filter(tick => tick.classList.contains("bloom-nav-tick-streaming"));
+        expect(dashed).toHaveLength(1);
+        expect(dashed[0]?.getAttribute("title")).toContain("Late title");
+        expect(ticks[0]?.classList.contains("bloom-nav-tick-streaming")).toBe(false);
+    });
 });

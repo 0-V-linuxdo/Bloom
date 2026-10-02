@@ -12,7 +12,7 @@ import { currentConversationId, onRouteChange } from "@host/route";
 import { chainSummary, isReversedScroller, listTurns, threadScroller, type Turn, turnSummary } from "@host/thread";
 import { classes, classNameFactory } from "@utils/css";
 import { frameScheduler, h, hostMutations, watchBody } from "@utils/dom";
-import { truncate } from "@utils/misc";
+import { normalizeText, truncate } from "@utils/misc";
 import definePlugin, { OptionType } from "@utils/types";
 
 import styles from "./styles.css";
@@ -58,66 +58,204 @@ let seeking = 0;
 let unsubscribers: (() => void)[] = [];
 let scrollTarget: HTMLElement | null = null;
 let controller: AbortController | undefined;
+let heldChat = "";
+let held: Held[] = [];
 
 const shown = (item: { role: Role; }) => settings.store.showAssistant || item.role === "user";
 
-function orderEntries(items: Entry[]) {
-    const times = conversationData(currentConversationId())?.times;
-    if (!times?.size) return items;
-    const groups: { items: Entry[]; index: number; time: number | null; }[] = [];
-    for (const item of items) {
-        const time = item.ids.reduce<number | null>((best, id) => {
-            const value = times.get(id);
-            return value != null && (best == null || value < best) ? value : best;
-        }, null);
-        if (item.role === "user" || !groups.length) groups.push({ items: [item], index: groups.length, time });
-        else {
-            const group = groups[groups.length - 1]!;
-            group.items.push(item);
-            if (group.time == null && time != null) group.time = time;
+interface Held {
+    key: string;
+    entries: Entry[];
+}
+
+const turnKeyOf = (turn: Turn) => turn.el.closest("[data-turn-key]")?.getAttribute("data-turn-key") || turn.messageIds[0] || turn.role;
+
+function entryFromTurn(turn: Turn): Entry {
+    return { role: turn.role, summary: turnSummary(turn), ids: turn.messageIds, turn, streaming: turn.streaming };
+}
+
+function pushEntry(group: Held, entry: Entry) {
+    const previous = group.entries.at(-1);
+    if (previous?.role === "assistant" && entry.role === "assistant") {
+        group.entries[group.entries.length - 1] = { ...entry, ids: [...new Set([...previous.ids, ...entry.ids])] };
+        return;
+    }
+    group.entries.push(entry);
+}
+
+function liveGroups(): Held[] {
+    const groups: Held[] = [];
+    for (const turn of listTurns()) {
+        const entry = entryFromTurn(turn);
+        const key = turnKeyOf(turn);
+        const last = groups.at(-1);
+        if (last?.key === key) pushEntry(last, entry);
+        else groups.push({ key, entries: [entry] });
+    }
+    return groups;
+}
+
+function chainGroups(): Held[] {
+    const groups: Held[] = [];
+    for (const message of conversationData(currentConversationId())?.chain ?? []) {
+        const entry: Entry = { role: message.role, summary: chainSummary(message), ids: [message.id], turn: null, streaming: false };
+        const last = groups.at(-1);
+        if (message.role === "assistant" && last) pushEntry(last, entry);
+        else groups.push({ key: message.id, entries: [entry] });
+    }
+    return groups;
+}
+
+const groupIds = (group: Held) => group.entries.flatMap(entry => entry.ids);
+
+function sharesId(left: Held, right: Held) {
+    const ids = new Set(groupIds(left));
+    return groupIds(right).some(id => ids.has(id));
+}
+
+const userText = (group: Held) => normalizeText(group.entries.find(entry => entry.role === "user")?.summary ?? "");
+
+const textCount = (groups: Held[], text: string) => groups.filter(group => userText(group) === text).length;
+
+const blank = (entry: Entry): Entry => ({ ...entry, turn: null, streaming: false });
+
+function releaseStale(memory: Held[], live: Held[]) {
+    const claimed = new Set(live.flatMap(group => group.entries.map(entry => entry.turn?.el)).filter(el => el != null));
+    return memory.map(group => ({
+        key: group.key,
+        entries: group.entries.map(entry => {
+            const el = entry.turn?.el;
+            if (!el || !el.isConnected || claimed.has(el)) return blank(entry);
+            const host = el.closest("[data-turn-key]")?.getAttribute("data-turn-key");
+            return host && host !== group.key ? blank(entry) : entry;
+        }),
+    }));
+}
+
+function absorb(into: Held, live: Held): Held {
+    const entries = live.entries.map((entry, index) => {
+        const previous = into.entries[index];
+        if (!previous) return entry;
+        const ids = [...new Set([...entry.ids, ...previous.ids])];
+        return { ...entry, ids, summary: entry.summary || previous.summary };
+    });
+    for (const entry of into.entries.slice(entries.length)) entries.push(blank(entry));
+    return { key: into.key, entries };
+}
+
+function nearerTop() {
+    const scroller = threadScroller();
+    if (!scroller) return false;
+    const min = scroller.clientHeight - scroller.scrollHeight;
+    return scroller.scrollTop - min <= Math.abs(scroller.scrollTop);
+}
+
+function placeLive(memory: Held[], live: Held[]) {
+    const next = releaseStale(memory, live);
+    if (!live.length) return next;
+    if (!next.length) return live;
+    const knownAt = live.findIndex(group => next.some(item => item.key === group.key));
+    if (knownAt < 0) return nearerTop() ? live.concat(next) : next.concat(live);
+    const anchorKey = live[knownAt]?.key;
+    const anchor = next.findIndex(item => item.key === anchorKey);
+    const placed = next.slice(0, anchor).concat(live.slice(0, knownAt), next.slice(anchor));
+    let cursor = placed.findIndex(item => item.key === anchorKey);
+    for (let index = knownAt; index < live.length; index++) {
+        const group = live[index];
+        if (!group) continue;
+        const at = placed.findIndex(item => item.key === group.key);
+        if (at >= 0) {
+            const previous = placed[at];
+            if (previous) placed[at] = absorb(previous, group);
+            cursor = at;
+        } else {
+            placed.splice(cursor + 1, 0, group);
+            cursor++;
         }
     }
-    return groups
-        .toSorted((a, b) => a.time == null || b.time == null ? a.index - b.index : a.time - b.time || a.index - b.index)
-        .flatMap(group => group.items);
+    return placed;
+}
+
+function alignment(memory: Held[], chain: Held[]) {
+    let bestScore = 0;
+    let bestIds = 0;
+    let bestOffset = 0;
+    for (let offset = 1 - memory.length; offset < chain.length; offset++) {
+        let score = 0;
+        let idHits = 0;
+        for (let index = 0; index < memory.length; index++) {
+            const other = chain[index + offset];
+            const item = memory[index];
+            if (!other || !item) continue;
+            if (sharesId(item, other)) {
+                score += 3;
+                idHits++;
+            } else if (userText(item) && userText(item) === userText(other)) score++;
+        }
+        const closer = nearerTop() ? offset < bestOffset : offset > bestOffset;
+        if (score > bestScore || (score === bestScore && idHits > bestIds) || (score === bestScore && idHits === bestIds && closer)) {
+            bestScore = score;
+            bestIds = idHits;
+            bestOffset = offset;
+        }
+    }
+    return { score: bestScore, offset: bestOffset };
+}
+
+function paintChain(memory: Held, chain: Held): Held {
+    const entries = memory.entries.map((entry, index) => {
+        const other = chain.entries[index];
+        if (!other) return entry;
+        return { ...entry, ids: [...new Set([...entry.ids, ...other.ids])], summary: entry.summary || other.summary };
+    });
+    for (const extra of chain.entries.slice(entries.length)) entries.push({ ...extra, turn: null });
+    return { key: memory.key, entries };
+}
+
+function cloneHeld(groups: Held[]) {
+    return groups.map(group => ({ key: group.key, entries: group.entries.map(entry => ({ ...entry })) }));
+}
+
+function weave(memory: Held[], chain: Held[]) {
+    if (!chain.length) return memory;
+    if (!memory.length) return chain;
+    const { score, offset } = alignment(memory, chain);
+    const merged = cloneHeld(memory);
+    if (score > 0) {
+        for (let index = 0; index < merged.length; index++) {
+            const other = chain[index + offset];
+            const item = merged[index];
+            if (!other || !item) continue;
+            const text = userText(item);
+            const unique = !!text && text === userText(other) && textCount(memory, text) === 1 && textCount(chain, text) === 1;
+            if (sharesId(item, other) || unique) merged[index] = paintChain(item, other);
+        }
+    }
+    const before: Held[] = [];
+    const after: Held[] = [];
+    for (let chainIndex = 0; chainIndex < chain.length; chainIndex++) {
+        const group = chain[chainIndex];
+        if (!group) continue;
+        const text = userText(group);
+        if (!text || textCount(merged, text) > 0 || merged.some(item => sharesId(item, group))) continue;
+        if (score > 0 && chainIndex < offset) before.push(group);
+        else after.push(group);
+    }
+    return before.concat(merged, after);
 }
 
 function listed(): Entry[] {
-    const fromDom = listTurns().reduce<Entry[]>((out, turn) => {
-        const entry = { role: turn.role, summary: turnSummary(turn), ids: turn.messageIds, turn, streaming: turn.streaming };
-        const previous = out.at(-1);
-        if (previous?.role === "assistant" && entry.role === "assistant") out[out.length - 1] = { ...entry, ids: [...previous.ids, ...entry.ids] };
-        else out.push(entry);
-        return out;
-    }, []).filter(shown);
-    const chain = (conversationData(currentConversationId())?.chain ?? []).filter(shown);
-    if (!chain.length) return fromDom;
-    const chainIds = new Set(chain.map(message => message.id));
-    const byId = new Map(fromDom.flatMap(entry => entry.ids.map(id => [id, entry] as const)));
-    const before = new Map<Entry, Entry[]>();
-    let loose: Entry[] = [];
-    for (const entry of fromDom) {
-        if (!entry.ids.some(id => chainIds.has(id))) loose.push(entry);
-        else {
-            before.set(entry, loose);
-            loose = [];
-        }
+    const chat = currentConversationId() ?? "";
+    if (chat !== heldChat) {
+        heldChat = chat;
+        held = [];
     }
-    const used = new Set<Entry>();
-    const merged: Entry[] = [];
-    for (const message of chain) {
-        const dom = byId.get(message.id);
-        if (dom && used.has(dom)) continue;
-        if (dom) {
-            used.add(dom);
-            merged.push(...before.get(dom) ?? []);
-        }
-        merged.push(dom ?? { role: message.role, summary: chainSummary(message), ids: [message.id], turn: null, streaming: false });
-    }
-    return orderEntries([...merged, ...loose]);
+    held = weave(placeLive(held, liveGroups()), chainGroups());
+    return held.flatMap(group => group.entries).filter(shown);
 }
 
 function markOpenTurn(items: Entry[]) {
+    for (const item of items) item.streaming = !!item.turn?.el.isConnected && !!item.turn.streaming;
     if (!generationState().generating || items.some(item => item.streaming)) return;
     const tail = items.at(-1);
     if (!tail) return;
@@ -324,6 +462,8 @@ export default definePlugin({
         root?.remove();
         root = null;
         signature = "";
+        held = [];
+        heldChat = "";
     },
     onSettingsChange: update,
 });
