@@ -76,6 +76,7 @@ export const newShell = theme => `${HEAD(theme)}
   <div class="row"><button aria-haspopup="menu" aria-busy="true"><span class="rounded-full"></span><span class="sr-only">Loading profile</span></button></div>
 </div>
 <main>
+  <div class="shrink-0 auto-reload-banner"><aside aria-live="polite" role="status" class="w-full shrink-0 bg-surface-tertiary text-default select-none"><div class="mx-auto flex w-full max-w-4xl"><div class="flex items-center gap-4"><div class="shrink-0 text-warning"></div><div class="text-lg font-semibold">A workspace member hit a limit</div></div><div class="text-base">Turn on auto-reload to automatically add credits and prevent future interruptions.</div><button type="button" class="bg-primary-solid rounded-full">Turn on auto-reload</button></div></aside></div>
   <h1 aria-hidden="true" class="heading-xl invisible">Ready when you are.</h1>
   <div class="heading-xl"><div class="relative inline-block"><h1 class="inline home-heading">What’s on your mind today?</h1></div></div>
   <div class="timeline" data-app-action-timeline-scroll><div class="column" data-chatgpt-conversation-selection-target></div></div>

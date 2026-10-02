@@ -187,6 +187,23 @@ async function newShellSuite(browser) {
     check("new shell: menu command registered", await page.evaluate(() => window.__menu.some(item => item.name === "Bloom++ settings")));
     check("Cleaner hides the upgrade link", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="upgrade-button"]')).display === "none"));
     check("Cleaner hides the GPTs migration notice and its empty wrappers", await page.evaluate(() => !document.querySelector(".gpts-notice").getClientRects().length));
+    check("Cleaner hides the Team auto-reload banner and its wrapper", await page.evaluate(() => !document.querySelector(".auto-reload-banner").getClientRects().length && !document.querySelector(".auto-reload-banner aside").getClientRects().length));
+    check("Cleaner keeps an in-thread status and a recovery notice", await page.evaluate(() => {
+        const main = document.querySelector("main");
+        const status = document.createElement("div");
+        status.className = "shrink-0 thread-status";
+        status.setAttribute("role", "status");
+        status.setAttribute("aria-busy", "true");
+        status.textContent = "Generating";
+        const recovery = document.createElement("div");
+        recovery.className = "text-chatgpt-recovery";
+        recovery.textContent = "Message delivery timed out. Please try again.";
+        main.append(status, recovery);
+        const kept = [status, recovery].every(el => el.getClientRects().length);
+        status.remove();
+        recovery.remove();
+        return kept;
+    }));
     check("Cleaner keeps the composer that shares a wrapper with the notice", await page.evaluate(() => ["[data-chatgpt-composer]", ".ComposerLayoutRoot-XCKS7O", ".ProseMirror"].every(selector => document.querySelector(selector).getClientRects().length)));
     check("Cleaner hides the disclaimer", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="thread-disclaimer"]')).display === "none"));
     check("Cleaner hides the disclaimer on GPT pages", await page.evaluate(() => {

@@ -17,7 +17,7 @@ Plugins:
 | NoSidebarIdentity | On | Hide the display name next to the sidebar avatar. Optional: enlarge Plus/Pro/Free type, or collapse the empty name line so the plan sits on the avatar midline. CSS-only. |
 | CustomSidebarIdentity | Off | Replace the sidebar avatar and display name. Empty fields keep the official values. Paste or crop an image; optional account-menu header. |
 | RecentTopics | On | Switch recently opened chats with Ctrl+` (title + last-turn preview). |
-| Cleaner | On | Hide Download apps, the composer “can make mistakes” notice, upgrade CTAs, locked models, home GPT promo, and Free ads. CSS-only. |
+| Cleaner | On | Hide Download apps, the composer “can make mistakes” notice, upgrade CTAs, locked models, home GPT promo, Free ads, and the Team “Turn on auto-reload” banner. CSS-only. |
 | ResponseNotification | On | Sound + browser notification when a reply finishes. Default: only when the tab is hidden. |
 | PromptQueue | Off | Queue follow-up prompts while a reply is streaming. Enter appends; the head sends after this turn. |
 | ChatListStatus | Off | Spinner on the **open** Recents row while this chat is answering, an error mark if it fails. Synced across tabs. |

@@ -38,6 +38,8 @@ const GROUPS = {
     hideNotices: [
         'aside:has(button[aria-label="Dismiss migration notice"])',
         'div:is(:has(> aside:only-child), :has(> div:only-child > aside:only-child)):has(button[aria-label="Dismiss migration notice"])',
+        'main aside[role="status"][aria-live="polite"][class~="select-none"]:has([class~="text-warning"]):has(button[class~="bg-primary-solid"])',
+        'main div[class~="shrink-0"]:has(> aside[role="status"][aria-live="polite"][class~="select-none"]:only-child):has([class~="text-warning"]):has(button[class~="bg-primary-solid"])',
     ],
     hideAds: [
         ':is([data-testid="ad"], [data-testid^="ad-"], [data-testid*="ad-slot"], [data-testid*="sponsored" i], [data-ad-slot])',
@@ -53,7 +55,7 @@ const settings = definePluginSettings({
     hideLockedModels: { type: OptionType.BOOLEAN, description: "Hide locked models in the model picker.", default: true },
     hideHomePromo: { type: OptionType.BOOLEAN, description: "Hide promo banners on the home page.", default: true },
     hideAds: { type: OptionType.BOOLEAN, description: "Hide ads and sponsored slots.", default: true },
-    hideNotices: { type: OptionType.BOOLEAN, description: "Hide the “Migrate your GPTs to plugins” notice above the composer.", default: true },
+    hideNotices: { type: OptionType.BOOLEAN, description: "Hide the “Migrate your GPTs to plugins” notice and the Team “Turn on auto-reload” banner.", default: true },
 });
 
 export default definePlugin({

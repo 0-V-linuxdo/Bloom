@@ -204,7 +204,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - `hideLockedModels`：模型选择器里锁定、不可用的模型。
 - `hideHomePromo`：首页的 GPT/应用/Codex 推广横幅。
 - `hideAds`：Free 套餐的广告、赞助位。
-- `hideNotices`：隐藏 GPT 页面输入框上方的 “Migrate your GPTs to plugins by December 11” 提示（form 里的 `aside`，关闭按钮是 `button[aria-label="Dismiss migration notice"]`）。只用 CSS 隐藏，不替你点关闭。只隐藏 `aside` 本身，以及只装着它的外层 `div`（`aside` 是唯一子元素，或唯一子元素里唯一的 `aside`），所以隐藏的元素里不会有输入框。2.0.38 及以前还会隐藏 `aside` 的祖父 `div`；ChatGPT 改了这块结构后，祖父就是输入框的容器，输入框跟着被隐藏了（F-23，2.0.39 修）。
+- `hideNotices`：隐藏 GPT 页面输入框上方的 “Migrate your GPTs to plugins by December 11” 提示（form 里的 `aside`，关闭按钮是 `button[aria-label="Dismiss migration notice"]`）。只用 CSS 隐藏，不替你点关闭。只隐藏 `aside` 本身，以及只装着它的外层 `div`（`aside` 是唯一子元素，或唯一子元素里唯一的 `aside`），所以隐藏的元素里不会有输入框。2.0.38 及以前还会隐藏 `aside` 的祖父 `div`；ChatGPT 改了这块结构后，祖父就是输入框的容器，输入框跟着被隐藏了（F-23，2.0.39 修）。也隐藏 Team 订阅页顶部的额度横幅：`main` 里 `div.shrink-0` 的唯一子元素是 `aside[role=status][aria-live=polite].select-none`，里面有警告图标 `.text-warning` 和主按钮 `.bg-primary-solid`（英文是 “A workspace member hit a limit” / “Turn on auto-reload to automatically add credits and prevent future interruptions.”）。只隐藏这个 `aside` 和只装着它的那层 `div.shrink-0`，不碰 `main` 里的对话。会话里的 `[role=status][aria-busy=true]` 和 `.text-chatgpt-recovery` 对不上这些类，不会被藏。
 
 不能隐藏整个输入框区域、Voice、Share、头像、Bloom++ 行。
 
@@ -374,6 +374,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | 账号芯片 | `button[aria-haspopup=menu]`（英文 aria-label “Open profile menu”）是空的覆盖按钮，旁边的 `div.pointer-events-none` 里才是头像 img、名字、套餐；打开的菜单是按钮 `aria-controls` 指向的 `[role=menu]` |
 | 首页标题 | 不可见的 `h1[aria-hidden=true]` 占位 + 可见的 `h1.inline`；取后者 |
 | 发送/停止 | form 内 `button[aria-label="Send"|"Stop"]`，听写是 `Dictate` |
+| Team 额度横幅 | `main > div.shrink-0 > aside[role=status][aria-live=polite].select-none`，标题 “A workspace member hit a limit”，说明 “Turn on auto-reload…”，按钮无 `aria-label`、类名含 `bg-primary-solid`；警告图标在 `.text-warning` |
 
 ### 6.2 旧壳（仍在 A/B）
 

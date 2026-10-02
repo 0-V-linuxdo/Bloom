@@ -17,7 +17,7 @@
 | NoSidebarIdentity | 开 | 隐藏侧栏头像旁的显示名。可选：只放大 Plus/Pro/Free 字号；可选：收掉空名字行，让订阅等级与头像中线对齐。纯 CSS。 |
 | CustomSidebarIdentity | 关 | 替换侧栏头像和显示名。留空则保持官方。可粘贴/裁切图片；可选同步账号下拉顶栏。 |
 | RecentTopics | 开 | Ctrl+` 切换最近打开的会话（标题 + 上轮预览）。 |
-| Cleaner | 开 | 隐藏 Download apps、「也会犯错」提示、升级入口、锁定模型、首页促销、Free 广告。纯 CSS。 |
+| Cleaner | 开 | 隐藏 Download apps、「也会犯错」提示、升级入口、锁定模型、首页促销、Free 广告，以及 Team 顶部 “Turn on auto-reload” 横幅。纯 CSS。 |
 | ResponseNotification | 开 | 回复结束时响铃 / 浏览器通知。默认只在标签隐藏时通知。 |
 | PromptQueue | 关 | 生成中排队后续提示。Enter 追加；队头在本轮结束后再发。 |
 | ChatListStatus | 关 | 当前打开的会话生成中时在 Recents 行转圈，出错时显示错误标记；多个标签页同步。 |
