@@ -7,7 +7,7 @@
 import { definePluginSettings } from "@api/Settings";
 import { icon } from "@components/icons";
 import { isHydrated } from "@host/ready";
-import { conversationIdFromHref } from "@host/route";
+import { conversationIdFromHref, currentConversationId } from "@host/route";
 import { Sel } from "@host/selectors";
 import { classNameFactory } from "@utils/css";
 import { h, hostMutations, watchBody } from "@utils/dom";
@@ -68,20 +68,13 @@ function rowTitle(link: HTMLAnchorElement) {
     return normalizeText(copy.textContent ?? "");
 }
 
-function hostRow(link: HTMLAnchorElement) {
-    const parent = link.parentElement;
-    const root = link.closest(Sel.sidebarScroll) ?? link.closest(Sel.oldSidebar);
-    if (!parent || parent === root) return link;
-    const links = [...parent.querySelectorAll<HTMLAnchorElement>(Sel.conversationLink)].filter(item => !item.closest("[data-bloom]"));
-    return links.length === 1 ? parent : link;
-}
-
 function starButton(id: string, pressed: boolean) {
     const button = h("button", {
         class: cl("-star"),
         attrs: {
             "type": "button",
             "data-bloom": "chat-star",
+            "data-id": id,
             "aria-pressed": String(pressed),
             "aria-label": pressed ? "Unstar chat" : "Star chat",
         },
@@ -89,13 +82,24 @@ function starButton(id: string, pressed: boolean) {
             click: event => {
                 event.preventDefault();
                 event.stopPropagation();
+                if (button.dataset.place === "nav") {
+                    const href = safeHref(`${location.pathname}${location.search}`);
+                    if (href) remember(id, href, chatTitle(id));
+                    return;
+                }
                 const link = nativeLinks().find(item => conversationIdFromHref(item.href) === id);
                 if (link) toggle(link);
-                else settings.store.chats = chats().filter(chat => chat.id !== id);
             },
         },
     }, icon("star"));
     return button;
+}
+
+function chatTitle(id: string) {
+    const link = nativeLinks().find(item => conversationIdFromHref(item.href) === id);
+    if (link) return rowTitle(link) || "Untitled chat";
+    const title = normalizeText(document.title);
+    return title && title !== "ChatGPT" ? title : "Untitled chat";
 }
 
 function setPressed(button: HTMLButtonElement, pressed: boolean) {
@@ -103,14 +107,18 @@ function setPressed(button: HTMLButtonElement, pressed: boolean) {
     button.setAttribute("aria-label", pressed ? "Unstar chat" : "Star chat");
 }
 
+function remember(id: string, href: string, title: string) {
+    const current = chats();
+    settings.store.chats = current.some(chat => chat.id === id)
+        ? current.filter(chat => chat.id !== id)
+        : [{ id, href, title: title || "Untitled chat" }, ...current].slice(0, MAX);
+}
+
 function toggle(link: HTMLAnchorElement) {
     const id = conversationIdFromHref(link.href);
     const href = id ? safeHref(link.href) : null;
     if (!id || !href) return;
-    const current = chats();
-    settings.store.chats = current.some(chat => chat.id === id)
-        ? current.filter(chat => chat.id !== id)
-        : [{ id, href, title: rowTitle(link) || "Untitled chat" }, ...current].slice(0, MAX);
+    remember(id, href, rowTitle(link) || "Untitled chat");
 }
 
 function openChat(event: MouseEvent, id: string) {
@@ -136,20 +144,36 @@ function syncTitles() {
     if (changed) settings.store.chats = next;
 }
 
-function paintRows() {
-    const ids = new Set(chats().map(chat => chat.id));
-    for (const link of nativeLinks()) {
-        const id = conversationIdFromHref(link.href);
-        const href = id ? safeHref(link.href) : null;
-        const row = hostRow(link);
-        const existing = row.querySelector<HTMLButtonElement>(':scope > [data-bloom="chat-star"]');
-        if (!id || !href || !isHydrated(link)) {
-            existing?.remove();
-            continue;
-        }
-        const pressed = ids.has(id);
-        if (existing) setPressed(existing, pressed);
-        else row.append(starButton(id, pressed));
+function paintNav() {
+    const rail = document.querySelector<HTMLElement>('[data-bloom="navigator"] .bloom-nav-rail');
+    const id = currentConversationId();
+    const href = id ? safeHref(`${location.pathname}${location.search}`) : null;
+    const existing = document.querySelector<HTMLButtonElement>('[data-bloom="chat-star"][data-place="nav"]');
+    if (!rail || !id || !href) {
+        existing?.remove();
+        return;
+    }
+    const pressed = chats().some(chat => chat.id === id);
+    if (existing?.dataset.id === id) {
+        setPressed(existing, pressed);
+        if (existing.parentElement !== rail) rail.prepend(existing);
+        return;
+    }
+    existing?.remove();
+    const button = starButton(id, pressed);
+    button.dataset.place = "nav";
+    rail.prepend(button);
+}
+
+function render() {
+    if (painting) return;
+    painting = true;
+    try {
+        syncTitles();
+        paintSection();
+        paintNav();
+    } finally {
+        painting = false;
     }
 }
 
@@ -190,25 +214,13 @@ function paintSection() {
     for (const stale of document.querySelectorAll('[data-bloom="starred"]')) if (!wanted.has(stale)) stale.remove();
 }
 
-function render() {
-    if (painting) return;
-    painting = true;
-    try {
-        syncTitles();
-        paintSection();
-        paintRows();
-    } finally {
-        painting = false;
-    }
-}
-
 function clear() {
     for (const node of document.querySelectorAll('[data-bloom="chat-star"], [data-bloom="starred"]')) node.remove();
 }
 
 export default definePlugin({
     name: "StarChats",
-    description: "Star a chat in the sidebar and keep it at the top. No three-chat limit.",
+    description: "Star the open chat from the message navigator and keep it at the top. No three-chat limit.",
     authors: ["Bloom contributors"],
     tags: ["chat", "ui"],
     icon: "star",

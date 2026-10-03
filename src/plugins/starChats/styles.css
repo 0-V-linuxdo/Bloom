@@ -45,12 +45,9 @@ button.bloom-star-chats-star:hover {
     color: var(--bloom-fg);
 }
 
-button.bloom-star-chats-star[aria-pressed="true"] {
-    color: var(--bloom-accent);
-}
-
 button.bloom-star-chats-star[aria-pressed="true"] .bloom-icon {
     fill: currentcolor;
+    stroke: none;
 }
 
 button.bloom-star-chats-star .bloom-icon {
@@ -87,9 +84,20 @@ button.bloom-star-chats-star .bloom-icon {
     background: var(--bloom-hover);
 }
 
+[data-bloom="navigator"] > .bloom-nav-rail > button.bloom-star-chats-star,
 .bloom-star-chats-link button.bloom-star-chats-star {
     position: static;
+    opacity: 1;
     transform: none;
+    pointer-events: auto;
+}
+
+[data-bloom="navigator"] > .bloom-nav-rail > button.bloom-star-chats-star {
+    margin-block-end: 0.25rem;
+}
+
+button.bloom-star-chats-star[aria-pressed="true"] {
+    color: var(--bloom-fg);
 }
 
 .bloom-star-chats-title {

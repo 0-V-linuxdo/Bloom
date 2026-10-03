@@ -419,13 +419,16 @@ function patch() {
 }
 
 function rebuild() {
-    root?.querySelector(`.${cl("rail")}`)?.replaceChildren(...entries.map((entry, index) =>
+    const rail = root?.querySelector(`.${cl("rail")}`);
+    const star = rail?.querySelector<HTMLElement>('[data-bloom="chat-star"]');
+    rail?.replaceChildren(...entries.map((entry, index) =>
         h("button", {
             class: classes(cl("tick"), cl(`tick-${entry.role}`), entry.streaming && cl("tick-streaming"), index === current && cl("tick-current")),
             title: truncate(entry.summary, SUMMARY_CHARS),
             attrs: { "type": "button", "aria-label": `Jump to message ${index + 1}` },
             on: { click: () => jump(index) },
         })));
+    if (star) rail?.prepend(star);
     root?.querySelector(`.${cl("toc-list")}`)?.replaceChildren(...entries.map(row));
 }
 
