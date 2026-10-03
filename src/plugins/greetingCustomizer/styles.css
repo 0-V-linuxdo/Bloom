@@ -46,3 +46,20 @@
     flex: 1;
     resize: vertical;
 }
+
+[data-bloom-placeholder] {
+    position: relative;
+}
+
+[data-bloom-placeholder]::before {
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--bloom-fg-3);
+    content: attr(data-bloom-placeholder);
+    pointer-events: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

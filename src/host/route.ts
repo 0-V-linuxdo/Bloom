@@ -24,6 +24,10 @@ export const currentConversationId = () => location.pathname.match(CONVERSATION_
 
 export const isHomePath = () => location.pathname === "/";
 
+const PROJECT_HOME = /^\/g\/g-p-[^/]+(?:\/project)?\/?$/;
+
+export const isProjectHome = () => PROJECT_HOME.test(location.pathname);
+
 export const isTemporaryChat = () => new URLSearchParams(location.search).get("temporary-chat") === "true";
 
 export interface RouteChange {

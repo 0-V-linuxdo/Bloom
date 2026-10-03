@@ -9,7 +9,7 @@ import { describe, expect, test } from "bun:test";
 import { readDraft, sendButton, stopButton, writeDraft } from "../src/host/composer";
 import { parseConversation } from "../src/host/network";
 import { isHydrated } from "../src/host/ready";
-import { conversationIdFromHref, currentConversationId } from "../src/host/route";
+import { checkRoute, conversationIdFromHref, currentConversationId } from "../src/host/route";
 import { Sel } from "../src/host/selectors";
 import { accountMenu, conversationLinks, markIdentity, profileChips, projectName, sidebarMounts } from "../src/host/sidebar";
 import { listTurns, outerMessageUnits, turnSummary, unitMessageIds } from "../src/host/thread";
@@ -28,8 +28,10 @@ describe("route", () => {
 
     test("a local placeholder id is still a draft", () => {
         history.pushState(null, "", "/c/local-3f2a9c1e-0000-4000-8000-000000000000");
+        checkRoute();
         expect(currentConversationId()).toBeNull();
         history.pushState(null, "", "/");
+        checkRoute();
     });
 });
 

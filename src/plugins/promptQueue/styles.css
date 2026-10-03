@@ -100,6 +100,19 @@
     resize: vertical;
 }
 
+.bloom-queue-model {
+    flex: none;
+    max-width: 8rem;
+    padding: 0.125rem 0.5rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--bloom-hover);
+    color: var(--bloom-fg-2);
+    font-size: 0.75rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .bloom-queue-actions {
     display: flex;
     flex: none;

@@ -5,7 +5,8 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
-import { isHomePath, isTemporaryChat, onRouteChange } from "@host/route";
+import { composerInput, readDraft } from "@host/composer";
+import { isHomePath, isProjectHome, isTemporaryChat, onRouteChange } from "@host/route";
 import { Sel } from "@host/selectors";
 import { hostMutations, overlayText, visible, watchBody } from "@utils/dom";
 import definePlugin, { OptionType } from "@utils/types";
@@ -40,6 +41,7 @@ export const settings = definePluginSettings({
         default: "sequential",
     },
     intervalSec: { type: OptionType.SLIDER, description: "Seconds between changes in timer mode.", min: 1, max: 3600, default: 10, unit: "s" },
+    heroOnlyOutsideProject: { type: OptionType.BOOLEAN, description: "Outside projects, only replace the home heading. The composer keeps ChatGPT's placeholder.", default: true },
     editor: { type: OptionType.COMPONENT, description: "Up to 30 greetings, 100 characters each.", render: host => greetingsEditor(host) },
     greetings: { type: OptionType.CUSTOM, default: DEFAULT_GREETINGS },
     index: { type: OptionType.CUSTOM, default: -1 },
@@ -51,6 +53,7 @@ let unsubscribers: (() => void)[] = [];
 let controller: AbortController | undefined;
 
 const onHome = () => isHomePath() && !isTemporaryChat();
+const oneLine = (text: string) => text.replaceAll(/\s*\n\s*/g, " ").trim();
 
 const greetings = () => settings.store.greetings.filter(text => typeof text === "string" && text.trim());
 
@@ -78,16 +81,44 @@ function clear() {
     }
 }
 
-function apply() {
-    const list = greetings();
-    const el = heading();
-    if (!el || !list.length) {
-        clear();
+function clearPlaceholder() {
+    for (const el of document.querySelectorAll<HTMLElement>("[data-bloom-placeholder]")) el.removeAttribute("data-bloom-placeholder");
+}
+
+function paintPlaceholder(text: string) {
+    const input = composerInput();
+    const line = oneLine(text);
+    if (!input || !line || readDraft(input)) {
+        clearPlaceholder();
         return;
     }
-    if (settings.store.index < 0 || settings.store.index >= list.length) advance();
-    el.setAttribute(ATTR, "");
-    overlayText(el, list[Math.max(0, settings.store.index) % list.length]);
+    if (input.getAttribute("data-bloom-placeholder") !== line) input.setAttribute("data-bloom-placeholder", line);
+}
+
+function apply() {
+    const list = greetings();
+    const project = isProjectHome();
+    const home = onHome();
+    if (!list.length || (!project && !home)) {
+        clear();
+        clearPlaceholder();
+        return;
+    }
+    if (project) {
+        clear();
+        paintPlaceholder(list[0] ?? "");
+        return;
+    }
+    const el = heading();
+    if (!el) {
+        clear();
+    } else {
+        if (settings.store.index < 0 || settings.store.index >= list.length) advance();
+        el.setAttribute(ATTR, "");
+        overlayText(el, list[Math.max(0, settings.store.index) % list.length] ?? "");
+    }
+    if (settings.store.heroOnlyOutsideProject) clearPlaceholder();
+    else paintPlaceholder(list[Math.max(0, settings.store.index) % list.length] ?? "");
 }
 
 function schedule() {
@@ -116,7 +147,7 @@ function onRoute() {
 
 export default definePlugin({
     name: "GreetingCustomizer",
-    description: "Replace the “What can I help with?” heading on the home page with your own lines.",
+    description: "Replace the home heading with your own lines. A project composer shows the first line.",
     authors: ["Bloom contributors"],
     tags: ["ui"],
     icon: "bubble",
@@ -134,6 +165,7 @@ export default definePlugin({
         for (const unsubscribe of unsubscribers) unsubscribe();
         clearInterval(timer);
         clear();
+        clearPlaceholder();
     },
     onSettingsChange(key) {
         if (key === "mode" || key === "intervalSec") schedule();

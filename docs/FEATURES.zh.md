@@ -221,7 +221,9 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 - 回复生成中在输入框按 Enter（或点 Send）时，不打断当前回复，而是把草稿放进队列并清空输入框；当前回复结束后自动发送队首，再等那条回复结束发下一条（每条单独发送，绝不合并）。
 - 队列按会话分开，每个会话最多 8 条（满了不再清空输入框）；首条消息迁移 `/`→`/c/{id}` 时整队跟过去；真切会话时不把队列发进离开的会话。
-- 刷新后队列还在：每次改动都把已有会话 id 的队列写进本标签页的 `sessionStorage`（键 `BloomPromptQueue`），启动时读回来按原顺序放回托盘。只存本标签页，所以另一个标签页不会拿到同一队列而重复发送；关掉标签页就清空。刷新后如果 ChatGPT 接着生成被打断的回复，这条结束后照常发队首；如果回复已经结束，队列留在托盘里等用户点 Send now，不在页面刚加载时自己发出去。还没有会话 id 的新对话队列不存。1.4.117 和 2.0.40 及以前都只放在内存里，刷新即丢（F-25，2.0.41 修）。
+- 刷新后队列还在：每次改动都把已有会话 id 的队列写进本标签页的 `sessionStorage`（键 `BloomPromptQueue`），启动时读回来按原顺序放回托盘。只存本标签页，所以另一个标签页不会拿到同一队列而重复发送；关掉标签页就清空。刷新后如果 ChatGPT 接着生成被打断的回复，这条结束后照常发队首；如果回复已经结束，队列留在托盘里等用户点 Send now，不在页面刚加载时自己发出去。还没有会话 id 的新对话队列不存。1.4.117 和 2.0.40 及以前都只放在内存里，刷新即丢（F-25，2.0.41 修）。`persistAcrossRefresh`（默认真）关掉后不再写入、也不再读回。
+- 入队时记下当时模型选择器上的模型（`data-testid="model-switcher-dropdown-button"` 的文字，菜单项 `data-testid` 以 `model-switcher-` 开头）。发出这一条之前先点对应菜单项，点不中就在约 3 秒内重试，仍然点不中也照常发送，不把消息吞掉。发出后如果开着 `stickyOnNavigate`，选择器回到切会话前记住的模型，而不是停在这一条的模型上。托盘在文字和按钮之间显示模型芯片（`showQueueMode`，默认真）；没有读到模型就不画芯片。旧的纯字符串队列仍能读回来。
+- `stickyOnNavigate`（默认真）：用户在模型菜单里点过之后记住这个模型；切到别的会话时重新点开菜单并选中它。ChatGPT 把选择器拨回去时，不把那个新值当成用户的选择。
 - 用户点 Stop 不触发发送；出错不发送；输入框里有别的草稿时不覆盖。
 - `Alt+Enter` 放行一次原生行为（直接打断并发送）。
 - 输入框上方的队列托盘（Grok “queued-messages-tray” 骨架、ChatGPT 配色）：
@@ -229,7 +231,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
   - 每行显示全文（最多两行截断），右侧：Remove from queue、Edit（原地变成 textarea，Enter 保存、空内容即删除、Esc 取消）、Send now（立刻打断并发送这一条，也可在空输入框按 Enter；打断后 ChatGPT 要过一会儿才重新启用 Send，所以写入草稿后每 150ms 重试点 Send，直到草稿被发出、开始生成或约 3 秒超时）。Edit 的 Enter/Esc 在 window 捕获阶段处理，因为 ChatGPT 的 React 根会在 document 捕获阶段截停 Esc。标题按钮带 `aria-expanded`。
   - 按住行拖动（超过 6px）重新排序。
   - 按钮悬停提示显示在托盘标题行右侧。
-- 设置：`replacePending`（默认假：Enter 追加；真：只替换最后一条，不丢前面的）。
+- 设置：`replacePending`（默认假：Enter 追加；真：只替换最后一条，不丢前面的）、`showQueueMode`（默认真）、`stickyOnNavigate`（默认真）、`persistAcrossRefresh`（默认真）。
 
 ### 4.11 ChatListStatus — 侧栏当前会话状态
 
@@ -256,7 +258,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 默认开｜`HostReady`｜chat, ui｜Void++ 同名（Void++ 用 Grok 原生刻度条，Bloom 自绘）
 
-- 对话区右边缘一列短横线刻度（与 Void++ 相同：贴滚动容器内容区右缘、内缩 0.75rem，在容器顶部和输入框顶部之间垂直居中；不跟随内容列宽度，WiderChat 调宽也不会压到正文），每个回合一条（用户 ❓ / 助手 🤖）；当前阅读位置的刻度更长更亮。与 Void++ 一样只在消息结构（角色、消息 id）变化时重建刻度，流式输出时只原地更新摘要和 streaming 样式；否则每个流式片段都会重建刻度，当前刻度的宽度过渡反复重播，看起来一直在跳。
+- 对话区右边缘一列短横线刻度（与 Void++ 相同：贴滚动容器内容区右缘、内缩 0.75rem，在容器顶部和输入框顶部之间垂直居中；不跟随内容列宽度，WiderChat 调宽也不会压到正文），每个回合一条（用户 ❓ / 助手 🤖）；当前阅读位置的刻度更长更亮。与 Void++ 一样只在消息结构（角色、消息 id）变化时重建刻度，流式输出时只原地更新摘要和 streaming 样式；否则每个流式片段都会重建刻度，当前刻度的宽度过渡反复重播，看起来一直在跳。右侧栏把滚动容器挤窄时，`ResizeObserver` 跟着容器右缘重定位，刻度仍钉在聊天列上，不留在视口旧位置。
 - 鼠标悬停刻度列展开目录卡片：每行 emoji + 回合摘要（最多 80 字）；顶部显示 “N / M”。
 - 点击刻度或目录行跳转到该回合（近的平滑滚动，远的瞬间），跳转后给目标加一个短暂边框高亮（`jumpEffect` = border / none）。
 - 焦点不在输入框时 `↑` / `↓` / `Home` / `End` 在回合间跳。跳转（键盘、点刻度或目录行）后当前标记直接落在目标上，`↑` / `↓` 从这个目标往前后走，而不是从阅读线位置算，否则短消息会被跳过（Home 后按 ↓ 曾直接到第 4 条）；用户自己滚动（滚轮、触摸、按住滚动条、翻页键）后标记重新跟随阅读位置。
@@ -297,10 +299,12 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 默认关｜`HostReady`｜ui｜Void++ CustomGreeting
 
-- 只在新对话首页（`/`）把大标题（“What can I help with?” / “有什么可以帮忙的？”等）换成自己的文案；项目页、GPT 页、会话页不动；临时聊天（`/?temporary-chat=true`，包括在页面里切换进出临时模式）也不动，保留原生的 “Temporary chat” 标题，此时也不计为一次到访、不跑定时轮换。不修改 React 节点的文字，用 CSS 覆盖显示。
-- 轮换：`mode` = `refresh`（每次回到首页换一条，默认）/ `interval`（停留首页时每 `intervalSec` 秒换一条）/ `manual`（点标题换一条，有选中文字时不换）。`order` = `sequential`（默认）/ `random`（不连续重复同一条）。
+- 只在新对话首页（`/`）把大标题（“What can I help with?” / “有什么可以帮忙的？”等）换成自己的文案；会话页不动；临时聊天（`/?temporary-chat=true`，包括在页面里切换进出临时模式）也不动，保留原生的 “Temporary chat” 标题，此时也不计为一次到访、不跑定时轮换。不修改 React 节点的文字，用 CSS 覆盖显示。
+- 项目首页（`/g/g-p-…` 或 `/g/g-p-…/project`，不是项目里的会话）不改项目标题，只把空输入框的占位换成问候语列表的**第一句**（折成一行）。项目里的会话不换。
+- `heroOnlyOutsideProject`（默认真）：项目外只换首页大标题，输入框保留 ChatGPT 的占位。关掉后，项目外的空输入框也显示当前这一句（同样折成一行）。输入框里已有草稿时不覆盖。
+- 轮换：`mode` = `refresh`（每次回到首页换一条，默认）/ `interval`（停留首页时每 `intervalSec` 秒换一条）/ `manual`（点标题换一条，有选中文字时不换）。`order` = `sequential`（默认）/ `random`（不连续重复同一条）。项目首页不参加轮换。
 - 文案管理组件：新增、编辑、删除，最多 30 条，每条最多 100 字，支持换行；列表为空时提示 “No greetings. The official heading stays.”。
-- 设置：`mode`、`order`、`intervalSec`（1–3600，默认 10）；隐藏 `greetings: string[]`（默认 3 条名言）、`index`、`lastRandom`。
+- 设置：`mode`、`order`、`intervalSec`（1–3600，默认 10）、`heroOnlyOutsideProject`（默认真）；隐藏 `greetings: string[]`（默认 3 条名言）、`index`、`lastRandom`。
 - 列表为空、离开首页、停用时恢复原标题。
 
 ### 4.18 SidebarIdentityOpacity — 左下角账号区透明度
@@ -334,7 +338,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | RecentTopics | `maxRecent` `includeHome` | `visits` `titles` `previews` `projects` |
 | Cleaner | `hideDownloadApps` `hideDisclaimer` `hideUpgrade` `hideLockedModels` `hideHomePromo` `hideAds` `hideNotices` | — |
 | ResponseNotification | `sound` `soundUrl` `browserNotification` `onlyWhenHidden` | — |
-| PromptQueue | `replacePending` | `queueModeRev` |
+| PromptQueue | `replacePending` `showQueueMode` `stickyOnNavigate` `persistAcrossRefresh` | — |
 | ChatListStatus | — | — |
 | WiderChat | `width` | — |
 | ComposerOpacity | `opacity` `blur` | — |
@@ -343,7 +347,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | MessageTimestamps | `showDate` `hideOwnMessages` | `stamps` |
 | StreamerMode | `conversations` `projects` `accountAvatar` `accountName` `accountEmail` `headerTitle` | — |
 | SidebarIdentityOpacity | `opacity` `fadeAvatar` | — |
-| GreetingCustomizer | `mode` `order` `intervalSec` | `greetings` `index` `lastRandom` |
+| GreetingCustomizer | `mode` `order` `intervalSec` `heroOnlyOutsideProject` | `greetings` `index` `lastRandom` |
 
 ---
 

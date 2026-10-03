@@ -8,6 +8,7 @@ import { afterEach, beforeAll, describe, expect, test } from "bun:test";
 
 import { startGeneration } from "../src/host/generation";
 import { parseConversation } from "../src/host/network";
+import { checkRoute } from "../src/host/route";
 import navigator from "../src/plugins/betterNavigator";
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -65,6 +66,7 @@ describe("BetterNavigator open turn", () => {
     test("lists the first message before later continues and uses the agent title", async () => {
         const id = "88888888-8888-4888-8888-888888888888";
         history.pushState(null, "", `/c/${id}`);
+        checkRoute();
         parseConversation(id, {
             messages: [
                 { id: "u1", author: { role: "user" }, create_time: 30, content: { content_type: "text", parts: ["continue where you left"] } },
@@ -95,11 +97,13 @@ describe("BetterNavigator open turn", () => {
         expect(rows[3]).toContain("Continued translating the screenplay");
         expect(rows.some(row => row?.includes("Analysis paused"))).toBe(false);
         history.pushState(null, "", "/");
+        checkRoute();
     });
 
     test("does not repeat chain continues in front of the mounted thread", async () => {
         const id = "99999999-9999-4999-8999-999999999999";
         history.pushState(null, "", `/c/${id}`);
+        checkRoute();
         parseConversation(id, {
             messages: [1, 2, 3, 4, 5, 6].map(index => ({
                 id: `server-${index}`,
@@ -126,6 +130,7 @@ describe("BetterNavigator open turn", () => {
         expect(rows[0]).toContain("zh-cn");
         expect(rows.filter(row => row?.includes("continue where you left"))).toHaveLength(1);
         history.pushState(null, "", "/");
+        checkRoute();
     });
 
     test("keeps turns after the virtual list unmounts them", async () => {

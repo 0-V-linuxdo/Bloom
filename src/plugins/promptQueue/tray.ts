@@ -17,6 +17,11 @@ const cl = classNameFactory("bloom-queue-");
 const DRAG_THRESHOLD_PX = 6;
 const TRAY_GAP_PX = 8;
 
+export interface TrayItem {
+    text: string;
+    label: string;
+}
+
 export interface TrayActions {
     remove(index: number): void;
     edit(index: number, text: string): void;
@@ -100,12 +105,13 @@ function enableDrag(row: HTMLElement, index: number, actions: TrayActions) {
     });
 }
 
-function row(text: string, index: number, actions: TrayActions) {
+function row(item: TrayItem, index: number, actions: TrayActions, showModel: boolean) {
     const el = h("li", { class: cl("row") },
-        h("div", { class: cl("text"), text }),
+        h("div", { class: cl("text"), text: item.text }),
+        showModel && item.label ? h("span", { class: cl("model"), title: item.label, text: item.label }) : null,
         h("div", { class: cl("actions") },
             tipButton("trash", "Remove from queue", () => actions.remove(index)),
-            tipButton("edit", "Edit", () => startEdit(el, index, text, actions)),
+            tipButton("edit", "Edit", () => startEdit(el, index, item.text, actions)),
             tipButton("send", "Send now", () => actions.sendNow(index))));
     enableDrag(el, index, actions);
     return el;
@@ -126,7 +132,7 @@ export function removeTray() {
     busy = false;
 }
 
-export function renderTray(items: string[], actions: TrayActions) {
+export function renderTray(items: TrayItem[], actions: TrayActions, showModel = true) {
     const form = composerForm();
     if (!items.length || !isVisible(form)) {
         removeTray();
@@ -152,10 +158,10 @@ export function renderTray(items: string[], actions: TrayActions) {
         document.body.append(tray);
     }
     position(form);
-    const next = JSON.stringify(items);
+    const next = JSON.stringify([showModel, ...items.map(item => [item.text, showModel ? item.label : ""])]);
     if (busy || next === signature) return;
     signature = next;
     const count = tray.querySelector(`.${cl("count")}`);
     if (count) count.textContent = pluralize(items.length, "Queued message");
-    tray.querySelector(`.${cl("list")}`)?.replaceChildren(...items.map((text, index) => row(text, index, actions)));
+    tray.querySelector(`.${cl("list")}`)?.replaceChildren(...items.map((item, index) => row(item, index, actions, showModel)));
 }

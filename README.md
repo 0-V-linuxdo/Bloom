@@ -19,7 +19,7 @@ Plugins:
 | RecentTopics | On | Switch recently opened chats with Ctrl+` (title + last-turn preview). |
 | Cleaner | On | Hide Download apps, the composer “can make mistakes” notice, upgrade CTAs, locked models, home GPT promo, Free ads, and the Team “Turn on auto-reload” banner. CSS-only. |
 | ResponseNotification | On | Sound + browser notification when a reply finishes. Default: only when the tab is hidden. |
-| PromptQueue | Off | Queue follow-up prompts while a reply is streaming. Enter appends; the head sends after this turn. |
+| PromptQueue | Off | Queue follow-up prompts while a reply is streaming. Enter appends; the head sends after this turn. Each item keeps the model that was selected, the picker stays when switching chats, and a refresh restores the unsent queue. |
 | ChatListStatus | Off | Spinner on the **open** Recents row while this chat is answering, an error mark if it fails. Synced across tabs. |
 | WiderChat | On | Widen the thread and composer (slider 40–96 rem, default 64). CSS-only. |
 | ComposerOpacity | On | Composer background opacity and blur, so the thread can show through the input bar. CSS-only. |
@@ -27,7 +27,7 @@ Plugins:
 | MessageTimestamps | On | Show when each turn was sent, from the conversation JSON ChatGPT already loads. |
 | StreamerMode | Off | Blur Recents titles, the header chat name, project names, and the account chip. CSS-only. Hover a Recents / switcher row to peek. |
 | SidebarIdentityOpacity | On | Fade the account row in the bottom-left of the sidebar (default 50%). The avatar, custom or not, stays at full opacity unless you turn on fadeAvatar. Hover brings the row back. CSS-only. |
-| GreetingCustomizer | Off | Replace the home greeting with your own texts. Rotate on each visit, a timer, or a click. |
+| GreetingCustomizer | Off | Replace the home greeting with your own texts. Rotate on each visit, a timer, or a click. A project home composer shows the first line. |
 
 The product name is **Bloom++**. The GitHub repository is `Bloom`. Nothing in the brand string is `ChatGPT`.
 

@@ -57,6 +57,7 @@ let signature = "";
 let seeking = 0;
 let unsubscribers: (() => void)[] = [];
 let scrollTarget: HTMLElement | null = null;
+let resizeObserver: ResizeObserver | undefined;
 let controller: AbortController | undefined;
 let heldChat = "";
 let held: Held[] = [];
@@ -338,6 +339,14 @@ function row(entry: Entry, index: number) {
     }, h("span", { text: EMOJI[entry.role] }), h("span", { class: "bloom-truncate", text: truncate(entry.summary || "…", SUMMARY_CHARS) }));
 }
 
+function pin(scroller: HTMLElement) {
+    if (!root) return;
+    const scrollBox = scroller.getBoundingClientRect();
+    const bottom = Math.min(scrollBox.bottom, composerForm()?.getBoundingClientRect().top ?? scrollBox.bottom);
+    root.style.right = `${document.documentElement.clientWidth - scrollBox.left - scroller.clientLeft - scroller.clientWidth + RAIL_GAP_PX}px`;
+    root.style.top = `${(scrollBox.top + bottom) / 2}px`;
+}
+
 function render() {
     const scroller = threadScroller();
     entries = collect();
@@ -353,15 +362,17 @@ function render() {
         scroller.addEventListener("scroll", frameScheduler(markCurrent), { passive: true, signal: controller.signal });
         for (const type of USER_SCROLL) scroller.addEventListener(type, release, { passive: true, signal: controller.signal });
         scrollTarget = scroller;
+        resizeObserver?.disconnect();
+        resizeObserver = new ResizeObserver(() => {
+            if (scroller.isConnected) pin(scroller);
+        });
+        resizeObserver.observe(scroller);
     }
     root ??= h("div", { class: `bloom-root ${cl("root")}`, attrs: { "data-bloom": "navigator" } },
         h("div", { class: cl("rail") }),
         h("div", { class: cl("toc") }, h("div", { class: cl("toc-head") }), h("div", { class: cl("toc-list") })));
     if (!root.isConnected) document.body.append(root);
-    const scrollBox = scroller.getBoundingClientRect();
-    const bottom = Math.min(scrollBox.bottom, composerForm()?.getBoundingClientRect().top ?? scrollBox.bottom);
-    root.style.right = `${document.documentElement.clientWidth - scrollBox.left - scroller.clientLeft - scroller.clientWidth + RAIL_GAP_PX}px`;
-    root.style.top = `${(scrollBox.top + bottom) / 2}px`;
+    pin(scroller);
     const next = JSON.stringify(entries.map(entry => [entry.role, entry.ids]));
     if (next !== signature) {
         signature = next;
@@ -456,6 +467,8 @@ export default definePlugin({
     stop() {
         for (const unsubscribe of unsubscribers) unsubscribe();
         controller?.abort();
+        resizeObserver?.disconnect();
+        resizeObserver = undefined;
         scrollTarget = null;
         removeEventListener("keydown", onKeydown, true);
         removeEventListener("resize", update);
