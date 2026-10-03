@@ -9,8 +9,10 @@ import { Sel } from "@host/selectors";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 
 const FORM = `form:has(:is(${Sel.composerInput})), ${Sel.oldComposerForm}`;
+const LAYOUT_BODY = '[class*="ComposerLayoutBody"]';
 const LAYOUT_ROOT = '[class*="ComposerLayoutRoot"]';
-const PILL = `:is(${FORM}) ${LAYOUT_ROOT}, :is(${FORM}):not(:has(${LAYOUT_ROOT})) :is([class*="corner-superellipse"], [class*="bg-token-bg-primary"], [class*="bg-token-main-surface"], [class*="shadow-short"])`;
+const LEGACY_PILL = '[class*="corner-superellipse"], [class*="bg-token-bg-primary"], [class*="bg-token-main-surface"], [class*="shadow-short"]';
+const PILL = `:is(${FORM}) ${LAYOUT_BODY}, :is(${FORM}):not(:has(${LAYOUT_BODY})) ${LAYOUT_ROOT}, :is(${FORM}):not(:has(${LAYOUT_BODY})):not(:has(${LAYOUT_ROOT})) :is(${LEGACY_PILL})`;
 const SLAB = '#thread-bottom-container, #thread-bottom, :has(> form textarea[name="prompt"])';
 const FADE = '#thread-bottom-container::after, #thread-bottom::after, [class*="content-fade"]';
 const FILL = "var(--composer-layout-surface-background, var(--color-bg-primary, var(--bg-primary, var(--main-surface-primary, Canvas))))";
