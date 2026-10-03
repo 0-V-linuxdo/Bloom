@@ -322,6 +322,15 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 同一次错误只发一条。发出去之后如果又停在新的投递错误上，再发，直到这次成功结束，或同一会话里已经连着发了 6 条。正常结束（`done` 且错误条已消失）后计数清零。输入框里已有草稿时不覆盖。
 - 设置：`prompt`（默认 “continue where you left”）。
 
+### 4.20 StarChats — 给会话加星
+
+默认开｜`HostReady`｜chat, ui｜Bloom++ 独有（ChatGPT 自己的置顶最多 3 条；Void++ 没有对应插件）
+
+- 侧栏每条会话行上有一颗星。平时藏着，指针移到这一行、或键盘焦点在星上时出现；已经加星的一直亮着。点星收藏或取消，不打开这条会话。
+- 加星的会话收进侧栏顶部的 **Starred** 分组，排在 New chat 下面（没有 New chat 就排在滚动区最上面）。分组是 Bloom 自己的节点，不从 React 列表里摘走原行；原行上的星保持点亮。ChatGPT 把那一行滚出虚拟列表之后，分组里的条目还在，点它优先点侧栏里还在的原链接（站内跳转），找不到再走保存的地址。
+- 临时聊天（`?temporary-chat=true`）和还没拿到真实 id 的 `local-` 草稿不能加星。最多 40 条，新加的排最前。标题跟侧栏文字走：这一行还在时，改名会写回存储。
+- 没有可见设置。关掉插件就去掉星星和分组。隐藏数据：`chats: { id, href, title }[]`。
+
 ---
 
 ## 5. 设置键总表（兼容性清单）
@@ -343,6 +352,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | WiderChat | `width` | — |
 | ComposerOpacity | `opacity` `blur` | — |
 | Continue | `prompt` | — |
+| StarChats | — | `chats` |
 | BetterNavigator | `showAssistant` `jumpEffect` | — |
 | MessageTimestamps | `showDate` `hideOwnMessages` | `stamps` |
 | StreamerMode | `conversations` `projects` `accountAvatar` `accountName` `accountEmail` `headerTitle` | — |
