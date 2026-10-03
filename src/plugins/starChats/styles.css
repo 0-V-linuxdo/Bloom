@@ -84,7 +84,7 @@ button.bloom-star-chats-star .bloom-icon {
     background: var(--bloom-hover);
 }
 
-[data-bloom="navigator"] > .bloom-nav-rail > button.bloom-star-chats-star,
+[data-bloom="starred"] button.bloom-star-chats-star,
 .bloom-star-chats-link button.bloom-star-chats-star {
     position: static;
     opacity: 1;
@@ -92,8 +92,21 @@ button.bloom-star-chats-star .bloom-icon {
     pointer-events: auto;
 }
 
-[data-bloom="navigator"] > .bloom-nav-rail > button.bloom-star-chats-star {
-    margin-block-end: 0.25rem;
+button.bloom-star-chats-star[data-place="header"] {
+    position: static;
+    flex: none;
+    width: 2rem;
+    height: 2rem;
+    margin-inline-end: 0.125rem;
+    color: inherit;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+}
+
+button.bloom-star-chats-star[data-place="header"] .bloom-icon {
+    width: 1.125rem;
+    height: 1.125rem;
 }
 
 button.bloom-star-chats-star[aria-pressed="true"] {

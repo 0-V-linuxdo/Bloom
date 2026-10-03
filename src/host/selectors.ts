@@ -41,4 +41,5 @@ export const Sel = {
     modelItem: '[role="menu"] [data-testid^="model-switcher-"], [role="menuitem"][data-testid^="model-switcher-"]',
 
     homeHeading: 'main h1:not([aria-hidden="true"]), [data-testid="home-heading"]',
+    headerMore: 'button[aria-label="More" i], button[aria-label="更多"]',
 } as const;

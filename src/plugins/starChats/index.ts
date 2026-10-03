@@ -82,7 +82,7 @@ function starButton(id: string, pressed: boolean) {
             click: event => {
                 event.preventDefault();
                 event.stopPropagation();
-                if (button.dataset.place === "nav") {
+                if (button.dataset.place === "header") {
                     const href = safeHref(`${location.pathname}${location.search}`);
                     if (href) remember(id, href, chatTitle(id));
                     return;
@@ -144,25 +144,42 @@ function syncTitles() {
     if (changed) settings.store.chats = next;
 }
 
-function paintNav() {
-    const rail = document.querySelector<HTMLElement>('[data-bloom="navigator"] .bloom-nav-rail');
+function headerKebab() {
+    const buttons = [...document.querySelectorAll<HTMLButtonElement>(Sel.headerMore)].filter(button => {
+        if (button.dataset.bloom === "chat-star" || button.closest("[data-bloom], [role='dialog'], [inert]")) return false;
+        if (button.closest(Sel.sidebars)) return false;
+        const box = button.getBoundingClientRect();
+        if (box.width === 0 && box.height === 0) return !!button.closest("header, #page-header");
+        return box.top >= 0 && box.top < 96 && box.left > window.innerWidth * 0.5;
+    });
+    return buttons.toSorted((a, b) => b.getBoundingClientRect().left - a.getBoundingClientRect().left || ((a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) ? 1 : -1))[0] ?? null;
+}
+
+function paintHeader() {
+    const host = headerKebab();
+    const chip = host?.parentElement ?? null;
+    const row = chip?.parentElement ?? null;
+    const outside = !!(host && chip && row && chip.childElementCount === 1 && chip.tagName !== "HEADER" && chip.id !== "page-header");
+    const parent = outside ? row : chip;
+    const before = outside ? chip : host;
     const id = currentConversationId();
     const href = id ? safeHref(`${location.pathname}${location.search}`) : null;
-    const existing = document.querySelector<HTMLButtonElement>('[data-bloom="chat-star"][data-place="nav"]');
-    if (!rail || !id || !href) {
+    const existing = document.querySelector<HTMLButtonElement>('[data-bloom="chat-star"][data-place="header"]');
+    if (!host || !parent || !before || !isHydrated(parent) || !id || !href) {
         existing?.remove();
         return;
     }
     const pressed = chats().some(chat => chat.id === id);
-    if (existing?.dataset.id === id) {
-        setPressed(existing, pressed);
-        if (existing.parentElement !== rail) rail.prepend(existing);
-        return;
+    const button = existing?.dataset.id === id ? existing : starButton(id, pressed);
+    if (button !== existing) existing?.remove();
+    button.dataset.place = "header";
+    setPressed(button, pressed);
+    if (button.nextElementSibling !== before) before.before(button);
+    const box = host.getBoundingClientRect();
+    if (box.width > 0) {
+        button.style.width = `${box.width}px`;
+        button.style.height = `${box.height}px`;
     }
-    existing?.remove();
-    const button = starButton(id, pressed);
-    button.dataset.place = "nav";
-    rail.prepend(button);
 }
 
 function render() {
@@ -171,7 +188,7 @@ function render() {
     try {
         syncTitles();
         paintSection();
-        paintNav();
+        paintHeader();
     } finally {
         painting = false;
     }
@@ -220,7 +237,7 @@ function clear() {
 
 export default definePlugin({
     name: "StarChats",
-    description: "Star the open chat from the message navigator and keep it at the top. No three-chat limit.",
+    description: "Star the open chat from the header, just left of the top-right menu, and keep it at the top.",
     authors: ["Bloom contributors"],
     tags: ["chat", "ui"],
     icon: "star",
