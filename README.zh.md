@@ -21,7 +21,7 @@
 | ResponseNotification | 开 | 回复结束时响铃 / 浏览器通知。默认只在标签隐藏时通知。 |
 | PromptQueue | 关 | 生成中排队后续提示。Enter 追加；队头在本轮结束后再发。每条记住入队时的模型，切会话保持选择器。刷新或另一个标签页能看到未发送的队列，但只有一个标签页会把它发出去。 |
 | ChatListStatus | 关 | 当前打开的会话生成中时在 Recents 行转圈，出错时显示错误标记；多个标签页同步。 |
-| StarChats | 开 | 给侧栏里的会话加星，固定在顶部的 Starred 分组。不受 ChatGPT 最多置顶 3 条的限制。 |
+| StarChats | 开 | 当前会话标题旁有一颗星，侧栏会话行也可以加星，收进顶部 Starred。不受 ChatGPT 最多置顶 3 条的限制。 |
 | BetterQuotes | 开 | 点引用跳到原文，原文上的返回标记再跳回来。切到别的会话再回来，输入框上的引用卡还在。 |
 | UserQuotes | 开 | 自己消息里的引用行显示左边线。纯 CSS。 |
 | TemporaryChat | 开 | 一键进入临时聊天。可选：New chat 也开成临时聊天。 |
