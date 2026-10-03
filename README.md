@@ -24,7 +24,7 @@ Plugins:
 | StarChats | On | Star a message from its toolbar. The star left of the top-right menu opens this chat's list. Nothing is added to the sidebar. |
 | BetterQuotes | On | Click a quote to jump to the passage, and the badge to jump back. The composer quote card stays when you switch chats and come back. |
 | UserQuotes | On | Left bar on quoted lines in your own messages. CSS-only. |
-| TemporaryChat | On | One click starts a temporary chat. Optional: New chat opens a temporary chat. |
+| TemporaryChat | On | Optional: New chat opens a temporary chat. No extra sidebar button. |
 | WiderChat | On | Widen the thread and composer (slider 40–96 rem, default 64). CSS-only. |
 | ComposerOpacity | On | Composer background opacity and blur, so the thread can show through the input bar. CSS-only. |
 | BetterNavigator | On | Notion-style outline of the open chat, including turns ChatGPT has not mounted yet. Ticks sit on the chat column, centered between the thread and the composer. Hover the ticks, click or ↑/↓ to jump. A dashed tick marks the reply still streaming. |

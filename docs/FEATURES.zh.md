@@ -347,12 +347,12 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 只画在用户消息里的 `blockquote` 上（新壳 `[data-chatgpt-search-unit-key$=":user"]`，旧壳 `[data-message-author-role="user"]`）。助手消息里的引用不动。左边线 0.25rem，颜色用 `--bloom-fg-2`。
 - 设置：`italic`（默认开，关则不再强制斜体）、`quotes`（默认关，关则去掉装饰引号）。
 
-### 4.23 TemporaryChat — 一键临时聊天
+### 4.23 TemporaryChat — 可选把 New chat 开成临时聊天
 
 默认开｜`HostReady`｜privacy, ui
 
-- 侧栏 New chat 下面多一个 **Temporary**。点它打开 `/?temporary-chat=true`。已经在临时聊天里时按钮是按下状态，再点回到 `/`。展开侧栏和旧壳都放；被 `inert` 藏起来的那一栏不放。
-- 设置：`openNewAsTemporary`（默认关）。打开后，在侧栏点 New chat 也进临时聊天。
+- 不在侧栏 New chat 下面放 Temporary 按钮。ChatGPT 自己已有临时聊天入口。
+- 设置：`openNewAsTemporary`（默认关）。打开后，在侧栏点 New chat 进入 `/?temporary-chat=true`。
 
 ---
 

@@ -24,7 +24,7 @@
 | StarChats | 开 | 在消息操作条上给这一条加星。右上角三个点左边的星打开当前会话的列表，不往左侧栏加任何东西。 |
 | BetterQuotes | 开 | 点引用跳到原文，原文上的返回标记再跳回来。切到别的会话再回来，输入框上的引用卡还在。 |
 | UserQuotes | 开 | 自己消息里的引用行显示左边线。纯 CSS。 |
-| TemporaryChat | 开 | 一键进入临时聊天。可选：New chat 也开成临时聊天。 |
+| TemporaryChat | 开 | 可选：New chat 也开成临时聊天。侧栏不再多一个 Temporary 按钮。 |
 | WiderChat | 开 | 加宽对话和输入栏（滑块 40–96 rem，默认 64）。纯 CSS。 |
 | ComposerOpacity | 开 | 输入栏背景透明度和模糊，让对话内容能透过输入条。纯 CSS。 |
 | BetterNavigator | 开 | 当前对话的 Notion 式目录，包含 ChatGPT 还没挂上的轮。刻度钉在聊天列上，在对话和输入框之间垂直居中。悬停 tick，点击或 ↑/↓ 跳转。正在输出的回复用虚线 tick 标出。 |
