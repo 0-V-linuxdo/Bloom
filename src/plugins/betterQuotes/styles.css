@@ -1,0 +1,59 @@
+/*
+ * Bloom++, a modification for chatgpt.com
+ * Copyright (c) 2026 Bloom contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+.bloom-quotes-hit {
+    background: color-mix(in srgb, var(--bloom-fg) 16%, transparent);
+    border-radius: 0.25rem;
+}
+
+button.bloom-quotes-back {
+    position: fixed;
+    z-index: 30;
+    padding: 0.15rem 0.45rem;
+    border: 0;
+    border-radius: 999px;
+    background: var(--bloom-card, var(--main-surface-primary, #fff));
+    color: var(--bloom-fg);
+    font: inherit;
+    font-size: 0.75rem;
+    box-shadow: 0 1px 4px color-mix(in srgb, var(--bloom-fg) 25%, transparent);
+    cursor: pointer;
+}
+
+.bloom-quotes-chip {
+    position: fixed;
+    z-index: 30;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    max-width: 40rem;
+    padding: 0.35rem 0.45rem 0.35rem 0.7rem;
+    border: 1px solid color-mix(in srgb, var(--bloom-fg) 16%, transparent);
+    border-radius: 0.75rem;
+    background: var(--bloom-card, var(--main-surface-primary, #fff));
+    color: var(--bloom-fg-2);
+    box-shadow: 0 4px 16px color-mix(in srgb, #000 12%, transparent);
+    cursor: pointer;
+}
+
+.bloom-quotes-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+button.bloom-quotes-x {
+    flex: none;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--bloom-fg);
+    font: inherit;
+    cursor: pointer;
+}

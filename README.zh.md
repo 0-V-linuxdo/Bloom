@@ -22,6 +22,9 @@
 | PromptQueue | 关 | 生成中排队后续提示。Enter 追加；队头在本轮结束后再发。每条记住入队时的模型，切会话保持选择器。刷新或另一个标签页能看到未发送的队列，但只有一个标签页会把它发出去。 |
 | ChatListStatus | 关 | 当前打开的会话生成中时在 Recents 行转圈，出错时显示错误标记；多个标签页同步。 |
 | StarChats | 开 | 给侧栏里的会话加星，固定在顶部的 Starred 分组。不受 ChatGPT 最多置顶 3 条的限制。 |
+| BetterQuotes | 开 | 点引用跳到原文，原文上的返回标记再跳回来。切到别的会话再回来，输入框上的引用卡还在。 |
+| UserQuotes | 开 | 自己消息里的引用行显示左边线。纯 CSS。 |
+| TemporaryChat | 开 | 一键进入临时聊天。可选：New chat 也开成临时聊天。 |
 | WiderChat | 开 | 加宽对话和输入栏（滑块 40–96 rem，默认 64）。纯 CSS。 |
 | ComposerOpacity | 开 | 输入栏背景透明度和模糊，让对话内容能透过输入条。纯 CSS。 |
 | BetterNavigator | 开 | 当前对话的 Notion 式目录，包含 ChatGPT 还没挂上的轮。刻度钉在聊天列上，在对话和输入框之间垂直居中。悬停 tick，点击或 ↑/↓ 跳转。正在输出的回复用虚线 tick 标出。 |

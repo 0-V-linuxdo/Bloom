@@ -8,6 +8,7 @@ import type { Plugin } from "@utils/types";
 
 import Settings from "./_core/settings";
 import BetterNavigator from "./betterNavigator";
+import BetterQuotes from "./betterQuotes";
 import ChatListStatus from "./chatListStatus";
 import ChatStateFavicons from "./chatStateFavicons";
 import Cleaner from "./cleaner";
@@ -26,11 +27,14 @@ import ResponseNotification from "./responseNotification";
 import SidebarIdentityOpacity from "./sidebarIdentityOpacity";
 import StarChats from "./starChats";
 import StreamerMode from "./streamerMode";
+import TemporaryChat from "./temporaryChat";
+import UserQuotes from "./userQuotes";
 import WiderChat from "./widerChat";
 
 const list: Plugin[] = [
     Settings,
     BetterNavigator,
+    BetterQuotes,
     ChatListStatus,
     ChatStateFavicons,
     Cleaner,
@@ -49,6 +53,8 @@ const list: Plugin[] = [
     SidebarIdentityOpacity,
     StarChats,
     StreamerMode,
+    TemporaryChat,
+    UserQuotes,
     WiderChat,
 ];
 

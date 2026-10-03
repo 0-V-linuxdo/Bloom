@@ -331,6 +331,29 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 临时聊天（`?temporary-chat=true`）和还没拿到真实 id 的 `local-` 草稿不能加星。最多 40 条，新加的排最前。标题跟侧栏文字走：这一行还在时，改名会写回存储。
 - 没有可见设置。关掉插件就去掉星星和分组。隐藏数据：`chats: { id, href, title }[]`。
 
+### 4.21 BetterQuotes — 引用跳转，切会话保留引用卡
+
+默认开｜`HostReady`｜chat, ui
+
+- 点自己消息里的 `blockquote`，或输入框里宿主的引用卡（带 Remove / 关闭 一类按钮、且不在编辑器里的那一行），跳到更早一条包含这段文字的消息。引用至少 8 个字。跳到的那一段高亮约 1.8 秒，并在它旁边放一个 **Back**。再点 Back 回到刚才点的引用。找不到原文就不拦截这次点击。
+- `persistAcrossChats`（默认开）：宿主引用卡还在时，按当前会话记下原文（还没有 id 的新对话记在 `draft`，变成真实 id 时带走）。切走再回来，宿主卡不在了，就在输入框上方放 Bloom 自己的引用卡。点卡上的 ×，或点宿主的移除按钮，这条记录删掉。发送时如果宿主卡已经没了，把 `> 原文` 写进草稿再发，避免切会话之后引用只剩一张空卡片。临时聊天单独记在 `temporary`。
+- 记录在 `sessionStorage` 键 `BloomBetterQuotes`，最多 40 条，不进 `BloomSettings`。关掉 `persistAcrossChats` 会清掉。
+- 设置：`jumpToPassage`（默认开）、`persistAcrossChats`（默认开）。
+
+### 4.22 UserQuotes — 自己消息里的引用左边线
+
+默认开｜`Init`｜chat, ui｜纯 CSS
+
+- 只画在用户消息里的 `blockquote` 上（新壳 `[data-chatgpt-search-unit-key$=":user"]`，旧壳 `[data-message-author-role="user"]`）。助手消息里的引用不动。左边线 0.25rem，颜色用 `--bloom-fg-2`。
+- 设置：`italic`（默认开，关则不再强制斜体）、`quotes`（默认关，关则去掉装饰引号）。
+
+### 4.23 TemporaryChat — 一键临时聊天
+
+默认开｜`HostReady`｜privacy, ui
+
+- 侧栏 New chat 下面多一个 **Temporary**。点它打开 `/?temporary-chat=true`。已经在临时聊天里时按钮是按下状态，再点回到 `/`。展开侧栏和旧壳都放；被 `inert` 藏起来的那一栏不放。
+- 设置：`openNewAsTemporary`（默认关）。打开后，在侧栏点 New chat 也进临时聊天。
+
 ---
 
 ## 5. 设置键总表（兼容性清单）
@@ -353,6 +376,9 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | ComposerOpacity | `opacity` `blur` | — |
 | Continue | `prompt` | — |
 | StarChats | — | `chats` |
+| BetterQuotes | `jumpToPassage` `persistAcrossChats` | — |
+| UserQuotes | `italic` `quotes` | — |
+| TemporaryChat | `openNewAsTemporary` | — |
 | BetterNavigator | `showAssistant` `jumpEffect` | — |
 | MessageTimestamps | `showDate` `hideOwnMessages` | `stamps` |
 | StreamerMode | `conversations` `projects` `accountAvatar` `accountName` `accountEmail` `headerTitle` | — |

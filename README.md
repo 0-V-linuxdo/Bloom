@@ -22,6 +22,9 @@ Plugins:
 | PromptQueue | Off | Queue follow-up prompts while a reply is streaming. Enter appends; the head sends after this turn. Each item keeps the model that was selected, the picker stays when switching chats, and a refresh or another tab restores the unsent queue. Only one tab sends it. |
 | ChatListStatus | Off | Spinner on the **open** Recents row while this chat is answering, an error mark if it fails. Synced across tabs. |
 | StarChats | On | Star a sidebar chat and keep it in a Starred group at the top. Not capped at ChatGPT's three pins. |
+| BetterQuotes | On | Click a quote to jump to the passage, and the badge to jump back. The composer quote card stays when you switch chats and come back. |
+| UserQuotes | On | Left bar on quoted lines in your own messages. CSS-only. |
+| TemporaryChat | On | One click starts a temporary chat. Optional: New chat opens a temporary chat. |
 | WiderChat | On | Widen the thread and composer (slider 40–96 rem, default 64). CSS-only. |
 | ComposerOpacity | On | Composer background opacity and blur, so the thread can show through the input bar. CSS-only. |
 | BetterNavigator | On | Notion-style outline of the open chat, including turns ChatGPT has not mounted yet. Ticks sit on the chat column, centered between the thread and the composer. Hover the ticks, click or ↑/↓ to jump. A dashed tick marks the reply still streaming. |
