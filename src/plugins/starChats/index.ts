@@ -227,16 +227,9 @@ function paintSection() {
 function headerTitle() {
     const known = [...document.querySelectorAll<HTMLElement>(HEADER_TITLE)].find(el => !el.closest("[data-bloom]") && ready(el));
     if (known) return known;
-    const main = document.querySelector("main");
-    if (!main) return null;
-    const inMain = [...main.querySelectorAll<HTMLElement>("h1, h2, span")].find(el => {
-        if (el.closest("[data-bloom]") || !ready(el)) return false;
-        const text = normalizeText(el.textContent ?? "");
-        if (!text || text.length > 80 || el.querySelector("button, a, svg")) return false;
-        const rect = el.getBoundingClientRect();
-        return rect.width > 16 && rect.height > 0 && rect.top >= 0 && rect.top < 96;
-    });
-    return inMain ?? null;
+    const header = document.querySelector("#page-header");
+    if (!header) return null;
+    return [...header.querySelectorAll<HTMLElement>("h1, h2, [role='heading']")].find(el => !el.closest("[data-bloom]") && !!normalizeText(el.textContent ?? "") && ready(el)) ?? null;
 }
 
 function paintHeader() {
