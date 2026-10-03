@@ -26,9 +26,12 @@ function css() {
     const { opacity, blur } = settings.store;
     if (opacity >= 100) return "";
     const clear = "background-color:transparent!important;background-image:none!important;box-shadow:none!important";
+    const paint = `background-color:color-mix(in srgb, ${FILL} ${opacity}%, transparent)!important;background-image:none!important;backdrop-filter:blur(${blur}px)!important;-webkit-backdrop-filter:blur(${blur}px)!important`;
+    const bareRoot = `background-color:transparent!important;background-image:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important`;
     return `:is(${SLAB}), :is(${FORM}){${clear}}`
         + `:is(${FADE}){display:none!important}`
-        + `${PILL}{background-color:color-mix(in srgb, ${FILL} ${opacity}%, transparent)!important;background-image:none!important;backdrop-filter:blur(${blur}px)!important}`
+        + `${PILL}{${paint}}`
+        + `:is(${FORM}):has(${LAYOUT_BODY}) ${LAYOUT_ROOT}{${bareRoot}}`
         + `:is(${FORM}) :is(${Sel.composerInput}){background-color:transparent!important}`;
 }
 

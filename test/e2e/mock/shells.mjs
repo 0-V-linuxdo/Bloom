@@ -33,7 +33,7 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 form { max-width: var(--thread-content-max-width); margin: 8px auto; width: 100%; display: flex; gap: 8px; }
 .ProseMirror { flex: 1; min-height: 40px; border: 1px solid #ccc; }
 .ComposerLayoutRoot-XCKS7O, .ComposerLayoutBody-uBBf1A, .ComposerLayoutInput-KwIAr_ { flex: 1; display: flex; }
-.ComposerLayoutRoot-XCKS7O { --composer-layout-surface-background: #fff; }
+.ComposerLayoutRoot-XCKS7O { --composer-layout-surface-background: #fff; background: #ff00ff; }
 html[data-theme="dark"] .ComposerLayoutRoot-XCKS7O { --composer-layout-surface-background: rgb(27, 27, 27); }
 .ComposerLayoutBody-uBBf1A { background: var(--composer-layout-surface-background); border-radius: 26px; min-height: 52px; }
 .relative { position: relative; }
