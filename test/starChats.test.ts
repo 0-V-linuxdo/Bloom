@@ -28,10 +28,14 @@ const SIDEBAR = `<div data-app-action-sidebar-scroll>
         <button type="button" id="sliders" aria-label="Toggle summary">${SLIDERS}</button>
     </div>
 </header>
-<main><a href="${EVEREST}">Citation</a></main>`;
+<main>
+    <div class="turn-action-controls"><button type="button" aria-label="Copy message"></button></div>
+    <a href="${EVEREST}">Citation</a>
+</main>`;
 
 const everest = () => document.querySelector<HTMLAnchorElement>(`a[href="${EVEREST}"]`)!;
-const headerStar = () => document.querySelector<HTMLButtonElement>('body > [data-place="header"]')!;
+const headerStar = () => document.querySelector<HTMLButtonElement>('#chip > [data-place="header"]')!;
+const actionStar = () => document.querySelector<HTMLButtonElement>('.turn-action-controls > [data-place="action"]')!;
 
 function box(el: Element | null, left: number) {
     if (!(el instanceof HTMLElement)) return;
@@ -61,11 +65,12 @@ describe("StarChats", () => {
         layOut();
         startPhase(StartAt.HostReady);
         const button = headerStar();
-        expect(button.parentElement).toBe(document.body);
-        expect(button.style.position).toBe("fixed");
-        expect(button.style.left).toBe("940px");
-        expect(button.style.top).toBe("8px");
-        expect(document.getElementById("chip")?.contains(button)).toBe(false);
+        expect(button.parentElement?.id).toBe("chip");
+        expect(button.nextElementSibling?.id).toBe("overflow");
+        expect(button.style.position).not.toBe("fixed");
+        const action = actionStar();
+        expect(action.dataset.id).toBe("11111111-1111-4111-8111-111111111111");
+        expect(action.nextElementSibling?.getAttribute("aria-label")).toBe("Copy message");
         expect(document.getElementById("title-menu")?.querySelector("[data-bloom='chat-star']")).toBeNull();
         expect(everest().querySelector("[data-bloom='chat-star']")).toBeNull();
         const event = new MouseEvent("click", { bubbles: true, cancelable: true });
@@ -78,7 +83,8 @@ describe("StarChats", () => {
         section.querySelector<HTMLButtonElement>('[data-bloom="chat-star"]')!.click();
         expect(document.querySelector('[data-bloom="starred"]')).toBeNull();
         expect(headerStar().getAttribute("aria-pressed")).toBe("false");
-        expect(headerStar().style.left).toBe("940px");
+        expect(actionStar().getAttribute("aria-pressed")).toBe("false");
+        expect(headerStar().nextElementSibling?.id).toBe("overflow");
     });
 
     test("keeps a starred chat after the sidebar is redrawn", () => {
@@ -93,7 +99,9 @@ describe("StarChats", () => {
         expect(document.querySelector("[data-bloom='starred']")?.textContent).toContain("Everest height");
         expect(document.querySelector(`[data-app-action-sidebar-scroll] > a[href="${EVEREST}"] [data-bloom="chat-star"]`)).toBeNull();
         expect(headerStar().getAttribute("aria-pressed")).toBe("true");
-        expect(headerStar().style.position).toBe("fixed");
-        expect(headerStar().style.left).toBe("940px");
+        expect(actionStar().getAttribute("aria-pressed")).toBe("true");
+        expect(headerStar().nextElementSibling?.id).toBe("overflow");
+        actionStar().click();
+        expect(document.querySelector('[data-bloom="starred"]')).toBeNull();
     });
 });

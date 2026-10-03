@@ -63,9 +63,32 @@ function nativeLinks() {
 }
 
 function rowTitle(link: HTMLAnchorElement) {
+    const titled = link.querySelector("[data-thread-title] [dir='auto'], [data-thread-title]");
+    if (titled) return normalizeText(titled.textContent ?? "");
     const copy = link.cloneNode(true) as HTMLElement;
     for (const node of copy.querySelectorAll("[data-bloom]")) node.remove();
     return normalizeText(copy.textContent ?? "");
+}
+
+function openTitle() {
+    const bar = document.querySelector('[data-testid="app-shell-header-context-menu-surface"]');
+    if (!bar) return "";
+    for (const node of bar.querySelectorAll("span, div, h1")) {
+        if (node.closest("button, a, [data-bloom]") || node.children.length) continue;
+        const text = normalizeText(node.textContent ?? "");
+        if (text && text !== "ChatGPT" && text !== "Share") return text;
+    }
+    return "";
+}
+
+function chatTitle(id: string) {
+    const link = nativeLinks().find(item => conversationIdFromHref(item.href) === id);
+    const thread = link ? rowTitle(link) : "";
+    const header = id === currentConversationId() ? openTitle() : "";
+    if (header && (!thread || thread === normalizeText(document.title))) return header;
+    if (thread) return thread;
+    const title = normalizeText(document.title);
+    return title && title !== "ChatGPT" ? title : "Untitled chat";
 }
 
 function starButton(id: string, pressed: boolean) {
@@ -79,10 +102,13 @@ function starButton(id: string, pressed: boolean) {
             "aria-label": pressed ? "Unstar chat" : "Star chat",
         },
         on: {
+            pointerdown: event => event.stopPropagation(),
+            mousedown: event => event.stopPropagation(),
             click: event => {
                 event.preventDefault();
                 event.stopPropagation();
-                if (button.dataset.place === "header") {
+                const { place } = button.dataset;
+                if (place === "header" || place === "action") {
                     const href = safeHref(`${location.pathname}${location.search}`);
                     if (href) remember(id, href, chatTitle(id));
                     return;
@@ -93,13 +119,6 @@ function starButton(id: string, pressed: boolean) {
         },
     }, icon("star"));
     return button;
-}
-
-function chatTitle(id: string) {
-    const link = nativeLinks().find(item => conversationIdFromHref(item.href) === id);
-    if (link) return rowTitle(link) || "Untitled chat";
-    const title = normalizeText(document.title);
-    return title && title !== "ChatGPT" ? title : "Untitled chat";
 }
 
 function setPressed(button: HTMLButtonElement, pressed: boolean) {
@@ -134,10 +153,9 @@ function syncTitles() {
     let changed = false;
     const next = chats().map(chat => {
         const link = nativeLinks().find(item => conversationIdFromHref(item.href) === chat.id);
-        if (!link) return chat;
-        const title = rowTitle(link);
-        const href = safeHref(link.href);
-        if (!title || !href || (title === chat.title && href === chat.href)) return chat;
+        const title = chatTitle(chat.id);
+        const href = link ? safeHref(link.href) ?? chat.href : chat.href;
+        if (!title || (title === chat.title && href === chat.href)) return chat;
         changed = true;
         return { ...chat, title, href };
     });
@@ -155,31 +173,14 @@ function headerKebab() {
     return buttons.toSorted((a, b) => b.getBoundingClientRect().left - a.getBoundingClientRect().left || ((a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) ? 1 : -1))[0] ?? null;
 }
 
-const HEADER_GAP = 4;
-
-function placeHeader(button: HTMLButtonElement, host: HTMLButtonElement) {
-    const box = host.getBoundingClientRect();
-    const size = box.width || 36;
-    button.style.position = "fixed";
-    button.style.top = `${box.top}px`;
-    button.style.left = `${box.left - size - HEADER_GAP}px`;
-    button.style.width = `${size}px`;
-    button.style.height = `${box.height || size}px`;
-    button.style.margin = "0";
-    button.style.transform = "none";
-    button.style.zIndex = "40";
-    button.style.opacity = "1";
-    button.style.pointerEvents = "auto";
-    button.style.color = getComputedStyle(host).color;
-}
-
 function paintHeader() {
     for (const stray of document.querySelectorAll('[data-bloom="navigator"] [data-bloom="chat-star"]')) stray.remove();
     const host = headerKebab();
+    const parent = host?.parentElement ?? null;
     const id = currentConversationId();
     const href = id ? safeHref(`${location.pathname}${location.search}`) : null;
     const existing = document.querySelector<HTMLButtonElement>('[data-bloom="chat-star"][data-place="header"]');
-    if (!host || !id || !href || !isHydrated(document.body)) {
+    if (!host || !parent || !id || !href || !isHydrated(parent)) {
         existing?.remove();
         return;
     }
@@ -188,8 +189,49 @@ function paintHeader() {
     if (button !== existing) existing?.remove();
     button.dataset.place = "header";
     setPressed(button, pressed);
-    if (button.parentElement !== document.body) document.body.append(button);
-    placeHeader(button, host);
+    if (button.parentElement !== parent || button.nextElementSibling !== host) host.before(button);
+    const box = host.getBoundingClientRect();
+    if (box.width > 0) {
+        button.style.width = `${box.width}px`;
+        button.style.height = `${box.height}px`;
+    }
+    button.style.color = getComputedStyle(host).color;
+}
+
+function actionBars() {
+    return [...document.querySelectorAll<HTMLElement>(".turn-action-controls")].filter(bar =>
+        !bar.closest(`[data-bloom], [role="dialog"], [inert], ${Sel.sidebars}`));
+}
+
+function paintActions() {
+    const id = currentConversationId();
+    const href = id ? safeHref(`${location.pathname}${location.search}`) : null;
+    const existing = [...document.querySelectorAll<HTMLButtonElement>('[data-bloom="chat-star"][data-place="action"]')];
+    if (!id || !href) {
+        for (const button of existing) button.remove();
+        return;
+    }
+    const pressed = chats().some(chat => chat.id === id);
+    const kept = new Set<HTMLButtonElement>();
+    for (const bar of actionBars()) {
+        if (!isHydrated(bar)) continue;
+        let button = bar.querySelector<HTMLButtonElement>('[data-place="action"]');
+        if (!button || button.dataset.id !== id) {
+            button?.remove();
+            button = starButton(id, pressed);
+            button.dataset.place = "action";
+        }
+        setPressed(button, pressed);
+        if (button.parentElement !== bar) bar.prepend(button);
+        const sample = [...bar.querySelectorAll("button")].find(item => item !== button);
+        const box = sample?.getBoundingClientRect();
+        if (box && box.width > 0) {
+            button.style.width = `${box.width}px`;
+            button.style.height = `${box.height}px`;
+        }
+        kept.add(button);
+    }
+    for (const button of existing) if (!kept.has(button)) button.remove();
 }
 
 function render() {
@@ -199,6 +241,7 @@ function render() {
         syncTitles();
         paintSection();
         paintHeader();
+        paintActions();
     } finally {
         painting = false;
     }
@@ -247,7 +290,7 @@ function clear() {
 
 export default definePlugin({
     name: "StarChats",
-    description: "Star the open chat from the header, just left of the top-right menu, and keep it at the top.",
+    description: "Star the open chat from the message toolbar and the header, and keep it at the top of the sidebar.",
     authors: ["Bloom contributors"],
     tags: ["chat", "ui"],
     icon: "star",
@@ -259,14 +302,10 @@ export default definePlugin({
     },
     start() {
         unwatch = watchBody(mutations => hostMutations(mutations) && render());
-        window.addEventListener("resize", render);
-        window.addEventListener("scroll", render, true);
     },
     stop() {
         unwatch?.();
         unwatch = undefined;
-        window.removeEventListener("resize", render);
-        window.removeEventListener("scroll", render, true);
         clear();
     },
 });
