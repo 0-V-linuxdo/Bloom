@@ -27,7 +27,7 @@ function css() {
     if (opacity >= 100) return "";
     const clear = "background-color:transparent!important;background-image:none!important;box-shadow:none!important";
     const paint = `background-color:color-mix(in srgb, ${FILL} ${opacity}%, transparent)!important;background-image:none!important;backdrop-filter:blur(${blur}px)!important;-webkit-backdrop-filter:blur(${blur}px)!important`;
-    const bareRoot = `background-color:transparent!important;background-image:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important`;
+    const bareRoot = `background-color:transparent!important;background-image:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;overflow:clip!important`;
     return `:is(${SLAB}), :is(${FORM}){${clear}}`
         + `:is(${FADE}){display:none!important}`
         + `${PILL}{${paint}}`

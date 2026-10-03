@@ -549,11 +549,11 @@ async function composerOpacitySuite(browser) {
         const rect = body.getBoundingClientRect();
         const hit = document.elementsFromPoint(rect.left + 1, rect.top + 1).some(el => String(el.className).includes("ComposerLayoutBody"));
         const rootStyle = getComputedStyle(root);
-        return { hit, rootBlur: rootStyle.backdropFilter, rootBg: rootStyle.backgroundColor, height: rect.height };
+        return { hit, rootBlur: rootStyle.backdropFilter, rootBg: rootStyle.backgroundColor, rootRadius: rootStyle.borderRadius, rootOverflow: rootStyle.overflow, height: rect.height };
     });
-    check("ComposerOpacity blurs only the rounded composer body", blurred.length === 1 && blurred[0].name.startsWith("ComposerLayoutBody") && blurred[0].blur === "blur(4px)" && blurred[0].radius === "26px", JSON.stringify(blurred));
+    check("ComposerOpacity blurs only the composer body", blurred.length === 1 && blurred[0].name.startsWith("ComposerLayoutBody") && blurred[0].blur === "blur(4px)", JSON.stringify(blurred));
     check("ComposerOpacity keeps the composer's own dark fill, only translucent", red < 0.2 && alpha === 0.6, blurred[0]?.background);
-    check("ComposerOpacity does not paint the square corners around the pill", corner.hit === false && corner.rootBlur === "none" && corner.rootBg === "rgba(0, 0, 0, 0)" && corner.height >= 52, JSON.stringify(corner));
+    check("ComposerOpacity clips the square body to the pill", corner.hit === false && corner.rootBlur === "none" && corner.rootBg === "rgba(0, 0, 0, 0)" && corner.rootRadius === "26px" && corner.rootOverflow === "clip" && corner.height >= 52, JSON.stringify(corner));
     await page.locator(COMPOSER).click();
     await page.keyboard.type("See-through");
     check("ComposerOpacity keeps the composer typable", (await page.locator(COMPOSER).textContent()).trim() === "See-through");
