@@ -322,14 +322,14 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 同一次错误只发一条。发出去之后如果又停在新的投递错误上，再发，直到这次成功结束，或同一会话里已经连着发了 6 条。正常结束（`done` 且错误条已消失）后计数清零。输入框里已有草稿时不覆盖。
 - 设置：`prompt`（默认 “continue where you left”）。
 
-### 4.20 StarChats — 给会话加星
+### 4.20 StarChats — 给消息加星
 
-默认开｜`HostReady`｜chat, ui｜Bloom++ 独有（ChatGPT 自己的置顶最多 3 条；Void++ 没有对应插件）
+默认开｜`HostReady`｜chat, ui｜对齐 Void++ 的 MessageStars。不往左侧栏加分组。
 
-- 星在每条消息底部的操作条（`.turn-action-controls`）最前面，和复制按钮同一行、同一尺寸；也在右上角三个点菜单的左边，嵌在那颗按钮所在的工具条里，不浮动盖住正文。空心、跟旁边的图标同色；点亮后实心。点它收藏或取消当前会话，不滚动消息，也不打开旁边的菜单。页头标题和侧栏线程名不一致时（例如 GPT 页头是助手名、标签页标题只是最后一句），收藏名用页头上看到的那个。临时聊天和还没拿到真实 id 的草稿没有这颗星。
-- 加星的会话收进侧栏顶部的 **Starred** 分组，排在 New chat 下面（没有 New chat 就排在滚动区最上面）。分组是 Bloom 自己的节点。ChatGPT 把那一行滚出虚拟列表之后，分组里的条目还在，点它优先点侧栏里还在的原链接（站内跳转），找不到再走保存的地址。
-- 临时聊天（`?temporary-chat=true`）和还没拿到真实 id 的 `local-` 草稿不能加星。最多 40 条，新加的排最前。标题跟侧栏文字走：这一行还在时，改名会写回存储。
-- 没有可见设置。关掉插件就去掉星星和分组。隐藏数据：`chats: { id, href, title }[]`。
+- 星在每条消息底部的操作条（`.turn-action-controls`）末尾，和复制按钮同一行。点它收藏或取消**这一条消息**，不收藏整个会话，也不滚动。空心；点亮后实心橙色。临时聊天（`?temporary-chat=true`）和还没拿到真实 id 的页面没有这颗星。
+- 右上角三个点（`More`）的左边另有一颗星，嵌在那颗按钮所在的工具条里，不浮动盖住正文。它**不是**收藏按钮：点一下，或指针停在上面，打开当前会话已加星消息的列表。列表挂在按钮下方，不进左侧栏。点一行跳到那条消息；行尾的星取消收藏。Esc 或点到别处关闭。没有加星消息时列表写 “No starred messages in this chat”。
+- 大纲上对应的刻度和目录行标成橙色。
+- 最多 80 条，新加的排最前。只显示当前会话的星。关掉插件就去掉星星和列表。隐藏数据：`messages: { conversationId, messageId, role, snippet, starredAt }[]`。旧的 `chats` 不再使用，也不会再画进侧栏。
 
 ### 4.21 BetterQuotes — 引用跳转，切会话保留引用卡
 
@@ -375,7 +375,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | WiderChat | `width` | — |
 | ComposerOpacity | `opacity` `blur` | — |
 | Continue | `prompt` | — |
-| StarChats | — | `chats` |
+| StarChats | — | `messages` |
 | BetterQuotes | `jumpToPassage` `persistAcrossChats` | — |
 | UserQuotes | `italic` `quotes` | — |
 | TemporaryChat | `openNewAsTemporary` | — |

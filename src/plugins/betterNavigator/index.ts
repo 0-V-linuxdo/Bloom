@@ -335,7 +335,7 @@ function jump(index: number) {
 function row(entry: Entry, index: number) {
     return h("button", {
         class: cl("row"),
-        attrs: { "type": "button", "data-index": String(index) },
+        attrs: { "type": "button", "data-index": String(index), "data-message-id": entry.ids[0] ?? "" },
         on: { click: () => jump(index) },
     }, h("span", { text: EMOJI[entry.role] }), h("span", { class: "bloom-truncate", text: truncate(entry.summary || "…", SUMMARY_CHARS) }));
 }
@@ -424,7 +424,7 @@ function rebuild() {
         h("button", {
             class: classes(cl("tick"), cl(`tick-${entry.role}`), entry.streaming && cl("tick-streaming"), index === current && cl("tick-current")),
             title: truncate(entry.summary, SUMMARY_CHARS),
-            attrs: { "type": "button", "aria-label": `Jump to message ${index + 1}` },
+            attrs: { "type": "button", "aria-label": `Jump to message ${index + 1}`, "data-message-id": entry.ids[0] ?? "" },
             on: { click: () => jump(index) },
         })));
     root?.querySelector(`.${cl("toc-list")}`)?.replaceChildren(...entries.map(row));
