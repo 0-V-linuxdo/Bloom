@@ -75,6 +75,22 @@ export function watchCopies(key: string, onChange: (value: unknown) => void) {
     });
 }
 
+export function deleteCopies(key: string) {
+    if (typeof GM_setValue === "function") {
+        try {
+            GM_setValue(key, {});
+        } catch (e) {
+            logger.warn("GM delete failed", e);
+        }
+    }
+    try {
+        localStorage.removeItem(key);
+    } catch (e) {
+        logger.warn("localStorage delete failed", e);
+    }
+    idbRequest("readwrite", store => store.delete(key)).catch(e => logger.warn("IndexedDB delete failed", e));
+}
+
 export function writeAllCopies(key: string, value: object) {
     const json = JSON.stringify(value);
     if (typeof GM_setValue === "function") {

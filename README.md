@@ -19,12 +19,12 @@ Plugins:
 | RecentTopics | On | Switch recently opened chats with Ctrl+` (title + last-turn preview). |
 | Cleaner | On | Hide Download apps, the composer “can make mistakes” notice, upgrade CTAs, locked models, home GPT promo, Free ads, and the Team “Turn on auto-reload” banner. CSS-only. |
 | ResponseNotification | On | Sound + browser notification when a reply finishes. Default: only when the tab is hidden. |
-| PromptQueue | Off | Queue follow-up prompts while a reply is streaming. Enter appends; the head sends after this turn. Each item keeps the model that was selected, the picker stays when switching chats, and a refresh restores the unsent queue. |
+| PromptQueue | Off | Queue follow-up prompts while a reply is streaming. Enter appends; the head sends after this turn. Each item keeps the model that was selected, the picker stays when switching chats, and a refresh or another tab restores the unsent queue. Only one tab sends it. |
 | ChatListStatus | Off | Spinner on the **open** Recents row while this chat is answering, an error mark if it fails. Synced across tabs. |
 | StarChats | On | Star a sidebar chat and keep it in a Starred group at the top. Not capped at ChatGPT's three pins. |
 | WiderChat | On | Widen the thread and composer (slider 40–96 rem, default 64). CSS-only. |
 | ComposerOpacity | On | Composer background opacity and blur, so the thread can show through the input bar. CSS-only. |
-| BetterNavigator | On | Notion-style outline of the open chat, including turns ChatGPT has not mounted yet. Hover the ticks, click or ↑/↓ to jump. A dashed tick marks the reply still streaming. |
+| BetterNavigator | On | Notion-style outline of the open chat, including turns ChatGPT has not mounted yet. Ticks sit on the chat column, centered between the thread and the composer. Hover the ticks, click or ↑/↓ to jump. A dashed tick marks the reply still streaming. |
 | MessageTimestamps | On | Show when each turn was sent, from the conversation JSON ChatGPT already loads. |
 | StreamerMode | Off | Blur Recents titles, the header chat name, project names, and the account chip. CSS-only. Hover a Recents / switcher row to peek. |
 | SidebarIdentityOpacity | On | Fade the account row in the bottom-left of the sidebar (default 50%). The avatar, custom or not, stays at full opacity unless you turn on fadeAvatar. Hover brings the row back. CSS-only. |

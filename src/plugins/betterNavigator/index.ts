@@ -57,6 +57,7 @@ let signature = "";
 let seeking = 0;
 let unsubscribers: (() => void)[] = [];
 let scrollTarget: HTMLElement | null = null;
+let watchedForm: HTMLElement | null = null;
 let resizeObserver: ResizeObserver | undefined;
 let controller: AbortController | undefined;
 let heldChat = "";
@@ -342,9 +343,12 @@ function row(entry: Entry, index: number) {
 function pin(scroller: HTMLElement) {
     if (!root) return;
     const scrollBox = scroller.getBoundingClientRect();
-    const bottom = Math.min(scrollBox.bottom, composerForm()?.getBoundingClientRect().top ?? scrollBox.bottom);
+    const composerTop = composerForm()?.getBoundingClientRect().top;
+    const bottom = Math.min(scrollBox.bottom, composerTop && composerTop > scrollBox.top ? composerTop : scrollBox.bottom);
+    const height = bottom - scrollBox.top;
     root.style.right = `${document.documentElement.clientWidth - scrollBox.left - scroller.clientLeft - scroller.clientWidth + RAIL_GAP_PX}px`;
-    root.style.top = `${(scrollBox.top + bottom) / 2}px`;
+    root.style.top = `${scrollBox.top}px`;
+    root.style.height = height > 1 ? `${height}px` : "";
 }
 
 function render() {
@@ -367,6 +371,12 @@ function render() {
             if (scroller.isConnected) pin(scroller);
         });
         resizeObserver.observe(scroller);
+        watchedForm = null;
+    }
+    const form = composerForm();
+    if (form && form !== watchedForm && resizeObserver) {
+        resizeObserver.observe(form);
+        watchedForm = form;
     }
     root ??= h("div", { class: `bloom-root ${cl("root")}`, attrs: { "data-bloom": "navigator" } },
         h("div", { class: cl("rail") }),
@@ -470,6 +480,7 @@ export default definePlugin({
         resizeObserver?.disconnect();
         resizeObserver = undefined;
         scrollTarget = null;
+        watchedForm = null;
         removeEventListener("keydown", onKeydown, true);
         removeEventListener("resize", update);
         root?.remove();

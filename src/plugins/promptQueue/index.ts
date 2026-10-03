@@ -13,6 +13,7 @@ import { Sel } from "@host/selectors";
 import { nextFrame } from "@utils/dom";
 import { Logger } from "@utils/Logger";
 import { isRecord, parseJson } from "@utils/misc";
+import { deleteCopies, readAllCopies, writeAllCopies } from "@utils/storage";
 import definePlugin, { OptionType } from "@utils/types";
 
 import styles from "./styles.css";
@@ -24,12 +25,15 @@ const MAX_QUEUE = 8;
 const SEND_RETRY_MS = 150;
 const SEND_ATTEMPTS = 20;
 const STORAGE_KEY = "BloomPromptQueue";
+const CLAIM_KEY = "BloomPromptQueueClaim";
+const TAB_KEY = "BloomPromptQueueTab";
+const CLAIM_MS = 4000;
 
 const settings = definePluginSettings({
     replacePending: { type: OptionType.BOOLEAN, description: "Enter replaces the last queued message instead of adding another.", default: false },
     showQueueMode: { type: OptionType.BOOLEAN, description: "Show the model that was selected when each message was queued.", default: true },
     stickyOnNavigate: { type: OptionType.BOOLEAN, description: "Keep the selected model when switching chats.", default: true },
-    persistAcrossRefresh: { type: OptionType.BOOLEAN, description: "Restore unsent queued messages in this tab after a refresh.", default: true },
+    persistAcrossRefresh: { type: OptionType.BOOLEAN, description: "Restore unsent queued messages in this browser after a refresh. Other tabs show the same queue; only one of them sends it.", default: true },
 });
 
 export interface QueueItem {
@@ -64,35 +68,121 @@ function parseItem(raw: unknown): QueueItem | null {
     };
 }
 
-function restoreQueues() {
-    if (!settings.store.persistAcrossRefresh) {
-        sessionStorage.removeItem(STORAGE_KEY);
-        return;
+function tabId() {
+    const existing = sessionStorage.getItem(TAB_KEY);
+    if (existing) return existing;
+    const next = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+    sessionStorage.setItem(TAB_KEY, next);
+    return next;
+}
+
+interface Claim {
+    tab: string;
+    at: number;
+    key: string;
+}
+
+function readClaim(): Claim | null {
+    const saved = parseJson(localStorage.getItem(CLAIM_KEY) ?? "");
+    if (!isRecord(saved) || typeof saved.tab !== "string" || typeof saved.at !== "number" || typeof saved.key !== "string") return null;
+    return { tab: saved.tab, at: saved.at, key: saved.key };
+}
+
+function takeClaim() {
+    const claim: Claim = { tab: tabId(), at: Date.now(), key: queueKey() };
+    try {
+        localStorage.setItem(CLAIM_KEY, JSON.stringify(claim));
+    } catch (e) {
+        logger.warn("Could not claim the queue", e);
     }
-    const saved = parseJson(sessionStorage.getItem(STORAGE_KEY) ?? "");
-    if (!isRecord(saved)) return;
+}
+
+function touchClaim() {
+    const claim = readClaim();
+    if (claim?.tab !== tabId()) return;
+    try {
+        localStorage.setItem(CLAIM_KEY, JSON.stringify({ ...claim, at: Date.now() }));
+    } catch (e) {
+        logger.warn("Could not refresh the queue claim", e);
+    }
+}
+
+function maySend() {
+    const claim = readClaim();
+    if (!claim || claim.tab === tabId() || claim.key !== queueKey()) return true;
+    if (Date.now() - claim.at <= CLAIM_MS) return false;
+    takeClaim();
+    return true;
+}
+
+function storedMap() {
+    return Object.fromEntries([...queues].filter(([id]) => id !== DRAFT));
+}
+
+function rememberMap(raw: unknown) {
+    const saved = typeof raw === "string" ? parseJson(raw) : raw;
+    if (!isRecord(saved)) return false;
+    let found = false;
     for (const [id, items] of Object.entries(saved)) {
         if (!Array.isArray(items)) continue;
         const parsed = items.map(parseItem).filter(item => item != null);
-        if (parsed.length) queues.set(id, parsed);
+        if (!parsed.length) continue;
+        queues.set(id, parsed);
+        found = true;
     }
+    return found;
+}
+
+function restoreQueues() {
+    if (!settings.store.persistAcrossRefresh) {
+        sessionStorage.removeItem(STORAGE_KEY);
+        deleteCopies(STORAGE_KEY);
+        return;
+    }
+    if (rememberMap(sessionStorage.getItem(STORAGE_KEY))) return;
+    if (rememberMap(localStorage.getItem(STORAGE_KEY))) {
+        saveQueues();
+        return;
+    }
+    void readAllCopies(STORAGE_KEY).then(copies => {
+        if (queues.size) return;
+        if (!copies.some(rememberMap)) return;
+        saveQueues();
+        renderTray(queue(), actions, settings.store.showQueueMode);
+    });
 }
 
 function saveQueues() {
     try {
         if (!settings.store.persistAcrossRefresh) {
             sessionStorage.removeItem(STORAGE_KEY);
+            deleteCopies(STORAGE_KEY);
             return;
         }
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(Object.fromEntries([...queues].filter(([id]) => id !== DRAFT))));
+        const data = storedMap();
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        writeAllCopies(STORAGE_KEY, data);
     } catch (e) {
         logger.warn("Could not save the queue", e);
     }
 }
 
+function onStored(event: StorageEvent) {
+    if (event.key !== STORAGE_KEY || !settings.store.persistAcrossRefresh || event.newValue == null) return;
+    queues.clear();
+    rememberMap(event.newValue);
+    try {
+        sessionStorage.setItem(STORAGE_KEY, event.newValue);
+    } catch (e) {
+        logger.warn("Could not mirror the queue", e);
+    }
+    renderTray(queue(), actions, settings.store.showQueueMode);
+}
+
 function setQueue(items: QueueItem[]) {
     if (items.length) queues.set(queueKey(), items);
     else queues.delete(queueKey());
+    takeClaim();
     saveQueues();
     renderTray(queue(), actions, settings.store.showQueueMode);
 }
@@ -150,6 +240,10 @@ function dispatchNext() {
         return;
     }
     if (!armed || generationState().generating || readDraft()) return;
+    if (!maySend()) {
+        armed = false;
+        return;
+    }
     const [head, ...rest] = queue();
     if (head == null) return;
     armed = false;
@@ -278,10 +372,12 @@ export default definePlugin({
                 renderTray(queue(), actions, settings.store.showQueueMode);
             }),
             generation.on("tick", () => {
+                touchClaim();
                 dispatchNext();
                 renderTray(queue(), actions, settings.store.showQueueMode);
             }),
         ];
+        addEventListener("storage", onStored, { signal: controller.signal });
         renderTray(queue(), actions, settings.store.showQueueMode);
     },
     stop() {
