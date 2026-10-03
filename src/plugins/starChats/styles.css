@@ -25,9 +25,9 @@ button.bloom-star-chats-star {
     border-radius: 0.375rem;
     background: transparent;
     color: var(--bloom-fg-3);
-    opacity: 1;
+    opacity: 0;
     transform: translateY(-50%);
-    pointer-events: auto;
+    pointer-events: none;
     cursor: pointer;
 }
 
@@ -35,18 +35,9 @@ a:hover > button.bloom-star-chats-star,
 :hover > button.bloom-star-chats-star,
 button.bloom-star-chats-star:focus-visible,
 button.bloom-star-chats-star[aria-pressed="true"],
-button.bloom-star-chats-header,
 [data-bloom="starred"] button.bloom-star-chats-star {
     opacity: 1;
     pointer-events: auto;
-}
-
-button.bloom-star-chats-header {
-    position: static;
-    inset: auto;
-    margin-inline-start: 0.35rem;
-    transform: none;
-    vertical-align: middle;
 }
 
 button.bloom-star-chats-star:hover {
@@ -55,12 +46,11 @@ button.bloom-star-chats-star:hover {
 }
 
 button.bloom-star-chats-star[aria-pressed="true"] {
-    color: var(--bloom-fg);
+    color: var(--bloom-accent);
 }
 
 button.bloom-star-chats-star[aria-pressed="true"] .bloom-icon {
     fill: currentcolor;
-    stroke: none;
 }
 
 button.bloom-star-chats-star .bloom-icon {

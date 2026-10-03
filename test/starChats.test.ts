@@ -49,26 +49,6 @@ describe("StarChats", () => {
         expect(row.querySelector('[data-bloom="chat-star"]')?.getAttribute("aria-pressed")).toBe("false");
     });
 
-    test("stars a chat row in the current sidebar nav, not only the old scroll root", () => {
-        document.body.innerHTML = "<nav><a href=\"/\">New chat</a><a href=\"/c/11111111-1111-4111-8111-111111111111\">Everest height</a></nav><main><a href=\"/c/11111111-1111-4111-8111-111111111111\">Citation</a></main>";
-        startPhase(StartAt.HostReady);
-        const row = document.querySelector("nav a[href='/c/11111111-1111-4111-8111-111111111111']")!;
-        expect(row.querySelector("[data-bloom='chat-star']")).not.toBeNull();
-        expect(document.querySelector("main [data-bloom='chat-star']")).toBeNull();
-    });
-
-    test("puts a star on the open conversation title", () => {
-        history.pushState(null, "", "/c/11111111-1111-4111-8111-111111111111");
-        document.body.innerHTML = "<div id=\"page-header\"><h1>EPUB Translator</h1></div><nav><a href=\"/\">New chat</a></nav>";
-        startPhase(StartAt.HostReady);
-        const button = document.querySelector<HTMLButtonElement>("#page-header [data-bloom='chat-star'][data-place='header']")!;
-        expect(button).not.toBeNull();
-        button.click();
-        const section = document.querySelector("[data-bloom='starred']");
-        expect(section?.textContent).toContain("EPUB Translator");
-        history.pushState(null, "", "/");
-    });
-
     test("keeps a starred chat after the sidebar is redrawn", () => {
         document.body.innerHTML = SIDEBAR;
         startPhase(StartAt.HostReady);
