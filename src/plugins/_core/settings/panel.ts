@@ -164,7 +164,8 @@ function card(plugin: Plugin) {
     const enabled = isPluginEnabled(plugin);
     const starred = starredPlugins.has(plugin.name);
     const pinned = pinnedPlugins.has(plugin.name);
-    return h("div", { class: cl("card", enabled ? "card-on" : "card-off") },
+    const locked = !!plugin.required;
+    return h("div", { class: [cl("card", enabled ? "card-on" : "card-off"), locked ? cl("card-required") : ""].filter(Boolean).join(" ") },
         h("div", { class: cl("card-top") },
             h("div", { class: cl("card-icon") }, icon(plugin.icon)),
             h("div", { class: cl("card-actions") },
@@ -172,12 +173,13 @@ function card(plugin: Plugin) {
                     starredPlugins.toggle(plugin.name);
                     renderList();
                 }, starred),
-                iconButton("pin", pinned ? "Unpin" : "Pin to top", () => {
+                locked ? null : iconButton("pin", pinned ? "Unpin" : "Pin to top", () => {
                     pinnedPlugins.toggle(plugin.name);
                     renderList();
                 }, pinned),
+                locked ? h("span", { class: cl("required-mark"), attrs: { "aria-label": "Required", [TIP]: "This plugin is required for Bloom++ to work" } }, icon("alert")) : null,
                 hasVisibleSettings(plugin) && iconButton("gear", "Settings", () => openPluginSettings(plugin)),
-                plugin.required ? null : switchControl(enabled, next => setPluginEnabled(plugin, next), `Enable ${plugin.name}`))),
+                switchControl(enabled, next => setPluginEnabled(plugin, next), locked ? `${plugin.name} is required` : `Enable ${plugin.name}`, locked))),
         h("div", { class: cl("card-name"), text: plugin.name }),
         h("div", { class: cl("card-desc"), text: plugin.description, title: plugin.description }),
         h("div", { class: cl("card-footer"), text: plugin.authors.join(", ") }));
@@ -206,10 +208,17 @@ function renderList() {
     const scoped = visiblePlugins().filter(inTab);
     const search = root.querySelector<HTMLInputElement>(`.${cl("search")} input`);
     if (search) search.placeholder = `Search ${pluralize(scoped.length, "plugin")}...`;
-    const list = sortPlugins(scoped.filter(plugin => matchesQuery(plugin) && passesFilter(plugin)));
-    const grid = root.querySelector(`.${cl("grid")}`);
+    const matched = sortPlugins(scoped.filter(plugin => matchesQuery(plugin) && passesFilter(plugin)));
+    const separate = tab === "all";
+    const optional = separate ? matched.filter(plugin => !plugin.required) : matched;
+    const required = separate ? matched.filter(plugin => plugin.required) : [];
+    const nodes = [
+        ...optional.map(card),
+        ...required.length ? [h("div", { class: cl("required-break"), attrs: { "role": "separator" } }), ...required.map(card)] : [],
+    ];
     const empty = query.trim() ? "No plugins match your search." : EMPTY[tab] ?? "No plugins available.";
-    grid?.replaceChildren(...list.length ? list.map(card) : [h("div", { class: cl("empty"), text: empty })]);
+    const grid = root.querySelector(`.${cl("grid")}`);
+    grid?.replaceChildren(...nodes.length ? nodes : [h("div", { class: cl("empty"), text: empty })]);
 }
 
 function onEscape(event: KeyboardEvent) {

@@ -244,6 +244,26 @@
     opacity: 0.6;
 }
 
+.bloom-settings-card-required {
+    opacity: 0.4;
+}
+
+.bloom-settings-required-break {
+    grid-column: 1 / -1;
+    height: 1px;
+    margin-block: 0.25rem;
+    background: var(--bloom-border);
+}
+
+.bloom-settings-required-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    color: var(--bloom-fg-3);
+}
+
 .bloom-settings-card-top {
     display: flex;
     align-items: center;

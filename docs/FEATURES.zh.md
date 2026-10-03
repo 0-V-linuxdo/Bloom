@@ -108,7 +108,7 @@
 - 头部：花形图标 + 标题 **Bloom++** + ⓘ 提示（悬停或键盘聚焦立即显示 “Toggle features. Some need a reload. Click the sliders icon to configure.”）+ 右上角关闭。ⓘ 和所有图标按钮的提示用 Bloom 自己的提示气泡（`data-bloom-tip`），不用浏览器 `title`（后者约 1 秒才出现）。
 - 分类标签（下划线式）：Favorites / Recent / All / Chat / UI / Privacy / Other。Recent = 最近 7 天有功能性提交的插件（构建时从 git 记录盖章，跳过 chore/docs/ci/style/test/build/brand），按时间倒序；Other = 没有 chat/ui/privacy 标签的插件，没有就不显示该标签。
 - 搜索框（占位 “Search N plugins...”）+ 过滤下拉 All / Enabled / Disabled。
-- 插件卡片：图标块、名称、两行描述、作者页脚；右上角 ☆收藏、📌置顶（置顶的排最前）、⚙设置（有可见设置项才出现）、开关。
+- 插件卡片：图标块、名称、两行描述、作者页脚；右上角 ☆收藏、📌置顶（置顶的排最前）、⚙设置（有可见设置项才出现）、开关。每个可选插件都有开关，关掉时轨道仍是可见的灰色，圆钮靠左。必须开启的插件（`required`，目前只有 Settings）开关保持打开且不能点，不显示置顶，改放一个提示 “This plugin is required for Bloom++ to work”；卡片整体变淡。All 标签里这些卡片排在一条横线下面，和 Void++ 一样；其它标签里如果出现，样式相同但不单独分段。隐藏类插件的 `display:none` 选择器都带 `:not([data-bloom])`，Bloom 自己的按钮带 `data-bloom="control"`，所以不会把面板里的开关藏掉（NoDictation 的 `[aria-label*="Dictation"]` 曾经藏住 “Enable NoDictation”，因为插件名里含有 Dictation）。
 - 点 ⚙ 弹出独立的插件设置小窗（叠在列表上，关掉回到列表）：插件名、描述、作者、各设置项（布尔开关、滑块带数值、下拉、文本/数字输入、自定义组件），底部 Reset（确认后恢复默认）。Esc 关闭。
 - 空状态文案：“No plugins match your search.” / “No favorites yet. Star a plugin to see it here.” / “No plugins updated in the last 7 days.”
 
@@ -161,7 +161,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 默认关｜`Init`｜chat, ui｜Void++ 同名
 
-纯 CSS。隐藏输入框的 Dictation（语音转文字、中文“听写”）按钮；**绝不隐藏** Voice（语音对话）按钮。设置：`hideDictationSettings`（默认真）同时隐藏 ChatGPT 设置里整行听写开关（新版是独立页面 `/settings/…`，行容器 class 含 `settings-row`；旧版设置对话框同样适用）。
+纯 CSS。隐藏输入框的 Dictation（语音转文字、中文“听写”）按钮；**绝不隐藏** Voice（语音对话）按钮，也绝不隐藏带 `data-bloom` 的 Bloom 控件。设置：`hideDictationSettings`（默认真）同时隐藏 ChatGPT 设置里整行听写开关（新版是独立页面 `/settings/…`，行容器 class 含 `settings-row`；旧版设置对话框同样适用）。
 
 ### 4.5 NoSidebarIdentity — 隐藏侧栏显示名
 

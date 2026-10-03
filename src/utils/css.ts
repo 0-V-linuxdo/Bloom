@@ -70,4 +70,6 @@ export const classNameFactory = (prefix: string) => (...names: string[]) => name
 
 export const classes = (...names: (string | false | null | undefined)[]) => names.filter(Boolean).join(" ");
 
-export const hideRule = (selectors: readonly string[]) => selectors.length ? `${selectors.join(",")}{display:none!important}` : "";
+export const hideRule = (selectors: readonly string[]) => selectors.length
+    ? `${selectors.map(selector => `${selector}:not([data-bloom])`).join(",")}{display:none!important}`
+    : "";

@@ -75,7 +75,7 @@ html {
     height: 1rem;
 }
 
-.bloom-switch {
+button.bloom-switch {
     position: relative;
     display: inline-flex;
     flex-shrink: 0;
@@ -83,12 +83,16 @@ html {
     width: 2rem;
     height: 1.25rem;
     border-radius: 9999px;
-    background-color: color-mix(in srgb, var(--bloom-fg) 10%, transparent);
+    background-color: color-mix(in srgb, var(--bloom-fg) 22%, var(--bloom-card));
     transition: background-color 0.15s ease-out;
 }
 
-.bloom-switch[aria-checked="true"] {
+button.bloom-switch[aria-checked="true"] {
     background-color: var(--bloom-accent);
+}
+
+button.bloom-switch[aria-disabled="true"] {
+    cursor: default;
 }
 
 .bloom-switch:focus-visible,
@@ -98,7 +102,7 @@ html {
     outline-offset: 1px;
 }
 
-.bloom-switch::after {
+button.bloom-switch::after {
     content: "";
     width: 1rem;
     height: 1rem;
@@ -109,7 +113,7 @@ html {
     transition: transform 0.15s ease-out;
 }
 
-.bloom-switch[aria-checked="true"]::after {
+button.bloom-switch[aria-checked="true"]::after {
     transform: translateX(0.875rem);
 }
 

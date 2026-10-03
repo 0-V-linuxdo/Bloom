@@ -11,8 +11,12 @@ import type { SelectOption } from "@utils/types";
 import { icon, type IconName } from "./icons";
 import { TIP } from "./tooltip";
 
-export function switchControl(checked: boolean, onChange: (checked: boolean) => void, label: string) {
-    const el = h("button", { class: "bloom-switch", attrs: { "type": "button", "role": "switch", "aria-checked": String(checked), "aria-label": label } });
+export function switchControl(checked: boolean, onChange: (checked: boolean) => void, label: string, locked = false) {
+    const el = h("button", {
+        class: "bloom-switch",
+        attrs: { "type": "button", "role": "switch", "aria-checked": String(checked), "aria-label": label, "data-bloom": "control", ...(locked ? { "aria-disabled": "true" } : {}) },
+    });
+    if (locked) return el;
     el.addEventListener("click", event => {
         event.stopPropagation();
         const next = el.getAttribute("aria-checked") !== "true";
@@ -23,11 +27,11 @@ export function switchControl(checked: boolean, onChange: (checked: boolean) => 
 }
 
 export function button(label: string, onClick: () => void, variant?: "danger") {
-    return h("button", { class: classes("bloom-button", variant && `bloom-button-${variant}`), text: label, attrs: { type: "button" }, on: { click: onClick } });
+    return h("button", { class: classes("bloom-button", variant && `bloom-button-${variant}`), text: label, attrs: { type: "button", "data-bloom": "control" }, on: { click: onClick } });
 }
 
 export function iconButton(name: IconName, label: string, onClick: (event: MouseEvent) => void, pressed?: boolean) {
-    const el = h("button", { class: "bloom-icon-button", attrs: { "type": "button", "aria-label": label, [TIP]: label }, on: { click: onClick } }, icon(name));
+    const el = h("button", { class: "bloom-icon-button", attrs: { "type": "button", "aria-label": label, "data-bloom": "control", [TIP]: label }, on: { click: onClick } }, icon(name));
     if (pressed != null) el.setAttribute("aria-pressed", String(pressed));
     return el;
 }
