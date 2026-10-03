@@ -155,17 +155,31 @@ function headerKebab() {
     return buttons.toSorted((a, b) => b.getBoundingClientRect().left - a.getBoundingClientRect().left || ((a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) ? 1 : -1))[0] ?? null;
 }
 
+const HEADER_GAP = 4;
+
+function placeHeader(button: HTMLButtonElement, host: HTMLButtonElement) {
+    const box = host.getBoundingClientRect();
+    const size = box.width || 36;
+    button.style.position = "fixed";
+    button.style.top = `${box.top}px`;
+    button.style.left = `${box.left - size - HEADER_GAP}px`;
+    button.style.width = `${size}px`;
+    button.style.height = `${box.height || size}px`;
+    button.style.margin = "0";
+    button.style.transform = "none";
+    button.style.zIndex = "40";
+    button.style.opacity = "1";
+    button.style.pointerEvents = "auto";
+    button.style.color = getComputedStyle(host).color;
+}
+
 function paintHeader() {
+    for (const stray of document.querySelectorAll('[data-bloom="navigator"] [data-bloom="chat-star"]')) stray.remove();
     const host = headerKebab();
-    const chip = host?.parentElement ?? null;
-    const row = chip?.parentElement ?? null;
-    const outside = !!(host && chip && row && chip.childElementCount === 1 && chip.tagName !== "HEADER" && chip.id !== "page-header");
-    const parent = outside ? row : chip;
-    const before = outside ? chip : host;
     const id = currentConversationId();
     const href = id ? safeHref(`${location.pathname}${location.search}`) : null;
     const existing = document.querySelector<HTMLButtonElement>('[data-bloom="chat-star"][data-place="header"]');
-    if (!host || !parent || !before || !isHydrated(parent) || !id || !href) {
+    if (!host || !id || !href || !isHydrated(document.body)) {
         existing?.remove();
         return;
     }
@@ -174,12 +188,8 @@ function paintHeader() {
     if (button !== existing) existing?.remove();
     button.dataset.place = "header";
     setPressed(button, pressed);
-    if (button.nextElementSibling !== before) before.before(button);
-    const box = host.getBoundingClientRect();
-    if (box.width > 0) {
-        button.style.width = `${box.width}px`;
-        button.style.height = `${box.height}px`;
-    }
+    if (button.parentElement !== document.body) document.body.append(button);
+    placeHeader(button, host);
 }
 
 function render() {
@@ -249,10 +259,14 @@ export default definePlugin({
     },
     start() {
         unwatch = watchBody(mutations => hostMutations(mutations) && render());
+        window.addEventListener("resize", render);
+        window.addEventListener("scroll", render, true);
     },
     stop() {
         unwatch?.();
         unwatch = undefined;
+        window.removeEventListener("resize", render);
+        window.removeEventListener("scroll", render, true);
         clear();
     },
 });

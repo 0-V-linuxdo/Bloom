@@ -93,11 +93,12 @@ button.bloom-star-chats-star .bloom-icon {
 }
 
 button.bloom-star-chats-star[data-place="header"] {
-    position: static;
-    flex: none;
-    width: 2rem;
-    height: 2rem;
-    margin-inline-end: 0.125rem;
+    position: fixed;
+    inset: auto;
+    z-index: 40;
+    width: 2.25rem;
+    height: 2.25rem;
+    margin: 0;
     color: inherit;
     opacity: 1;
     transform: none;

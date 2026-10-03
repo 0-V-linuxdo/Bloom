@@ -31,7 +31,7 @@ const SIDEBAR = `<div data-app-action-sidebar-scroll>
 <main><a href="${EVEREST}">Citation</a></main>`;
 
 const everest = () => document.querySelector<HTMLAnchorElement>(`a[href="${EVEREST}"]`)!;
-const headerStar = () => document.querySelector<HTMLButtonElement>('#page-header [data-place="header"]')!;
+const headerStar = () => document.querySelector<HTMLButtonElement>('body > [data-place="header"]')!;
 
 function box(el: Element | null, left: number) {
     if (!(el instanceof HTMLElement)) return;
@@ -61,8 +61,11 @@ describe("StarChats", () => {
         layOut();
         startPhase(StartAt.HostReady);
         const button = headerStar();
-        expect(button.previousElementSibling).toBeNull();
-        expect(button.nextElementSibling?.id).toBe("chip");
+        expect(button.parentElement).toBe(document.body);
+        expect(button.style.position).toBe("fixed");
+        expect(button.style.left).toBe("940px");
+        expect(button.style.top).toBe("8px");
+        expect(document.getElementById("chip")?.contains(button)).toBe(false);
         expect(document.getElementById("title-menu")?.querySelector("[data-bloom='chat-star']")).toBeNull();
         expect(everest().querySelector("[data-bloom='chat-star']")).toBeNull();
         const event = new MouseEvent("click", { bubbles: true, cancelable: true });
@@ -75,7 +78,7 @@ describe("StarChats", () => {
         section.querySelector<HTMLButtonElement>('[data-bloom="chat-star"]')!.click();
         expect(document.querySelector('[data-bloom="starred"]')).toBeNull();
         expect(headerStar().getAttribute("aria-pressed")).toBe("false");
-        expect(headerStar().nextElementSibling?.id).toBe("chip");
+        expect(headerStar().style.left).toBe("940px");
     });
 
     test("keeps a starred chat after the sidebar is redrawn", () => {
@@ -90,6 +93,7 @@ describe("StarChats", () => {
         expect(document.querySelector("[data-bloom='starred']")?.textContent).toContain("Everest height");
         expect(document.querySelector(`[data-app-action-sidebar-scroll] > a[href="${EVEREST}"] [data-bloom="chat-star"]`)).toBeNull();
         expect(headerStar().getAttribute("aria-pressed")).toBe("true");
-        expect(headerStar().nextElementSibling?.id).toBe("chip");
+        expect(headerStar().style.position).toBe("fixed");
+        expect(headerStar().style.left).toBe("940px");
     });
 });
