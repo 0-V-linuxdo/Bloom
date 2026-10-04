@@ -20,12 +20,29 @@ const MAX_STAMPS = 1500;
 const LIVE_WINDOW_MS = 5000;
 const SAVE_DELAY_MS = 2000;
 
+const SOURCE_ZONES = [
+    { label: "UTC", value: "UTC" },
+    { label: "美国东部", value: "America/New_York" },
+    { label: "美国中部", value: "America/Chicago" },
+    { label: "美国山地", value: "America/Denver" },
+    { label: "美国西部", value: "America/Los_Angeles" },
+    { label: "日本", value: "Asia/Tokyo" },
+    { label: "台湾", value: "Asia/Taipei" },
+] as const;
+
 const settings = definePluginSettings({
+    sourceTimeZone: {
+        type: OptionType.SELECT,
+        description: "Zone the stored clock was written in. Leave UTC for ChatGPT create_time. Pick the same zone as the Shit GPT plugin only when that clock is a wall time in that zone; it is then shown in the system timezone.",
+        options: SOURCE_ZONES,
+        default: "UTC",
+    },
     hideOwnMessages: { type: OptionType.BOOLEAN, description: "Don't add times to your own messages.", default: false },
     stamps: { type: OptionType.CUSTOM, default: {} as Record<string, number> },
 });
 
 const known = new Map<string, number>();
+const liveIds = new Set<string>();
 let lastFallAt = 0;
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let unsubscribers: (() => void)[] = [];
@@ -53,13 +70,103 @@ function timeFor(ids: string[]) {
 
 const isLive = () => generationState().generating || Date.now() - lastFallAt < LIVE_WINDOW_MS;
 
-function format(time: number) {
-    const date = new Date(time);
-    const now = new Date();
-    const clock: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };
-    if (date.toDateString() === now.toDateString()) return date.toLocaleTimeString(undefined, clock);
-    const year = date.getFullYear() === now.getFullYear() ? {} : { year: "numeric" as const };
-    return date.toLocaleString(undefined, { ...year, month: "short", day: "numeric", ...clock });
+function systemZone() {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+function sourceZone() {
+    const zone = settings.store.sourceTimeZone;
+    if (!zone || zone === "UTC") return "UTC";
+    try {
+        Intl.DateTimeFormat(undefined, { timeZone: zone });
+        return zone;
+    } catch {
+        return "UTC";
+    }
+}
+
+function zoneParts(ms: number, timeZone: string) {
+    const bag: Record<string, string> = {};
+    for (const part of new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        hourCycle: "h23",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+    }).formatToParts(new Date(ms))) bag[part.type] = part.value;
+    return { y: +bag.year, m: +bag.month, d: +bag.day, h: +bag.hour % 24, mi: +bag.minute, s: +bag.second };
+}
+
+function pack(parts: { y: number; m: number; d: number; h: number; mi: number; s: number }) {
+    return Date.UTC(parts.y, parts.m - 1, parts.d, parts.h, parts.mi, parts.s);
+}
+
+function resolveWall(key: number, timeZone: string) {
+    let instant = key;
+    for (let i = 0; i < 4; i++) {
+        const delta = key - pack(zoneParts(instant, timeZone));
+        if (delta === 0) return instant;
+        instant += delta;
+    }
+    return instant;
+}
+
+// Stored ChatGPT times are UTC instants. A non-UTC source treats those UTC
+// fields as a wall clock in that zone (gap: hour after the jump; overlap: earlier).
+function wallClockToInstant(ms: number, timeZone: string) {
+    if (timeZone === "UTC") return ms;
+    const frac = ((ms % 1000) + 1000) % 1000;
+    const base = ms - frac;
+    const date = new Date(base);
+    const wantKey = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds());
+    const instant = resolveWall(wantKey, timeZone);
+    const hour = 60 * 60 * 1000;
+    let earliest = Number.POSITIVE_INFINITY;
+    for (const shift of [-hour, 0, hour]) {
+        const candidate = instant + shift;
+        if (pack(zoneParts(candidate, timeZone)) === wantKey && candidate < earliest) earliest = candidate;
+    }
+    if (earliest !== Number.POSITIVE_INFINITY) return earliest + frac;
+    return resolveWall(wantKey + hour, timeZone) + frac;
+}
+
+function displayInstant(ms: number, absolute: boolean) {
+    const zone = sourceZone();
+    if (absolute || zone === "UTC") return ms;
+    return wallClockToInstant(ms, zone);
+}
+
+function dayKey(ms: number, timeZone: string) {
+    return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(ms);
+}
+
+function formatInstant(instant: number) {
+    const zone = systemZone();
+    const now = Date.now();
+    const clock: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit", timeZone: zone };
+    if (dayKey(instant, zone) === dayKey(now, zone)) return new Intl.DateTimeFormat(undefined, clock).format(instant);
+    const yearOf = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric" }).format(ms);
+    const year = yearOf(instant) === yearOf(now) ? {} : { year: "numeric" as const };
+    return new Intl.DateTimeFormat(undefined, { ...year, month: "short", day: "numeric", ...clock }).format(instant);
+}
+
+function titleFor(stored: number, instant: number) {
+    const system = new Date(instant).toLocaleString(undefined, { timeZone: systemZone() });
+    const zone = sourceZone();
+    if (zone === "UTC" || instant === stored) return system;
+    const wall = new Intl.DateTimeFormat(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "UTC",
+    }).format(stored);
+    const label = SOURCE_ZONES.find(item => item.value === zone)?.label ?? zone;
+    return `${label} ${wall} → ${system}`;
 }
 
 function unitRole(unit: HTMLElement) {
@@ -139,22 +246,27 @@ function stamp(unit: HTMLElement) {
         return;
     }
     let time = timeFor(ids);
+    let absolute = false;
     if (!time && isLive()) {
         time = Date.now();
-        learn(ids.at(-1) as string, time);
-    }
+        const id = ids.at(-1) as string;
+        liveIds.add(id);
+        learn(id, time);
+        absolute = true;
+    } else if (time && liveIds.has(ids.at(-1) as string)) absolute = true;
     const existing = target.querySelector<HTMLTimeElement>('time[data-bloom="timestamp"]') ?? directStamp(unit);
     if (!time || (settings.store.hideOwnMessages && role === "user")) {
         existing?.remove();
         return;
     }
-    const text = format(time);
+    const instant = displayInstant(time, absolute);
+    const text = formatInstant(instant);
     if (existing?.textContent === text && existing.parentElement === target && existing === target.firstElementChild) return;
     const node = h("time", {
         class: `bloom-timestamp bloom-timestamp-${role ?? "assistant"}`,
         text,
-        title: new Date(time).toLocaleString(),
-        attrs: { "data-bloom": "timestamp", "datetime": new Date(time).toISOString() },
+        title: titleFor(time, instant),
+        attrs: { "data-bloom": "timestamp", "datetime": new Date(instant).toISOString() },
     });
     if (existing) existing.replaceWith(node);
     if (node.parentElement !== target) target.prepend(node);
@@ -179,6 +291,7 @@ export default definePlugin({
             watchBody(mutations => hostMutations(mutations) && render()),
             network.on("conversation", render),
             network.on("message-time", ({ messageId, time }) => {
+                liveIds.delete(messageId);
                 learn(messageId, time);
                 render();
             }),
