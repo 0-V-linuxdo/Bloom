@@ -21,7 +21,6 @@ const LIVE_WINDOW_MS = 5000;
 const SAVE_DELAY_MS = 2000;
 
 const settings = definePluginSettings({
-    showDate: { type: OptionType.BOOLEAN, description: "Show the date for messages not sent today.", default: true },
     hideOwnMessages: { type: OptionType.BOOLEAN, description: "Don't add times to your own messages.", default: false },
     stamps: { type: OptionType.CUSTOM, default: {} as Record<string, number> },
 });
@@ -58,7 +57,7 @@ function format(time: number) {
     const date = new Date(time);
     const now = new Date();
     const clock: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };
-    if (!settings.store.showDate || date.toDateString() === now.toDateString()) return date.toLocaleTimeString(undefined, clock);
+    if (date.toDateString() === now.toDateString()) return date.toLocaleTimeString(undefined, clock);
     const year = date.getFullYear() === now.getFullYear() ? {} : { year: "numeric" as const };
     return date.toLocaleString(undefined, { ...year, month: "short", day: "numeric", ...clock });
 }

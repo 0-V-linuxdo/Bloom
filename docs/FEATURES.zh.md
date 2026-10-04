@@ -279,7 +279,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 在每条消息上方显示发送时间（今天只显示时间，其余显示 “9月27日, 14:05” 这类本地化日期 + 时间，跨年带年份）。
 - 时间来自 ChatGPT 自己加载的会话 JSON 里的 `create_time`；刚发出的消息先用本地当前时间。已知时间缓存在设置里（最多 1500 条），刷新后不闪。
 - 已有原生 `<time>` 的消息不重复画。
-- 设置：`showDate`（非今天时显示日期，默认真）、`hideOwnMessages`（不给自己的消息打时间，默认假）；隐藏 `stamps: {messageId: ms}`。
+- 设置：`hideOwnMessages`（不给自己的消息打时间，默认假）；隐藏 `stamps: {messageId: ms}`。当天只显示钟点，不是当天的一定带日期，不能关掉。
 
 ### 4.16 StreamerMode — 直播模式
 
@@ -380,7 +380,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | UserQuotes | `italic` `quotes` | — |
 | TemporaryChat | `openNewAsTemporary` | — |
 | BetterNavigator | `showAssistant` `jumpEffect` | — |
-| MessageTimestamps | `showDate` `hideOwnMessages` | `stamps` |
+| MessageTimestamps | `hideOwnMessages` | `stamps` |
 | StreamerMode | `conversations` `projects` `accountAvatar` `accountName` `accountEmail` `headerTitle` | — |
 | SidebarIdentityOpacity | `opacity` `fadeAvatar` | — |
 | GreetingCustomizer | `mode` `order` `intervalSec` `heroOnlyOutsideProject` | `greetings` `index` `lastRandom` |
