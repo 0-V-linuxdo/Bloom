@@ -25,7 +25,10 @@ const NEAR_SCREENS = 2;
 const SEEK_MS = 30_000;
 const SEEK_POLL_MS = 200;
 const SEEK_PAGE = 0.9;
-const READING_LINE = 0.3;
+const LINE_RATIO = 0.28;
+const HEAD_HYST = 24;
+const EDGE_PX = 8;
+const EDGE_TAIL = 80;
 const RAIL_GAP_PX = 12;
 const EMOJI: Record<Role, string> = { user: "❓", assistant: "🤖" };
 const USER_SCROLL = ["wheel", "touchmove", "pointerdown"] as const;
@@ -277,15 +280,77 @@ function collect(): Entry[] {
     return items;
 }
 
-function readingIndex(scroller: HTMLElement) {
+function viewBand(scroller: HTMLElement) {
     const box = scroller.getBoundingClientRect();
-    const line = box.top + box.height * READING_LINE;
-    let best = -1;
+    const composerTop = composerForm()?.getBoundingClientRect().top;
+    const bottom = Math.min(box.bottom, composerTop && composerTop > box.top ? composerTop : box.bottom);
+    return { top: box.top, bottom };
+}
+
+function headTop(el: HTMLElement) {
+    const own = el.matches(".whitespace-pre-wrap, .markdown, .prose, [data-markdown-text-style]");
+    const body = own
+        ? el
+        : el.querySelector<HTMLElement>(".whitespace-pre-wrap") ?? el.querySelector<HTMLElement>(".markdown, .prose, [data-markdown-text-style]");
+    return (body ?? el).getBoundingClientRect().top;
+}
+
+function mountedAt(index: number) {
+    const el = entries[index]?.turn?.el;
+    return el?.isConnected ? el : null;
+}
+
+function paneEdge(scroller: HTMLElement): "top" | "bottom" | null {
+    if (!entries.length) return null;
+    const room = scroller.scrollHeight - scroller.clientHeight;
+    const reversed = isReversedScroller(scroller);
+    const lead = Math.min(scroller.scrollTop, 0);
+    const fromBottom = reversed ? -lead : room - scroller.scrollTop;
+    const fromTop = reversed ? room + lead : scroller.scrollTop;
+    const atBottom = room <= EDGE_PX || fromBottom <= EDGE_PX;
+    const atTop = room > EDGE_PX && fromTop <= EDGE_PX;
+    const { top, bottom } = viewBand(scroller);
+    const first = mountedAt(0);
+    const firstHead = first ? headTop(first) : Number.NaN;
+    const geoTop = !!first && firstHead >= top - EDGE_PX && firstHead <= top + 48;
+    const last = mountedAt(entries.length - 1);
+    const foot = last?.getBoundingClientRect().bottom ?? Number.NaN;
+    const geoBottom = !!last && foot <= bottom + EDGE_PX && foot >= bottom - EDGE_TAIL;
+    if (atBottom || geoBottom) return "bottom";
+    if (atTop || geoTop) return "top";
+    return null;
+}
+
+function pickByLine(scroller: HTMLElement) {
+    const { top, bottom } = viewBand(scroller);
+    const line = top + Math.max(bottom - top, 0) * LINE_RATIO;
+    const tops: number[] = [];
+    let passed = -1;
     entries.forEach((entry, index) => {
-        const rect = entry.turn?.el.getBoundingClientRect();
-        if (rect && rect.top <= line) best = index;
+        const el = entry.turn?.el;
+        if (!el?.isConnected) {
+            tops.push(Number.NaN);
+            return;
+        }
+        const head = headTop(el);
+        tops.push(head);
+        if (passed < 0) passed = index;
+        if (head <= line) passed = index;
     });
-    return best === -1 ? entries.findIndex(entry => entry.turn) : best;
+    if (passed < 0) return Math.max(entries.findIndex(entry => entry.turn), 0);
+    const curTop = tops[current];
+    if (!Number.isFinite(curTop)) return passed;
+    if (passed === current) return current;
+    if (passed > current) return passed;
+    if (curTop <= line + HEAD_HYST) return current;
+    return passed;
+}
+
+function readingIndex(scroller: HTMLElement) {
+    const edge = paneEdge(scroller);
+    if (edge === "bottom") return entries.length - 1;
+    if (edge === "top") return 0;
+    return pickByLine(scroller);
 }
 
 function highlight(el: HTMLElement) {

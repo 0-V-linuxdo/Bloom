@@ -12,6 +12,7 @@ import { checkRoute } from "../src/host/route";
 import navigator from "../src/plugins/betterNavigator";
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const markedTick = () => document.querySelector(".bloom-nav-tick-current")?.getAttribute("title");
 
 const OPEN_USER = `
 <main>
@@ -198,7 +199,7 @@ describe("BetterNavigator open turn", () => {
     });
 
     test("keeps the outline on the old shell, which has no timeline attribute", async () => {
-        history.pushState(null, "", "/c/11111111-1111-4111-8111-111111111111");
+        history.pushState(null, "", "/c/12121212-1212-4212-8212-121212121212");
         checkRoute();
         navigator.start?.();
         document.body.innerHTML = `
@@ -212,5 +213,59 @@ describe("BetterNavigator open turn", () => {
         expect(document.querySelectorAll(".bloom-nav-tick")).toHaveLength(2);
         history.pushState(null, "", "/");
         checkRoute();
+    });
+
+    test("highlights the last tick at the reversed bottom, and the text head in the middle", async () => {
+        const rects = new Map<Element, DOMRect>();
+        const previous = HTMLElement.prototype.getBoundingClientRect;
+        HTMLElement.prototype.getBoundingClientRect = function () {
+            return rects.get(this) ?? new DOMRect(0, 0, 0, 0);
+        };
+        const place = (el: Element | null, top: number, height: number) => {
+            if (el) rects.set(el, new DOMRect(0, top, 480, height));
+        };
+        try {
+            history.pushState(null, "", "/c/77777777-7777-4777-8777-777777777777");
+            checkRoute();
+            navigator.start?.();
+            document.body.innerHTML = `
+<main>
+  <div data-app-action-timeline-scroll style="overflow:auto;height:1004px;width:480px;flex-direction:column-reverse">
+    <div data-turn-key="a">
+      <div data-chatgpt-search-unit-key="a:assistant" data-chatgpt-search-message-ids="a"><div class="markdown">first</div></div>
+    </div>
+    <div data-turn-key="b">
+      <div data-probe="user" data-chatgpt-search-unit-key="b:user" data-chatgpt-search-message-ids="b"><div class="whitespace-pre-wrap">second</div></div>
+    </div>
+    <div data-turn-key="c">
+      <div data-chatgpt-search-unit-key="c:assistant" data-chatgpt-search-message-ids="c"><div class="markdown">third</div></div>
+    </div>
+  </div>
+  <form><textarea name="prompt"></textarea></form>
+</main>`;
+            const scroller = document.querySelector<HTMLElement>("[data-app-action-timeline-scroll]")!;
+            Object.defineProperty(scroller, "scrollHeight", { configurable: true, value: 1622 });
+            Object.defineProperty(scroller, "clientHeight", { configurable: true, value: 1004 });
+            place(scroller, 0, 1004);
+            place(document.querySelector("form"), 878, 80);
+            place(document.querySelector("[data-chatgpt-search-message-ids='a'] .markdown"), 40, 40);
+            place(document.querySelector("[data-probe=user]"), 180, 160);
+            place(document.querySelector(".whitespace-pre-wrap"), 300, 40);
+            place(document.querySelector("[data-chatgpt-search-message-ids='c'] .markdown"), 500, 40);
+            scroller.scrollTop = -400;
+            await wait(100);
+            expect(markedTick()).toBe("first");
+
+            scroller.scrollTop = 0;
+            scroller.dispatchEvent(new Event("scroll"));
+            await wait(50);
+            const titles = [...document.querySelectorAll(".bloom-nav-tick")].map(tick => tick.getAttribute("title"));
+            expect(markedTick()).toBe(titles.at(-1));
+            expect(markedTick()).not.toBe("second");
+        } finally {
+            HTMLElement.prototype.getBoundingClientRect = previous;
+            history.pushState(null, "", "/");
+            checkRoute();
+        }
     });
 });
