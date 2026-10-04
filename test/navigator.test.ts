@@ -161,4 +161,56 @@ describe("BetterNavigator open turn", () => {
         expect(dashed[0]?.getAttribute("title")).toContain("Late title");
         expect(ticks[0]?.classList.contains("bloom-nav-tick-streaming")).toBe(false);
     });
+
+    test("drops another chat's outline on an empty GPT homepage", async () => {
+        history.pushState(null, "", "/");
+        checkRoute();
+        navigator.start?.();
+        const pane = (body: string) => `<main><div data-app-action-timeline-scroll style="overflow:auto;height:240px;width:480px">${body}</div></main>`;
+        const turn = (key: string, text: string) => `<div data-turn-key="${key}"><div data-chatgpt-search-unit-key="${key}:user" data-chatgpt-search-message-ids="${key}"><div class="whitespace-pre-wrap">${text}</div></div></div>`;
+        document.body.innerHTML = pane(turn("m1", "Doctor Who zh-cn") + turn("m2", "continue where you left"));
+        await wait(100);
+        expect(document.querySelectorAll(".bloom-nav-tick").length).toBeGreaterThan(0);
+
+        document.body.insertAdjacentHTML("beforeend", "<div data-above-composer-conversation-id='chatgpt:local-chatgpt:986d56c6-0806-4741-814b-fe80b9594301'></div>");
+        history.pushState({ usr: { chatGptCustomGptHomepage: true } }, "", "/");
+        checkRoute();
+        await wait(100);
+        expect(document.querySelector("[data-bloom=navigator]")).not.toBeNull();
+
+        document.body.innerHTML = `
+<main>
+  <h1>EPUB Translator</h1>
+  <form data-composer-placement="home">
+    <div data-above-composer-conversation-id="chatgpt:local-chatgpt:986d56c6-0806-4741-814b-fe80b9594301"></div>
+    <textarea name="prompt"></textarea>
+    <button aria-label="Send">Send</button>
+  </form>
+</main>`;
+        await wait(100);
+        expect(document.querySelector("[data-bloom=navigator]")).toBeNull();
+
+        document.body.innerHTML = pane(turn("n1", "brand new"));
+        await wait(100);
+        const rows = [...document.querySelectorAll(".bloom-nav-row")].map(row => row.textContent?.replaceAll(/\s+/g, " ").trim() ?? "");
+        expect(rows.some(row => row.includes("brand new"))).toBe(true);
+        expect(rows.some(row => row.includes("Doctor Who") || row.includes("continue where you left"))).toBe(false);
+    });
+
+    test("keeps the outline on the old shell, which has no timeline attribute", async () => {
+        history.pushState(null, "", "/c/11111111-1111-4111-8111-111111111111");
+        checkRoute();
+        navigator.start?.();
+        document.body.innerHTML = `
+<main>
+  <div id="thread">
+    <article data-testid="conversation-turn-1" data-turn="user"><div class="whitespace-pre-wrap">How tall is Everest?</div></article>
+    <article data-testid="conversation-turn-2" data-turn="assistant"><div class="markdown">8849 m</div></article>
+  </div>
+</main>`;
+        await wait(100);
+        expect(document.querySelectorAll(".bloom-nav-tick")).toHaveLength(2);
+        history.pushState(null, "", "/");
+        checkRoute();
+    });
 });

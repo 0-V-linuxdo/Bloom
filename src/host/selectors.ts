@@ -33,6 +33,7 @@ export const Sel = {
     turnBusy: '[role="status"][aria-busy="true"], .result-streaming',
 
     composerInput: 'textarea[name="prompt"], #mobile-composer-prompt, #prompt-textarea, form [contenteditable="true"].ProseMirror',
+    composerConversation: "[data-above-composer-conversation-id]",
     oldComposerForm: 'form[data-type="unified-composer"]',
     sendButton: '[data-testid="send-button"], [data-testid="composer-submit-button"]:not([aria-label*="top" i]), button[aria-label="Send prompt" i], button[aria-label="Send message" i], form button[aria-label="Send" i], button[aria-label^="发送"]',
     stopButton: '[data-testid="stop-button"], button[aria-label^="Stop stream" i], button[aria-label^="Stop generat" i], button[aria-label^="Stop answer" i], form button[aria-label="Stop" i], form button[aria-label="停止"], button[aria-label^="停止生成"], button[aria-label^="停止回答"]',

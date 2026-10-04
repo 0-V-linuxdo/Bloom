@@ -9,7 +9,7 @@ import { composerForm } from "@host/composer";
 import { generation, generationState } from "@host/generation";
 import { conversationData, network, type Role } from "@host/network";
 import { currentConversationId, onRouteChange } from "@host/route";
-import { chainSummary, isReversedScroller, listTurns, threadScroller, type Turn, turnSummary } from "@host/thread";
+import { chainSummary, hasThreadShell, isReversedScroller, listTurns, pageConversationKey, threadScroller, type Turn, turnSummary } from "@host/thread";
 import { classes, classNameFactory } from "@utils/css";
 import { frameScheduler, h, hostMutations, watchBody } from "@utils/dom";
 import { normalizeText, truncate } from "@utils/misc";
@@ -247,12 +247,18 @@ function weave(memory: Held[], chain: Held[]) {
 }
 
 function listed(): Entry[] {
-    const chat = currentConversationId() ?? "";
+    const chat = pageConversationKey();
     if (chat !== heldChat) {
         heldChat = chat;
         held = [];
     }
-    held = weave(placeLive(held, liveGroups()), chainGroups());
+    const live = liveGroups();
+    const chain = chainGroups();
+    if (!live.length && !chain.length && !hasThreadShell()) {
+        held = [];
+        return [];
+    }
+    held = weave(placeLive(held, live), chain);
     return held.flatMap(group => group.entries).filter(shown);
 }
 

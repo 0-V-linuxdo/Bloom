@@ -26,6 +26,12 @@ export const isRole = (value: string | null | undefined): value is Role => value
 
 const hasTimeline = () => !!document.querySelector(Sel.timelineScroll);
 
+export const hasThreadShell = () => !!visible(Sel.timelineScroll);
+
+export const pageConversationKey = () => currentConversationId()
+    ?? document.querySelector(Sel.composerConversation)?.getAttribute("data-above-composer-conversation-id")
+    ?? "";
+
 export const threadRoot = (): ParentNode | null => hasTimeline() ? visible(Sel.timelineScroll) : document;
 
 export function threadScroller(): HTMLElement | null {
