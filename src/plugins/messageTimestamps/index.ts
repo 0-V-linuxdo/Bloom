@@ -70,24 +70,121 @@ function unitRole(unit: HTMLElement) {
     return conversationData(currentConversationId())?.chain.find(message => message.id === id)?.role ?? null;
 }
 
+const ACTIVITY = '[class*="group/activity-header"]';
+
+function boundedParent(node: HTMLElement) {
+    const parent = node.parentElement;
+    if (!parent) return null;
+    const turn = node.closest(Sel.turn);
+    if (turn && parent !== turn && !turn.contains(parent)) return null;
+    return parent;
+}
+
+function activityHeader(unit: HTMLElement) {
+    let node: HTMLElement | null = unit;
+    for (let depth = 0; depth < 8 && node; depth++) {
+        const parent = boundedParent(node);
+        if (!parent) return null;
+        const siblings = [...parent.children];
+        const index = siblings.indexOf(node);
+        for (let i = index - 1; i >= 0; i--) {
+            const sibling = siblings[i] as HTMLElement;
+            const header = sibling.matches(ACTIVITY) ? sibling : sibling.querySelector<HTMLElement>(ACTIVITY);
+            if (header) return header;
+            if (sibling.matches(Sel.searchUnit) || sibling.querySelector(Sel.searchUnit)) return null;
+        }
+        if (parent === node.closest(Sel.turn)) return null;
+        node = parent;
+    }
+    return null;
+}
+
+function replyBar(unit: HTMLElement) {
+    let node: HTMLElement | null = unit;
+    for (let depth = 0; depth < 8 && node; depth++) {
+        const parent = boundedParent(node);
+        if (!parent) return null;
+        const siblings = [...parent.children];
+        const index = siblings.indexOf(node);
+        for (let i = index + 1; i < siblings.length; i++) {
+            const sibling = siblings[i] as HTMLElement;
+            if (sibling.classList.contains("turn-action-controls")) return sibling;
+            const nested = [...sibling.children].find((child): child is HTMLElement =>
+                child instanceof HTMLElement && child.classList.contains("turn-action-controls") && !child.closest('[class*="group/user-message"]'));
+            if (nested) return nested;
+            if (sibling.matches(Sel.searchUnit) || sibling.querySelector(Sel.searchUnit)) return null;
+        }
+        if (parent === node.closest(Sel.turn)) return null;
+        node = parent;
+    }
+    return null;
+}
+
+function controlsRow(bar: HTMLElement) {
+    return [...bar.children].find((child): child is HTMLElement => child instanceof HTMLElement && child.tagName !== "TIME") ?? bar;
+}
+
+function anchorFor(unit: HTMLElement, role: string | null) {
+    if (role === "assistant") {
+        const header = activityHeader(unit);
+        if (header) return { target: header, inline: true };
+        const bar = replyBar(unit);
+        if (bar) return { target: controlsRow(bar), inline: true };
+    }
+    return { target: unit, inline: false };
+}
+
+function isAnchorOwner(unit: HTMLElement, target: HTMLElement) {
+    const units = outerMessageUnits();
+    for (let i = units.length - 1; i >= 0; i--) {
+        const el = units[i];
+        if (el !== unit && (unitRole(el) !== "assistant" || anchorFor(el, "assistant").target !== target)) continue;
+        return el === unit;
+    }
+    return true;
+}
+
+function directStamp(unit: HTMLElement) {
+    return unit.querySelector<HTMLTimeElement>(':scope > time[data-bloom="timestamp"]');
+}
+
 function stamp(unit: HTMLElement) {
     const ids = unitMessageIds(unit);
     if (!ids.length || !isHydrated(unit) || unit.querySelector("time:not([data-bloom])")) return;
+    const role = unitRole(unit);
+    const anchor = anchorFor(unit, role);
+    if (anchor.inline && !isAnchorOwner(unit, anchor.target)) {
+        directStamp(unit)?.remove();
+        return;
+    }
     let time = timeFor(ids);
     if (!time && isLive()) {
         time = Date.now();
         learn(ids.at(-1) as string, time);
     }
-    const existing = unit.querySelector<HTMLTimeElement>(':scope > time[data-bloom="timestamp"]');
-    if (!time || (settings.store.hideOwnMessages && unitRole(unit) === "user")) {
+    const existing = anchor.target.querySelector<HTMLTimeElement>(':scope > time[data-bloom="timestamp"]') ?? directStamp(unit);
+    if (!time || (settings.store.hideOwnMessages && role === "user")) {
         existing?.remove();
         return;
     }
     const text = format(time);
-    if (existing?.textContent === text) return;
-    const node = h("time", { class: `bloom-timestamp bloom-timestamp-${unitRole(unit) ?? "assistant"}`, text, title: new Date(time).toLocaleString(), attrs: { "data-bloom": "timestamp", "datetime": new Date(time).toISOString() } });
+    const parked = existing?.parentElement === anchor.target
+        && existing.classList.contains("bloom-timestamp-inline") === anchor.inline
+        && (role === "assistant" || existing === anchor.target.firstElementChild);
+    if (existing?.textContent === text && parked) {
+        if (role === "assistant" && !anchor.inline && existing !== anchor.target.lastElementChild) anchor.target.append(existing);
+        return;
+    }
+    const node = h("time", {
+        class: `bloom-timestamp bloom-timestamp-${role ?? "assistant"}${anchor.inline ? " bloom-timestamp-inline" : ""}`,
+        text,
+        title: new Date(time).toLocaleString(),
+        attrs: { "data-bloom": "timestamp", "datetime": new Date(time).toISOString() },
+    });
     if (existing) existing.replaceWith(node);
-    else unit.prepend(node);
+    if (node.parentElement === anchor.target) return;
+    if (role === "assistant") anchor.target.append(node);
+    else anchor.target.prepend(node);
 }
 
 const render = frameScheduler(() => {

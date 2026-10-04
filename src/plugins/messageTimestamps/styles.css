@@ -16,3 +16,22 @@
 .bloom-timestamp-user {
     text-align: end;
 }
+
+/* Assistant replies sit under an activity line ("Worked for"). A block
+   timestamp prepended to the answer lands between that line and the text. */
+.bloom-timestamp-assistant:not(.bloom-timestamp-inline) {
+    margin-top: 0.35rem;
+    margin-bottom: 0;
+}
+
+.bloom-timestamp-inline {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.turn-action-controls .bloom-timestamp-inline {
+    margin-inline-start: 0.35rem;
+}
