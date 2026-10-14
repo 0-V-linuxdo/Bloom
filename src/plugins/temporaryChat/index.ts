@@ -7,11 +7,14 @@
 import { definePluginSettings } from "@api/Settings";
 import { isTemporaryChat } from "@host/route";
 import { Sel } from "@host/selectors";
+import { normalizeText } from "@utils/misc";
 import definePlugin, { OptionType } from "@utils/types";
 
 const settings = definePluginSettings({
     openNewAsTemporary: { type: OptionType.BOOLEAN, description: "Open New chat as a temporary chat.", default: false },
 });
+
+const NEW_CHAT = /^(?:new chat|新聊天)$/i;
 
 let abort: AbortController | undefined;
 
@@ -36,13 +39,19 @@ function isNewChat(anchor: HTMLAnchorElement) {
     }
 }
 
+function isNewChatButton(button: Element) {
+    if (button.closest("[data-bloom], [data-app-action-sidebar-project-row]")) return false;
+    return NEW_CHAT.test(button.getAttribute("aria-label") ?? normalizeText(button.textContent ?? ""));
+}
+
 function onPointerDown(event: PointerEvent) {
     if (!settings.store.openNewAsTemporary || isTemporaryChat()) return;
     const { target } = event;
     if (!(target instanceof Element)) return;
-    const anchor = target.closest("a[href]");
-    if (!(anchor instanceof HTMLAnchorElement) || !isNewChat(anchor)) return;
-    if (!anchor.closest(`${Sel.sidebarScroll}, ${Sel.rail}, ${Sel.oldSidebar}, nav`)) return;
+    const control = target.closest("a[href], button");
+    const newChat = control instanceof HTMLAnchorElement ? isNewChat(control) : !!control && isNewChatButton(control);
+    if (!control || !newChat) return;
+    if (!control.closest(`${Sel.sidebarScroll}, ${Sel.rail}, ${Sel.oldSidebar}, nav`)) return;
     event.preventDefault();
     event.stopPropagation();
     go(true);

@@ -36,4 +36,22 @@ describe("composer model", () => {
         expect(applyModel({ id: "gpt-5-4", label: "GPT-5.4" })).toBe(true);
         expect(readModel()?.label).toBe("GPT-5.4");
     });
+    test("reads the new picker by its reasoning effort and steps the power slider", () => {
+        document.body.innerHTML = `
+            <form>
+                <div class="ProseMirror" contenteditable="true"></div>
+                <button type="button" aria-label="Select ChatGPT model" aria-expanded="true" data-selected-reasoning-effort="high">Extra High</button>
+            </form>
+            <div role="menu"><div role="menuitem" aria-label="Power" data-reasoning-slider="true"><span role="slider" aria-valuemin="0" aria-valuemax="3" aria-valuenow="2"></span></div></div>`;
+        const trigger = document.querySelector("button");
+        expect(readModel()).toEqual({ id: "high", label: "high" });
+        const keys: string[] = [];
+        document.querySelector("[data-reasoning-slider]")?.addEventListener("keydown", event => {
+            keys.push((event as KeyboardEvent).key);
+            trigger?.setAttribute("data-selected-reasoning-effort", "max");
+        });
+        expect(applyModel({ id: "max", label: "Extra High" })).toBe(false);
+        expect(keys).toHaveLength(1);
+        expect(applyModel({ id: "max", label: "Extra High" })).toBe(true);
+    });
 });

@@ -7,7 +7,7 @@
 import { afterEach, beforeAll, describe, expect, test } from "bun:test";
 
 import { startGeneration } from "../src/host/generation";
-import { parseConversation } from "../src/host/network";
+import { network, parseConversation } from "../src/host/network";
 import { checkRoute } from "../src/host/route";
 import navigator from "../src/plugins/betterNavigator";
 
@@ -264,6 +264,33 @@ describe("BetterNavigator open turn", () => {
             expect(markedTick()).not.toBe("second");
         } finally {
             HTMLElement.prototype.getBoundingClientRect = previous;
+            history.pushState(null, "", "/");
+            checkRoute();
+        }
+    });
+    test("drops the old branch after a message is edited", async () => {
+        const id = "77777777-7777-4777-8777-777777777777";
+        history.pushState(null, "", `/c/${id}`);
+        checkRoute();
+        const said = (messageId: string, role: string, text: string, time: number) => ({ id: messageId, author: { role }, create_time: time, content: { content_type: "text", parts: [text] } });
+        parseConversation(id, { messages: [said("u1", "user", "one", 1), said("a1", "assistant", "One.", 2), said("u2", "user", "two", 3), said("a2", "assistant", "Two.", 4), said("u3", "user", "three", 5), said("a3", "assistant", "Three.", 6)] });
+        navigator.start?.();
+        const pane = (body: string) => `<main><div data-app-action-timeline-scroll style="overflow:auto;height:240px;width:480px">${body}</div></main>`;
+        const turn = (user: string, assistant: string, text: string) => `<div data-turn-key="${user}"><div data-chatgpt-search-unit-key="${user}:user" data-chatgpt-search-message-ids="${user}"><div class="whitespace-pre-wrap">${text}</div></div><div data-chatgpt-search-unit-key="${user}:assistant" data-chatgpt-search-message-ids="${assistant}"><div class="markdown">${text.toUpperCase()}.</div></div></div>`;
+        const rows = () => [...document.querySelectorAll(".bloom-nav-row")].map(row => row.lastElementChild?.textContent);
+        try {
+            document.body.innerHTML = pane(turn("u1", "a1", "one") + turn("u2", "a2", "two") + turn("u3", "a3", "three"));
+            await wait(100);
+            network.emit("generate-start", { requestId: 1, conversationId: id, parentId: "a1", userId: "u2b" });
+            await wait(100);
+            document.body.innerHTML = pane(turn("u1", "a1", "one") + turn("u2b", "a2b", "deux"));
+            await wait(100);
+            expect(rows()).toEqual(["one", "ONE.", "deux", "DEUX."]);
+            network.emit("generate-start", { requestId: 2, conversationId: id, parentId: "u2b-root", userId: "u1b" });
+            document.body.innerHTML = pane(turn("u1b", "a1b", "uno"));
+            await wait(100);
+            expect(rows()).toEqual(["uno", "UNO."]);
+        } finally {
             history.pushState(null, "", "/");
             checkRoute();
         }

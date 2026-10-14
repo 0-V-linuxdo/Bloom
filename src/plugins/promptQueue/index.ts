@@ -24,6 +24,7 @@ const logger = new Logger("PromptQueue");
 const MAX_QUEUE = 8;
 const SEND_RETRY_MS = 150;
 const SEND_ATTEMPTS = 20;
+const NOTE_MS = 300;
 const STORAGE_KEY = "BloomPromptQueue";
 const CLAIM_KEY = "BloomPromptQueueClaim";
 const TAB_KEY = "BloomPromptQueueTab";
@@ -337,7 +338,7 @@ function onPointerUp(event: PointerEvent) {
     const { target } = event;
     if (!(target instanceof Element) || applying) return;
     if (!target.closest(`${Sel.modelTrigger}, ${Sel.modelItem}`)) return;
-    setTimeout(noteModel, 0);
+    setTimeout(noteModel, NOTE_MS);
 }
 
 export default definePlugin({

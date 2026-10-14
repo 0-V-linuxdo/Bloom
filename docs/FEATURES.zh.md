@@ -224,6 +224,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 刷新后队列还在：每次改动都把已有会话 id 的队列写进本标签页的 `sessionStorage`，同时写进 `localStorage` 和 IndexedDB（库 `bloompp`，表 `kv`，键 `BloomPromptQueue`）。启动时先读本标签页，没有再读本浏览器的副本，按原顺序放回托盘。其它标签页通过 `storage` 事件看到同一份队列。谁改了队列谁拿到发送权（`BloomPromptQueueClaim`，约 4 秒不续就过期）；生成结束时只有持有发送权的标签页会自动发出队首，所以两个标签页不会各发一次。关掉插件的 `persistAcrossRefresh` 后三处都清掉。刷新后如果 ChatGPT 接着生成被打断的回复，这条结束后照常发队首；如果回复已经结束，队列留在托盘里等用户点 Send now，不在页面刚加载时自己发出去。还没有会话 id 的新对话队列不存。1.4.117 和 2.0.40 及以前都只放在内存里，刷新即丢（F-25，2.0.41 修，当时只写本标签页）。`persistAcrossRefresh`（默认真）关掉后不再写入、也不再读回。
 - 入队时记下当时模型选择器上的模型（`data-testid="model-switcher-dropdown-button"` 的文字，菜单项 `data-testid` 以 `model-switcher-` 开头）。发出这一条之前先点对应菜单项，点不中就在约 3 秒内重试，仍然点不中也照常发送，不把消息吞掉。发出后如果开着 `stickyOnNavigate`，选择器回到切会话前记住的模型，而不是停在这一条的模型上。托盘在文字和按钮之间显示模型芯片（`showQueueMode`，默认真）；没有读到模型就不画芯片。旧的纯字符串队列仍能读回来。
 - `stickyOnNavigate`（默认真）：用户在模型菜单里点过之后记住这个模型；切到别的会话时重新点开菜单并选中它。ChatGPT 把选择器拨回去时，不把那个新值当成用户的选择。
+- 2026-10 新版模型选择器是 `button[aria-label="Select ChatGPT model"]`，没有 testid，按钮上只显示思考强度（如 “Extra High”），用 `data-selected-reasoning-effort`（`none` / `medium` / `high` / `max`）识别；菜单里强度是一个 Power 滑块（`[data-reasoning-slider]`，只认 ←/→），模型是 `menuitemradio`。队列和 `stickyOnNavigate` 记的是强度：要换时打开菜单，每次按一下方向键（到头换方向），直到 `data-selected-reasoning-effort` 对上，再按 Esc 关菜单。菜单开着时按钮文字是 “Thinking effort”，这时不取文字。2.0.71 及以前匹配不到这个按钮，队列项没有模型标签，锁定也不起作用（2.0.72 修）。
 - 用户点 Stop 不触发发送；出错不发送；输入框里有别的草稿时不覆盖。
 - `Alt+Enter` 放行一次原生行为（直接打断并发送）。
 - 输入框上方的队列托盘（Grok “queued-messages-tray” 骨架、ChatGPT 配色）：
@@ -263,8 +264,10 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 鼠标悬停刻度列展开目录卡片：每行 emoji + 回合摘要（最多 80 字）；顶部显示 “N / M”。
 - 点击刻度或目录行跳转到该回合（近的平滑滚动，远的瞬间），跳转后给目标加一个短暂边框高亮（`jumpEffect` = border / none）。
 - 焦点不在输入框时 `↑` / `↓` / `Home` / `End` 在回合间跳。跳转（键盘、点刻度或目录行）后当前标记直接落在目标上，`↑` / `↓` 从这个目标往前后走，而不是从阅读线位置算，否则短消息会被跳过（Home 后按 ↓ 曾直接到第 4 条）；用户自己滚动（滚轮、触摸、按住滚动条、翻页键）后标记重新跟随阅读位置。
+- 只有看得见的弹窗（`[role=dialog]` 有布局盒、且不在 `[inert]` 里）才让这几个键交给页面。会话页常驻一个 quick-chat 的 `section[role=dialog]`（带 `data-state="open"`、`aria-modal="false"`，父元素 `hidden inert`，0×0），2.0.71 把它也当成打开的弹窗，键盘跳转在会话页完全失效（2.0.72 修）。
 - 同一回合里连续的多条助手消息（GPT 调用工具时的中间消息，ChatGPT 只显示成折叠的 “Analyzed” 步骤）合成一条，摘要和跳转目标取最后一条（真正显示的回复），与会话主链“连续助手消息只留最后一条”的规则一致。这些步骤有时只画在用户回合内部、没有单独的助手 search unit：这时仍在该用户回合后补一条助手刻度。摘要优先取该回合里、不在 search unit 中的助手说明（`data-markdown-text-style="assistant-message"`，例如 “Continued translating the screenplay”），多条用 “ · ” 连接，跳转落到第一条说明；没有说明时才退回最后一个 activity header（Analyzing、Analyzed、Analysis paused、Analysis errored）。目录里不再把每条都显示成一样的 “Analyzed” / “Analysis paused”。
 - 长对话里 ChatGPT 只挂载视口附近的回合（虚拟列表）：目录按见过的顺序记住回合，滚出视口也不删，不会改写成当前这一屏。点未挂载的回合时逐步滚动直到它挂载再定位。新壳的滚动容器是反向的（`flex-direction: column-reverse`，`scrollTop` ≤ 0），ChatGPT 只在滚到顶时才挂载更早的回合（先显示 `[role=status]` 转圈，实机上可能要近 10 秒）；所以按时间（最多 30 秒）而不是按步数等待：还能滚时每帧以 `behavior: "instant"` 往目标方向翻 0.9 屏，滚不动（到顶）时每 200 ms 查一次，不逐帧空转；每步重新取滚动容器。用户自己滚动（滚轮、触摸、按住滚动条、其他按键）会取消寻找。
+- 编辑用户消息（或重新生成某条回复）会切到新分支：ChatGPT 删掉旧回合和它后面的整段回合，新回合的 turn key 是新用户消息 id，不会再拉一次会话。所以看 `POST /backend-api/f/conversation` 的 `parent_message_id`：目录里该消息所在回合之后、已不在页面上的回合都是旧分支，连同它们的消息 id 一起丢掉，主链里同 id 的回合也不再补回。父消息不在目录里（编辑第一条消息）时，等新用户回合成为页面上第一个回合，再丢掉其余未挂载的回合。2.0.71 及以前旧回合会留在目录里，编辑后新旧两条并列（2.0.72 修）。
 - 会话主链只补目录里还没有、且正文对得上的回合（例如还没滚到的第一条 “zh-cn” 会按主链顺序补到前面）。DOM 的 turn key 和窗口接口的 message id 经常不是同一个：同一句 “continue where you left” 不会因为对不上 id 就再列一排在最前面，也不会把整段主链按时间重排到已见回合之前。新窗口的合并规则不变：已知 `create_time` 的消息按时间排序，只有整段都更早才放到前面，缺时间的窗口不当成最旧。
 - 正在生成的助手回合刻度画成虚线，结束（出现复制/点赞按钮或生成图片）后恢复实线。虚线只跟真正还在输出的那一条：它滚出虚拟列表后，虚线留在目录末尾，不会改标到当前视口里最后一条。助手气泡还没挂上、目录里只有刚发出的用户回合时，末尾仍补一条虚线助手刻度；生成结束就去掉。关掉助手回合后，虚线落在最后一条用户刻度上。
 - `Home`（或点第一行）跳到第一条后 30 秒内，如果 ChatGPT 又在前面加载了更早的回合（目录第一条变了），且用户没有自己滚动，就重新跳到新的第一条：ChatGPT 加载完会把视图甩回底部，这样最终仍落在整个会话的第一条上，并带跳转高亮。
@@ -303,6 +306,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 只在新对话首页（`/`）把大标题（“What can I help with?” / “有什么可以帮忙的？”等）换成自己的文案；会话页不动；临时聊天（`/?temporary-chat=true`，包括在页面里切换进出临时模式）也不动，保留原生的 “Temporary chat” 标题，此时也不计为一次到访、不跑定时轮换。不修改 React 节点的文字，用 CSS 覆盖显示。
 - 项目首页（`/g/g-p-…` 或 `/g/g-p-…/project`，不是项目里的会话）不改项目标题，只把空输入框的占位换成问候语列表的**第一句**（折成一行）。项目里的会话不换。
 - `heroOnlyOutsideProject`（默认真）：项目外只换首页大标题，输入框保留 ChatGPT 的占位。关掉后，项目外的空输入框也显示当前这一句（同样折成一行）。输入框里已有草稿时不覆盖。
+- 新壳的原生占位画在输入框里 `p.placeholder[data-placeholder]::before`。显示问候语时把它隐藏（`content: none`），否则问候语和 “Ask ChatGPT” 叠在一起（2.0.71，2.0.72 修）。
 - 轮换：`mode` = `refresh`（每次回到首页换一条，默认）/ `interval`（停留首页时每 `intervalSec` 秒换一条）/ `manual`（点标题换一条，有选中文字时不换）。`order` = `sequential`（默认）/ `random`（不连续重复同一条）。项目首页不参加轮换。
 - 文案管理组件：新增、编辑、删除，最多 30 条，每条最多 100 字，支持换行；列表为空时提示 “No greetings. The official heading stays.”。
 - 设置：`mode`、`order`、`intervalSec`（1–3600，默认 10）、`heroOnlyOutsideProject`（默认真）；隐藏 `greetings: string[]`（默认 3 条名言）、`index`、`lastRandom`。
@@ -328,6 +332,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 默认开｜`HostReady`｜chat, ui｜对齐 Void++ 的 MessageStars。不往左侧栏加分组。
 
 - 星在每条消息底部的操作条（`.turn-action-controls`）末尾，和复制按钮同一行。点它收藏或取消**这一条消息**，不收藏整个会话，也不滚动。空心；点亮后实心橙色。临时聊天（`?temporary-chat=true`）和还没拿到真实 id 的页面没有这颗星。
+- 新壳里用户消息的操作条在用户 search unit 里面，助手回复的操作条在回合里、助手 search unit 外面。操作条不在任何一条消息里时，归给回合里排在它前面的最后一条消息。2.0.71 只认包在消息里的操作条，助手回复没有星（2.0.72 修）。
 - 右上角三个点（`More`）的左边另有一颗星，嵌在那颗按钮所在的工具条里，不浮动盖住正文。它**不是**收藏按钮：点一下，或指针停在上面，打开当前会话已加星消息的列表。列表挂在按钮下方，不进左侧栏。点一行跳到那条消息；行尾的星取消收藏。Esc 或点到别处关闭。没有加星消息时列表写 “No starred messages in this chat”。
 - 大纲上对应的刻度和目录行标成橙色。
 - 最多 80 条，新加的排最前。只显示当前会话的星。关掉插件就去掉星星和列表。隐藏数据：`messages: { conversationId, messageId, role, snippet, starredAt }[]`。旧的 `chats` 不再使用，也不会再画进侧栏。
@@ -337,6 +342,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 默认开｜`HostReady`｜chat, ui
 
 - 点自己消息里的 `blockquote`，或输入框里宿主的引用卡（带 Remove / 关闭 一类按钮、且不在编辑器里的那一行），跳到更早一条包含这段文字的消息。引用至少 8 个字。跳到的那一段高亮约 1.8 秒，并在它旁边放一个 **Back**。再点 Back 回到刚才点的引用。找不到原文就不拦截这次点击。
+- 新壳的引用卡在 `[data-composer-attachments]` 里：选中的原文和标签是兄弟 span，标签是图标加 “Selection”，旁边还有 `button[data-slot="popover-anchor"][aria-label="Selection"]`，关闭按钮是 `aria-label="Remove selected text N"`。取原文时去掉按钮，也去掉文字等于某个按钮 `aria-label` 的叶子节点。2.0.71 只去掉按钮，存下的引用末尾多了 “Selection”（2.0.72 修）。
 - `persistAcrossChats`（默认开）：宿主引用卡还在时，按当前会话记下原文（还没有 id 的新对话记在 `draft`，变成真实 id 时带走）。切走再回来，宿主卡不在了，就在输入框上方放 Bloom 自己的引用卡。点卡上的 ×，或点宿主的移除按钮，这条记录删掉。发送时如果宿主卡已经没了，把 `> 原文` 写进草稿再发，避免切会话之后引用只剩一张空卡片。临时聊天单独记在 `temporary`。
 - 记录在 `sessionStorage` 键 `BloomBetterQuotes`，最多 40 条，不进 `BloomSettings`。关掉 `persistAcrossChats` 会清掉。
 - 设置：`jumpToPassage`（默认开）、`persistAcrossChats`（默认开）。
@@ -354,6 +360,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 - 不在侧栏 New chat 下面放 Temporary 按钮。ChatGPT 自己已有临时聊天入口。
 - 设置：`openNewAsTemporary`（默认关）。打开后，在侧栏点 New chat 进入 `/?temporary-chat=true`。
+- 新壳的 New chat 是 `<button>`，不是链接：侧栏顶部一个（文字 “New chat”），Recents 标题旁一个（`aria-label="New chat"`）。两者都认（文字或 `aria-label` 为 “New chat” / “新聊天”，不在项目行里）。2.0.71 只认 `a[href="/"]`，打开选项后点 New chat 仍进普通对话（2.0.72 修）。
 
 ---
 

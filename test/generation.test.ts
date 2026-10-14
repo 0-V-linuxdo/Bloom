@@ -26,7 +26,7 @@ function navigate(path: string) {
 
 function stream() {
     const id = requestId++;
-    network.emit("generate-start", { requestId: id, conversationId: null });
+    network.emit("generate-start", { requestId: id, conversationId: null, parentId: null, userId: null });
     return (end: { error?: boolean; handoff?: boolean; } = {}) =>
         network.emit("generate-end", { requestId: id, conversationId: null, error: !!end.error, handoff: !!end.handoff });
 }

@@ -90,7 +90,10 @@ function snippetOf(turn: Turn) {
 function turnFor(bar: HTMLElement) {
     const host = bar.closest<HTMLElement>(Sel.turn);
     if (!host) return null;
-    return listTurns().find(turn => host.contains(turn.el) && (turn.el.contains(bar) || turn.el === host)) ?? null;
+    const turns = listTurns().filter(turn => host.contains(turn.el));
+    return turns.find(turn => turn.el.contains(bar) || turn.el === host)
+        ?? turns.findLast(turn => turn.el.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING)
+        ?? null;
 }
 
 function actionBars() {

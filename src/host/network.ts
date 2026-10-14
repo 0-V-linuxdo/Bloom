@@ -33,6 +33,12 @@ export interface ConversationData {
     times: Map<string, number>;
 }
 
+export interface GenerateRequest {
+    conversationId: string | null;
+    parentId: string | null;
+    userId: string | null;
+}
+
 export interface GenerateEnd {
     requestId: number;
     conversationId: string | null;
@@ -41,7 +47,7 @@ export interface GenerateEnd {
 }
 
 export const network = createEmitter<{
-    "generate-start": { requestId: number; conversationId: string | null; };
+    "generate-start": { requestId: number; } & GenerateRequest;
     "generate-end": GenerateEnd;
     "conversation": ConversationData;
     "message-time": { conversationId: string | null; messageId: string; time: number; };
@@ -152,10 +158,13 @@ function urlOf(input: RequestInfo | URL) {
     }
 }
 
-function requestedConversationId(init: RequestInit | undefined) {
-    if (typeof init?.body !== "string") return null;
-    const body = parseJson(init.body);
-    return isRecord(body) && typeof body.conversation_id === "string" ? body.conversation_id : null;
+const stringOf = (value: unknown) => typeof value === "string" ? value : null;
+
+function generateRequest(init: RequestInit | undefined): GenerateRequest {
+    const body = typeof init?.body === "string" ? parseJson(init.body) : null;
+    if (!isRecord(body)) return { conversationId: null, parentId: null, userId: null };
+    const [first] = Array.isArray(body.messages) ? body.messages : [];
+    return { conversationId: stringOf(body.conversation_id), parentId: stringOf(body.parent_message_id), userId: isRecord(first) ? stringOf(first.id) : null };
 }
 
 interface StreamState {
@@ -201,10 +210,11 @@ async function readStream(response: Response, state: StreamState) {
     }
 }
 
-async function observeGenerate(requestId: number, conversationId: string | null, pending: Promise<Response>) {
+async function observeGenerate(requestId: number, request: GenerateRequest, pending: Promise<Response>) {
+    const { conversationId } = request;
     const state: StreamState = { conversationId, error: false, handoff: false };
     activeStreams.set(requestId, conversationId);
-    network.emit("generate-start", { requestId, conversationId });
+    network.emit("generate-start", { requestId, ...request });
     try {
         const response = await pending;
         if (!response.ok) state.error = true;
@@ -235,7 +245,7 @@ function observe(input: RequestInfo | URL, init: RequestInit | undefined, pendin
     if (!url || url.origin !== location.origin) return;
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
     if (method === "POST" && GENERATE_PATH.test(url.pathname)) {
-        void observeGenerate(nextRequestId++, requestedConversationId(init), pending);
+        void observeGenerate(nextRequestId++, generateRequest(init), pending);
         return;
     }
     const id = method === "GET" && url.pathname.match(CONVERSATION_PATH)?.[1];

@@ -123,4 +123,19 @@ describe("StarChats", () => {
         expect(actionStar().getAttribute("aria-pressed")).toBe("true");
         expect(everest().querySelector("[data-bloom='chat-star']")).toBeNull();
     });
+    test("puts a star on the assistant reply, whose action bar sits outside its unit", () => {
+        history.pushState(null, "", EVEREST);
+        document.body.innerHTML = `<main><div data-app-action-timeline-scroll><div data-turn-key="u1">
+            <div data-chatgpt-search-unit-key="u1:user" data-chatgpt-search-message-ids="u1">
+                <div class="whitespace-pre-wrap">How tall is Everest?</div>
+                <div class="turn-action-controls"><button type="button" aria-label="Copy message"></button></div>
+            </div>
+            <div data-chatgpt-search-unit-key="u1:assistant" data-chatgpt-search-message-ids="a1"><div class="markdown">About 8,849 metres.</div></div>
+            <div class="turn-action-controls" id="reply-bar"><button type="button" aria-label="Copy response"></button></div>
+        </div></div></main>`;
+        startPhase(StartAt.HostReady);
+        const stars = [...document.querySelectorAll<HTMLButtonElement>('[data-place="action"]')];
+        expect(stars.map(star => star.dataset.id)).toEqual(["u1", "a1"]);
+        expect(stars[1]?.parentElement?.id).toBe("reply-bar");
+    });
 });

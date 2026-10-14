@@ -38,8 +38,9 @@ export const Sel = {
     sendButton: '[data-testid="send-button"], [data-testid="composer-submit-button"]:not([aria-label*="top" i]), button[aria-label="Send prompt" i], button[aria-label="Send message" i], form button[aria-label="Send" i], button[aria-label^="发送"]',
     stopButton: '[data-testid="stop-button"], button[aria-label^="Stop stream" i], button[aria-label^="Stop generat" i], button[aria-label^="Stop answer" i], form button[aria-label="Stop" i], form button[aria-label="停止"], button[aria-label^="停止生成"], button[aria-label^="停止回答"]',
     composerFooter: "#thread-bottom-container",
-    modelTrigger: '[data-testid="model-switcher-dropdown-button"], button[aria-label="Model selector" i]',
-    modelItem: '[role="menu"] [data-testid^="model-switcher-"], [role="menuitem"][data-testid^="model-switcher-"]',
+    modelTrigger: '[data-testid="model-switcher-dropdown-button"], button[aria-label="Model selector" i], button[aria-label="Select ChatGPT model" i]',
+    modelItem: '[role="menu"] [data-testid^="model-switcher-"], [role="menuitem"][data-testid^="model-switcher-"], [role="menu"] [role="menuitemradio"], [role="menu"] [data-reasoning-slider]',
+    effortSlider: '[role="menu"] [data-reasoning-slider]',
 
     homeHeading: 'main h1:not([aria-hidden="true"]), [data-testid="home-heading"]',
     headerMore: 'button[aria-label="More" i], button[aria-label="更多"]',

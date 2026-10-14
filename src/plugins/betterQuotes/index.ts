@@ -101,7 +101,10 @@ function isDismiss(btn: HTMLElement) {
 
 function rowText(row: HTMLElement) {
     const clone = row.cloneNode(true) as HTMLElement;
-    for (const btn of clone.querySelectorAll("button, [role='button']")) btn.remove();
+    const buttons = [...clone.querySelectorAll("button, [role='button']")];
+    const labels = new Set(buttons.map(btn => btn.getAttribute("aria-label")).filter(Boolean));
+    for (const btn of buttons) btn.remove();
+    for (const leaf of clone.querySelectorAll("*")) if (!leaf.children.length && labels.has(normalizeText(leaf.textContent ?? ""))) leaf.remove();
     return normalizeText(clone.textContent ?? "");
 }
 

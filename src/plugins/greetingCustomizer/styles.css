@@ -63,3 +63,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+[data-bloom-placeholder] [data-placeholder]::before {
+    content: none !important;
+}

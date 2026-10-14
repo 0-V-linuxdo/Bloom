@@ -79,4 +79,10 @@ describe("BetterQuotes", () => {
         expect(saved()).toHaveLength(0);
         expect(document.querySelector('[data-bloom="quote-chip"]')).toBeNull();
     });
+    test("saves the new-shell selection card without its Selection label", () => {
+        history.pushState(null, "", "/c/11111111-1111-4111-8111-111111111111");
+        document.body.innerHTML = PAGE.replace(`<div class="quote"><span>${PHRASE}</span><button type="button" aria-label="Remove quote">x</button></div>`, `<div data-composer-attachments=""><span><span><span><span>${PHRASE}</span></span><span><svg aria-hidden="true"></svg><span>Selection</span></span><span aria-hidden="true"></span><button data-slot="popover-anchor" type="button" aria-label="Selection"></button></span><button type="button" aria-label="Remove selected text 1"><svg aria-hidden="true"></svg></button></span></div>`);
+        startPhase(StartAt.HostReady);
+        expect(saved().map(item => item.text)).toEqual([PHRASE]);
+    });
 });

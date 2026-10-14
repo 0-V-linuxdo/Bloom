@@ -11,7 +11,7 @@ import { conversationData, network, type Role } from "@host/network";
 import { currentConversationId, onRouteChange } from "@host/route";
 import { chainSummary, hasThreadShell, isReversedScroller, listTurns, pageConversationKey, threadScroller, type Turn, turnSummary } from "@host/thread";
 import { classes, classNameFactory } from "@utils/css";
-import { frameScheduler, h, hostMutations, watchBody } from "@utils/dom";
+import { frameScheduler, h, hostMutations, visible, watchBody } from "@utils/dom";
 import { normalizeText, truncate } from "@utils/misc";
 import definePlugin, { OptionType } from "@utils/types";
 
@@ -65,6 +65,8 @@ let resizeObserver: ResizeObserver | undefined;
 let controller: AbortController | undefined;
 let heldChat = "";
 let held: Held[] = [];
+let branch: { parent: string; user: string | null; } | null = null;
+const superseded = new Set<string>();
 
 const shown = (item: { role: Role; }) => settings.store.showAssistant || item.role === "user";
 
@@ -249,11 +251,37 @@ function weave(memory: Held[], chain: Held[]) {
     return before.concat(merged, after);
 }
 
+const isLive = (group: Held) => group.entries.some(entry => entry.turn?.el.isConnected);
+
+function staleFrom(groups: Held[], parent: string, user: string | null) {
+    const at = groups.findIndex(group => groupIds(group).includes(parent));
+    if (at >= 0) return at + 1;
+    const first = groups.find(isLive);
+    return user && first && groupIds(first).includes(user) ? 0 : groups.length;
+}
+
+function prune(groups: Held[]) {
+    if (branch) {
+        const { parent, user } = branch;
+        for (const group of groups.slice(staleFrom(groups, parent, user))) {
+            const ids = groupIds(group);
+            if (!isLive(group) && !(user && ids.includes(user))) for (const id of ids) superseded.add(id);
+        }
+    }
+    return groups.filter(group => isLive(group) || !groupIds(group).some(id => superseded.has(id)));
+}
+
+function forget() {
+    held = [];
+    branch = null;
+    superseded.clear();
+}
+
 function listed(): Entry[] {
     const chat = pageConversationKey();
     if (chat !== heldChat) {
         heldChat = chat;
-        held = [];
+        forget();
     }
     const live = liveGroups();
     const chain = chainGroups();
@@ -261,7 +289,7 @@ function listed(): Entry[] {
         held = [];
         return [];
     }
-    held = weave(placeLive(held, live), chain);
+    held = prune(weave(placeLive(held, live), chain));
     return held.flatMap(group => group.entries).filter(shown);
 }
 
@@ -512,7 +540,7 @@ function release() {
 const isEditable = (el: Element | null) => !!el && (el.matches("input, textarea, select, [contenteditable=''], [contenteditable='true']") || !!el.closest("[contenteditable='true']"));
 
 function onKeydown(event: KeyboardEvent) {
-    if (!root || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || isEditable(document.activeElement) || document.querySelector("[data-bloom='settings'], [role='dialog']")) return;
+    if (!root || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || isEditable(document.activeElement) || visible("[data-bloom='settings'], [role='dialog']")) return;
     const targets: Record<string, number> = { ArrowUp: current - 1, ArrowDown: current + 1, Home: 0, End: entries.length - 1 };
     const target = targets[event.key];
     if (target == null) {
@@ -539,6 +567,11 @@ export default definePlugin({
             watchBody(mutations => hostMutations(mutations) && update()),
             onRouteChange(update),
             network.on("conversation", update),
+            network.on("generate-start", ({ parentId, userId }) => {
+                if (!parentId) return;
+                branch = { parent: parentId, user: userId };
+                update();
+            }),
             generation.on("rise", update),
             generation.on("fall", update),
         ];
@@ -558,7 +591,7 @@ export default definePlugin({
         root?.remove();
         root = null;
         signature = "";
-        held = [];
+        forget();
         heldChat = "";
     },
     onSettingsChange: update,

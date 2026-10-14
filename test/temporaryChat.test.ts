@@ -23,6 +23,7 @@ afterEach(() => {
 
 describe("TemporaryChat", () => {
     test("does not add a Temporary button under New chat", () => {
+        history.pushState(null, "", "/");
         document.body.innerHTML = '<div data-app-action-sidebar-scroll><a href="/">New chat</a><button data-bloom="temporary-chat">Temporary</button></div>';
         startPhase(StartAt.HostReady);
         expect(document.querySelector('[data-bloom="temporary-chat"]')).toBeNull();
@@ -43,5 +44,17 @@ describe("TemporaryChat", () => {
         expect(event.defaultPrevented).toBe(true);
         expect(new URLSearchParams(location.search).get("temporary-chat")).toBe("true");
         expect(document.querySelector('[data-bloom="temporary-chat"]')).toBeNull();
+    });
+    test("sends the new-shell New chat buttons to a temporary chat", () => {
+        writeSetting("TemporaryChat", "openNewAsTemporary", true);
+        document.body.innerHTML = '<nav role="navigation" aria-label="Home"><div><button type="button"><span aria-hidden="true"><svg></svg></span><span>New chat</span></button></div><div data-app-action-sidebar-scroll><button type="button" aria-label="New chat"><svg></svg></button></div></nav>';
+        startPhase(StartAt.HostReady);
+        for (const button of document.querySelectorAll("button")) {
+            history.pushState(null, "", "/c/11111111-1111-4111-8111-111111111111");
+            const event = new PointerEvent("pointerdown", { bubbles: true, cancelable: true });
+            button.firstElementChild?.dispatchEvent(event);
+            expect(event.defaultPrevented).toBe(true);
+            expect(new URLSearchParams(location.search).get("temporary-chat")).toBe("true");
+        }
     });
 });
