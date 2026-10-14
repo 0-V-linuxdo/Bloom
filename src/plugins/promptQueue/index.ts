@@ -202,32 +202,29 @@ function submit(text: string, attempt = 0) {
 }
 
 function restorePicker(previous: ComposerModel | null, item: QueueItem) {
-    const target = settings.store.stickyOnNavigate && pinned ? pinned : previous;
+    const target = previous ?? pinned;
     if (!target || (!item.model && !item.label) || sameModel(target, itemModel(item))) {
         applying = false;
         return;
     }
-    applying = true;
-    setTimeout(() => {
-        applyModel(target);
-        applying = false;
-    }, SEND_RETRY_MS);
+    if (settings.store.stickyOnNavigate) pinned = target;
+    clearTimeout(stickTimer);
+    stickTimer = setTimeout(() => settle(target), SEND_RETRY_MS);
 }
 
-function send(item: QueueItem, attempt = 0) {
+function send(item: QueueItem, attempt = 0, previous = readModel()) {
     if (generationState().generating || readDraft()) {
-        if (attempt < SEND_ATTEMPTS) setTimeout(() => send(item, attempt + 1), SEND_RETRY_MS);
+        if (attempt < SEND_ATTEMPTS) setTimeout(() => send(item, attempt + 1, previous), SEND_RETRY_MS);
         return;
     }
     if (!modelReady(item)) {
         if (attempt < SEND_ATTEMPTS) {
             applying = true;
             applyModel(itemModel(item));
-            setTimeout(() => send(item, attempt + 1), SEND_RETRY_MS);
+            setTimeout(() => send(item, attempt + 1, previous), SEND_RETRY_MS);
             return;
         }
     }
-    const previous = readModel();
     writeDraft(item.text);
     nextFrame(() => submit(item.text));
     restorePicker(previous, item);
@@ -318,12 +315,11 @@ function noteModel() {
     if (model) pinned = model;
 }
 
-function stick() {
-    if (!settings.store.stickyOnNavigate || !pinned) return;
+function settle(target: ComposerModel) {
     applying = true;
     let attempt = 0;
     const step = () => {
-        if (!pinned || applyModel(pinned) || attempt >= SEND_ATTEMPTS) {
+        if (applyModel(target) || attempt >= SEND_ATTEMPTS) {
             applying = false;
             return;
         }
@@ -334,7 +330,11 @@ function stick() {
     step();
 }
 
-function onPointerUp(event: PointerEvent) {
+function stick() {
+    if (settings.store.stickyOnNavigate && pinned) settle(pinned);
+}
+
+function onModelInput(event: Event) {
     const { target } = event;
     if (!(target instanceof Element) || applying) return;
     if (!target.closest(`${Sel.modelTrigger}, ${Sel.modelItem}`)) return;
@@ -354,7 +354,8 @@ export default definePlugin({
         restoreQueues();
         pinned = readModel();
         document.addEventListener("keydown", onKeydown, { capture: true, signal: controller.signal });
-        document.addEventListener("pointerup", onPointerUp, { signal: controller.signal });
+        document.addEventListener("pointerup", onModelInput, { signal: controller.signal });
+        document.addEventListener("keyup", onModelInput, { signal: controller.signal });
         unsubscribers = [
             generation.on("fall", ({ outcome }) => {
                 armed = outcome === "done";
