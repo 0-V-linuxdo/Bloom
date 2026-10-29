@@ -5,9 +5,16 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
+import { whenBody } from "@host/ready";
 import { Sel } from "@host/selectors";
 import { hideRule } from "@utils/css";
+import { hostMutations, watchBody } from "@utils/dom";
+import { normalizeText } from "@utils/misc";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
+
+const INVITE_MARK = "data-bloom-invite";
+const INVITE_LABEL = /^(?:invite team members|invite members|邀请团队成员|邀请成员)$/i;
+const INVITE_SCOPE = ':is(button, a:not([href^="/c/"])):not(main *, [role="dialog"] *)';
 
 const GROUPS = {
     hideDownloadApps: [
@@ -46,6 +53,7 @@ const GROUPS = {
         ':is([aria-label="Sponsored" i], [aria-label="Advertisement" i], [aria-label="赞助"], [aria-label="广告"])',
         'iframe:is([src*="doubleclick"], [src*="/ads/"])',
     ],
+    hideInvite: [`[${INVITE_MARK}]`],
 } as const;
 
 const settings = definePluginSettings({
@@ -56,11 +64,23 @@ const settings = definePluginSettings({
     hideHomePromo: { type: OptionType.BOOLEAN, description: "Hide promo banners on the home page.", default: true },
     hideAds: { type: OptionType.BOOLEAN, description: "Hide ads and sponsored slots.", default: true },
     hideNotices: { type: OptionType.BOOLEAN, description: "Hide the “Migrate your GPTs to plugins” notice and the Team “Turn on auto-reload” banner.", default: true },
+    hideInvite: { type: OptionType.BOOLEAN, description: "Hide Invite team members in the sidebar.", default: true },
 });
+
+let unwatch: (() => void) | undefined;
+let active = false;
+
+function markInvite(mutations: MutationRecord[]) {
+    if (!hostMutations(mutations)) return;
+    for (const el of document.querySelectorAll(`${INVITE_SCOPE}, [${INVITE_MARK}]`)) {
+        if (!el.matches(INVITE_SCOPE) || !INVITE_LABEL.test(normalizeText(el.textContent ?? ""))) el.removeAttribute(INVITE_MARK);
+        else if (!el.hasAttribute(INVITE_MARK)) el.setAttribute(INVITE_MARK, "");
+    }
+}
 
 export default definePlugin({
     name: "Cleaner",
-    description: "Hide Download apps, the mistakes notice, upgrade prompts, locked models, home promos, ads and notices.",
+    description: "Hide Download apps, the mistakes notice, upgrade prompts, locked models, home promos, ads, notices and Invite team members.",
     authors: ["Bloom contributors"],
     tags: ["ui"],
     icon: "broom",
@@ -68,4 +88,16 @@ export default definePlugin({
     startAt: StartAt.Init,
     settings,
     styles: () => hideRule(Object.entries(GROUPS).flatMap(([key, selectors]) => settings.store[key as keyof typeof GROUPS] ? selectors : [])),
+    start() {
+        active = true;
+        void whenBody().then(() => {
+            if (active && !unwatch) unwatch = watchBody(markInvite);
+        });
+    },
+    stop() {
+        active = false;
+        unwatch?.();
+        unwatch = undefined;
+        for (const el of document.querySelectorAll(`[${INVITE_MARK}]`)) el.removeAttribute(INVITE_MARK);
+    },
 });

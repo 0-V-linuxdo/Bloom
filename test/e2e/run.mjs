@@ -205,6 +205,7 @@ async function newShellSuite(browser) {
         return kept;
     }));
     check("Cleaner keeps the composer that shares a wrapper with the notice", await page.evaluate(() => ["[data-chatgpt-composer]", ".ComposerLayoutRoot-XCKS7O", ".ProseMirror"].every(selector => document.querySelector(selector).getClientRects().length)));
+    check("Cleaner hides Invite team members in the sidebar only", await page.evaluate(() => !document.querySelector(".invite-team").getClientRects().length && !!document.querySelector(".invite-main").getClientRects().length));
     check("Cleaner hides the disclaimer", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="thread-disclaimer"]')).display === "none"));
     check("Cleaner hides the disclaimer on GPT pages", await page.evaluate(() => {
         const sticky = document.createElement("div");

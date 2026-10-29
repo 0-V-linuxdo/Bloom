@@ -205,6 +205,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - `hideHomePromo`：首页的 GPT/应用/Codex 推广横幅。
 - `hideAds`：Free 套餐的广告、赞助位。
 - `hideNotices`：隐藏 GPT 页面输入框上方的 “Migrate your GPTs to plugins by December 11” 提示（form 里的 `aside`，关闭按钮是 `button[aria-label="Dismiss migration notice"]`）。只用 CSS 隐藏，不替你点关闭。只隐藏 `aside` 本身，以及只装着它的外层 `div`（`aside` 是唯一子元素，或唯一子元素里唯一的 `aside`），所以隐藏的元素里不会有输入框。2.0.38 及以前还会隐藏 `aside` 的祖父 `div`；ChatGPT 改了这块结构后，祖父就是输入框的容器，输入框跟着被隐藏了（F-23，2.0.39 修）。也隐藏 Team 订阅页顶部的额度横幅：`main` 里 `div.shrink-0` 的唯一子元素是 `aside[role=status][aria-live=polite].select-none`，里面有警告图标 `.text-warning` 和主按钮 `.bg-primary-solid`（英文是 “A workspace member hit a limit” / “Turn on auto-reload to automatically add credits and prevent future interruptions.”）。只隐藏这个 `aside` 和只装着它的那层 `div.shrink-0`，不碰 `main` 里的对话。会话里的 `[role=status][aria-busy=true]` 和 `.text-chatgpt-recovery` 对不上这些类，不会被藏。
+- `hideInvite`：隐藏侧栏底部的 “Invite team members”（Team 工作区，2.0.74）。靠文字识别：`main` 和对话框之外（即侧栏、rail 和账号区）文字恰为 Invite team members / Invite members / 邀请团队成员 / 邀请成员 的按钮或链接（会话链接 `a[href^="/c/"]` 不看）标成 `data-bloom-invite`，再由 CSS 隐藏；停用插件时清掉标记。
 
 不能隐藏整个输入框区域、Voice、Share、头像、Bloom++ 行。
 
@@ -376,7 +377,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | NoSidebarIdentity | `hideUsername` `hideEmail` `enlargePlan` `alignPlanWithAvatar` | — |
 | CustomSidebarIdentity | `displayName` `avatarSize` `applyToMenu` | `avatarUrl` `avatarSource` `cropX` `cropY` `cropZoom` |
 | RecentTopics | `maxRecent` `includeHome` | `visits` `titles` `previews` `projects` |
-| Cleaner | `hideDownloadApps` `hideDisclaimer` `hideUpgrade` `hideLockedModels` `hideHomePromo` `hideAds` `hideNotices` | — |
+| Cleaner | `hideDownloadApps` `hideDisclaimer` `hideUpgrade` `hideLockedModels` `hideHomePromo` `hideAds` `hideNotices` `hideInvite` | — |
 | ResponseNotification | `sound` `soundUrl` `browserNotification` `onlyWhenHidden` | — |
 | PromptQueue | `replacePending` `showQueueMode` `stickyOnNavigate` `persistAcrossRefresh` | — |
 | ChatListStatus | — | — |
