@@ -42,7 +42,7 @@
 3. 确认安装后刷新 `chatgpt.com`。
 4. 点左侧栏头像，账号菜单第一项就是 **Bloom++**。油猴菜单 **Bloom++ settings** 也会打开同一块面板（再点一次关闭）。面板以居中对话框打开。和 Void++ 一样，侧栏平时没有按钮；指针移到头像上时，账号行正上方会立即出现 **Bloom++**（展开侧栏和收起的窄栏都是）。可以按住它左右拖动（默认靠右），**Settings → Reset position** 恢复原位。在 **Settings → showSidebarEntry** 打开后一直显示。
 
-优先用油猴的**检查更新**（同一脚本 UUID，配置还在）。自动更新走 `Bloom.update5.user.js`（`raw.githubusercontent.com/.../refs/heads/main/...`）。如果仪表盘是红字「获取更新信息失败」，或提示「脚本已更新」但 `@version` 还是旧的，那是 Fastly 把 `Bloom.update4.user.js` / `Bloom.update3.user.js` / `Bloom.update2.user.js` / `Bloom.update.user.js` / `Bloom.latest.user.js` / `Bloom.user.js` 卡在旧稿或不可读：改点 `Bloom.update5.user.js` raw 或 [`releases/latest/download/Bloom.update5.user.js`](https://github.com/0-V-linuxdo/Bloom/releases/latest/download/Bloom.update5.user.js)。只有同时装着两条 Bloom++ 时才卸旧的。卸载会清掉油猴 GM 存储；Bloom++ 会尝试从当前站点的 IndexedDB / `localStorage` 救回。不要用 `.../Bloom/main/userscript/Bloom.user.js`、`.../refs/heads/main/userscript/Bloom.user.js`、`Bloom.latest.user.js`、`Bloom.update.user.js`、`Bloom.update2.user.js`、`Bloom.update3.user.js` 或 `Bloom.update4.user.js`（Fastly 会卡住旧脚本）。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
+优先用油猴的**检查更新**（同一脚本 UUID，配置还在）。自动更新走 `Bloom.update5.user.js`（`raw.githubusercontent.com/.../refs/heads/main/...`）。如果仪表盘是红字「获取更新信息失败」，或提示「脚本已更新」但 `@version` 还是旧的，那是 Fastly 把 `Bloom.update4.user.js` / `Bloom.update3.user.js` / `Bloom.update2.user.js` / `Bloom.update.user.js` / `Bloom.latest.user.js` / `Bloom.user.js` 卡在旧稿或不可读：改点 `Bloom.update5.user.js` raw 或 [`releases/latest/download/Bloom.update5.user.js`](https://github.com/0-V-linuxdo/Bloom/releases/latest/download/Bloom.update5.user.js)。只有同时装着两条 Bloom++ 时才卸旧的。设置存在当前站点的 `localStorage` 里，卸载或重装脚本不会丢；清除 chatgpt.com 的站点数据会一起清掉。不要用 `.../Bloom/main/userscript/Bloom.user.js`、`.../refs/heads/main/userscript/Bloom.user.js`、`Bloom.latest.user.js`、`Bloom.update.user.js`、`Bloom.update2.user.js`、`Bloom.update3.user.js` 或 `Bloom.update4.user.js`（Fastly 会卡住旧脚本）。不要用 jsDelivr `@heads/main`（缓存最多 7 天）。不要用 `github.com/.../raw/refs/heads/...`（会返回 HTML）。
 
 设置面板**跟随 `chatgpt.com` 自己的主题**。ChatStateFavicons **空闲时保持官方 ChatGPT 标签页图标**；只在 streaming / done / ready / error 时叠白色 blossom PNG（深色描边）。
 
@@ -60,7 +60,7 @@ bun run e2e          # 用 Chromium 跑本地模拟的 ChatGPT 页面
 
 ## 结构
 
-- `src/api`：设置存储（`BloomSettings` 同时存 GM、IndexedDB、`localStorage`，读取时取内容最全的一份）和插件管理器。
+- `src/api`：设置存储（`BloomSettings` 只存 `localStorage`）和插件管理器。
 - `src/host`：Bloom++ 对 chatgpt.com 的全部了解都集中在这里：新旧两套界面的选择器、路由、输入框、对话区、侧栏，以及唯一一处 `fetch` 旁路，只读页面自己的会话和回复流响应。`generation.ts` 把这些变成开始/结束事件，供图标、通知、排队、侧栏状态等插件共用。
 - `src/components`：小型 DOM 控件和图标，配色取自 ChatGPT 自己的 CSS 变量。
 - `src/plugins`：每个插件一个目录，和 Void++ 一样用 `definePlugin`、`definePluginSettings` 编写。

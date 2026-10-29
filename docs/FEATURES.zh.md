@@ -14,7 +14,7 @@
 | 形态 | 单个油猴脚本（Tampermonkey / Violentmonkey），GPL-3.0-or-later |
 | 目标站点 | `https://chatgpt.com/*`、`https://*.chatgpt.com/*`、`https://chat.openai.com/*`，以及镜像 `free.share-ai.top`、`chatgpt.aicnm.cc` |
 | 运行时机 | `@run-at document-idle`，只在顶层窗口运行（`window === window.top`） |
-| 权限 | `GM_addStyle` `GM_getValue` `GM_setValue` `GM_addValueChangeListener` `GM_setClipboard` `GM_registerMenuCommand` `GM_notification` `GM_xmlhttpRequest`；`@connect raw.githubusercontent.com`、`cdn.jsdelivr.net` |
+| 权限 | `GM_addStyle` `GM_setClipboard` `GM_registerMenuCommand` `GM_notification` `GM_xmlhttpRequest`；`@connect raw.githubusercontent.com`、`cdn.jsdelivr.net` |
 | 版本号 | `@version X.Y.Z`，只写数字，和 `package.json` 完全一致；新版本必须严格大于 `main` 上已发布版本。不能加日期或 `v` 前缀：Violentmonkey 按 `.` 切开后逐段 `parseInt`，`[20260929] v2.0.36` 的第一段读成 0，等于 0.0.36，于是 `main` 上的 `[20260928] v1.4.117`（0.4.117）被当成更新，自动更新把 2.x 换回了 1.4.117（F-22，2.0.37 修；`check:update-urls` 和发布流程都要求纯数字）。 |
 | 更新地址 | `@updateURL` / `@downloadURL` = `raw.githubusercontent.com/0-V-linuxdo/Bloom/refs/heads/main/userscript/Bloom.update5.user.js`；构建同时写 `Bloom.user.js`、`Bloom.latest.user.js`、`Bloom.update.user.js`、`Bloom.update2.user.js`、`Bloom.update3.user.js`、`Bloom.update4.user.js`（Fastly 缓存卡旧版时换文件名，旧文件继续写，旧安装从旧文件升到 2.x 后改走 update5）。2.0.38 起从 update4 换到 update5：update4 在 `main` 上是 1.4.117，Violentmonkey 右键/长按「更新」是强制更新（`force`，不比版本，直接下载 `@downloadURL`），所以只要地址指向 update4，2.x 就可能被装回 1.4.117；update5 只有 2.x 构建写过，合并前请求它是 404（「获取更新信息失败」，不会降级），合并后正常更新（F-22） |
 | 发布 | 推到 `main` 后需要同名 tag `vX.Y.Z` 与 GitHub Release（附 `Bloom.latest.user.js`），CI `release-userscript.yml` 缺 tag 时自动补 |
@@ -44,8 +44,8 @@
 ### 2.2 设置存储
 
 - 存储键 `BloomSettings`，**不能改名**。结构：`{ plugins: { [插件名]: { enabled?: boolean, ...设置项 } } }`。
-- 同时写三处：`GM_setValue`、IndexedDB（库 `bloompp`，表 `kv`）、`localStorage`。
-- 多个标签页共用这份设置，每次保存都写整份。所以每个标签页都要跟上别的标签页的保存：监听 `GM_addValueChangeListener`（只处理 `remote`）和 `localStorage` 的 `storage` 事件，把收到的整份逐键合并进内存，并对变了的键触发设置变更。本标签页改了、还没存盘的键不被覆盖。2.0.39 及以前各标签页只拿启动时读到的旧副本整份覆盖，一个标签页里拖好的按钮位置、改的开关，会被另一个标签页的任何一次保存（例如 GreetingCustomizer 换问候语、RecentTopics 记访问）改回去（F-24，2.0.40 修）。
+- 只存在 `localStorage`，不用 GM 存储和 IndexedDB，以便在 AdGuard 这类不支持 `GM_addValueChangeListener` 的管理器里同样可用。2.0.74 及以前同时写 GM、IndexedDB（库 `bloompp`，表 `kv`）和 `localStorage` 三处，`localStorage` 一直有完整副本，所以 2.0.75 直接读它；启动时删掉旧的 `bloompp` 库。
+- 多个标签页共用这份设置，每次保存都写整份。所以每个标签页都要跟上别的标签页的保存：监听 `localStorage` 的 `storage` 事件，把收到的整份逐键合并进内存，并对变了的键触发设置变更。本标签页改了、还没存盘的键不被覆盖。2.0.39 及以前各标签页只拿启动时读到的旧副本整份覆盖，一个标签页里拖好的按钮位置、改的开关，会被另一个标签页的任何一次保存（例如 GreetingCustomizer 换问候语、RecentTopics 记访问）改回去（F-24，2.0.40 修）。
 - 读取时三处都读，取“内容最丰富”的一份为主（按设置项数量和数组/对象长度打分，`enabled` 不计分），其余只补缺的键；较薄的一份里的 `enabled:false` 不能盖住较厚的一份。
 - 启动过程不落盘，只有用户真正改了设置才写。
 - 缺 `enabled` 时取插件的 `enabledByDefault`；不要在启动时替用户写 `enabled`。
@@ -222,7 +222,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 - 回复生成中在输入框按 Enter（或点 Send）时，不打断当前回复，而是把草稿放进队列并清空输入框；当前回复结束后自动发送队首，再等那条回复结束发下一条（每条单独发送，绝不合并）。
 - 队列按会话分开，每个会话最多 8 条（满了不再清空输入框）；首条消息迁移 `/`→`/c/{id}` 时整队跟过去；真切会话时不把队列发进离开的会话。
-- 刷新后队列还在：每次改动都把已有会话 id 的队列写进本标签页的 `sessionStorage`，同时写进 `localStorage` 和 IndexedDB（库 `bloompp`，表 `kv`，键 `BloomPromptQueue`）。启动时先读本标签页，没有再读本浏览器的副本，按原顺序放回托盘。其它标签页通过 `storage` 事件看到同一份队列。谁改了队列谁拿到发送权（`BloomPromptQueueClaim`，约 4 秒不续就过期）；生成结束时只有持有发送权的标签页会自动发出队首，所以两个标签页不会各发一次。关掉插件的 `persistAcrossRefresh` 后三处都清掉。刷新后如果 ChatGPT 接着生成被打断的回复，这条结束后照常发队首；如果回复已经结束，队列留在托盘里等用户点 Send now，不在页面刚加载时自己发出去。还没有会话 id 的新对话队列不存。1.4.117 和 2.0.40 及以前都只放在内存里，刷新即丢（F-25，2.0.41 修，当时只写本标签页）。`persistAcrossRefresh`（默认真）关掉后不再写入、也不再读回。
+- 刷新后队列还在：每次改动都把已有会话 id 的队列写进本标签页的 `sessionStorage`，同时写进 `localStorage`（键 `BloomPromptQueue`）。启动时先读本标签页，没有再读本浏览器的副本，按原顺序放回托盘。其它标签页通过 `storage` 事件看到同一份队列。谁改了队列谁拿到发送权（`BloomPromptQueueClaim`，约 4 秒不续就过期）；生成结束时只有持有发送权的标签页会自动发出队首，所以两个标签页不会各发一次。关掉插件的 `persistAcrossRefresh` 后两处都清掉。刷新后如果 ChatGPT 接着生成被打断的回复，这条结束后照常发队首；如果回复已经结束，队列留在托盘里等用户点 Send now，不在页面刚加载时自己发出去。还没有会话 id 的新对话队列不存。1.4.117 和 2.0.40 及以前都只放在内存里，刷新即丢（F-25，2.0.41 修，当时只写本标签页）。`persistAcrossRefresh`（默认真）关掉后不再写入、也不再读回。
 - 入队时记下当时模型选择器上的模型（`data-testid="model-switcher-dropdown-button"` 的文字，菜单项 `data-testid` 以 `model-switcher-` 开头）。发出这一条之前先点对应菜单项，点不中就在约 3 秒内重试，仍然点不中也照常发送，不把消息吞掉。发出后如果开着 `stickyOnNavigate`，选择器回到切会话前记住的模型，而不是停在这一条的模型上。托盘在文字和按钮之间显示模型芯片（`showQueueMode`，默认真）；没有读到模型就不画芯片。旧的纯字符串队列仍能读回来。
 - `stickyOnNavigate`（默认真）：用户在模型菜单里点过之后记住这个模型；切到别的会话时重新点开菜单并选中它。ChatGPT 把选择器拨回去时，不把那个新值当成用户的选择。
 - 2026-10 新版模型选择器是 `button[aria-label="Select ChatGPT model"]`，没有 testid，按钮上只显示思考强度（如 “Extra High”），用 `data-selected-reasoning-effort`（`none` / `medium` / `high` / `max`）识别；菜单里强度是一个 Power 滑块（`[data-reasoning-slider]`，只认 ←/→），模型是 `menuitemradio`。队列和 `stickyOnNavigate` 记的是强度：要换时打开菜单，每次按一下方向键（到头换方向），直到 `data-selected-reasoning-effort` 对上，再按 Esc 关菜单。菜单开着时按钮文字是 “Thinking effort”，这时不取文字。2.0.71 及以前匹配不到这个按钮，队列项没有模型标签，锁定也不起作用（2.0.72 修）。发出后拨回的是开始发送这一条之前选择器上的强度（用户生成中改过的也算），没有才用 `stickyOnNavigate` 记住的那个；拨回同样逐步重试到对上为止。用键盘改强度（菜单里 ←/→、Esc 关菜单）也会更新记住的模型。2.0.72 发送后读的是已经拨成队列项的强度，又只试一次，选择器停在队列项的强度上（2.0.73 修）。

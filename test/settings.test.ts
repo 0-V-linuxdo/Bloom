@@ -6,7 +6,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { bagScore, definePluginSettings, flushSettings, loadSettings, mergeBags, onSettingChange, parseBag, readSetting, STORAGE_KEY, writeSetting } from "../src/api/Settings";
+import { definePluginSettings, flushSettings, loadSettings, onSettingChange, parseBag, readSetting, STORAGE_KEY, writeSetting } from "../src/api/Settings";
 import { OptionType } from "../src/utils/types";
 
 const saveFromOtherTab = (plugins: Record<string, Record<string, unknown>>) => {
@@ -32,34 +32,6 @@ describe("parseBag", () => {
     });
 });
 
-describe("mergeBags", () => {
-    test("the richest copy wins and thinner copies only fill gaps", () => {
-        const thin = { plugins: { InputHistory: { enabled: false } } };
-        const rich = { plugins: { InputHistory: { entries: ["a", "b"] }, WiderChat: { width: 70 } } };
-        const merged = mergeBags([thin, rich, null]);
-        expect(merged?.source).toBe("IndexedDB");
-        expect(merged?.bag.plugins.InputHistory).toEqual({ entries: ["a", "b"] });
-        expect(merged?.bag.plugins.WiderChat).toEqual({ width: 70 });
-    });
-
-    test("an explicit true from a thinner copy fills a missing enabled", () => {
-        const thin = { plugins: { PromptQueue: { enabled: true } } };
-        const rich = { plugins: { InputHistory: { entries: ["x"] } } };
-        expect(mergeBags([thin, rich])?.bag.plugins.PromptQueue).toEqual({ enabled: true });
-    });
-
-    test("with no payload, a stored on beats a factory off", () => {
-        const off = { plugins: { NoShareLink: { enabled: false } } };
-        const on = { plugins: { NoShareLink: { enabled: true } } };
-        expect(mergeBags([off, on])?.bag.plugins.NoShareLink.enabled).toBe(true);
-    });
-
-    test("enabled does not count toward richness", () => {
-        expect(bagScore({ plugins: { A: { enabled: true } } })).toBe(0);
-        expect(bagScore({ plugins: { A: { width: 50 } } })).toBeGreaterThan(0);
-    });
-});
-
 describe("plugin settings", () => {
     test("reads defaults, writes values and resets visible keys only", () => {
         const settings = definePluginSettings({
@@ -76,9 +48,9 @@ describe("plugin settings", () => {
         expect(settings.store.data).toEqual(["kept"]);
     });
 
-    test("loads the richest copy from storage and persists writes to localStorage", async () => {
+    test("loads settings from localStorage and persists writes there", () => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ plugins: { RecentTopics: { visits: ["home"] } } }));
-        await loadSettings();
+        loadSettings();
         expect(readSetting("RecentTopics", "visits")).toEqual(["home"]);
         writeSetting("RecentTopics", "includeHome", false);
         flushSettings();

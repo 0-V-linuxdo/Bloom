@@ -52,10 +52,8 @@ const seedSettings = (settings, entry) => entry ? { ...settings, plugins: { Sett
 
 const gmShim = settings => `
 (() => {
-    const store = new Map(Object.entries(${JSON.stringify(settings ? { BloomSettings: settings } : {})}));
+    ${settings ? `if (!sessionStorage.getItem("seeded")) { localStorage.setItem("BloomSettings", ${JSON.stringify(JSON.stringify(settings))}); sessionStorage.setItem("seeded", "1"); }` : ""}
     window.unsafeWindow = window;
-    window.GM_getValue = (key, fallback) => store.has(key) ? structuredClone(store.get(key)) : fallback;
-    window.GM_setValue = (key, value) => store.set(key, structuredClone(value));
     window.GM_setClipboard = () => {};
     window.__menu = [];
     window.GM_registerMenuCommand = (name, fn) => window.__menu.push({ name, fn });

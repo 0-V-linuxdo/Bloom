@@ -13,7 +13,7 @@ import { Sel } from "@host/selectors";
 import { nextFrame } from "@utils/dom";
 import { Logger } from "@utils/Logger";
 import { isRecord, parseJson } from "@utils/misc";
-import { deleteCopies, readAllCopies, writeAllCopies } from "@utils/storage";
+import { readStored, removeStored, writeStored } from "@utils/storage";
 import definePlugin, { OptionType } from "@utils/types";
 
 import styles from "./styles.css";
@@ -137,32 +137,23 @@ function rememberMap(raw: unknown) {
 function restoreQueues() {
     if (!settings.store.persistAcrossRefresh) {
         sessionStorage.removeItem(STORAGE_KEY);
-        deleteCopies(STORAGE_KEY);
+        removeStored(STORAGE_KEY);
         return;
     }
     if (rememberMap(sessionStorage.getItem(STORAGE_KEY))) return;
-    if (rememberMap(localStorage.getItem(STORAGE_KEY))) {
-        saveQueues();
-        return;
-    }
-    void readAllCopies(STORAGE_KEY).then(copies => {
-        if (queues.size) return;
-        if (!copies.some(rememberMap)) return;
-        saveQueues();
-        renderTray(queue(), actions, settings.store.showQueueMode);
-    });
+    if (rememberMap(readStored(STORAGE_KEY))) saveQueues();
 }
 
 function saveQueues() {
     try {
         if (!settings.store.persistAcrossRefresh) {
             sessionStorage.removeItem(STORAGE_KEY);
-            deleteCopies(STORAGE_KEY);
+            removeStored(STORAGE_KEY);
             return;
         }
         const data = storedMap();
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        writeAllCopies(STORAGE_KEY, data);
+        writeStored(STORAGE_KEY, data);
     } catch (e) {
         logger.warn("Could not save the queue", e);
     }

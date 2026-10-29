@@ -4,16 +4,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { Logger } from "@utils/Logger";
 import { isRecord, parseJson } from "@utils/misc";
-import { readAllCopies, watchCopies, writeAllCopies } from "@utils/storage";
+import { readStored, watchStored, writeStored } from "@utils/storage";
 import { type DefinedSettings, OptionType, type SettingDef, type SettingsDefinition, type SettingsValues } from "@utils/types";
-
-const logger = new Logger("Settings");
 
 export const STORAGE_KEY = "BloomSettings";
 const SAVE_DELAY_MS = 100;
-const SOURCES = ["GM", "IndexedDB", "localStorage"] as const;
 
 export type PluginRow = Record<string, unknown> & { enabled?: boolean; };
 
@@ -35,59 +31,9 @@ export function parseBag(raw: unknown): SettingsBag | null {
     return value as unknown as SettingsBag;
 }
 
-const isBlank = (value: unknown) =>
-    value == null || value === "" || (Array.isArray(value) ? !value.length : isRecord(value) && !Object.keys(value).length);
-
-function weight(value: unknown) {
-    if (isBlank(value)) return 0;
-    if (Array.isArray(value)) return 12 + Math.min(value.length, 40);
-    if (isRecord(value)) return 12 + Math.min(Object.keys(value).length, 40);
-    return 3;
-}
-
-export function bagScore(candidate: SettingsBag) {
-    let score = 0;
-    for (const row of Object.values(candidate.plugins)) {
-        if (!isRecord(row)) continue;
-        for (const [key, value] of Object.entries(row)) if (key !== "enabled") score += weight(value);
-    }
-    return score;
-}
-
-const enabledCount = (candidate: SettingsBag) => Object.values(candidate.plugins).filter(row => isRecord(row) && row.enabled === true).length;
-
-export function mergeBags(candidates: (SettingsBag | null)[]) {
-    const ranked = candidates
-        .map((candidate, index) => candidate && { candidate, index, score: bagScore(candidate) })
-        .filter(item => item != null)
-        .toSorted((a, b) => b.score - a.score || (a.score ? 0 : enabledCount(b.candidate) - enabledCount(a.candidate)) || a.index - b.index);
-    if (!ranked.length) return null;
-
-    const [winner, ...rest] = ranked;
-    const merged = structuredClone(winner.candidate);
-    for (const { candidate } of rest) {
-        for (const [name, row] of Object.entries(candidate.plugins)) {
-            if (!isRecord(row)) continue;
-            const target = merged.plugins[name] ??= {};
-            for (const [key, value] of Object.entries(row)) {
-                if (key === "enabled") {
-                    if (!("enabled" in target) && value === true) target.enabled = true;
-                } else if (isBlank(target[key]) && !isBlank(value)) {
-                    target[key] = structuredClone(value);
-                }
-            }
-            if (!Object.keys(target).length) delete merged.plugins[name];
-        }
-    }
-    return { bag: merged, source: SOURCES[winner.index] };
-}
-
-export async function loadSettings() {
-    const copies = await readAllCopies(STORAGE_KEY);
-    const picked = mergeBags(copies.map(parseBag));
-    if (!picked) return;
-    bag.plugins = picked.bag.plugins;
-    logger.info("Loaded settings from", picked.source);
+export function loadSettings() {
+    const stored = parseBag(readStored(STORAGE_KEY));
+    if (stored) bag.plugins = stored.plugins;
 }
 
 const unsavedKey = (plugin: string, key: string) => `${plugin}\n${key}`;
@@ -95,7 +41,7 @@ const unsavedKey = (plugin: string, key: string) => `${plugin}\n${key}`;
 function save() {
     saveTimer = undefined;
     unsaved.clear();
-    writeAllCopies(STORAGE_KEY, bag);
+    writeStored(STORAGE_KEY, bag);
 }
 
 function adopt(raw: unknown) {
@@ -183,4 +129,4 @@ export const pinnedPlugins = listSetting("pinnedPlugins");
 export const starredPlugins = listSetting("starredPlugins");
 
 addEventListener("pagehide", flushSettings);
-watchCopies(STORAGE_KEY, adopt);
+watchStored(STORAGE_KEY, adopt);

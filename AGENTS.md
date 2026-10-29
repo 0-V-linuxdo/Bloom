@@ -4,7 +4,7 @@ Plugin host for chatgpt.com in the style of Void++ (`definePlugin`, `definePlugi
 
 ## Layout
 
-- `src/api`: `Settings.ts` (the `BloomSettings` bag in GM, IndexedDB `bloompp/kv` and `localStorage`), `PluginManager.ts`.
+- `src/api`: `Settings.ts` (the `BloomSettings` bag, kept only in `localStorage`), `PluginManager.ts`.
 - `src/host`: the only place that knows chatgpt.com. `selectors.ts` holds the selectors for the 2026-09 shell and the old shell side by side. Plugins never keep their own copy of host selectors.
 - `src/components`: DOM controls, icons and `base.css` theme tokens (`--bloom-*`, read from ChatGPT's `--color-*` or old `--text-*` variables with fallbacks).
 - `src/plugins/<name>/index.ts`, optional `styles.css`; `_core/settings` is the panel and sidebar entry.

@@ -27,7 +27,8 @@ export async function init() {
     installNetworkTap();
     for (const plugin of pluginList) plugin.updatedAt = PLUGIN_UPDATED_AT[plugin.name];
     registerPlugins(pluginList);
-    await loadSettings();
+    loadSettings();
+    indexedDB.deleteDatabase("bloompp");
     registerStyle("base", baseCss);
     startGeneration();
     startPhase(StartAt.Init);
