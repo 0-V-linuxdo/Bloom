@@ -63,7 +63,7 @@ export const newShell = theme => `${HEAD(theme)}
   </nav>
   <div class="footer">
     <div class="hairline"></div>
-    <button class="invite-team">Invite team members</button>
+    <div class="invite-wrap"><button class="invite-team">Invite team members</button></div>
     <button aria-haspopup="menu" aria-label="Help">?</button>
     <div class="relative">
       <button aria-label="Open profile menu" aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu" class="profile-overlay"></button>

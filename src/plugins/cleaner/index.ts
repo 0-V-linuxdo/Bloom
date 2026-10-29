@@ -53,7 +53,7 @@ const GROUPS = {
         ':is([aria-label="Sponsored" i], [aria-label="Advertisement" i], [aria-label="赞助"], [aria-label="广告"])',
         'iframe:is([src*="doubleclick"], [src*="/ads/"])',
     ],
-    hideInvite: [`[${INVITE_MARK}]`],
+    hideInvite: [`[${INVITE_MARK}]`, `div:has(> [${INVITE_MARK}]:only-child)`],
 } as const;
 
 const settings = definePluginSettings({
