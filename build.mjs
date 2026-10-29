@@ -30,8 +30,6 @@ const header = `// ==UserScript==
 // @match        https://chatgpt.com/*
 // @match        https://*.chatgpt.com/*
 // @match        https://chat.openai.com/*
-// @match        https://free.share-ai.top/*
-// @match        https://chatgpt.aicnm.cc/*
 // @run-at       document-start
 // @grant        GM_setClipboard
 // @grant        GM_registerMenuCommand
