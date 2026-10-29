@@ -41,4 +41,6 @@ Live tests on chatgpt.com use the Instant model, never Pro. Pick Instant in the 
 bun run tsc && bun run lint && bun run lint:styles && bun test && bun run build && bun run e2e && bun run check:update-urls
 ```
 
+Commit and push straight to `v2`. Never open a pull request and never work on a side branch.
+
 Commit `userscript/*.user.js` with the source. The update URL stays `userscript/Bloom.update5.user.js` on `refs/heads/v2`. `@version` is plain `X.Y.Z`, because Violentmonkey `parseInt`s each dotted part.
