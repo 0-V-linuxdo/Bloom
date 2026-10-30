@@ -13,7 +13,7 @@ describe("overlayText", () => {
         const el = document.createElement("h1");
         overlayText(el, "Ask not what your country can do for you");
         expect(el.getAttribute("data-bloom-text")).toBe("Ask not what your country can do for you");
-        expect(el.style.getPropertyValue("--bloom-text")).toBe("\"Ask\\00a0 not\\00a0 what\\00a0 your\\00a0 country\\00a0 can\\00a0 do\\00a0 for\\00a0 you\"");
+        expect(el.style.getPropertyValue("--bloom-text")).toBe("\"Ask not what your country can do for you\"");
         overlayText(el, null);
         expect(el.hasAttribute("data-bloom-text")).toBe(false);
         expect(el.style.getPropertyValue("--bloom-text")).toBe("");

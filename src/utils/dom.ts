@@ -123,7 +123,7 @@ export const ownNode = (node: Node) => node instanceof Element && (node.hasAttri
 export const hostMutations = (mutations: MutationRecord[]) => !mutations.length || mutations.some(m => !ownNode(m.target));
 
 const cssContent = (text: string) =>
-    `"${text.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"").replaceAll("\n", "\\A ").replaceAll(" ", "\\00a0 ")}"`;
+    `"${text.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"").replaceAll("\n", "\\A ")}"`;
 
 export function overlayText(el: HTMLElement, text: string | null) {
     if (text == null) {
@@ -134,6 +134,5 @@ export function overlayText(el: HTMLElement, text: string | null) {
     }
     el.style.setProperty("--bloom-text", cssContent(text));
     if (el.getAttribute("data-bloom-text") === text) return;
-    if (!el.hasAttribute("data-bloom-text")) el.style.setProperty("--bloom-text-size", getComputedStyle(el).fontSize);
     el.setAttribute("data-bloom-text", text);
 }

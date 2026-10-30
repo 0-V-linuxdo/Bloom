@@ -243,8 +243,9 @@ button.bloom-switch[aria-checked="true"]::after {
     }
 }
 
-[data-bloom-text] {
-    font-size: 0 !important;
+[data-bloom-greeting][data-bloom-text] {
+    display: block !important;
+    text-align: center;
 }
 
 [data-bloom-text] > * {
@@ -252,10 +253,9 @@ button.bloom-switch[aria-checked="true"]::after {
 }
 
 [data-bloom-text]::before {
-    content: var(--bloom-text, attr(data-bloom-text));
-    font-size: var(--bloom-text-size, 1rem);
-    line-height: normal;
-    letter-spacing: normal;
-    word-spacing: 0.25em;
+    content: var(--bloom-text);
+    font: inherit;
+    letter-spacing: inherit;
     white-space: pre-wrap;
+    word-spacing: normal;
 }
