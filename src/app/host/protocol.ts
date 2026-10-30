@@ -14,6 +14,9 @@ export interface ProtocolNote {
     params?: {
         threadId?: string;
         turn?: { id?: string; status?: string; };
+        item?: Record<string, unknown>;
+        items?: unknown[];
+        thread?: Record<string, unknown>;
     };
 }
 

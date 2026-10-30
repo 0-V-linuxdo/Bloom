@@ -11,6 +11,7 @@ const SEL = [
     '[data-chatgpt-search-unit-key$=":user"] blockquote:not(.twitter-tweet)',
     '[data-message-author-role="user"] blockquote:not(.twitter-tweet)',
     '[data-turn-key] [data-message-author-role="user"] blockquote:not(.twitter-tweet)',
+    '[class~="group/user-message"] blockquote:not(.twitter-tweet)',
 ].join(",");
 
 const settings = definePluginSettings({

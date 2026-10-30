@@ -138,4 +138,39 @@ describe("StarChats", () => {
         expect(stars.map(star => star.dataset.id)).toEqual(["u1", "a1"]);
         expect(stars[1]?.parentElement?.id).toBe("reply-bar");
     });
+
+    test("puts a star in every assistant action cluster, including a non-last reply", () => {
+        history.pushState(null, "", EVEREST);
+        document.body.innerHTML = `<main><div data-app-action-timeline-scroll>
+            <div data-turn-key="t1">
+                <div class="group/user-message"><div class="whitespace-pre-wrap">First question</div>
+                    <div class="turn-action-controls"><button type="button" aria-label="Copy message"></button></div>
+                </div>
+                <div data-response-annotation-target="a1">
+                    <div data-markdown-text-style="assistant-message">First reply</div>
+                    <div class="turn-action-controls" id="bar-a1">
+                        <div id="cluster-a1"><button type="button" aria-label="Copy"></button><button type="button" aria-label="Rate response"></button></div>
+                        <span>Monday</span>
+                    </div>
+                </div>
+            </div>
+            <div data-turn-key="t2">
+                <div class="group/user-message"><div class="whitespace-pre-wrap">Second question</div>
+                    <div class="turn-action-controls"><button type="button" aria-label="Copy message"></button></div>
+                </div>
+                <div data-response-annotation-target="a2">
+                    <div data-markdown-text-style="assistant-message">Second reply</div>
+                    <div class="turn-action-controls" id="bar-a2">
+                        <div id="cluster-a2"><button type="button" aria-label="Copy"></button><button type="button" aria-label="Rate response"></button></div>
+                        <span>Monday</span>
+                    </div>
+                </div>
+            </div>
+        </div></main>`;
+        startPhase(StartAt.HostReady);
+        const assistant = [...document.querySelectorAll<HTMLButtonElement>('[data-place="action"]')]
+            .filter(star => star.closest("[data-response-annotation-target]"));
+        expect(assistant.map(star => star.parentElement?.id)).toEqual(["cluster-a1", "cluster-a2"]);
+        expect(assistant.map(star => star.closest("[data-response-annotation-target]")?.getAttribute("data-response-annotation-target"))).toEqual(["a1", "a2"]);
+    });
 });

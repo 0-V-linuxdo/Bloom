@@ -44,17 +44,34 @@ export function threadScroller(): HTMLElement | null {
     return document.scrollingElement as HTMLElement | null;
 }
 
-export const searchUnitRole = (unit: Element) => (unit.getAttribute("data-chatgpt-search-unit-key")?.match(UNIT_ROLE)?.[1] ?? null) as Role | null;
+export const searchUnitRole = (unit: Element): Role | null => {
+    const fromKey = unit.getAttribute("data-chatgpt-search-unit-key")?.match(UNIT_ROLE)?.[1];
+    if (isRole(fromKey)) return fromKey;
+    if (unit.matches(Sel.userBubble)) return "user";
+    if (unit.matches(Sel.assistantReply) || unit.matches(Sel.assistantMarkdown)) return "assistant";
+    return null;
+};
 
-const roleUnits = (root: ParentNode) => [...root.querySelectorAll<HTMLElement>(Sel.searchUnit)]
-    .filter(unit => searchUnitRole(unit) && !unit.parentElement?.closest(Sel.searchUnit));
+const roleUnits = (root: ParentNode) => {
+    const search = [...root.querySelectorAll<HTMLElement>(Sel.searchUnit)]
+        .filter(unit => searchUnitRole(unit) && !unit.parentElement?.closest(Sel.searchUnit));
+    if (search.length) return search;
+    const bubbles = [
+        ...root.querySelectorAll<HTMLElement>(`${Sel.userBubble}, ${Sel.assistantReply}`),
+    ].filter(unit => searchUnitRole(unit) && !unit.parentElement?.closest(`${Sel.userBubble}, ${Sel.assistantReply}`));
+    return bubbles;
+};
 
 const ownMessageIds = (el: Element) =>
-    (el.getAttribute("data-chatgpt-search-message-ids") ?? el.getAttribute("data-message-id"))?.split(/\s+/).filter(Boolean) ?? [];
+    (el.getAttribute("data-chatgpt-search-message-ids") ?? el.getAttribute("data-message-id") ?? el.getAttribute("data-response-annotation-target"))?.split(/\s+/).filter(Boolean) ?? [];
 
 export function unitMessageIds(unit: Element) {
     const own = ownMessageIds(unit);
-    return own.length ? own : [...new Set([...unit.querySelectorAll(MESSAGE_UNIT)].flatMap(ownMessageIds))];
+    if (own.length) return own;
+    const nested = [...new Set([...unit.querySelectorAll(MESSAGE_UNIT)].flatMap(ownMessageIds))];
+    if (nested.length) return nested;
+    const key = unit.closest("[data-turn-key]")?.getAttribute("data-turn-key")?.replace(/^history-content:/, "");
+    return key && searchUnitRole(unit) === "user" ? [key] : [];
 }
 
 export function outerMessageUnits(root = threadRoot()) {
@@ -143,7 +160,7 @@ function computeSummary(turn: Turn) {
         const titles = groupTitles(scope);
         if (titles.length) return titles.join(" · ");
     }
-    const body = turn.el.querySelector<HTMLElement>(turn.role === "assistant" ? Sel.markdown : ".whitespace-pre-wrap") ?? turn.el;
+    const body = turn.el.querySelector<HTMLElement>(turn.role === "assistant" ? `${Sel.markdown}, ${Sel.assistantMarkdown}` : ".whitespace-pre-wrap") ?? turn.el;
     const extras = [...body.querySelectorAll<HTMLElement>(NOT_CONTENT)].map(el => normalizeText(el.textContent ?? "")).filter(Boolean);
     const text = extras.reduce((rest, extra) => rest.replace(extra, "\n"), body.innerText || body.textContent || "");
     const lines = text.split("\n").map(normalizeText).filter(line => line && !SKIP_LINE.test(line) && !STATUS_LINE.test(line));

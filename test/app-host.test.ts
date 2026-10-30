@@ -131,4 +131,39 @@ describe("app thread", () => {
         mount(`${APP_SHELL}<div data-app-action-timeline-scroll><div data-turn-key="u" data-turn="user"><p>hi</p></div></div>`);
         expect(listTurns().some(turn => turn.role === "user")).toBe(true);
     });
+
+    test("splits a turn-key into the user bubble and every assistant reply", () => {
+        mount(`${APP_SHELL}<div data-app-action-timeline-scroll>
+            <div data-turn-key="history-content:turn:t1">
+                <div class="group/user-message"><div class="whitespace-pre-wrap">First question</div></div>
+                <div data-response-annotation-target="msg_a1"><div data-markdown-text-style="assistant-message">First reply</div></div>
+            </div>
+            <div data-turn-key="history-content:turn:t2">
+                <div class="group/user-message"><div class="whitespace-pre-wrap">Second question</div></div>
+                <div data-response-annotation-target="msg_a2"><div data-markdown-text-style="assistant-message">Second reply</div></div>
+            </div>
+        </div>`);
+        const turns = listTurns();
+        expect(turns.map(turn => turn.role)).toEqual(["user", "assistant", "user", "assistant"]);
+        expect(turns.map(turn => turn.messageIds[0])).toEqual(["turn:t1", "msg_a1", "turn:t2", "msg_a2"]);
+    });
+});
+
+describe("app conversation harvest", () => {
+    test("builds a chain from item notifications without fetching conversations", () => {
+        const id = "local:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+        ingest({
+            method: "item/completed",
+            params: { threadId: id, item: { id: "u1", type: "user_message", text: "How tall is Everest?" } },
+        });
+        ingest({
+            method: "item/completed",
+            params: { threadId: id, item: { id: "a1", type: "agent_message", text: "About 8,849 metres." } },
+        });
+        const chain = conversationData(id)?.chain ?? [];
+        expect(chain.map(item => [item.role, item.text])).toEqual([
+            ["user", "How tall is Everest?"],
+            ["assistant", "About 8,849 metres."],
+        ]);
+    });
 });

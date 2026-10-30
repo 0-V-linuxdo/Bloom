@@ -27,6 +27,8 @@ export const Sel = {
     messageUnit: "[data-chatgpt-search-message-ids]",
     oldMessage: "[data-message-id]",
     authorRole: "[data-message-author-role]",
+    userBubble: '[class~="group/user-message"]',
+    assistantReply: "[data-response-annotation-target]",
     oldThread: "[data-app-action-timeline-scroll]",
     turnActions: '.turn-action-controls, [class*="turn-action-controls"]',
     generatedImage: '[class~="group/generated-image-preview"], img[alt="Generated image"]',

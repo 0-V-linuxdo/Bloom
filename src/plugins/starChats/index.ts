@@ -97,8 +97,20 @@ function turnFor(bar: HTMLElement) {
 }
 
 function actionBars() {
-    return [...document.querySelectorAll<HTMLElement>(Sel.turnActions)].filter(bar =>
+    const bars = [...document.querySelectorAll<HTMLElement>(Sel.turnActions)].filter(bar =>
         !bar.closest(`[data-bloom], [role="dialog"], [inert], pre, ${Sel.sidebars}`));
+    return bars.filter(bar => !bars.some(other => other !== bar && other.contains(bar)));
+}
+
+function actionCluster(bar: HTMLElement) {
+    const buttons = [...bar.querySelectorAll<HTMLElement>("button")].filter(button =>
+        button.dataset.bloom !== "message-star" && !button.closest("[data-bloom]"));
+    if (!buttons.length) return bar;
+    const inner = [...bar.children].find((child): child is HTMLElement =>
+        child instanceof HTMLElement
+        && child !== buttons[0]
+        && buttons.every(button => child.contains(button)));
+    return inner ?? bar;
 }
 
 function headerKebab() {
@@ -197,7 +209,8 @@ function paintActions() {
             button.dataset.id = messageId;
         }
         setPressed(button, hasStar(id, messageId));
-        if (button.parentElement !== bar) bar.append(button);
+        const host = actionCluster(bar);
+        if (button.parentElement !== host) host.append(button);
         kept.add(button);
     }
     for (const button of existing) if (!kept.has(button)) button.remove();
