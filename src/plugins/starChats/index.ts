@@ -97,7 +97,7 @@ function turnFor(bar: HTMLElement) {
 }
 
 function actionBars() {
-    return [...document.querySelectorAll<HTMLElement>(".turn-action-controls")].filter(bar =>
+    return [...document.querySelectorAll<HTMLElement>(Sel.turnActions)].filter(bar =>
         !bar.closest(`[data-bloom], [role="dialog"], [inert], pre, ${Sel.sidebars}`));
 }
 

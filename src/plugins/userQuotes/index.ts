@@ -10,6 +10,7 @@ import definePlugin, { OptionType, StartAt } from "@utils/types";
 const SEL = [
     '[data-chatgpt-search-unit-key$=":user"] blockquote:not(.twitter-tweet)',
     '[data-message-author-role="user"] blockquote:not(.twitter-tweet)',
+    '[data-turn-key] [data-message-author-role="user"] blockquote:not(.twitter-tweet)',
 ].join(",");
 
 const settings = definePluginSettings({

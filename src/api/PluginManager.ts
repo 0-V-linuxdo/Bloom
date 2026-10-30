@@ -67,6 +67,14 @@ export function startPhase(phase: StartAt) {
     logger.info(`${phase}: ${[...started].join(", ")}`);
 }
 
+export function haltPlugin(plugin: Plugin) {
+    stopPlugin(plugin);
+}
+
+export function runPlugin(plugin: Plugin) {
+    if (isPluginEnabled(plugin) && reached.has(phaseOf(plugin))) startPlugin(plugin);
+}
+
 export function setPluginEnabled(plugin: Plugin, enabled: boolean) {
     writeSetting(plugin.name, "enabled", enabled);
     if (!enabled) stopPlugin(plugin);

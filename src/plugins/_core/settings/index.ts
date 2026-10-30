@@ -123,7 +123,7 @@ function menuEntry(menu: HTMLElement) {
 
 function sync() {
     const { showSidebarEntry, showSidebarEntryOnHover } = settings.store;
-    const mounts = showSidebarEntry || showSidebarEntryOnHover ? sidebarMounts() : [];
+    const mounts = BLOOM_APP ? [] : (showSidebarEntry || showSidebarEntryOnHover ? sidebarMounts() : []);
     for (const [anchor, node] of entries) {
         if (anchor.isConnected && mounts.some(mount => mount.anchor === anchor)) continue;
         node.remove();

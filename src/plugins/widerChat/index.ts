@@ -17,6 +17,9 @@ const settings = definePluginSettings({
 
 function css() {
     const width = `${settings.store.width}rem`;
+    if (BLOOM_APP) {
+        return `:root,[data-app-action-timeline-scroll],[data-chatgpt-composer],[data-composer-input]{--thread-content-max-width:${width}!important;--composer-adjacent-max-width:${width}!important}`;
+    }
     return `:is(${SCOPES}){${VARIABLES.map(name => `${name}:${width}!important`).join(";")}}`
         + `:is(${CAPPED}){max-width:min(100%, ${width})!important}`;
 }

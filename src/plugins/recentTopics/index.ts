@@ -99,7 +99,7 @@ function go(key: string) {
     close();
     if (key === currentKey()) return;
     const link = key === HOME
-        ? document.querySelector<HTMLElement>('[data-testid="create-new-chat-button"], nav a[href="/"]')
+        ? document.querySelector<HTMLElement>('[data-testid="create-new-chat-button"], nav a[href="/"], [data-sidebar-destination="builtin:home"]')
         : conversationLinks(key)[0];
     if (link) link.click();
     else location.assign(key === HOME ? "/" : `/c/${key}`);

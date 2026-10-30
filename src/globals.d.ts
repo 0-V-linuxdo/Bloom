@@ -34,3 +34,4 @@ declare module "*.css" {
 }
 
 declare const BLOOM_VERSION: string;
+declare const BLOOM_APP: boolean;

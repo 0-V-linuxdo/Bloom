@@ -6,7 +6,7 @@
 
 import { definePluginSettings } from "@api/Settings";
 import { composerForm, isComposerInput, readDraft, writeDraft } from "@host/composer";
-import { onRouteChange } from "@host/route";
+import { currentConversationId, onRouteChange } from "@host/route";
 import { Sel } from "@host/selectors";
 import { outerMessageUnits, searchUnitRole } from "@host/thread";
 import { classNameFactory } from "@utils/css";
@@ -44,6 +44,7 @@ let originEl: HTMLElement | null = null;
 let badge: HTMLButtonElement | null = null;
 
 function quoteKey() {
+    if (BLOOM_APP) return currentConversationId() ?? "draft";
     return location.pathname.match(/\/c\/(?!local-)([\w-]+)/)?.[1]
         ?? (new URLSearchParams(location.search).get("temporary-chat") === "true" ? "temporary" : "draft");
 }

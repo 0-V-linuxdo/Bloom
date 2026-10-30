@@ -7,4 +7,4 @@
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 
 GlobalRegistrator.register({ url: "https://chatgpt.com/" });
-Object.assign(globalThis, { BLOOM_VERSION: "test" });
+Object.assign(globalThis, { BLOOM_VERSION: "test", BLOOM_APP: false });

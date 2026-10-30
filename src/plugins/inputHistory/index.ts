@@ -94,9 +94,27 @@ function step(direction: -1 | 1) {
     return true;
 }
 
+function composerFrom(el: EventTarget | null) {
+    if (isComposerInput(el)) return el;
+    return el instanceof HTMLElement ? el.closest<HTMLElement>(Sel.composerInput) : null;
+}
+
+function composerPopupOpen() {
+    const root = composerInput()?.closest("[data-chatgpt-composer], [data-composer-input], form");
+    if (root?.querySelector('[aria-expanded="true"]')) return true;
+    for (const el of document.querySelectorAll('[role="listbox"], [role="menu"], [data-radix-popper-content-wrapper], [cmdk-root], [cmdk-list]')) {
+        if (!(el instanceof HTMLElement) || el.closest("[data-bloom]")) continue;
+        const style = getComputedStyle(el);
+        if (style.display === "none" || style.visibility === "hidden") continue;
+        return true;
+    }
+    return false;
+}
+
 function onKeydown(event: KeyboardEvent) {
-    if (event.isComposing || !isComposerInput(event.target)) return;
-    const input = event.target;
+    if (event.isComposing || event.key === "Process" || event.keyCode === 229) return;
+    const input = composerFrom(event.target);
+    if (!input) return;
     if (event.key === "Enter" && !event.shiftKey) {
         record(readDraft(input));
         endBrowsing();
@@ -111,6 +129,7 @@ function onKeydown(event: KeyboardEvent) {
     }
     if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
     if (event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (composerPopupOpen()) return;
     const line = caretLine(input);
     const up = event.key === "ArrowUp";
     if (!event.altKey && !(up ? line.first : line.last)) return;
@@ -122,7 +141,7 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 function onInput(event: Event) {
-    if (browsing && isComposerInput(event.target) && readDraft(event.target) !== browsing.shown.trim()) endBrowsing();
+    if (browsing && composerFrom(event.target) && readDraft() !== browsing.shown.trim()) endBrowsing();
 }
 
 function onClick(event: MouseEvent) {

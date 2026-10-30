@@ -25,8 +25,21 @@ const settings = definePluginSettings({
 function css() {
     const { opacity, blur } = settings.store;
     if (opacity >= 100) return "";
+    const fill = BLOOM_APP
+        ? "var(--composer-background-color, var(--color-background-composer-surface, var(--color-bg-primary, Canvas)))"
+        : FILL;
     const clear = "background-color:transparent!important;background-image:none!important;box-shadow:none!important";
-    const paint = `background-color:color-mix(in srgb, ${FILL} ${opacity}%, transparent)!important;background-image:none!important;backdrop-filter:blur(${blur}px)!important;-webkit-backdrop-filter:blur(${blur}px)!important`;
+    const paint = `background-color:color-mix(in srgb, ${fill} ${opacity}%, transparent)!important;background-image:none!important;backdrop-filter:blur(${blur}px)!important;-webkit-backdrop-filter:blur(${blur}px)!important`;
+    if (BLOOM_APP) {
+        const body = "[data-composer-layout][data-composer-body], [class*=\"ComposerLayoutBody\"]";
+        const shell = "[data-chatgpt-composer], [data-composer-input], [class*=\"ComposerLayoutRoot\"]";
+        return `${shell}{${clear};backdrop-filter:none!important;-webkit-backdrop-filter:none!important;overflow:visible!important}`
+            + `${body}{position:relative;z-index:0;${clear};overflow:visible!important}`
+            + `${body}::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;`
+            + `background-color:color-mix(in srgb, ${fill} ${opacity}%, transparent);background-image:none;`
+            + `backdrop-filter:blur(${blur}px);-webkit-backdrop-filter:blur(${blur}px)}`
+            + "[data-composer-input] [contenteditable=\"true\"].ProseMirror{background-color:transparent!important}";
+    }
     const bareRoot = "background-color:transparent!important;background-image:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;overflow:clip!important";
     return `:is(${SLAB}), :is(${FORM}){${clear}}`
         + `:is(${FADE}){display:none!important}`

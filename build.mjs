@@ -46,6 +46,21 @@ const header = `// ==UserScript==
 // ==/UserScript==
 `;
 
+const appHeader = `// ==UserScript==
+// @name         Bloom++ (ChatGPT app)
+// @namespace    ${repo}
+// @version      ${pkg.version}
+// @description  Bloom++ host for the official ChatGPT macOS app. Injected over loopback CDP; not a web userscript.
+// @author       ${pkg.author}
+// @homepageURL  ${repo}
+// @supportURL   ${repo}/issues
+// @match        app://*/*
+// @run-at       document-start
+// @grant        none
+// @license      GPL-3.0-or-later
+// ==/UserScript==
+`;
+
 const outfile = resolve(here, "userscript/Bloom.user.js");
 const latestOut = resolve(here, "userscript/Bloom.latest.user.js");
 const updateOut = resolve(here, "userscript/Bloom.update.user.js");
@@ -53,6 +68,7 @@ const update2Out = resolve(here, "userscript/Bloom.update2.user.js");
 const update3Out = resolve(here, "userscript/Bloom.update3.user.js");
 const update4Out = resolve(here, "userscript/Bloom.update4.user.js");
 const update5Out = resolve(here, "userscript/Bloom.update5.user.js");
+const appOut = resolve(here, "userscript/Bloom.app.user.js");
 mkdirSync(dirname(outfile), { recursive: true });
 
 const SKIP_SUBJECT = /^(chore|brand|docs|ci|style|test|build)([:(]|$)/i;
@@ -134,42 +150,61 @@ ${body}
 `;
 }
 
+const mtimePlugin = {
+    name: "plugin-mtime",
+    setup(build) {
+        const filter = /src[\\/]utils[\\/]pluginMtime\.ts$/;
+        build.onLoad({ filter }, () => ({
+            contents: pluginMtimeSource(),
+            loader: "ts",
+        }));
+    },
+};
 
-const banner = `${header}
-/* Bloom++ v${pkg.version}. SPDX-License-Identifier: GPL-3.0-or-later */
-`;
+const appHostPlugin = {
+    name: "app-host",
+    setup(build) {
+        build.onResolve({ filter: /^@host\// }, args => ({
+            path: resolve(here, "src/app/host", `${args.path.slice("@host/".length)}.ts`),
+        }));
+    },
+};
 
-const options = {
-    entryPoints: [resolve(here, "src/index.ts")],
+const shared = {
     bundle: true,
     format: "iife",
     platform: "browser",
     target: "es2022",
-    outfile,
     loader: { ".css": "text" },
-    define: { BLOOM_VERSION: JSON.stringify(pkg.version) },
-    banner: { js: banner },
     minify: !isDev,
     sourcemap: isDev,
     logLevel: "info",
-    plugins: [{
-        name: "plugin-mtime",
-        setup(build) {
-            const filter = /src[\\/]utils[\\/]pluginMtime\.ts$/;
-            build.onLoad({ filter }, () => ({
-                contents: pluginMtimeSource(),
-                loader: "ts",
-            }));
-        },
-    }],
+};
+
+const webOptions = {
+    ...shared,
+    entryPoints: [resolve(here, "src/index.ts")],
+    outfile,
+    define: { BLOOM_VERSION: JSON.stringify(pkg.version), BLOOM_APP: "false" },
+    banner: { js: `${header}\n/* Bloom++ v${pkg.version}. SPDX-License-Identifier: GPL-3.0-or-later */\n` },
+    plugins: [mtimePlugin],
+};
+
+const appOptions = {
+    ...shared,
+    entryPoints: [resolve(here, "src/app/index.ts")],
+    outfile: appOut,
+    define: { BLOOM_VERSION: JSON.stringify(pkg.version), BLOOM_APP: "true" },
+    banner: { js: `${appHeader}\n/* Bloom++ v${pkg.version} ChatGPT app host. SPDX-License-Identifier: GPL-3.0-or-later */\n` },
+    plugins: [mtimePlugin, appHostPlugin],
 };
 
 if (isWatch) {
-    const ctx = await esbuild.context(options);
+    const ctx = await esbuild.context(webOptions);
     await ctx.watch();
     console.log("[Bloom++] watching");
 } else {
-    await esbuild.build(options);
+    await esbuild.build(webOptions);
     const built = readFileSync(outfile, "utf8");
     writeFileSync(outfile, built);
     writeFileSync(latestOut, built);
@@ -178,5 +213,8 @@ if (isWatch) {
     writeFileSync(update3Out, built);
     writeFileSync(update4Out, built);
     writeFileSync(update5Out, built);
+    await esbuild.build(appOptions);
+    const appBuilt = readFileSync(appOut, "utf8");
     console.log(`[Bloom++] wrote ${outfile}, ${latestOut}, ${updateOut}, ${update2Out}, ${update3Out}, ${update4Out}, and ${update5Out} (${built.length} bytes)`);
+    console.log(`[Bloom++] wrote ${appOut} (${appBuilt.length} bytes)`);
 }

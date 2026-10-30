@@ -11,6 +11,8 @@ import definePlugin, { OptionType, StartAt } from "@utils/types";
 const BUTTONS = [
     'form button:is([aria-label^="Dictat" i], [aria-label*="dictation" i], [aria-label^="听写"], [aria-label*="听写"], [aria-label="语音输入"])',
     'button:is([data-testid*="dictat" i], [data-testid="composer-speech-to-text-button"])',
+    '[data-chatgpt-composer] button:is([aria-label*="voice" i], [aria-label*="dictat" i], [aria-label*="mic" i], [aria-label*="语音"])',
+    '[data-composer-input] button:is([aria-label*="voice" i], [aria-label*="dictat" i], [aria-label*="mic" i], [aria-label*="语音"])',
 ];
 
 const SETTINGS_ROWS = [
