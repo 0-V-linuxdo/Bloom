@@ -252,7 +252,10 @@ button.bloom-switch[aria-checked="true"]::after {
 }
 
 [data-bloom-text]::before {
-    content: attr(data-bloom-text);
+    content: var(--bloom-text, attr(data-bloom-text));
     font-size: var(--bloom-text-size, 1rem);
+    line-height: normal;
+    letter-spacing: normal;
+    word-spacing: 0.25em;
     white-space: pre-wrap;
 }
