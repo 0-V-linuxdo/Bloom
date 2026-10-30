@@ -128,7 +128,7 @@ ChatGPT 改版后插件常常静默失效，自检让这种情况在设置面板
 - 油猴菜单命令 “Bloom++ settings”，任何时候都能打开面板（侧栏找不到时的保底）。ChatGPT.app 里 ⌘⇧B（Windows / Linux 为 Ctrl+Shift+B）同样打开面板。油猴菜单和快捷键不算“必须留一个可见入口”。
 
 面板（挂在 `document.body`，居中卡片，Void++ 设置的外观）：
-- 头部同一行：花形图标 + 标题 **Bloom++** + ⓘ 提示（悬停或键盘聚焦立即显示 “Toggle features. Some need a reload. Click the sliders icon to configure.”）+ 紧挨标题右侧的分区胶囊（Void++ 的 Plugins / Themes / Quick CSS，不和版本号、关闭按钮重叠）+ 右侧版本号 + 关闭。ⓘ 和所有图标按钮的提示用 Bloom 自己的提示气泡（`data-bloom-tip`），不用浏览器 `title`（后者约 1 秒才出现）。
+- 头部同一行：花形图标 + 标题 **Bloom++** + ⓘ 提示（悬停或键盘聚焦立即显示 “Toggle features. Some need a reload. Click the sliders icon to configure.”）+ 与标题之间留出间距的分区胶囊（Void++ 的 Plugins / Themes / Quick CSS，不和版本号、关闭按钮重叠）+ 右侧版本号 + 关闭。ⓘ 和所有图标按钮的提示用 Bloom 自己的提示气泡（`data-bloom-tip`），不用浏览器 `title`（后者约 1 秒才出现）。
 - 三个分区：**Plugins** 是下面描述的插件列表；**Themes** 分“Online themes”（输入以 `.css` 结尾的 https 地址，`GM_xmlhttpRequest` 下载，文件头 `/** @name … */` 作为名字，否则用文件名；每次加载页面重新下载已启用的在线主题，内容变了才更新缓存）和“Local themes”（名字 + CSS，只存本机），每个主题一行：名字、地址或 “Local”、复制地址/编辑、删除（再点一次确认）、开关；**Quick CSS** 是一个开关加 CSS 编辑框，边输入边生效。主题和 Quick CSS 由隐藏的必需核心插件 `Themes`（`Init` 阶段）放进一张样式表，缓存的 CSS 在首屏前就生效。app 构建没有 `GM_xmlhttpRequest`，只能用本地主题和 Quick CSS。
 - 分类标签（下划线式，只在 Plugins 分区、分区胶囊下面）：Favorites / Recent / All / Chat / UI / Privacy / Other。Recent = 最近 7 天有功能性提交的插件（构建时从 git 记录盖章，跳过 chore/docs/ci/style/test/build/brand），按时间倒序；Other = 没有 chat/ui/privacy 标签的插件，没有就不显示该标签。
 - 搜索框（占位 “Search N plugins...”）+ 过滤下拉 All / Enabled / Disabled。
