@@ -31,6 +31,7 @@ export const Sel = {
     assistantReply: "[data-response-annotation-target]",
     oldThread: "[data-app-action-timeline-scroll]",
     turnActions: '.turn-action-controls, [class*="turn-action-controls"]',
+    readAloud: 'button:is([aria-label="Read aloud" i], [aria-label^="Read aloud" i], [aria-label="Stop reading" i], [aria-label^="Stop reading" i], [aria-label="朗读"], [aria-label^="朗读"], [aria-label="停止朗读"], [data-testid*="read-aloud" i])',
     generatedImage: '[class~="group/generated-image-preview"], img[alt="Generated image"]',
     markdown: ".markdown, .prose",
     searchUnit: "[data-chatgpt-search-unit-key]",

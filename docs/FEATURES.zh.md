@@ -100,7 +100,7 @@
 ## 3. 设置入口与设置面板（核心插件 `Settings`，必需，面板里有卡片但不能关，同 Void++）
 
 入口：
-- 侧栏账号区上方一行 **Bloom++**（花形图标 + 文字），点开/关设置面板。**默认隐藏**（对齐 Void++：Void++ 没有侧栏按钮，只在头像菜单里放入口），指针移到账号区时立即显示（`showSidebarEntryOnHover`，默认真；无延迟、无淡入）。展开侧栏里指针在整个账号区（footer，入口也在里面）内就一直显示；rail 和旧壳里指针在入口或它后面的账号行上时显示。离开后 0.2 s 才隐藏（`transition: display 0s 0.2s allow-discrete`），让指针能越过入口和账号行之间的空隙。同一个账号区里有菜单打开时（`button[aria-haspopup=menu][aria-expanded=true]`，比如账号菜单），悬停入口立即隐藏，否则它会从菜单底边下面露出约 6 px；账号菜单里本来就有 Bloom++ 入口。悬停出现的入口不占布局：用 CSS 锚点定位（`position-anchor`）贴在账号按钮上方。锚点是展开侧栏里盖住整行的账号菜单按钮（`[data-bloom-profile]` 旁边的 `button[aria-haspopup=menu]`），rail 和旧壳里是带 `[data-bloom-profile]` 的按钮本身；入口的父元素设 `anchor-scope`，展开侧栏和 rail 各找各的。入口 `bottom: anchor(top)`，与账号行之间没有空隙，横向铺满账号行（`left/right: anchor(...)`），里面的按钮是带面板底色和阴影的小胶囊，盖住列表最下面一点；侧栏和滚动区的高度不变，滚动条不跳。入口 `z-index: 30`：展开侧栏的 footer（`absolute bottom-0 z-20`）自成层叠上下文，顶边有一条 `z-10` 的分隔线（`border-t-hairline`），正好横穿胶囊下部；2.0.33 用 `z-index: 1`，这条线露在胶囊上（2.0.35 修）。2.0.28 里入口在文档流里，出现和消失会让滚动区高度来回变。2.0.31 改用静态位置加 `translateY(-100%)`，实机上入口和账号行之间留了约 11 px 空隙；rail 是 flex 容器，静态位置落在 rail 顶部，入口被移到屏幕外（F-20）。展开侧栏和旧壳里可以按住胶囊左右拖动：位移小于 4 px 算点击，照常打开面板；超过就算拖动，松手（`pointerup`，或指针捕获丢失 `lostpointercapture`）时保存位置，不打开面板。2.0.33–2.0.35 只在 `lostpointercapture` 时保存，脚本派发的指针事件不会释放捕获，位置没存下，刷新后回到右边（F-21，2.0.36 修）。位置存成 0–1 的比例 `entryPosition`（0 靠左，1 靠右，默认 1），按钮用 `left: x·100%` 加 `translateX(-x·100%)` 定位，所以侧栏宽度变了也不会越界。Settings 卡片里有 “Reset position” 按钮，恢复到靠右。rail 里固定居中，不能拖。`showSidebarEntry` 常显时入口仍在文档流里。`showSidebarEntry`（默认假）打开后一直显示；两项都关则不挂入口。改动即时生效。展开侧栏和收起的窄 rail 两处都放；窄 rail 里只显示图标。rail 第一个子元素是铺满整条的 `button[aria-label="Show sidebar"]`（`absolute inset-0`），rail 入口必须 `position:relative` 叠在它上面，否则点击落到展开侧栏按钮上。
+- 侧栏账号区上方一行 **Bloom++**（花形图标 + 文字），点开/关设置面板。**默认隐藏**（对齐 Void++：Void++ 没有侧栏按钮，只在头像菜单里放入口），指针移到账号区时立即显示（`showSidebarEntryOnHover`，默认真；无延迟、无淡入）。展开侧栏里指针在整个账号区（footer，入口也在里面）内就一直显示；rail 和旧壳里指针在入口或它后面的账号行上时显示。离开后 0.2 s 才隐藏（`transition: display 0s 0.2s allow-discrete`），让指针能越过入口和账号行之间的空隙。入口平时 `pointer-events: none`，不挡最后一条会话；一旦账号行或入口自己被悬停，整条入口（不只是胶囊）接住指针，胶囊底下还有 0.35rem 的桥叠进账号行，从账号行斜向移到靠左或靠右的胶囊时入口不会先关掉。同一个账号区里有菜单打开时（`button[aria-haspopup=menu][aria-expanded=true]`，比如账号菜单），悬停入口立即隐藏，否则它会从菜单底边下面露出约 6 px；账号菜单里本来就有 Bloom++ 入口。悬停出现的入口不占布局：用 CSS 锚点定位（`position-anchor`）贴在账号按钮上方。锚点是展开侧栏里盖住整行的账号菜单按钮（`[data-bloom-profile]` 旁边的 `button[aria-haspopup=menu]`），rail 和旧壳里是带 `[data-bloom-profile]` 的按钮本身；入口的父元素设 `anchor-scope`，展开侧栏和 rail 各找各的。入口 `bottom: anchor(top)`，与账号行之间没有空隙，横向铺满账号行（`left/right: anchor(...)`），里面的按钮是带面板底色和阴影的小胶囊，盖住列表最下面一点；侧栏和滚动区的高度不变，滚动条不跳。入口 `z-index: 30`：展开侧栏的 footer（`absolute bottom-0 z-20`）自成层叠上下文，顶边有一条 `z-10` 的分隔线（`border-t-hairline`），正好横穿胶囊下部；2.0.33 用 `z-index: 1`，这条线露在胶囊上（2.0.35 修）。2.0.28 里入口在文档流里，出现和消失会让滚动区高度来回变。2.0.31 改用静态位置加 `translateY(-100%)`，实机上入口和账号行之间留了约 11 px 空隙；rail 是 flex 容器，静态位置落在 rail 顶部，入口被移到屏幕外（F-20）。展开侧栏和旧壳里可以按住胶囊左右拖动：位移小于 4 px 算点击，照常打开面板；超过就算拖动，松手（`pointerup`，或指针捕获丢失 `lostpointercapture`）时保存位置，不打开面板。2.0.33–2.0.35 只在 `lostpointercapture` 时保存，脚本派发的指针事件不会释放捕获，位置没存下，刷新后回到右边（F-21，2.0.36 修）。位置存成 0–1 的比例 `entryPosition`（0 靠左，1 靠右，默认 1），按钮用 `left: x·100%` 加 `translateX(-x·100%)` 定位，所以侧栏宽度变了也不会越界。Settings 卡片里有 “Reset position” 按钮，恢复到靠右。rail 里固定居中，不能拖。`showSidebarEntry` 常显时入口仍在文档流里。`showSidebarEntry`（默认假）打开后一直显示；两项都关则不挂入口。改动即时生效。展开侧栏和收起的窄 rail 两处都放；窄 rail 里只显示图标。rail 第一个子元素是铺满整条的 `button[aria-label="Show sidebar"]`（`absolute inset-0`），rail 入口必须 `position:relative` 叠在它上面，否则点击落到展开侧栏按钮上。
 - 账号下拉菜单（点头像弹出的小菜单）第一项 **Bloom++**，一直都有，是默认的入口。
 - 油猴菜单命令 “Bloom++ settings”，任何时候都能打开面板（侧栏找不到时的保底）。
 
@@ -262,7 +262,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 - 当前刻度的判定与 Void++ 相同。视口是滚动容器顶到输入框顶，阅读线在这段高度的 28%。一条消息算越过阅读线，看的是正文开头（用户消息的 `.whitespace-pre-wrap`，助手消息的 `.markdown` / `.prose`），不是套着 “You said” 和时间戳的外层盒子；外层上沿比正文早大约一百像素，会把高亮提前一条。从新往旧回看时，当前条的正文上沿还在阅读线下方 24px 以内就保持不变。滚到最顶高亮第一条。滚到最底高亮最后一条：新壳的滚动容器是反向的，`scrollTop` 接近 0 才是最底，不能把 0 当成最顶；最后一条的底部落在输入框上方 80px 内时也算最底。
 - 对话区右边缘一列短横线刻度（与 Void++ 相同：贴滚动容器内容区右缘、内缩 0.75rem），每个回合一条（用户 ❓ / 助手 🤖）；当前阅读位置的刻度更长更亮。刻度列的盒子盖住滚动容器顶部到输入框顶部这一段，刻度在这段里垂直居中；装不下时在这段里滚动，不画出输入框。悬停展开的目录卡片也在这段里垂直居中，超出则在卡片内滚动。不跟随内容列宽度，WiderChat 调宽也不会压到正文。与 Void++ 一样只在消息结构（角色、消息 id）变化时重建刻度，流式输出时只原地更新摘要和 streaming 样式。右侧栏或输入框托盘把这段挤窄时，`ResizeObserver` 跟着滚动容器和输入框重定位，刻度仍钉在聊天列上。
-- 鼠标悬停刻度列展开目录卡片：每行 emoji + 回合摘要（最多 80 字）；顶部显示 “N / M”。
+- 鼠标悬停刻度列展开目录卡片：每行 emoji + 回合摘要（最多 80 字）；顶部显示 “N / M”。目录在刻度列左侧，中间有 0.25rem 空隙，斜向移动时指针会离开两者：刻度列到目录之间有一条全高隐形桥，指针朝目录移动时目录保持打开（安全三角），离开两者或不再朝目录移动后关闭（2.0.85）。
 - 点击刻度或目录行跳转到该回合（近的平滑滚动，远的瞬间），跳转后给目标加一个短暂边框高亮（`jumpEffect` = border / none）。
 - 焦点不在输入框时 `↑` / `↓` / `Home` / `End` 在回合间跳。跳转（键盘、点刻度或目录行）后当前标记直接落在目标上，`↑` / `↓` 从这个目标往前后走，而不是从阅读线位置算，否则短消息会被跳过（Home 后按 ↓ 曾直接到第 4 条）；用户自己滚动（滚轮、触摸、按住滚动条、翻页键）后标记重新跟随阅读位置。
 - 只有看得见的弹窗（`[role=dialog]` 有布局盒、且不在 `[inert]` 里）才让这几个键交给页面。会话页常驻一个 quick-chat 的 `section[role=dialog]`（带 `data-state="open"`、`aria-modal="false"`，父元素 `hidden inert`，0×0），2.0.71 把它也当成打开的弹窗，键盘跳转在会话页完全失效（2.0.72 修）。
@@ -332,11 +332,13 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 默认开｜`HostReady`｜chat, ui｜对齐 Void++ 的 MessageStars。不往左侧栏加分组。
 
-- 星在每条消息底部的操作条（`.turn-action-controls`）末尾，和复制按钮同一行。点它收藏或取消**这一条消息**，不收藏整个会话，也不滚动。空心；点亮后实心橙色。临时聊天（`?temporary-chat=true`）和还没拿到真实 id 的页面没有这颗星。
+- 星在每条消息底部的操作条（`.turn-action-controls`）里，和复制按钮同一行。点它收藏或取消**这一条消息**，不收藏整个会话，也不滚动。空心；点亮后实心橙色。临时聊天（`?temporary-chat=true`）和还没拿到真实 id 的页面没有这颗星。
+- `replaceReadAloud`（默认真）：回复操作条里有朗读按钮时，星占它的位置并藏起朗读。关掉则星回到操作条末尾，朗读照常显示。用户消息没有朗读时，星仍在末尾。
 - 新壳里用户消息的操作条在用户 search unit 里面，助手回复的操作条在回合里、助手 search unit 外面。操作条不在任何一条消息里时，归给回合里排在它前面的最后一条消息。2.0.71 只认包在消息里的操作条，助手回复没有星（2.0.72 修）。
-- 右上角三个点（`More`）的左边另有一颗星，嵌在那颗按钮所在的工具条里，不浮动盖住正文。它**不是**收藏按钮：点一下，或指针停在上面，打开当前会话已加星消息的列表。列表挂在按钮下方，不进左侧栏。点一行跳到那条消息；行尾的星取消收藏。Esc 或点到别处关闭。没有加星消息时列表写 “No starred messages in this chat”。
+- 右上角三个点（`More`）的左边另有一颗星，嵌在那颗按钮所在的工具条里，不浮动盖住正文。它**不是**收藏按钮：点一下，或指针停在上面，打开当前会话已加星消息的列表。列表挂在按钮下方，不进左侧栏。按钮和列表之间有 6px 空隙：列表朝按钮伸出一条隐形桥，指针朝列表移动时列表保持打开，离开两者后关闭（2.0.85）。点一行跳到那条消息；行尾的星取消收藏。Esc 或点到别处关闭。没有加星消息时列表写 “No starred messages in this chat”。
 - 大纲上对应的刻度和目录行标成橙色。
 - 最多 80 条，新加的排最前。只显示当前会话的星。关掉插件就去掉星星和列表。隐藏数据：`messages: { conversationId, messageId, role, snippet, starredAt }[]`。旧的 `chats` 不再使用，也不会再画进侧栏。
+- 设置：`replaceReadAloud`（默认真）。
 
 ### 4.21 BetterQuotes — 引用跳转，切会话保留引用卡
 
@@ -384,7 +386,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | WiderChat | `width` | — |
 | ComposerOpacity | `opacity` `blur` | — |
 | Continue | `prompt` | — |
-| StarChats | — | `messages` |
+| StarChats | `replaceReadAloud`（默认真） | `messages` |
 | BetterQuotes | `jumpToPassage` `persistAcrossChats` | — |
 | UserQuotes | `italic` `quotes` | — |
 | TemporaryChat | `openNewAsTemporary` | — |

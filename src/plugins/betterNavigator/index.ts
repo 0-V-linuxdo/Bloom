@@ -12,6 +12,7 @@ import { currentConversationId, onRouteChange } from "@host/route";
 import { chainSummary, hasThreadShell, isReversedScroller, listTurns, pageConversationKey, threadScroller, type Turn, turnSummary } from "@host/thread";
 import { classes, classNameFactory } from "@utils/css";
 import { frameScheduler, h, hostMutations, visible, watchBody } from "@utils/dom";
+import { type HoverIntent, hoverIntent } from "@utils/hoverFlyout";
 import { normalizeText, truncate } from "@utils/misc";
 import definePlugin, { OptionType } from "@utils/types";
 
@@ -63,6 +64,7 @@ let scrollTarget: HTMLElement | null = null;
 let watchedForm: HTMLElement | null = null;
 let resizeObserver: ResizeObserver | undefined;
 let controller: AbortController | undefined;
+let hover: HoverIntent | undefined;
 let heldChat = "";
 let held: Held[] = [];
 let branch: { parent: string; user: string | null; } | null = null;
@@ -454,6 +456,8 @@ function render() {
     const scroller = threadScroller();
     entries = collect();
     if (!entries.length || !scroller) {
+        hover?.dispose();
+        hover = undefined;
         root?.remove();
         root = null;
         signature = "";
@@ -477,9 +481,25 @@ function render() {
         resizeObserver.observe(form);
         watchedForm = form;
     }
-    root ??= h("div", { class: `bloom-root ${cl("root")}`, attrs: { "data-bloom": "navigator" } },
+    if (!root) {
+        root = h("div", {
+            class: `bloom-root ${cl("root")}`,
+            attrs: { "data-bloom": "navigator" },
+            on: {
+                pointerenter: () => hover?.enter(),
+                pointerleave: event => hover?.leave(event),
+            },
+        },
         h("div", { class: cl("rail") }),
+        h("div", { class: cl("bridge"), attrs: { "aria-hidden": "true" } }),
         h("div", { class: cl("toc") }, h("div", { class: cl("toc-head") }), h("div", { class: cl("toc-list") })));
+        hover = hoverIntent({
+            over: node => node instanceof Node && !!root?.contains(node),
+            trigger: () => root?.querySelector(`.${cl("rail")}`),
+            panel: () => root?.querySelector(`.${cl("toc")}`),
+            setHeld: held => root?.classList.toggle(cl("open"), held),
+        });
+    }
     if (!root.isConnected) document.body.append(root);
     pin(scroller);
     const next = JSON.stringify(entries.map(entry => [entry.role, entry.ids]));
@@ -588,6 +608,8 @@ export default definePlugin({
         watchedForm = null;
         removeEventListener("keydown", onKeydown, true);
         removeEventListener("resize", update);
+        hover?.dispose();
+        hover = undefined;
         root?.remove();
         root = null;
         signature = "";

@@ -295,4 +295,22 @@ describe("BetterNavigator open turn", () => {
             checkRoute();
         }
     });
+
+    test("keeps the outline open while the pointer crosses toward the list", async () => {
+        navigator.start?.();
+        document.body.innerHTML = OPEN_USER;
+        await wait(100);
+        const host = document.querySelector<HTMLElement>("[data-bloom=navigator]")!;
+        const rail = host.querySelector<HTMLElement>(".bloom-nav-rail")!;
+        const toc = host.querySelector<HTMLElement>(".bloom-nav-toc")!;
+        expect(host.querySelector(".bloom-nav-bridge")).not.toBeNull();
+        rail.getBoundingClientRect = () => new DOMRect(400, 80, 32, 120);
+        toc.getBoundingClientRect = () => new DOMRect(80, 40, 288, 200);
+        host.dispatchEvent(new PointerEvent("pointerleave", { clientX: 400, clientY: 120, bubbles: true }));
+        expect(host.classList.contains("bloom-nav-open")).toBe(true);
+        document.dispatchEvent(new PointerEvent("pointermove", { clientX: 380, clientY: 130, bubbles: true }));
+        expect(host.classList.contains("bloom-nav-open")).toBe(true);
+        document.dispatchEvent(new PointerEvent("pointermove", { clientX: 520, clientY: 120, bubbles: true }));
+        expect(host.classList.contains("bloom-nav-open")).toBe(false);
+    });
 });

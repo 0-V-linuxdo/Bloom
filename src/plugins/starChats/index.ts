@@ -10,8 +10,9 @@ import { isHydrated } from "@host/ready";
 import { currentConversationId, isTemporaryChat } from "@host/route";
 import { Sel } from "@host/selectors";
 import { listTurns, type Turn, turnSummary } from "@host/thread";
-import { classNameFactory } from "@utils/css";
+import { classNameFactory, hideRule } from "@utils/css";
 import { h, hostMutations, watchBody } from "@utils/dom";
+import { type HoverIntent, hoverIntent } from "@utils/hoverFlyout";
 import { isRecord, normalizeText, truncate } from "@utils/misc";
 import definePlugin, { OptionType } from "@utils/types";
 
@@ -22,7 +23,6 @@ const MAX = 80;
 const SNIPPET = 60;
 const FLASH_MS = 1200;
 const HOVER_OPEN_MS = 120;
-const HOVER_CLOSE_MS = 180;
 
 interface StarredMessage {
     conversationId: string;
@@ -33,8 +33,15 @@ interface StarredMessage {
 }
 
 const settings = definePluginSettings({
+    replaceReadAloud: {
+        type: OptionType.BOOLEAN,
+        description: "Put the star where the reply's Read aloud button is, and hide that button.",
+        default: true,
+    },
     messages: { type: OptionType.CUSTOM, default: [] as StarredMessage[] },
 });
+
+const READ_HIDE = `:is(${Sel.turnActions}) ${Sel.readAloud}`;
 
 let unwatch: (() => void) | undefined;
 let painting = false;
@@ -45,6 +52,7 @@ let panel: HTMLElement | null = null;
 let panelKey = "";
 let toggleBtn: HTMLButtonElement | null = null;
 let outside: (() => void) | undefined;
+let intent: HoverIntent | undefined;
 
 function messages(): StarredMessage[] {
     const value: unknown = settings.store.messages;
@@ -100,6 +108,16 @@ function actionBars() {
     const bars = [...document.querySelectorAll<HTMLElement>(Sel.turnActions)].filter(bar =>
         !bar.closest(`[data-bloom], [role="dialog"], [inert], pre, ${Sel.sidebars}`));
     return bars.filter(bar => !bars.some(other => other !== bar && other.contains(bar)));
+}
+
+function placeStar(button: HTMLButtonElement, bar: HTMLElement) {
+    const read = settings.store.replaceReadAloud ? bar.querySelector<HTMLElement>(Sel.readAloud) : null;
+    if (read && !read.closest("[data-bloom]")) {
+        if (button.nextElementSibling !== read) read.before(button);
+        return;
+    }
+    const host = actionCluster(bar);
+    if (button.parentElement !== host || host.lastElementChild !== button) host.append(button);
 }
 
 function actionCluster(bar: HTMLElement) {
@@ -158,6 +176,7 @@ function closeList() {
     listOpen = false;
     hoverOpen = false;
     clearHover();
+    intent?.enter();
     panel?.remove();
     panel = null;
     panelKey = "";
@@ -209,8 +228,7 @@ function paintActions() {
             button.dataset.id = messageId;
         }
         setPressed(button, hasStar(id, messageId));
-        const host = actionCluster(bar);
-        if (button.parentElement !== host) host.append(button);
+        placeStar(button, bar);
         kept.add(button);
     }
     for (const button of existing) if (!kept.has(button)) button.remove();
@@ -224,6 +242,7 @@ function placePanel() {
     let top = anchor.bottom + 6;
     if (top + height > window.innerHeight - 8) top = Math.max(8, anchor.top - height - 6);
     const left = Math.max(8, Math.min(anchor.right - width, window.innerWidth - width - 8));
+    panel.dataset.place = top >= anchor.bottom ? "below" : "above";
     panel.style.left = `${Math.round(left)}px`;
     panel.style.top = `${Math.round(top)}px`;
 }
@@ -262,18 +281,18 @@ function paintPanel() {
             on: {
                 pointerenter: () => {
                     clearHover();
+                    intent?.enter();
                     hoverOpen = true;
                 },
                 pointerleave: event => {
                     if (overChrome(event.relatedTarget) || listOpen) return;
-                    clearHover();
-                    hoverTimer = window.setTimeout(() => {
-                        hoverOpen = false;
-                        render();
-                    }, HOVER_CLOSE_MS);
+                    intent?.leave(event);
                 },
             },
-        }, h("div", { class: cl("-head"), text: "Starred" }), ...(rows.length ? rows : [h("div", { class: cl("-empty"), text: "No starred messages in this chat" })]));
+        },
+        h("div", { class: cl("-bridge"), attrs: { "aria-hidden": "true" } }),
+        h("div", { class: cl("-head"), text: "Starred" }),
+        h("div", { class: cl("-body") }, ...(rows.length ? rows : [h("div", { class: cl("-empty"), text: "No starred messages in this chat" })])));
         document.body.append(panel);
         panelKey = key;
     }
@@ -307,6 +326,7 @@ function paintHeader() {
                 pointerdown: event => event.stopPropagation(),
                 pointerenter: () => {
                     clearHover();
+                    intent?.enter();
                     hoverTimer = window.setTimeout(() => {
                         hoverOpen = true;
                         render();
@@ -315,10 +335,8 @@ function paintHeader() {
                 pointerleave: event => {
                     if (overChrome(event.relatedTarget)) return;
                     clearHover();
-                    hoverTimer = window.setTimeout(() => {
-                        hoverOpen = false;
-                        if (!listOpen) render();
-                    }, HOVER_CLOSE_MS);
+                    if (!listVisible()) return;
+                    intent?.leave(event);
                 },
                 click: event => {
                     event.preventDefault();
@@ -378,11 +396,26 @@ export default definePlugin({
     icon: "star",
     enabledByDefault: true,
     settings,
-    styles,
+    styles: () => `${styles}${settings.store.replaceReadAloud ? hideRule([READ_HIDE]) : ""}`,
     onSettingsChange(key) {
-        if (key === "messages") render();
+        if (key === "messages" || key === "replaceReadAloud") render();
     },
     start() {
+        intent = hoverIntent({
+            over: overChrome,
+            trigger: () => toggleBtn,
+            panel: () => panel,
+            setHeld(held) {
+                if (held) {
+                    hoverOpen = true;
+                    render();
+                    return;
+                }
+                if (listOpen) return;
+                hoverOpen = false;
+                render();
+            },
+        });
         unwatch = watchBody(mutations => hostMutations(mutations) && render());
         const onPointerDown = (event: PointerEvent) => {
             if (overChrome(event.target)) return;
@@ -408,6 +441,8 @@ export default definePlugin({
         outside?.();
         outside = undefined;
         clearHover();
+        intent?.dispose();
+        intent = undefined;
         clear();
     },
 });

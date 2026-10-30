@@ -78,6 +78,10 @@
     pointer-events: none;
 }
 
+.bloom-entry-hover:is(:hover, :has(~ :hover)) {
+    pointer-events: auto;
+}
+
 .bloom-entry-rail.bloom-entry-hover {
     --bloom-entry-x: 0.5;
 }
@@ -92,6 +96,14 @@
     transform: translateX(calc(var(--bloom-entry-x) * -100%));
     pointer-events: auto;
     touch-action: none;
+}
+
+.bloom-entry-hover .bloom-entry-button::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 100%;
+    height: 0.35rem;
 }
 
 .bloom-entry-hover .bloom-entry-button:hover {

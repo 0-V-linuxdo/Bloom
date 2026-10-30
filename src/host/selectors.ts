@@ -24,6 +24,7 @@ export const Sel = {
     authorRole: "[data-message-author-role]",
     oldThread: "#thread",
     turnActions: '.turn-action-controls, [data-testid="copy-turn-action-button"], [data-testid="good-response-turn-action-button"]',
+    readAloud: 'button:is([aria-label="Read aloud" i], [aria-label^="Read aloud" i], [aria-label="Stop reading" i], [aria-label^="Stop reading" i], [aria-label="朗读"], [aria-label^="朗读"], [aria-label="停止朗读"], [data-testid*="read-aloud" i])',
     generatedImage: '[class~="group/generated-image-preview"], img[alt="Generated image"]',
     markdown: ".markdown, .prose",
     searchUnit: "[data-chatgpt-search-unit-key]",

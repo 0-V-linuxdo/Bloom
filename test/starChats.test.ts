@@ -65,6 +65,7 @@ afterEach(() => {
     writeSetting("StarChats", "messages", []);
     writeSetting("StarChats", "chats");
     writeSetting("StarChats", "enabled");
+    writeSetting("StarChats", "replaceReadAloud");
     document.body.replaceChildren();
     history.pushState(null, "", "/");
 });
@@ -172,5 +173,52 @@ describe("StarChats", () => {
             .filter(star => star.closest("[data-response-annotation-target]"));
         expect(assistant.map(star => star.parentElement?.id)).toEqual(["cluster-a1", "cluster-a2"]);
         expect(assistant.map(star => star.closest("[data-response-annotation-target]")?.getAttribute("data-response-annotation-target"))).toEqual(["a1", "a2"]);
+    });
+
+    test("replaces the reply Read aloud button by default", () => {
+        history.pushState(null, "", EVEREST);
+        document.body.innerHTML = `<main><div data-turn-key="t1">
+            <div data-response-annotation-target="a1">
+                <div data-markdown-text-style="assistant-message">About 8,849 metres.</div>
+                <div class="turn-action-controls" id="reply-bar">
+                    <div id="cluster">
+                        <button type="button" aria-label="Copy"></button>
+                        <button type="button" aria-label="Read aloud" id="read"></button>
+                        <button type="button" aria-label="Rate response"></button>
+                    </div>
+                </div>
+            </div>
+        </div></main>`;
+        startPhase(StartAt.HostReady);
+        const star = document.querySelector<HTMLButtonElement>('[data-place="action"]');
+        const read = document.getElementById("read");
+        expect(star?.parentElement?.id).toBe("cluster");
+        expect(star?.nextElementSibling).toBe(read);
+        expect(StarChats.settings?.store.replaceReadAloud).toBe(true);
+        writeSetting("StarChats", "replaceReadAloud", false);
+        expect(document.querySelector('[data-place="action"]')?.nextElementSibling?.id).not.toBe("read");
+        expect(document.getElementById("cluster")?.lastElementChild?.getAttribute("data-place")).toBe("action");
+    });
+
+    test("keeps the header list open while the pointer crosses toward it", async () => {
+        history.pushState(null, "", EVEREST);
+        document.body.innerHTML = PAGE;
+        layOut();
+        startPhase(StartAt.HostReady);
+        const button = headerStar();
+        button.getBoundingClientRect = () => ({
+            x: 940, y: 8, width: 36, height: 36, top: 8, left: 940, right: 976, bottom: 44, toJSON() { return {}; },
+        }) as DOMRect;
+        button.dispatchEvent(new PointerEvent("pointerenter", { clientX: 958, clientY: 26, bubbles: true }));
+        await new Promise(resolve => setTimeout(resolve, 150));
+        const flyout = list();
+        expect(flyout).not.toBeNull();
+        flyout!.getBoundingClientRect = () => new DOMRect(700, 50, 288, 160);
+        button.dispatchEvent(new PointerEvent("pointerleave", { clientX: 958, clientY: 44, relatedTarget: document.body, bubbles: true }));
+        expect(list()).not.toBeNull();
+        document.dispatchEvent(new PointerEvent("pointermove", { clientX: 900, clientY: 48, bubbles: true }));
+        expect(list()).not.toBeNull();
+        document.dispatchEvent(new PointerEvent("pointermove", { clientX: 400, clientY: 26, bubbles: true }));
+        expect(list()).toBeNull();
     });
 });

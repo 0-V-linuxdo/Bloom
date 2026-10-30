@@ -64,13 +64,34 @@ button.bloom-star-chats-jump:hover {
     flex-direction: column;
     width: min(18rem, 70vw);
     max-height: min(24rem, 70vh);
-    overflow: auto;
     padding: 0.375rem;
     border: 1px solid var(--bloom-border);
     border-radius: 0.75rem;
     background: var(--bloom-surface);
     color: var(--bloom-fg);
     box-shadow: var(--bloom-shadow);
+}
+
+.bloom-star-chats-bridge {
+    position: absolute;
+    inset-inline: 0;
+    height: 0.5rem;
+}
+
+.bloom-star-chats-panel[data-place="below"] .bloom-star-chats-bridge {
+    bottom: 100%;
+}
+
+.bloom-star-chats-panel[data-place="above"] .bloom-star-chats-bridge {
+    top: 100%;
+}
+
+.bloom-star-chats-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
 }
 
 .bloom-star-chats-head,
