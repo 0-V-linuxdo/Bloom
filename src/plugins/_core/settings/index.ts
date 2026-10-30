@@ -16,6 +16,7 @@ import { h, watchBody } from "@utils/dom";
 import { clamp } from "@utils/misc";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 
+import { ENTRY_DEFAULTS, ENTRY_KEYS, type EntryKey, entryOn, isEntryKey } from "./entries";
 import { closePanel, togglePanel } from "./panel";
 import styles from "./styles.css";
 
@@ -27,13 +28,18 @@ const RIGHT = 1;
 const settings = definePluginSettings({
     showSidebarEntry: {
         type: OptionType.BOOLEAN,
-        description: "Always show the Bloom++ button above the account row in the sidebar. The account menu and the userscript menu always open the panel.",
-        default: false,
+        description: "Always show the Bloom++ button above the account row in the sidebar.",
+        default: ENTRY_DEFAULTS.showSidebarEntry,
     },
     showSidebarEntryOnHover: {
         type: OptionType.BOOLEAN,
         description: "Show the Bloom++ button while the pointer is over the account row in the sidebar.",
-        default: true,
+        default: ENTRY_DEFAULTS.showSidebarEntryOnHover,
+    },
+    showAccountMenuEntry: {
+        type: OptionType.BOOLEAN,
+        description: "Show Bloom++ at the top of the account menu.",
+        default: ENTRY_DEFAULTS.showAccountMenuEntry,
     },
     resetEntryPosition: {
         type: OptionType.COMPONENT,
@@ -126,8 +132,12 @@ function dropChrome() {
     entries.clear();
 }
 
+function dropMenuEntries() {
+    for (const node of document.querySelectorAll('[data-bloom="menu-entry"]')) node.remove();
+}
+
 function sync() {
-    const { showSidebarEntry, showSidebarEntryOnHover } = settings.store;
+    const { showSidebarEntry, showSidebarEntryOnHover, showAccountMenuEntry } = settings.store;
     const mounts = showSidebarEntry || showSidebarEntryOnHover ? sidebarMounts() : [];
     const keep = new Set(mounts.map(mount => mount.anchor));
     for (const [anchor, node] of entries) {
@@ -146,8 +156,17 @@ function sync() {
         mount.insert(node);
     }
     for (const node of entries.values()) node.classList.toggle(cl("hover"), !showSidebarEntry);
+    if (!showAccountMenuEntry) {
+        dropMenuEntries();
+        return;
+    }
     const menu = accountMenu();
     if (menu && !menu.querySelector('[data-bloom="menu-entry"]')) menuEntry(menu);
+}
+
+function onSettingsChange(key?: string) {
+    if (!ENTRY_KEYS.some(entryOn)) settings.store[isEntryKey(key ?? "") ? key as EntryKey : "showSidebarEntry"] = true;
+    sync();
 }
 
 export default definePlugin({
@@ -179,5 +198,5 @@ export default definePlugin({
         dropChrome();
         closePanel();
     },
-    onSettingsChange: sync,
+    onSettingsChange,
 });

@@ -275,8 +275,8 @@ async function newShellSuite(browser) {
     check("Escape closes the panel", await page.locator('[data-bloom="settings"]').count() === 0);
 
     await page.locator(".profile-overlay").click();
-    await page.waitForSelector('[data-bloom="menu-entry"]', { timeout: 2000 }).catch(() => {});
-    check("account menu starts with the Bloom++ entry", await page.evaluate(() => document.getElementById("profile-menu")?.firstElementChild?.getAttribute("data-bloom") === "menu-entry"));
+    await page.waitForSelector("#profile-menu", { timeout: 2000 }).catch(() => {});
+    check("account menu has no Bloom++ entry by default", await page.evaluate(() => !document.getElementById("profile-menu")?.querySelector('[data-bloom="menu-entry"]')));
     await page.locator(".profile-overlay").click();
 
     await sendPrompt(page, "First question");
@@ -667,7 +667,10 @@ async function navigatorHistorySuite(browser) {
 }
 
 async function defaultEntrySuite(browser) {
-    const { context, page } = await setup(browser, { entry: false });
+    const { context, page } = await setup(browser, {
+        entry: false,
+        settings: { plugins: { Settings: { showSidebarEntry: false, showSidebarEntryOnHover: true, showAccountMenuEntry: true } } },
+    });
     await page.goto("https://chatgpt.com/");
     await page.waitForFunction(() => window.__menu.length > 0, null, { timeout: 10_000 });
     await page.waitForTimeout(300);
@@ -776,6 +779,9 @@ async function defaultEntrySuite(browser) {
     await always.click();
     await onHover.click();
     check("turning both entry settings off removes the sidebar entry", await page.locator('[data-bloom="entry"]').count() === 0);
+    const account = page.locator('.bloom-settings-popup [role="switch"]').nth(2);
+    await account.click();
+    check("the last remaining entry stays on", await account.getAttribute("aria-checked") === "true");
     await context.close();
 }
 

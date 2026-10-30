@@ -15,6 +15,8 @@ import { Logger } from "@utils/Logger";
 import { pluralize } from "@utils/misc";
 import { OptionType, type Plugin, type PluginTag, type SettingDef, type SettingsDefinition } from "@utils/types";
 
+import { keepEntry } from "./entries";
+
 const logger = new Logger("SettingsPanel");
 const cl = classNameFactory("bloom-settings-");
 
@@ -96,7 +98,10 @@ const hasVisibleSettings = (plugin: Plugin) => Object.values(definition(plugin))
 
 function settingControl(plugin: Plugin, key: string, def: SettingDef) {
     const value = readSetting(plugin.name, key) ?? defaultValue(def);
-    const write = (next: unknown) => writeSetting(plugin.name, key, next);
+    const write = (next: unknown) => {
+        if (plugin.name === "Settings" && !keepEntry(key, next)) return false;
+        writeSetting(plugin.name, key, next);
+    };
     switch (def.type) {
         case OptionType.BOOLEAN: return switchControl(value as boolean, write, def.description ?? key);
         case OptionType.SLIDER: return slider(value as number, def.min, def.max, def.step ?? 1, def.unit ?? "", write);

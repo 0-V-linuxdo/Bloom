@@ -11,7 +11,7 @@ import type { SelectOption } from "@utils/types";
 import { icon, type IconName } from "./icons";
 import { TIP } from "./tooltip";
 
-export function switchControl(checked: boolean, onChange: (checked: boolean) => void, label: string, locked = false) {
+export function switchControl(checked: boolean, onChange: (checked: boolean) => boolean | void, label: string, locked = false) {
     const el = h("button", {
         class: "bloom-switch",
         attrs: { "type": "button", "role": "switch", "aria-checked": String(checked), "aria-label": label, "data-bloom": "control", ...(locked ? { "aria-disabled": "true" } : {}) },
@@ -21,7 +21,7 @@ export function switchControl(checked: boolean, onChange: (checked: boolean) => 
         event.stopPropagation();
         const next = el.getAttribute("aria-checked") !== "true";
         el.setAttribute("aria-checked", String(next));
-        onChange(next);
+        if (onChange(next) === false) el.setAttribute("aria-checked", String(!next));
     });
     return el;
 }

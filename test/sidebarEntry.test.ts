@@ -7,17 +7,22 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
 import { registerPlugins } from "../src/api/PluginManager";
-import { writeSetting } from "../src/api/Settings";
+import { readSetting, writeSetting } from "../src/api/Settings";
 import Settings from "../src/plugins/_core/settings";
-import { mount, NEW_SHELL } from "./fixtures";
+import { LIVE_SHELL, mount, NEW_SHELL } from "./fixtures";
 
 registerPlugins([Settings]);
 
 const entries = () => [...document.querySelectorAll<HTMLElement>('[data-bloom="entry"]')];
+const menuEntries = () => [...document.querySelectorAll('[data-bloom="menu-entry"]')];
 
-function run(always: boolean, hover: boolean) {
-    writeSetting("Settings", "showSidebarEntry", always);
-    writeSetting("Settings", "showSidebarEntryOnHover", hover);
+function run(always: boolean, hover: boolean, menu = false) {
+    if (always) writeSetting("Settings", "showSidebarEntry", true);
+    if (hover) writeSetting("Settings", "showSidebarEntryOnHover", true);
+    if (menu) writeSetting("Settings", "showAccountMenuEntry", true);
+    if (!always) writeSetting("Settings", "showSidebarEntry", false);
+    if (!hover) writeSetting("Settings", "showSidebarEntryOnHover", false);
+    if (!menu) writeSetting("Settings", "showAccountMenuEntry", false);
     Settings.start?.();
 }
 
@@ -25,15 +30,43 @@ afterEach(() => {
     Settings.stop?.();
     writeSetting("Settings", "showSidebarEntry");
     writeSetting("Settings", "showSidebarEntryOnHover");
+    writeSetting("Settings", "showAccountMenuEntry");
     document.body.replaceChildren();
     Object.assign(globalThis, { BLOOM_APP: false });
 });
 
 describe("sidebar settings entry", () => {
+    test("defaults keep the always-on overlay and omit the account-menu row", () => {
+        mount(LIVE_SHELL);
+        Settings.start?.();
+        expect(entries().length).toBeGreaterThan(0);
+        expect(entries().every(node => !node.classList.contains("bloom-entry-hover"))).toBe(true);
+        expect(menuEntries()).toHaveLength(0);
+    });
+
+    test("showAccountMenuEntry inserts and removes the account-menu row", () => {
+        mount(LIVE_SHELL);
+        run(true, false, true);
+        expect(menuEntries()).toHaveLength(1);
+        writeSetting("Settings", "showAccountMenuEntry", false);
+        Settings.onSettingsChange?.("showAccountMenuEntry");
+        expect(menuEntries()).toHaveLength(0);
+        expect(entries().length).toBeGreaterThan(0);
+    });
+
+    test("the last remaining entry stays on", () => {
+        mount(NEW_SHELL);
+        run(true, false, false);
+        writeSetting("Settings", "showSidebarEntry", false);
+        Settings.onSettingsChange?.("showSidebarEntry");
+        expect(readSetting("Settings", "showSidebarEntry")).toBe(true);
+        expect(entries().length).toBeGreaterThan(0);
+    });
+
     test("both switches off unmount the overlay even on the app host", () => {
         Object.assign(globalThis, { BLOOM_APP: true });
         mount(NEW_SHELL);
-        run(false, false);
+        run(false, false, true);
         expect(entries()).toHaveLength(0);
     });
 
@@ -60,6 +93,7 @@ describe("sidebar settings entry", () => {
         mount(NEW_SHELL);
         run(true, false);
         expect(entries().length).toBeGreaterThan(0);
+        writeSetting("Settings", "showAccountMenuEntry", true);
         writeSetting("Settings", "showSidebarEntry", false);
         writeSetting("Settings", "showSidebarEntryOnHover", false);
         Settings.onSettingsChange?.();

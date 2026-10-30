@@ -7,6 +7,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
 import { registerPlugins } from "../src/api/PluginManager";
+import { readSetting } from "../src/api/Settings";
 import Settings from "../src/plugins/_core/settings";
 import { closePanel, openPanel } from "../src/plugins/_core/settings/panel";
 import NoDictation from "../src/plugins/noDictation";
@@ -39,6 +40,16 @@ describe("settings cards", () => {
         expect(rule!.compareDocumentPosition(dictation!) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
         settings?.querySelector<HTMLButtonElement>(".bloom-switch")?.click();
         expect(settings?.querySelector(".bloom-switch")?.getAttribute("aria-checked")).toBe("true");
+    });
+
+    test("the last remaining Settings entry switch stays on", () => {
+        openPanel();
+        cardNamed("Settings")?.querySelector<HTMLButtonElement>("[aria-label='Settings']")?.click();
+        const switches = [...document.querySelectorAll<HTMLButtonElement>('.bloom-settings-popup [role="switch"]')];
+        expect(switches.map(el => el.getAttribute("aria-checked"))).toEqual(["true", "false", "false"]);
+        switches[0]?.click();
+        expect(switches[0]?.getAttribute("aria-checked")).toBe("true");
+        expect(readSetting("Settings", "showSidebarEntry") ?? true).toBe(true);
     });
 
     test("NoDictation hide rules do not cover Bloom's own switches", () => {
