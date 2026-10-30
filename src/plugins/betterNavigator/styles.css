@@ -6,7 +6,7 @@
 
 .bloom-nav-root {
     position: fixed;
-    z-index: 30;
+    z-index: var(--bloom-z-chrome);
     display: flex;
     align-items: center;
     justify-content: flex-end;

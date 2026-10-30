@@ -10,6 +10,7 @@ import { caretLine, composerInput, isComposerInput, readDraft, writeDraft } from
 import { Sel } from "@host/selectors";
 import { classNameFactory } from "@utils/css";
 import { h } from "@utils/dom";
+import { mountOverlay } from "@utils/overlay";
 import definePlugin, { OptionType } from "@utils/types";
 
 import { historyManager } from "./manager";
@@ -153,7 +154,7 @@ function openHistory() {
         event.stopPropagation();
         closeHistory();
     }, { capture: true, signal: dialogController.signal });
-    document.body.append(root);
+    mountOverlay(root);
     dialog = { root, release: historyManager(body, useEntry), controller: dialogController };
     body.querySelector("input")?.focus();
 }

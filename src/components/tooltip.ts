@@ -6,6 +6,7 @@
 
 import { h } from "@utils/dom";
 import { clamp } from "@utils/misc";
+import { mountOverlay } from "@utils/overlay";
 
 export const TIP = "data-bloom-tip";
 
@@ -24,7 +25,7 @@ function show(target: Element | null) {
     }
     bubble ??= h("div", { class: "bloom-root bloom-tooltip", attrs: { "role": "tooltip", "data-bloom": "tooltip" } });
     bubble.textContent = target.getAttribute(TIP);
-    document.body.append(bubble);
+    mountOverlay(bubble);
     const anchor = target.getBoundingClientRect();
     const { width, height } = bubble.getBoundingClientRect();
     const below = anchor.bottom + GAP_PX + height <= innerHeight - EDGE_PX;

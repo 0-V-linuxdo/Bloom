@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-.bloom-recent-backdrop {
+.bloom-root.bloom-recent-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 2147482500;
+    z-index: var(--bloom-z-overlay);
     display: flex;
     align-items: center;
     justify-content: center;

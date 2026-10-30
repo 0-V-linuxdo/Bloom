@@ -9,6 +9,7 @@ import { isHydrated } from "@host/ready";
 import { classNameFactory, registerStyle } from "@utils/css";
 import { h } from "@utils/dom";
 import { uniqueId } from "@utils/misc";
+import { mountOverlay } from "@utils/overlay";
 
 import styles from "./Notices.css";
 
@@ -58,7 +59,7 @@ function ensureStack() {
     registerStyle("notices", styles);
     if (stack?.isConnected) return stack;
     stack = h("div", { class: `${cl("stack")} bloom-root`, attrs: { "data-bloom": "notices", "role": "region", "aria-label": "Bloom++ notices", "aria-live": "polite" } });
-    document.body.append(stack);
+    mountOverlay(stack);
     return stack;
 }
 

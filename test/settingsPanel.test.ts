@@ -89,4 +89,14 @@ describe("settings cards", () => {
         expect(getComputedStyle(composer).display).toBe("none");
         expect(getComputedStyle(host).display).toBe("none");
     });
+
+    test("the settings backdrop is a top-layer popover so host splitters cannot paint through it", () => {
+        openPanel();
+        const backdrop = document.querySelector<HTMLElement>("[data-bloom=settings]");
+        expect(backdrop).toBeTruthy();
+        expect(backdrop!.parentNode).toBe(document.body);
+        if (typeof backdrop!.showPopover !== "function") return;
+        expect(backdrop!.getAttribute("popover")).toBe("manual");
+        expect(backdrop!.matches(":popover-open")).toBe(true);
+    });
 });

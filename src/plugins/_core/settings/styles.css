@@ -72,7 +72,7 @@
     position: absolute;
     position-anchor: --bloom-account;
     inset: auto anchor(right) anchor(top) anchor(left);
-    z-index: 30;
+    z-index: var(--bloom-z-chrome);
     display: block;
     padding: 0;
     pointer-events: none;
@@ -136,7 +136,7 @@
 
 .bloom-entry-flyout {
     position: fixed;
-    z-index: 2147483000;
+    z-index: var(--bloom-z-overlay);
     display: flex;
     flex-direction: column;
     width: max-content;
@@ -199,15 +199,16 @@
     min-width: 0;
 }
 
-.bloom-settings-backdrop {
+.bloom-root.bloom-settings-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 2147483000;
+    z-index: var(--bloom-z-overlay);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 1rem;
     background: #0006;
+    pointer-events: auto;
     contain: content;
     animation: bloom-fade-in 0.15s ease-out;
 }

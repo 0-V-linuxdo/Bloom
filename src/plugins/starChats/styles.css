@@ -58,7 +58,7 @@ button.bloom-star-chats-jump:hover {
 
 .bloom-star-chats-panel {
     position: fixed;
-    z-index: 80;
+    z-index: var(--bloom-z-float);
     box-sizing: border-box;
     display: flex;
     flex-direction: column;

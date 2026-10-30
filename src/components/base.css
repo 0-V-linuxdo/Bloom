@@ -18,6 +18,11 @@ html {
     --bloom-card: #fff;
     --bloom-shadow: 0 1rem 3rem #00000026, 0 0 0 1px #0000000d;
     --bloom-danger: #ef4444;
+    --bloom-z-chrome: 30;
+    --bloom-z-tray: 50;
+    --bloom-z-float: 80;
+    --bloom-z-overlay: 2147483000;
+    --bloom-z-tooltip: 2147483647;
 }
 
 :is(.dark, [data-theme="dark"]) {
@@ -68,6 +73,29 @@ html {
 
 :where(.bloom-root [hidden]) {
     display: none;
+}
+
+.bloom-root[popover] {
+    inset: auto;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    border: none;
+    color: inherit;
+    background-color: transparent;
+}
+
+html:has([data-bloom="settings"], [data-bloom="recent"], [data-bloom="history-dialog"], [data-bloom="star-list"], .bloom-nav-open, [data-bloom="menu-flyout"]) [popover][class*="panel-resizer"],
+html:has([data-bloom="settings"], [data-bloom="recent"], [data-bloom="history-dialog"], [data-bloom="star-list"], .bloom-nav-open, [data-bloom="menu-flyout"]) [popover][class*="panel-resizer"] *,
+html:has([data-bloom="settings"], [data-bloom="recent"], [data-bloom="history-dialog"], [data-bloom="star-list"], .bloom-nav-open, [data-bloom="menu-flyout"]) [popover][class*="panel-resizer"]::after,
+html:has([data-bloom="settings"], [data-bloom="recent"], [data-bloom="history-dialog"], [data-bloom="star-list"], .bloom-nav-open, [data-bloom="menu-flyout"]) [popover][class*="panel-resizer"] *::after {
+    pointer-events: none;
+}
+
+html:has([data-bloom="settings"], [data-bloom="recent"], [data-bloom="history-dialog"], [data-bloom="star-list"], .bloom-nav-open, [data-bloom="menu-flyout"]) [popover][class*="panel-resizer"] {
+    visibility: hidden;
 }
 
 .bloom-icon {
@@ -209,7 +237,7 @@ button.bloom-switch[aria-checked="true"]::after {
 
 .bloom-tooltip {
     position: fixed;
-    z-index: 2147483647;
+    z-index: var(--bloom-z-tooltip);
     max-width: 18rem;
     padding: 0.375rem 0.625rem;
     border-radius: 0.5rem;

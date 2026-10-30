@@ -15,6 +15,7 @@ import { accountMenu, type MountKind, sidebarMounts } from "@host/sidebar";
 import { classNameFactory } from "@utils/css";
 import { h, watchBody } from "@utils/dom";
 import { clamp } from "@utils/misc";
+import { mountOverlay } from "@utils/overlay";
 import definePlugin, { OptionType, type Plugin, StartAt } from "@utils/types";
 
 import { ENTRY_DEFAULTS, ENTRY_KEYS, type EntryKey, entryOn, isEntryKey } from "./entries";
@@ -175,7 +176,7 @@ function openFlyout(item: HTMLElement, menu: HTMLElement) {
         row("Quick CSS", "edit", () => openPanel("css")),
         picked.length > 0 && h("div", { class: cl("flyout-break"), attrs: { role: "separator" } }),
         ...picked.map(plugin => row(plugin.name, plugin.icon, () => openPanel("plugins", plugin.name))));
-    document.body.append(flyout);
+    mountOverlay(flyout);
     const box = menu.getBoundingClientRect();
     const { width, height } = flyout.getBoundingClientRect();
     const right = box.right + FLYOUT_GAP_PX;

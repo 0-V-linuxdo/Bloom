@@ -13,6 +13,7 @@ import { classNameFactory } from "@utils/css";
 import { h } from "@utils/dom";
 import { Logger } from "@utils/Logger";
 import { pluralize } from "@utils/misc";
+import { mountOverlay, promoteOverlay } from "@utils/overlay";
 import { OptionType, type Plugin, type PluginTag, type SettingDef, type SettingsDefinition } from "@utils/types";
 
 import { keepEntry } from "./entries";
@@ -284,8 +285,10 @@ function renderSection() {
 
 export function openPanel(target?: Section, pluginName?: string) {
     if (target) section = target;
-    if (root) renderSection();
-    else mountPanel();
+    if (root) {
+        renderSection();
+        promoteOverlay(root);
+    } else mountPanel();
     const plugin = pluginName && plugins.get(pluginName);
     if (plugin) openPluginSettings(plugin);
 }
@@ -314,7 +317,7 @@ function mountPanel() {
     root.addEventListener("keydown", event => event.stopPropagation());
     controller = new AbortController();
     document.addEventListener("keydown", onEscape, { capture: true, signal: controller.signal });
-    document.body.append(root);
+    mountOverlay(root);
     renderSection();
     unsubscribeState = onPluginStateChange(renderList);
     logger.debug("Opened");

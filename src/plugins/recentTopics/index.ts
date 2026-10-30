@@ -14,6 +14,7 @@ import { chainSummary, listTurns, turnSummary } from "@host/thread";
 import { classNameFactory } from "@utils/css";
 import { h } from "@utils/dom";
 import { truncate } from "@utils/misc";
+import { mountOverlay } from "@utils/overlay";
 import definePlugin, { OptionType } from "@utils/types";
 
 import styles from "./styles.css";
@@ -165,7 +166,7 @@ function open() {
     list.style.setProperty("--bloom-recent-count", String(items.length));
     panel = h("div", { class: `bloom-root ${cl("backdrop")}`, attrs: { "data-bloom": "recent" }, on: { mousedown: event => event.target === event.currentTarget && close() } },
         h("div", { class: cl("panel") }, list));
-    document.body.append(panel);
+    mountOverlay(panel);
 }
 
 function close() {

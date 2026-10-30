@@ -6,7 +6,7 @@
 
 .bloom-history-hud {
     position: fixed;
-    z-index: 2147482000;
+    z-index: var(--bloom-z-overlay);
     display: flex;
     align-items: center;
     gap: 0.375rem;
@@ -40,10 +40,10 @@
     color: var(--bloom-fg);
 }
 
-.bloom-history-backdrop {
+.bloom-root.bloom-history-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 2147483000;
+    z-index: var(--bloom-z-overlay);
     display: flex;
     align-items: center;
     justify-content: center;
