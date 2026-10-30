@@ -13,6 +13,7 @@ const BUTTONS = [
     'button:is([data-testid*="dictat" i], [data-testid="composer-speech-to-text-button"])',
     '[data-chatgpt-composer] button:is([aria-label*="voice" i], [aria-label*="dictat" i], [aria-label*="mic" i], [aria-label*="语音"])',
     '[data-composer-input] button:is([aria-label*="voice" i], [aria-label*="dictat" i], [aria-label*="mic" i], [aria-label*="语音"])',
+    '[data-codex-composer-root] button[aria-label^="Dictat" i], [data-composer-placement] button[aria-label^="Dictat" i], [class*="ComposerLayout"] button[aria-label^="Dictat" i]',
 ];
 
 const SETTINGS_ROWS = [

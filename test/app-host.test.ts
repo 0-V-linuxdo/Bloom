@@ -106,13 +106,22 @@ describe("app composer", () => {
 });
 
 describe("app sidebar", () => {
-    test("does not mount a settings entry into the navigation rail", () => {
-        mount(APP_SHELL);
+    test("overlays the settings entry on the profile slot, not as a flex sibling", () => {
+        mount("<div data-app-navigation-rail><div class=\"relative shrink-0 w-9\"><div class=\"flex min-w-0 flex-1 justify-center\"><button aria-label=\"Open profile menu\" aria-haspopup=\"menu\">P</button></div></div></div>");
         for (const rail of document.querySelectorAll<HTMLElement>("[data-app-navigation-rail]")) show(rail);
-        expect(sidebarMounts()).toEqual([]);
-        expect(document.querySelector("[data-bloom=entry]")).toBeNull();
+        const mounts = sidebarMounts();
+        expect(mounts).toHaveLength(1);
+        expect(mounts[0].kind).toBe("rail");
+        const slot = document.querySelector(".relative.shrink-0");
+        const wrap = document.querySelector(".flex.min-w-0");
         const profile = document.querySelector('[aria-label="Open profile menu"]');
-        expect(profile?.parentElement?.childElementCount).toBe(1);
+        const node = document.createElement("div");
+        node.setAttribute("data-bloom", "entry");
+        mounts[0].insert(node);
+        expect(slot?.contains(node)).toBe(true);
+        expect(wrap?.contains(node)).toBe(false);
+        expect(profile?.parentElement === wrap).toBe(true);
+        expect(wrap?.childElementCount).toBe(1);
     });
 });
 

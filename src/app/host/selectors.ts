@@ -46,7 +46,7 @@ export const Sel = {
     modelTrigger: 'button[aria-label="Model selector" i], button[aria-label="Select ChatGPT model" i], [data-chatgpt-composer] button[aria-haspopup="menu"]',
     modelItem: '[role="menu"] [role="menuitemradio"], [role="menu"] [role="menuitem"]',
     effortSlider: '[role="menu"] [data-reasoning-slider]',
-    homeHeading: 'main h1:not([aria-hidden="true"]), [data-testid="home-heading"]',
+    homeHeading: 'main h1:not([aria-hidden="true"]), [role="main"] h1:not([aria-hidden="true"]), [data-testid="home-heading"], [data-homepage-takeover] h1, .heading-xl, [class~="heading-xl"]',
     headerMore: 'button[aria-label="More" i], button[aria-label="更多"]',
     headerTitle: "[data-thread-title], [data-thread-title-trigger]",
     profile: 'button[aria-label="Open profile menu" i]',

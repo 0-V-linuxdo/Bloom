@@ -29,8 +29,22 @@ function profileButton(rail: HTMLElement) {
         ?? null;
 }
 
+function profileSlot(rail: HTMLElement, profile: HTMLElement) {
+    const slot = [...rail.children].find((el): el is HTMLElement => el instanceof HTMLElement && el !== profile && el.contains(profile));
+    return slot ?? profile;
+}
+
 export function sidebarMounts(): SidebarMount[] {
-    return [];
+    return rails().flatMap(rail => {
+        const profile = profileButton(rail);
+        if (!profile) return [{ kind: "rail" as const, anchor: rail, insert: (node: HTMLElement) => rail.append(node) }];
+        const host = profileSlot(rail, profile);
+        return [{
+            kind: "rail" as const,
+            anchor: host,
+            insert: (node: HTMLElement) => (host === profile ? rail : host).append(node),
+        }];
+    });
 }
 
 export const profileChips = () => rails().map(profileButton).filter(button => button != null);

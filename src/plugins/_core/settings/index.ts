@@ -123,7 +123,7 @@ function menuEntry(menu: HTMLElement) {
 
 function sync() {
     const { showSidebarEntry, showSidebarEntryOnHover } = settings.store;
-    const mounts = BLOOM_APP ? [] : (showSidebarEntry || showSidebarEntryOnHover ? sidebarMounts() : []);
+    const mounts = BLOOM_APP || showSidebarEntry || showSidebarEntryOnHover ? sidebarMounts() : [];
     for (const [anchor, node] of entries) {
         if (anchor.isConnected && mounts.some(mount => mount.anchor === anchor)) continue;
         node.remove();
@@ -136,7 +136,7 @@ function sync() {
         entries.set(mount.anchor, node);
         mount.insert(node);
     }
-    for (const node of entries.values()) node.classList.toggle(cl("hover"), !showSidebarEntry);
+    for (const node of entries.values()) node.classList.toggle(cl("hover"), !BLOOM_APP && !showSidebarEntry);
     const menu = accountMenu();
     if (menu && !menu.querySelector('[data-bloom="menu-entry"]')) menuEntry(menu);
 }
@@ -150,7 +150,11 @@ export default definePlugin({
     required: true,
     startAt: StartAt.HostReady,
     settings,
-    styles: () => `${styles}.${cl("hover")}{${POSITION_VAR}:${settings.store.entryPosition}}`,
+    styles: () => `${styles}${BLOOM_APP
+        ? "[data-app-navigation-rail] [data-bloom=entry]{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);width:max-content;margin:0;padding-block:0.25rem;pointer-events:none;z-index:5;display:flex;justify-content:center}"
+            + "[data-app-navigation-rail]>[data-bloom=entry]{bottom:2.75rem}"
+            + "[data-app-navigation-rail] [data-bloom=entry] .bloom-entry-button{pointer-events:auto}"
+        : ""}.${cl("hover")}{${POSITION_VAR}:${settings.store.entryPosition}}`,
     start() {
         unsubscribers = [watchBody(sync), useTooltips(), useIdentityMarks()];
         if (!menuRegistered && typeof GM_registerMenuCommand === "function") {

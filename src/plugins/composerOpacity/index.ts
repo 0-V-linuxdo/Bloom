@@ -34,7 +34,7 @@ function css() {
         const body = "[data-composer-layout][data-composer-body], [class*=\"ComposerLayoutBody\"]";
         const shell = "[data-chatgpt-composer], [data-composer-input], [class*=\"ComposerLayoutRoot\"]";
         return `${shell}{${clear};backdrop-filter:none!important;-webkit-backdrop-filter:none!important;overflow:visible!important}`
-            + `${body}{position:relative;z-index:0;${clear};overflow:visible!important}`
+            + `${body}{position:relative;z-index:0;${clear};backdrop-filter:none!important;-webkit-backdrop-filter:none!important;overflow:visible!important}`
             + `${body}::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;`
             + `background-color:color-mix(in srgb, ${fill} ${opacity}%, transparent);background-image:none;`
             + `backdrop-filter:blur(${blur}px);-webkit-backdrop-filter:blur(${blur}px)}`
