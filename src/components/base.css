@@ -5,12 +5,12 @@
  */
 
 html {
-    --bloom-fg: var(--color-text-primary, var(--text-primary, #0d0d0d));
-    --bloom-fg-2: var(--color-text-secondary, var(--text-secondary, #5d5d5d));
-    --bloom-fg-3: var(--color-text-tertiary, var(--text-tertiary, #8f8f8f));
+    --bloom-fg: var(--color-text-primary, var(--text-primary, var(--app-color-text-foreground, #0d0d0d)));
+    --bloom-fg-2: var(--color-text-secondary, var(--text-secondary, var(--app-color-text-foreground-secondary, #5d5d5d)));
+    --bloom-fg-3: var(--color-text-tertiary, var(--text-tertiary, var(--app-color-text-foreground-tertiary, #8f8f8f)));
     --bloom-border: var(--color-token-border-default, var(--border-medium, #0000001a));
     --bloom-border-light: var(--color-token-border-light, var(--border-light, #0000000d));
-    --bloom-hover: var(--color-token-list-hover-background, #0000000d);
+    --bloom-hover: var(--color-token-list-hover-background, var(--color-background-primary-soft-hover, var(--app-color-background-button-secondary-hover, #0000000d)));
     --bloom-accent: var(--color-chart-blue, #3a83f7);
     --bloom-surface: #fff;
     --bloom-surface-2: #f3f3f3;
@@ -21,12 +21,12 @@ html {
 }
 
 :is(.dark, [data-theme="dark"]) {
-    --bloom-fg: var(--color-text-primary, var(--text-primary, #ededed));
-    --bloom-fg-2: var(--color-text-secondary, var(--text-secondary, #cdcdcd));
-    --bloom-fg-3: var(--color-text-tertiary, var(--text-tertiary, #afafaf));
+    --bloom-fg: var(--color-text-primary, var(--text-primary, var(--app-color-text-foreground, #ededed)));
+    --bloom-fg-2: var(--color-text-secondary, var(--text-secondary, var(--app-color-text-foreground-secondary, #cdcdcd)));
+    --bloom-fg-3: var(--color-text-tertiary, var(--text-tertiary, var(--app-color-text-foreground-tertiary, #afafaf)));
     --bloom-border: var(--color-token-border-default, var(--border-medium, #ffffff26));
     --bloom-border-light: var(--color-token-border-light, var(--border-light, #ffffff0d));
-    --bloom-hover: var(--color-token-list-hover-background, #ffffff1a);
+    --bloom-hover: var(--color-token-list-hover-background, var(--color-background-primary-soft-hover, var(--app-color-background-button-secondary-hover, #ffffff1a)));
     --bloom-surface: #2a2a2a;
     --bloom-surface-2: #212121;
     --bloom-input: #2f2f2f;

@@ -53,6 +53,7 @@
     justify-content: center;
     width: 2.25rem;
     padding: 0;
+    color: var(--bloom-fg-3);
 }
 
 :has(> .bloom-entry-hover) {
