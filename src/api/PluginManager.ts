@@ -7,9 +7,10 @@
 import { registerStyle, removeStyle } from "@utils/css";
 import { watchBody } from "@utils/dom";
 import { Logger } from "@utils/Logger";
+import { isRecord } from "@utils/misc";
 import { type Plugin, StartAt } from "@utils/types";
 
-import { flushSettings, onSettingChange, readSetting, writeSetting } from "./Settings";
+import { flushSettings, onSettingChange, pruneSettings, readSetting, writeSetting } from "./Settings";
 
 const logger = new Logger("PluginManager");
 
@@ -17,12 +18,50 @@ export const plugins = new Map<string, Plugin>();
 const started = new Set<string>();
 const reached = new Set<StartAt>();
 const stateListeners = new Set<() => void>();
+const issues = new Map<string, string[]>();
+const NEW_PLUGIN_MS = 2 * 24 * 60 * 60 * 1000;
 
 export function registerPlugins(list: Plugin[]) {
     for (const plugin of list) {
         if (plugin.settings) plugin.settings.pluginName = plugin.name;
         plugins.set(plugin.name, plugin);
     }
+}
+
+const knownPlugins = () => {
+    const value = readSetting("Settings", "knownPlugins");
+    return isRecord(value) ? value as Record<string, number> : null;
+};
+
+export function reconcileSettings() {
+    const pruned = pruneSettings(new Set(plugins.keys()));
+    if (pruned.length) logger.info(`Dropped settings of removed plugins: ${pruned.join(", ")}`);
+    const known = knownPlugins();
+    const seen = Date.now();
+    const next = { ...known };
+    const fresh = [...plugins.values()].filter(plugin => !plugin.hidden && !plugin.required && !(plugin.name in next));
+    for (const plugin of fresh) next[plugin.name] = known ? seen : 0;
+    for (const name of Object.keys(next)) if (!plugins.has(name)) delete next[name];
+    if (JSON.stringify(next) !== JSON.stringify(known)) writeSetting("Settings", "knownPlugins", next);
+}
+
+export const isNewPlugin = (name: string) => {
+    const seen = knownPlugins()?.[name];
+    return !!seen && Date.now() - seen < NEW_PLUGIN_MS;
+};
+
+export const pluginIssue = (name: string) => issues.get(name);
+
+function notifyState() {
+    for (const listener of stateListeners) listener();
+}
+
+export function setPluginIssue(name: string, missing: string[] | null) {
+    const current = issues.get(name);
+    if (missing ? current?.join("\n") === missing.join("\n") : !current) return;
+    if (missing) issues.set(name, missing);
+    else issues.delete(name);
+    notifyState();
 }
 
 export const isPluginEnabled = (plugin: Plugin) =>
@@ -111,6 +150,7 @@ export function destroyPlugins() {
     for (const plugin of plugins.values()) stopPlugin(plugin);
     started.clear();
     reached.clear();
+    issues.clear();
 }
 
 export function onPluginStateChange(listener: () => void) {
@@ -123,7 +163,7 @@ onSettingChange((name, key) => {
     if (!plugin) return;
     if (key === "enabled") {
         if (typeof readSetting(name, "enabled") === "boolean") applyEnabled(plugin);
-        for (const listener of stateListeners) listener();
+        notifyState();
         return;
     }
     if (!started.has(name)) return;

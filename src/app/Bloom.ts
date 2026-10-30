@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { destroyPlugins, plugins, registerPlugins, startPhase, watchDisabledPlugins } from "@api/PluginManager";
+import { destroyPlugins, plugins, reconcileSettings, registerPlugins, startPhase, watchDisabledPlugins } from "@api/PluginManager";
 import { loadSettings } from "@api/Settings";
 import baseCss from "@components/base.css";
 import { startGeneration } from "@host/generation";
@@ -72,6 +72,7 @@ export async function init() {
     for (const plugin of pluginList) plugin.updatedAt = PLUGIN_UPDATED_AT[plugin.name];
     registerPlugins(pluginList);
     loadSettings();
+    reconcileSettings();
     registerStyle("base", baseCss);
     startGeneration();
     bindShortcut();

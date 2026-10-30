@@ -67,6 +67,15 @@ export function flushSettings() {
     save();
 }
 
+export function pruneSettings(keep: ReadonlySet<string>) {
+    const orphans = Object.keys(bag.plugins).filter(name => !keep.has(name));
+    if (!orphans.length) return orphans;
+    for (const name of orphans) delete bag.plugins[name];
+    clearTimeout(saveTimer);
+    save();
+    return orphans;
+}
+
 export const settingsSnapshot = (): SettingsBag => structuredClone(bag);
 
 export const readSetting = (plugin: string, key: string): unknown => bag.plugins[plugin]?.[key];

@@ -1,0 +1,110 @@
+/*
+ * Bloom++, a modification for chatgpt.com
+ * Copyright (c) 2026 Bloom contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+.bloom-notice-stack {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 2147483000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+    max-width: min(24rem, calc(100vw - 2rem));
+    pointer-events: none;
+    contain: layout style;
+}
+
+.bloom-notice-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 0.75rem 0.75rem 0.75rem 0.875rem;
+    border-radius: 0.875rem;
+    background: var(--bloom-surface);
+    box-shadow: var(--bloom-shadow);
+    pointer-events: auto;
+    animation: bloom-notice-in 160ms ease-out;
+}
+
+.bloom-notice-clickable {
+    cursor: pointer;
+}
+
+.bloom-notice-clickable:hover {
+    background: color-mix(in srgb, var(--bloom-surface), var(--bloom-fg) 4%);
+}
+
+.bloom-notice-icon {
+    padding-top: 0.125rem;
+    color: var(--bloom-fg-2);
+}
+
+.bloom-notice-success .bloom-notice-icon {
+    color: #10a37f;
+}
+
+.bloom-notice-warning .bloom-notice-icon {
+    color: #f59e0b;
+}
+
+.bloom-notice-error .bloom-notice-icon {
+    color: var(--bloom-danger);
+}
+
+.bloom-notice-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.bloom-notice-title {
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.bloom-notice-message {
+    margin-top: 0.125rem;
+    color: var(--bloom-fg-2);
+    font-size: 0.8125rem;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.bloom-notice-action {
+    align-self: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    background: var(--bloom-fg);
+    color: var(--bloom-surface);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.bloom-notice-close {
+    display: grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 0.375rem;
+    color: var(--bloom-fg-3);
+}
+
+.bloom-notice-close:hover {
+    background: var(--bloom-hover);
+    color: var(--bloom-fg);
+}
+
+@keyframes bloom-notice-in {
+    from {
+        opacity: 0;
+        transform: translateY(0.5rem);
+    }
+}

@@ -38,6 +38,7 @@ export const BLOOM_CHROME = [
     '[data-bloom="cls"]',
     '[data-bloom="timestamp"]',
     '[data-bloom="tooltip"]',
+    '[data-bloom="notices"]',
 ].join(", ");
 
 const BLOOM_MARKS = [

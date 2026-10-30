@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { isPluginEnabled, onPluginStateChange, plugins, setPluginEnabled } from "@api/PluginManager";
+import { isNewPlugin, isPluginEnabled, onPluginStateChange, pluginIssue, plugins, setPluginEnabled } from "@api/PluginManager";
 import { defaultValue, pinnedPlugins, readSetting, starredPlugins, writeSetting } from "@api/Settings";
 import { button, iconButton, select, slider, switchControl, textInput } from "@components/controls";
 import { icon } from "@components/icons";
@@ -23,6 +23,7 @@ const cl = classNameFactory("bloom-settings-");
 const RECENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const RESET_CONFIRM_MS = 3000;
 const HINT = "Toggle features. Some need a reload. Click the sliders icon to configure.";
+const ISSUE_TEXT = BLOOM_APP ? "Paused: can't find its place on this page." : "Can't find its place on this page. It may need an update.";
 
 type Tab = "favorites" | "recent" | "all" | PluginTag | "other";
 type Filter = "all" | "enabled" | "disabled";
@@ -170,6 +171,7 @@ function card(plugin: Plugin) {
     const starred = starredPlugins.has(plugin.name);
     const pinned = pinnedPlugins.has(plugin.name);
     const locked = !!plugin.required;
+    const issue = pluginIssue(plugin.name);
     return h("div", { class: [cl("card", enabled ? "card-on" : "card-off"), locked ? cl("card-required") : ""].filter(Boolean).join(" ") },
         h("div", { class: cl("card-top") },
             h("div", { class: cl("card-icon") }, icon(plugin.icon)),
@@ -185,8 +187,9 @@ function card(plugin: Plugin) {
                 locked ? h("span", { class: cl("required-mark"), attrs: { "aria-label": "Required", [TIP]: "This plugin is required for Bloom++ to work" } }, icon("alert")) : null,
                 hasVisibleSettings(plugin) && iconButton("gear", "Settings", () => openPluginSettings(plugin)),
                 switchControl(enabled, next => setPluginEnabled(plugin, next), locked ? `${plugin.name} is required` : `Enable ${plugin.name}`, locked))),
-        h("div", { class: cl("card-name"), text: plugin.name }),
+        h("div", { class: cl("card-name") }, plugin.name, isNewPlugin(plugin.name) && h("span", { class: cl("new-badge"), text: "New" })),
         h("div", { class: cl("card-desc"), text: plugin.description, title: plugin.description }),
+        issue && h("div", { class: cl("card-issue"), attrs: { [TIP]: `Missing: ${issue.join(", ")}` } }, icon("alert"), h("span", { text: ISSUE_TEXT })),
         h("div", { class: cl("card-footer"), text: plugin.authors.join(", ") }));
 }
 

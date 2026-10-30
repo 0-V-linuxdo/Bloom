@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { haltPlugin, isPluginEnabled, isPluginStarted, plugins, runPlugin } from "@api/PluginManager";
+import { haltPlugin, isPluginEnabled, isPluginStarted, plugins, runPlugin, setPluginIssue } from "@api/PluginManager";
 import { watchBody } from "@utils/dom";
 import { Logger } from "@utils/Logger";
 
@@ -32,8 +32,12 @@ const REQUIRED: Record<string, string[]> = {
 export function syncLandmarks() {
     for (const [name, selectors] of Object.entries(REQUIRED)) {
         const plugin = plugins.get(name);
-        if (!plugin || plugin.required || !isPluginEnabled(plugin)) continue;
+        if (!plugin || plugin.required || !isPluginEnabled(plugin)) {
+            setPluginIssue(name, null);
+            continue;
+        }
         const found = selectors.some(selector => queryVisible(selector));
+        setPluginIssue(name, found ? null : selectors);
         if (!found) {
             if (!isPluginStarted(plugin.name)) continue;
             haltPlugin(plugin);

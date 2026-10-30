@@ -47,7 +47,9 @@
 - 只存在 `localStorage`，不用 GM 存储和 IndexedDB，以便在 AdGuard 这类不支持 `GM_addValueChangeListener` 的管理器里同样可用。2.0.74 及以前同时写 GM、IndexedDB（库 `bloompp`，表 `kv`）和 `localStorage` 三处，`localStorage` 一直有完整副本，所以 2.0.75 直接读它；启动时删掉旧的 `bloompp` 库。
 - 多个标签页共用这份设置，每次保存都写整份。所以每个标签页都要跟上别的标签页的保存：监听 `localStorage` 的 `storage` 事件，把收到的整份逐键合并进内存，并对变了的键触发设置变更。本标签页改了、还没存盘的键不被覆盖。2.0.39 及以前各标签页只拿启动时读到的旧副本整份覆盖，一个标签页里拖好的按钮位置、改的开关，会被另一个标签页的任何一次保存（例如 GreetingCustomizer 换问候语、RecentTopics 记访问）改回去（F-24，2.0.40 修）。
 - 读取时三处都读，取“内容最丰富”的一份为主（按设置项数量和数组/对象长度打分，`enabled` 不计分），其余只补缺的键；较薄的一份里的 `enabled:false` 不能盖住较厚的一份。
-- 启动过程不落盘，只有用户真正改了设置才写。
+- 启动过程不落盘，只有用户真正改了设置才写。例外是下面两项启动整理，各自只在确实有变化时写一次（2.0.93）：
+  - 删掉已经不在插件列表里的插件留下的整行设置（改名或删掉的插件），日志记一条 `Dropped settings of removed plugins`。网页版和 ChatGPT.app（`app://` 源）的 `localStorage` 是分开的，各按自己构建的插件列表清理。
+  - `plugins.Settings.knownPlugins: { [插件名]: 首次见到的毫秒时间戳 }`，只记可见、非必需的插件。第一次没有这个键时全部记成 0（老用户升级后不会把已有插件都标成新的），以后新出现的插件记当前时间。
 - 缺 `enabled` 时取插件的 `enabledByDefault`；不要在启动时替用户写 `enabled`。
 - 旧版本残留的 `store.appearance` 忽略即可，不清理。
 
@@ -95,6 +97,27 @@
 - Bloom++ 自己的面板从页面复制设计 token（新壳是 `--color-text-primary` 等 `--color-*` 前缀，旧壳是 `--text-primary`、`--main-surface-primary`、`--bg-primary`、`--border-*`），缺的用内置的官方色值兜底。
 - 焦点、可见性、系统配色变化时重新取色。
 
+### 2.8 页内提示条（`@api/Notices`）
+
+- `showNotice({ key?, title, message?, type?, action?, onClick?, onClose?, duration? })` 在页面右下角弹一张卡片，返回 key；`closeNotice(key)` 关掉，`hasNotice(key)` 查是否还在。
+- `type`：`info`（默认）/ `success` / `warning` / `error`，只影响左侧图标和颜色；`error` 用 `role=alert`，其余 `role=status`。
+- 标题一行，`message` 是副标题，最多三行。`action` 是右侧一个按钮，点了先执行再关闭。给了 `onClick` 时整张卡片可点，点了执行后关闭。右上角 × 关闭。任何方式关掉（含到时、被挤掉、`closeNotice`）都调一次 `onClose`。
+- `duration` 毫秒，默认 6000；`0` 表示一直留着直到用户关闭。指针悬停时暂停计时，移开后接着计剩下的时间。
+- 同一个 `key` 再次 `showNotice` 时原地替换内容并重新计时，不叠第二张。最多同时 4 张，超出时关掉最早的。
+- 卡片挂在 `<body>` 里的 `[data-bloom="notices"]` 容器，`<body>` 没水合（规则 2）时不显示。热替换时随 Bloom 的其他界面一起清掉。
+
+### 2.9 页面锚点自检
+
+ChatGPT 改版后插件常常静默失效，自检让这种情况在设置面板里看得见。
+
+- 网页版（`host/landmarks.ts`）每 2 秒检查三类锚点，只在适用的页面上检查，同一类连续缺 10 秒才判定缺失，找到就立即恢复。后台标签页不检查，并重新计时：
+  - 会话消息 `Sel.turn`（只在 `/c/{id}` 页）：BetterNavigator、BetterQuotes、MessageTimestamps、StarChats、UserQuotes。
+  - 输入框 `Sel.composerInput`（首页、项目首页、会话页）：ComposerOpacity、Continue、InputHistory、PromptQueue。
+  - 侧栏（新壳滚动区或 rail、旧壳侧栏或 rail，只在窗口宽度 ≥ 1024 px 时）：ChatListStatus、CustomSidebarIdentity、NoSidebarIdentity、SidebarIdentityOpacity。
+- 网页版只报告，不停用插件，因为首页等页面本来就没有这些锚点，反复停启会丢插件状态。ChatGPT.app（`app/host/landmarks.ts`）照旧在锚点缺失时暂停插件、找回时恢复，同时报告。
+- 报告的结果在设置面板的插件卡片上显示（见第 3 节），只对已开启的插件报告。
+- 网页版第一次发现缺失时弹一张 `warning` 提示条（`duration: 0`），列出受影响的插件。同一版本、同一组插件只弹一次，记在 `plugins.Settings.landmarkNotice`（`版本|插件名,…`）。不发请求。
+
 ---
 
 ## 3. 设置入口与设置面板（核心插件 `Settings`，必需，面板里有卡片但不能关，同 Void++）
@@ -112,7 +135,10 @@
 - 点 ⚙ 弹出独立的插件设置小窗（叠在列表上，关掉回到列表）：插件名、描述、作者、各设置项（布尔开关、滑块带数值、下拉、文本/数字输入、自定义组件），底部 Reset（确认后恢复默认）。Esc 关闭。
 - 空状态文案：“No plugins match your search.” / “No favorites yet. Star a plugin to see it here.” / “No plugins updated in the last 7 days.”
 
-存储：`plugins.Settings.pinnedPlugins: string[]`、`plugins.Settings.starredPlugins: string[]`。
+- 新插件（`knownPlugins` 里首次见到不足 2 天）的名称旁显示 **New** 徽章。
+- 锚点自检（2.9）判定缺失的插件，卡片描述下方显示一行警示：“Can't find its place on this page. It may need an update.”（ChatGPT.app 里是 “Paused: can't find its place on this page.”），悬停显示缺的选择器。
+
+存储：`plugins.Settings.pinnedPlugins: string[]`、`plugins.Settings.starredPlugins: string[]`、`plugins.Settings.knownPlugins`、`plugins.Settings.landmarkNotice`。
 
 ---
 
@@ -371,7 +397,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 | 插件 | 可见设置 | 隐藏数据 |
 | --- | --- | --- |
-| Settings | `showSidebarEntry`（默认真）`showSidebarEntryOnHover`（默认假）`showAccountMenuEntry`（默认假；与前两项至少留一真）`resetEntryPosition`（组件） | `pinnedPlugins` `starredPlugins` `entryPosition` |
+| Settings | `showSidebarEntry`（默认真）`showSidebarEntryOnHover`（默认假）`showAccountMenuEntry`（默认假；与前两项至少留一真）`resetEntryPosition`（组件） | `pinnedPlugins` `starredPlugins` `entryPosition` `knownPlugins` `landmarkNotice` |
 | ChatStateFavicons | `style` | — |
 | InputHistory | `maxEntries` | `entries` |
 | NoShareLink | `hideShareChat` `hideShareProject` | — |
