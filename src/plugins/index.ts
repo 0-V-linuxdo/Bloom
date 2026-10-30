@@ -7,11 +7,13 @@
 import type { Plugin } from "@utils/types";
 
 import Settings from "./_core/settings";
+import Themes from "./_core/themes";
 import BetterNavigator from "./betterNavigator";
 import BetterQuotes from "./betterQuotes";
 import ChatListStatus from "./chatListStatus";
 import ChatStateFavicons from "./chatStateFavicons";
 import Cleaner from "./cleaner";
+import CompleteToast from "./completeToast";
 import ComposerOpacity from "./composerOpacity";
 import Continue from "./continue";
 import CustomSidebarIdentity from "./customSidebarIdentity";
@@ -33,11 +35,13 @@ import WiderChat from "./widerChat";
 
 const list: Plugin[] = [
     Settings,
+    Themes,
     BetterNavigator,
     BetterQuotes,
     ChatListStatus,
     ChatStateFavicons,
     Cleaner,
+    CompleteToast,
     ComposerOpacity,
     Continue,
     CustomSidebarIdentity,

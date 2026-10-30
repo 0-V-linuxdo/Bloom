@@ -19,6 +19,9 @@ const FALL_SETTLE_MS = 400;
 const MIGRATION_WINDOW_MS = 60_000;
 const HANDOFF_HOLD_MS = 5000;
 const BUSY_TURN = `:is(${Sel.turn}) :is(${Sel.turnBusy})`;
+const ROW_KEY = "data-sidebar-chatgpt-conversation-key";
+const INDICATOR = "data-sidebar-indicator";
+const ROW_ID = /:([0-9a-f-]{36})$/i;
 
 export type FallOutcome = "done" | "stopped" | "error" | "left";
 
@@ -32,6 +35,7 @@ export const generation = createEmitter<{
     fall: { conversationId: string | null; outcome: FallOutcome; };
     context: { prevId: string | null; id: string | null; migrated: boolean; };
     tick: GenerationState;
+    background: { conversationId: string; };
 }>();
 
 const activeRequests = new Set<number>();
@@ -45,6 +49,7 @@ let holdUntil = 0;
 let domSeen = false;
 let lastEnd: GenerateEnd | null = null;
 let started = false;
+const indicators = new Map<string, string>();
 
 export const generationState = (): GenerationState => ({ generating, conversationId: currentConversationId() });
 
@@ -111,6 +116,19 @@ function onRoute({ prevId, id }: RouteChange) {
     evaluateGeneration();
 }
 
+function scanSidebar() {
+    const current = currentConversationId();
+    for (const row of document.querySelectorAll(Sel.sidebarConversationRow)) {
+        const id = row.getAttribute(ROW_KEY)?.match(ROW_ID)?.[1];
+        if (!id) continue;
+        const state = row.querySelector(Sel.sidebarIndicator)?.getAttribute(INDICATOR) ?? "";
+        const prev = indicators.get(id);
+        if (prev === state) continue;
+        indicators.set(id, state);
+        if (prev === "working" && state === "unread" && id !== current) generation.emit("background", { conversationId: id });
+    }
+}
+
 function onClick(event: MouseEvent) {
     if (event.target instanceof Element && event.target.closest(Sel.stopButton)) {
         stopRequested = true;
@@ -135,5 +153,9 @@ export function startGeneration() {
     onRouteChange(onRoute);
     document.addEventListener("click", onClick, true);
     every(evaluateGeneration, TICK_MS);
-    void whenDomReady().then(() => watchBody(evaluate));
+    void whenDomReady().then(() => {
+        watchBody(evaluate);
+        watchBody(scanSidebar);
+        new MutationObserver(scanSidebar).observe(document.body, { subtree: true, attributes: true, attributeFilter: [INDICATOR] });
+    });
 }

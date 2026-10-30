@@ -11,6 +11,7 @@ import { isRecord, pageWindow, parseJson } from "@utils/misc";
 const logger = new Logger("Network");
 
 const GENERATE_PATH = /^\/backend-api\/(?:f\/)?conversation(?:\/resume)?\/?$/;
+const HTTP_NOT_FOUND = 404;
 const CONVERSATION_PATH = /^\/backend-api\/conversations?\/([0-9a-f]{8}-[0-9a-f-]{20,})\/?$/i;
 const SECONDS_TO_MS = 1000;
 const HANDOFF_EVENTS = new Set(["stream_handoff", "resume_sse_endpoint", "subscribe_ws_topic"]);
@@ -51,6 +52,7 @@ export const network = createEmitter<{
     "generate-end": GenerateEnd;
     "conversation": ConversationData;
     "message-time": { conversationId: string | null; messageId: string; time: number; };
+    "conversation-missing": { id: string; };
 }>();
 
 const conversations = new Map<string, ConversationData>();
@@ -232,6 +234,7 @@ async function observeGenerate(requestId: number, request: GenerateRequest, pend
 async function observeConversation(id: string, pending: Promise<Response>) {
     try {
         const response = await pending;
+        if (response.status === HTTP_NOT_FOUND) network.emit("conversation-missing", { id });
         if (!response.ok) return;
         const data = parseConversation(id, await response.clone().json());
         if (data) network.emit("conversation", data);

@@ -37,6 +37,7 @@ export const network = createEmitter<{
     "generate-end": { requestId: number; conversationId: string | null; error: boolean; handoff: boolean; };
     "conversation": ConversationData;
     "message-time": { conversationId: string | null; messageId: string; time: number; };
+    "conversation-missing": { id: string; };
 }>();
 
 const conversations = new Map<string, ConversationData>();

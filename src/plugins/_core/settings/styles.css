@@ -127,6 +127,78 @@
     background-color: var(--bloom-hover);
 }
 
+.bloom-entry-menu-chevron {
+    display: flex;
+    margin-inline-start: auto;
+    color: var(--bloom-fg-3);
+    transform: rotate(-90deg);
+}
+
+.bloom-entry-flyout {
+    position: fixed;
+    z-index: 2147483000;
+    display: flex;
+    flex-direction: column;
+    width: max-content;
+    min-width: 11rem;
+    max-width: 16rem;
+    max-height: calc(100vh - 1rem);
+    padding: 0.25rem;
+    overflow-y: auto;
+    border: 1px solid var(--bloom-border-light);
+    border-radius: 1rem;
+    background: var(--bloom-surface);
+    box-shadow: var(--bloom-shadow);
+    pointer-events: auto;
+    contain: content;
+    animation: bloom-fade-in 0.1s ease-out;
+}
+
+.bloom-entry-flyout-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-height: 2.25rem;
+    padding: 0 0.625rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+.bloom-entry-flyout-item:hover {
+    background-color: var(--bloom-hover);
+}
+
+.bloom-entry-flyout-item svg {
+    flex: none;
+    width: 1.125rem;
+    height: 1.125rem;
+}
+
+.bloom-entry-flyout-break {
+    margin: 0.25rem 0.5rem;
+    border-top: 1px solid var(--bloom-border-light);
+}
+
+.bloom-entry-menu-pick {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.25rem 0;
+}
+
+.bloom-entry-menu-pick svg {
+    flex: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    color: var(--bloom-fg-2);
+}
+
+.bloom-entry-menu-pick > span {
+    flex: 1;
+    min-width: 0;
+}
+
 .bloom-settings-backdrop {
     position: fixed;
     inset: 0;
@@ -432,4 +504,109 @@
     justify-content: flex-end;
     padding-top: 0.5rem;
     border-top: 1px solid var(--bloom-border-light);
+}
+
+.bloom-settings-nav {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.1875rem;
+    align-self: flex-start;
+    border-radius: 0.75rem;
+    background: var(--bloom-surface-2);
+}
+
+.bloom-settings-nav-item {
+    padding: 0.3125rem 0.875rem;
+    border-radius: 0.5625rem;
+    color: var(--bloom-fg-2);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.bloom-settings-nav-item:hover {
+    color: var(--bloom-fg);
+}
+
+.bloom-settings-nav-item[aria-selected="true"] {
+    background: var(--bloom-surface);
+    box-shadow: 0 1px 2px #0000001f;
+    color: var(--bloom-fg);
+}
+
+.bloom-settings-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+}
+
+.bloom-settings-section {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 1rem;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.bloom-settings-section-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.bloom-settings-section-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.bloom-settings-section-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.bloom-settings-section-error:empty {
+    display: none;
+}
+
+.bloom-settings-section-error {
+    color: var(--bloom-danger);
+    font-size: 0.8125rem;
+}
+
+.bloom-settings-css {
+    flex: 1;
+    min-height: 14rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    resize: vertical;
+    tab-size: 4;
+}
+
+.bloom-settings-css:disabled {
+    opacity: 0.6;
+}
+
+.bloom-settings-themes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.bloom-settings-theme {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--bloom-border-light);
+    border-radius: 0.75rem;
+    background: var(--bloom-card);
+}
+
+.bloom-settings-theme-text {
+    flex: 1;
+    min-width: 0;
 }

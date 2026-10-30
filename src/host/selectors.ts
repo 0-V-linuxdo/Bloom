@@ -13,6 +13,8 @@ export const Sel = {
     oldProfile: '[data-testid="accounts-profile-button"]',
     sidebars: "[data-app-action-sidebar-scroll], [data-app-navigation-rail], #stage-slideover-sidebar, #stage-sidebar-tiny-bar, nav",
     conversationLink: 'a[href*="/c/"]',
+    sidebarConversationRow: "[data-sidebar-chatgpt-conversation-key]",
+    sidebarIndicator: "[data-sidebar-indicator]",
 
     timelineScroll: "[data-app-action-timeline-scroll]",
     conversationTarget: "[data-chatgpt-conversation-selection-target]",

@@ -16,6 +16,7 @@ import { pluralize } from "@utils/misc";
 import { OptionType, type Plugin, type PluginTag, type SettingDef, type SettingsDefinition } from "@utils/types";
 
 import { keepEntry } from "./entries";
+import { quickCssView, themesView } from "./sections";
 
 const logger = new Logger("SettingsPanel");
 const cl = classNameFactory("bloom-settings-");
@@ -25,6 +26,7 @@ const RESET_CONFIRM_MS = 3000;
 const HINT = "Toggle features. Some need a reload. Click the sliders icon to configure.";
 const ISSUE_TEXT = BLOOM_APP ? "Paused: can't find its place on this page." : "Can't find its place on this page. It may need an update.";
 
+export type Section = "plugins" | "themes" | "css";
 type Tab = "favorites" | "recent" | "all" | PluginTag | "other";
 type Filter = "all" | "enabled" | "disabled";
 
@@ -36,6 +38,12 @@ const TABS: readonly { id: Tab; label: string; }[] = [
     { id: "ui", label: "UI" },
     { id: "privacy", label: "Privacy" },
     { id: "other", label: "Other" },
+];
+
+const SECTIONS: readonly { id: Section; label: string; }[] = [
+    { id: "plugins", label: "Plugins" },
+    { id: "themes", label: "Themes" },
+    { id: "css", label: "Quick CSS" },
 ];
 
 const FILTERS = [
@@ -52,6 +60,7 @@ const EMPTY: Partial<Record<Tab, string>> = {
 const TAGGED = new Set<PluginTag>(["chat", "ui", "privacy"]);
 
 let root: HTMLElement | null = null;
+let section: Section = "plugins";
 let tab: Tab = "all";
 let filter: Filter = "all";
 let query = "";
@@ -95,7 +104,7 @@ function sortPlugins(list: Plugin[]) {
 
 const definition = (plugin: Plugin): SettingsDefinition => plugin.settings?.def ?? {};
 
-const hasVisibleSettings = (plugin: Plugin) => Object.values(definition(plugin)).some(def => def.type !== OptionType.CUSTOM);
+export const hasVisibleSettings = (plugin: Plugin) => Object.values(definition(plugin)).some(def => def.type !== OptionType.CUSTOM);
 
 function settingControl(plugin: Plugin, key: string, def: SettingDef) {
     const value = readSetting(plugin.name, key) ?? defaultValue(def);
@@ -240,14 +249,48 @@ function onEscape(event: KeyboardEvent) {
 let unsubscribeState: (() => void) | undefined;
 let controller: AbortController | undefined;
 
-export function openPanel() {
-    if (root) return;
+function renderSection() {
+    const body = root?.querySelector(`.${cl("body")}`);
+    if (!root || !body) return;
+    for (const item of root.querySelectorAll(`.${cl("nav-item")}`)) item.setAttribute("aria-selected", String(item.getAttribute("data-section") === section));
+    closePluginSettings();
+    if (section === "themes") {
+        body.replaceChildren(themesView());
+        return;
+    }
+    if (section === "css") {
+        body.replaceChildren(quickCssView());
+        return;
+    }
     const search = h("input", { class: "bloom-input", attrs: { "type": "search", "aria-label": "Search plugins" } });
     search.value = query;
     search.addEventListener("input", () => {
         query = search.value;
         renderList();
     });
+    body.replaceChildren(
+        h("div", { class: cl("tabs"), attrs: { role: "tablist" } }),
+        h("div", { class: cl("toolbar") },
+            h("label", { class: cl("search") }, icon("search"), search),
+            select(filter, FILTERS, value => {
+                filter = value as Filter;
+                renderList();
+            })),
+        h("div", { class: cl("grid") }));
+    renderTabs();
+    renderList();
+    search.focus();
+}
+
+export function openPanel(target?: Section, pluginName?: string) {
+    if (target) section = target;
+    if (root) renderSection();
+    else mountPanel();
+    const plugin = pluginName && plugins.get(pluginName);
+    if (plugin) openPluginSettings(plugin);
+}
+
+function mountPanel() {
     root = h("div", { class: `bloom-root ${cl("backdrop")}`, attrs: { "data-bloom": "settings" }, on: { click: event => event.target === event.currentTarget && closePanel() } },
         h("div", { class: cl("modal"), attrs: { "role": "dialog", "aria-modal": "true", "aria-label": "Bloom++ settings" } },
             h("div", { class: cl("header") },
@@ -256,22 +299,24 @@ export function openPanel() {
                 h("span", { class: cl("hint"), attrs: { "aria-label": HINT, "tabindex": "0", [TIP]: HINT } }, icon("info")),
                 h("span", { class: cl("version"), text: `v${BLOOM_VERSION}` }),
                 iconButton("close", "Close", closePanel)),
-            h("div", { class: cl("tabs"), attrs: { role: "tablist" } }),
-            h("div", { class: cl("toolbar") },
-                h("label", { class: cl("search") }, icon("search"), search),
-                select(filter, FILTERS, value => {
-                    filter = value as Filter;
-                    renderList();
-                })),
-            h("div", { class: cl("grid") })));
+            h("div", { class: cl("nav"), attrs: { role: "tablist" } }, ...SECTIONS.map(item => h("button", {
+                class: cl("nav-item"),
+                text: item.label,
+                attrs: { "type": "button", "role": "tab", "data-section": item.id },
+                on: {
+                    click: () => {
+                        section = item.id;
+                        renderSection();
+                    },
+                },
+            }))),
+            h("div", { class: cl("body") })));
     root.addEventListener("keydown", event => event.stopPropagation());
     controller = new AbortController();
     document.addEventListener("keydown", onEscape, { capture: true, signal: controller.signal });
     document.body.append(root);
-    renderTabs();
-    renderList();
+    renderSection();
     unsubscribeState = onPluginStateChange(renderList);
-    search.focus();
     logger.debug("Opened");
 }
 

@@ -14,6 +14,7 @@ import NoDictation from "../src/plugins/noDictation";
 
 registerPlugins([Settings, NoDictation]);
 
+const ENTRY_SWITCHES = 3;
 const cardNamed = (name: string) => [...document.querySelectorAll(".bloom-settings-card")].find(el => el.querySelector(".bloom-settings-card-name")?.textContent === name);
 
 afterEach(() => {
@@ -45,7 +46,7 @@ describe("settings cards", () => {
     test("the last remaining Settings entry switch stays on", () => {
         openPanel();
         cardNamed("Settings")?.querySelector<HTMLButtonElement>("[aria-label='Settings']")?.click();
-        const switches = [...document.querySelectorAll<HTMLButtonElement>('.bloom-settings-popup [role="switch"]')];
+        const switches = [...document.querySelectorAll<HTMLButtonElement>('.bloom-settings-popup [role="switch"]')].slice(0, ENTRY_SWITCHES);
         expect(switches.map(el => el.getAttribute("aria-checked"))).toEqual(["true", "false", "false"]);
         switches[0]?.click();
         expect(switches[0]?.getAttribute("aria-checked")).toBe("true");

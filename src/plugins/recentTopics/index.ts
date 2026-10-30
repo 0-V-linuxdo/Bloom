@@ -5,6 +5,7 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
+import { icon } from "@components/icons";
 import { conversationTitle } from "@host/conversation";
 import { conversationData, network } from "@host/network";
 import { currentConversationId, isHomePath, isTemporaryChat, onRouteChange } from "@host/route";
@@ -73,6 +74,17 @@ function visit(key: string | null) {
     if (key !== HOME) remember(key);
 }
 
+function forget(id: string) {
+    if (!settings.store.visits.includes(id)) return;
+    const { [id]: _title, ...titles } = settings.store.titles;
+    const { [id]: _preview, ...previews } = settings.store.previews;
+    const { [id]: _project, ...projects } = settings.store.projects;
+    settings.store.visits = settings.store.visits.filter(key => key !== id);
+    settings.store.titles = titles;
+    settings.store.previews = previews;
+    settings.store.projects = projects;
+}
+
 function capturePreview(id: string | null) {
     if (!id || !settings.store.visits.includes(id)) return;
     const preview: Preview = {};
@@ -105,26 +117,38 @@ function go(key: string) {
     else location.assign(key === HOME ? "/" : `/c/${key}`);
 }
 
+function thumb(key: string) {
+    const preview = key === HOME ? null : settings.store.previews[key];
+    const lines = preview && (["user", "assistant"] as const).filter(role => preview[role])
+        .map(role => h("span", { class: cl("preview"), attrs: { "data-role": role }, text: preview[role] }));
+    return h("span", { class: cl("thumb"), attrs: { "aria-hidden": "true" } },
+        lines?.length ? h("span", { class: cl("page") }, ...lines) : h("span", { class: cl("fallback") }, icon(key === HOME ? "plus" : "bloom")));
+}
+
 function card(key: string, index: number) {
     const title = key === HOME ? "New chat" : settings.store.titles[key] ?? conversationTitle(key) ?? "Untitled chat";
     const project = key === HOME ? null : settings.store.projects[key];
-    const preview = key === HOME ? null : settings.store.previews[key];
     return h("button", {
         class: cl("item"),
-        attrs: { "type": "button", "role": "option", "aria-selected": String(index === selected) },
+        attrs: { "type": "button", "role": "option", "aria-selected": String(index === selected), "aria-label": project ? `${title}, ${project}` : title },
         on: {
             click: () => go(key),
-            mousemove: () => index !== selected && select(index),
+            pointerenter: () => index !== selected && select(index),
         },
     },
-    h("div", { class: cl("head") },
+    thumb(key),
+    h("span", { class: cl("meta") },
         h("span", { class: `${cl("title")} bloom-truncate`, text: title }),
-        project && h("span", { class: cl("project"), text: project })),
-    preview?.user && h("div", { class: `${cl("preview")} bloom-truncate`, text: `You: ${preview.user}` }),
-    preview?.assistant && h("div", { class: `${cl("preview")} bloom-truncate`, text: `ChatGPT: ${preview.assistant}` }));
+        project && h("span", { class: cl("project") }, icon("folder"), h("span", { class: "bloom-truncate", text: project }))));
+}
+
+function pick() {
+    if (items.length) go(items[selected]);
+    else close();
 }
 
 function select(index: number) {
+    if (!items.length) return;
     selected = (index + items.length) % items.length;
     panel?.querySelectorAll(`.${cl("item")}`).forEach((item, i) => item.setAttribute("aria-selected", String(i === selected)));
 }
@@ -134,10 +158,13 @@ function open() {
     const current = currentKey();
     items = candidates();
     if (current) items = [current, ...items.filter(key => key !== current)].slice(0, Number(settings.store.maxRecent));
-    if (!items.length) return;
     selected = items.length > 1 ? 1 : 0;
+    const list = items.length
+        ? h("div", { class: cl("list"), attrs: { "role": "listbox", "aria-label": "Recent chats" } }, ...items.map(card))
+        : h("div", { class: cl("empty"), text: "Open a few chats, then hold Ctrl+` to switch." });
+    list.style.setProperty("--bloom-recent-count", String(items.length));
     panel = h("div", { class: `bloom-root ${cl("backdrop")}`, attrs: { "data-bloom": "recent" }, on: { mousedown: event => event.target === event.currentTarget && close() } },
-        h("div", { class: cl("panel"), attrs: { "role": "listbox", "aria-label": "Recent chats" } }, ...items.map(card)));
+        h("div", { class: cl("panel") }, list));
     document.body.append(panel);
 }
 
@@ -159,8 +186,10 @@ function onKeydown(event: KeyboardEvent) {
     if (!panel) return;
     const handled: Record<string, () => void> = {
         Escape: close,
-        Enter: () => go(items[selected]),
+        Enter: pick,
+        ArrowRight: () => select(selected + 1),
         ArrowDown: () => select(selected + 1),
+        ArrowLeft: () => select(selected - 1),
         ArrowUp: () => select(selected - 1),
     };
     const action = handled[event.key];
@@ -171,7 +200,7 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 function onKeyup(event: KeyboardEvent) {
-    if (panel && event.key === "Control") go(items[selected]);
+    if (panel && event.key === "Control") pick();
 }
 
 export default definePlugin({
@@ -199,6 +228,7 @@ export default definePlugin({
                 if (settings.store.visits.includes(id)) remember(id);
                 capturePreview(id);
             }),
+            network.on("conversation-missing", ({ id }) => forget(id)),
         ];
         const { visits, titles, previews } = settings.store;
         const stale = visits.filter(key => key !== HOME && (key.startsWith("local-") || !(titles[key] || previews[key])));

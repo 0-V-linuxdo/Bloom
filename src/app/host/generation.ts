@@ -27,6 +27,7 @@ export const generation = createEmitter<{
     fall: { conversationId: string | null; outcome: FallOutcome; };
     context: { prevId: string | null; id: string | null; migrated: boolean; };
     tick: GenerationState;
+    background: { conversationId: string; };
 }>();
 
 let generating = false;

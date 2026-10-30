@@ -28,6 +28,7 @@ export const BLOOM_CHROME = [
     '[data-bloom="star-list"]',
     '[data-bloom="entry"]',
     '[data-bloom="menu-entry"]',
+    '[data-bloom="menu-flyout"]',
     '[data-bloom="message-star"]',
     '[data-bloom="starred"]',
     '[data-bloom="chat-star"]',

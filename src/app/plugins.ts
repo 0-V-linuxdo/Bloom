@@ -7,6 +7,7 @@
 import type { Plugin } from "@utils/types";
 
 import Settings from "../plugins/_core/settings";
+import Themes from "../plugins/_core/themes";
 import BetterNavigator from "../plugins/betterNavigator";
 import BetterQuotes from "../plugins/betterQuotes";
 import ChatListStatus from "../plugins/chatListStatus";
@@ -30,6 +31,7 @@ import WiderChat from "../plugins/widerChat";
 
 const list: Plugin[] = [
     Settings,
+    Themes,
     BetterNavigator,
     BetterQuotes,
     ChatListStatus,

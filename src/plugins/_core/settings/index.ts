@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { plugins } from "@api/PluginManager";
 import { definePluginSettings } from "@api/Settings";
-import { button } from "@components/controls";
-import { icon } from "@components/icons";
+import { button, switchControl } from "@components/controls";
+import { icon, type IconName } from "@components/icons";
 import { useTooltips } from "@components/tooltip";
 import { useIdentityMarks } from "@host/identity";
 import { isHydrated } from "@host/ready";
@@ -14,16 +15,19 @@ import { accountMenu, type MountKind, sidebarMounts } from "@host/sidebar";
 import { classNameFactory } from "@utils/css";
 import { h, watchBody } from "@utils/dom";
 import { clamp } from "@utils/misc";
-import definePlugin, { OptionType, StartAt } from "@utils/types";
+import definePlugin, { OptionType, type Plugin, StartAt } from "@utils/types";
 
 import { ENTRY_DEFAULTS, ENTRY_KEYS, type EntryKey, entryOn, isEntryKey } from "./entries";
-import { closePanel, togglePanel } from "./panel";
+import { closePanel, hasVisibleSettings, openPanel, togglePanel } from "./panel";
 import styles from "./styles.css";
 
 const cl = classNameFactory("bloom-entry-");
 const DRAG_PX = 4;
 const POSITION_VAR = "--bloom-entry-x";
 const RIGHT = 1;
+const FLYOUT_GAP_PX = 4;
+const FLYOUT_EDGE_PX = 8;
+const FLYOUT_CLOSE_MS = 150;
 
 const settings = definePluginSettings({
     showSidebarEntry: {
@@ -51,10 +55,35 @@ const settings = definePluginSettings({
             return () => host.replaceChildren();
         },
     },
+    showBloomMenu: {
+        type: OptionType.BOOLEAN,
+        description: "Hovering the Bloom++ row in the account menu opens a menu with Plugins, Themes, Quick CSS and plugin settings.",
+        default: true,
+    },
+    menuPlugins: {
+        type: OptionType.COMPONENT,
+        description: "Plugins listed in that menu.",
+        render: host => {
+            host.append(...listedPlugins().map(plugin => h("div", { class: cl("menu-pick") },
+                icon(plugin.icon),
+                h("span", { class: "bloom-truncate", text: plugin.name }),
+                switchControl(inMenu(plugin), shown => {
+                    settings.store.menuPicks = { ...settings.store.menuPicks, [plugin.name]: shown };
+                }, `List ${plugin.name} in the menu`))));
+            return () => host.replaceChildren();
+        },
+    },
     entryPosition: { type: OptionType.CUSTOM, default: RIGHT },
+    menuPicks: { type: OptionType.CUSTOM, default: {} as Record<string, boolean> },
 });
 
 const entries = new Map<Element, HTMLElement>();
+let flyout: HTMLElement | null = null;
+let flyoutTimer: ReturnType<typeof setTimeout> | undefined;
+
+const listedPlugins = () => [...plugins.values()].filter(plugin => !plugin.hidden).toSorted((a, b) => a.name.localeCompare(b.name));
+
+const inMenu = (plugin: Plugin) => settings.store.menuPicks[plugin.name] ?? hasVisibleSettings(plugin);
 let menuRegistered = false;
 let unsubscribers: (() => void)[] = [];
 
@@ -109,6 +138,51 @@ function entry(kind: MountKind) {
     return wrap;
 }
 
+function closeFlyout() {
+    clearTimeout(flyoutTimer);
+    flyout?.remove();
+    flyout = null;
+}
+
+function leaveFlyout() {
+    clearTimeout(flyoutTimer);
+    flyoutTimer = setTimeout(closeFlyout, FLYOUT_CLOSE_MS);
+}
+
+const dismissMenu = (menu: HTMLElement) => menu.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+function openFlyout(item: HTMLElement, menu: HTMLElement) {
+    clearTimeout(flyoutTimer);
+    if (flyout?.isConnected || !settings.store.showBloomMenu) return;
+    const row = (label: string, name: IconName, run: () => void) => h("div", {
+        class: cl("flyout-item"),
+        attrs: { role: "menuitem" },
+        on: {
+            pointerdown: event => {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                event.stopPropagation();
+                closeFlyout();
+                dismissMenu(menu);
+                run();
+            },
+        },
+    }, icon(name), h("span", { class: "bloom-truncate", text: label }));
+    const picked = listedPlugins().filter(inMenu);
+    flyout = h("div", { class: `bloom-root ${cl("flyout")}`, attrs: { "data-bloom": "menu-flyout", "role": "menu", "aria-label": "Bloom++" }, on: { pointerenter: () => clearTimeout(flyoutTimer), pointerleave: leaveFlyout } },
+        row("Plugins", "bloom", () => openPanel("plugins")),
+        row("Themes", "spark", () => openPanel("themes")),
+        row("Quick CSS", "edit", () => openPanel("css")),
+        picked.length > 0 && h("div", { class: cl("flyout-break"), attrs: { role: "separator" } }),
+        ...picked.map(plugin => row(plugin.name, plugin.icon, () => openPanel("plugins", plugin.name))));
+    document.body.append(flyout);
+    const box = menu.getBoundingClientRect();
+    const { width, height } = flyout.getBoundingClientRect();
+    const right = box.right + FLYOUT_GAP_PX;
+    flyout.style.left = `${right + width > innerWidth ? box.left - width - FLYOUT_GAP_PX : right}px`;
+    flyout.style.top = `${clamp(item.getBoundingClientRect().top, FLYOUT_EDGE_PX, innerHeight - height - FLYOUT_EDGE_PX)}px`;
+}
+
 function menuEntry(menu: HTMLElement) {
     const item = h("div", {
         class: `bloom-root ${cl("menu-item")}`,
@@ -117,17 +191,21 @@ function menuEntry(menu: HTMLElement) {
             click: event => {
                 event.preventDefault();
                 event.stopPropagation();
-                menu.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+                closeFlyout();
+                dismissMenu(menu);
                 togglePanel();
             },
+            pointerenter: () => openFlyout(item, menu),
+            pointerleave: leaveFlyout,
         },
-    }, icon("bloom"), h("span", { text: "Bloom++" }));
+    }, icon("bloom"), h("span", { text: "Bloom++" }), settings.store.showBloomMenu && h("span", { class: cl("menu-chevron") }, icon("chevron")));
     const first = menu.querySelector('[role="menuitem"]');
     if (first?.parentElement) first.before(item);
     else menu.prepend(item);
 }
 
 function dropChrome() {
+    closeFlyout();
     for (const node of document.querySelectorAll('[data-bloom="entry"], [data-bloom="menu-entry"]')) node.remove();
     entries.clear();
 }
@@ -162,6 +240,7 @@ function sync() {
     }
     const menu = accountMenu();
     if (menu && !menu.querySelector('[data-bloom="menu-entry"]')) menuEntry(menu);
+    if (!menu) closeFlyout();
 }
 
 function onSettingsChange(key?: string) {

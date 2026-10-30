@@ -252,7 +252,7 @@ async function newShellSuite(browser) {
     await page.locator(".bloom-settings-hint").hover();
     check("panel hint tooltip shows at once on hover", (await page.locator(".bloom-tooltip").textContent({ timeout: 300 }).catch(() => "")).includes("Some need a reload"));
     await page.screenshot({ path: resolve(shots, "panel-hint-light.png"), clip: { x: 0, y: 0, width: 1280, height: 260 } });
-    check("panel lists 21 plugins", await page.locator(".bloom-settings-card").count() === 21);
+    check("panel lists 25 plugins", await page.locator(".bloom-settings-card").count() === 25);
     await page.locator('[data-bloom="settings"] input[type=search]').fill("queue");
     check("panel search filters", await page.locator(".bloom-settings-card").count() === 1);
     await page.locator('[data-bloom="settings"] input[type=search]').fill("");
@@ -270,6 +270,22 @@ async function newShellSuite(browser) {
         return component?.textContent === "Preview" && !component.closest(".bloom-settings-field")?.querySelector(".bloom-settings-field-text");
     }));
     await page.keyboard.press("Escape");
+    await page.locator(".bloom-settings-nav-item", { hasText: "Quick CSS" }).click();
+    await page.locator(".bloom-settings-css").fill("main { outline: 3px solid rgb(255, 0, 0); }");
+    check("Quick CSS applies as you type", await page.evaluate(() => getComputedStyle(document.querySelector("main")).outlineColor === "rgb(255, 0, 0)"));
+    await page.screenshot({ path: resolve(shots, "panel-css-light.png") });
+    await page.locator(".bloom-settings-css").fill("");
+    await page.locator(".bloom-settings-nav-item", { hasText: "Themes" }).click();
+    await page.getByRole("button", { name: "New local theme" }).click();
+    await page.locator('[aria-label="Theme name"]').fill("Test theme");
+    await page.locator('[aria-label="Theme CSS"]').fill("main { outline: 3px solid rgb(0, 0, 255); }");
+    await page.getByRole("button", { name: "Save" }).click();
+    check("a local theme is listed and applied", await page.locator(".bloom-settings-theme").count() === 1
+        && await page.evaluate(() => getComputedStyle(document.querySelector("main")).outlineColor === "rgb(0, 0, 255)"));
+    await page.screenshot({ path: resolve(shots, "panel-themes-light.png") });
+    await page.locator(".bloom-settings-theme [role=switch]").click();
+    check("turning a theme off removes its CSS", await page.evaluate(() => getComputedStyle(document.querySelector("main")).outlineStyle === "none"));
+    await page.locator(".bloom-settings-nav-item", { hasText: "Plugins" }).click();
     await page.screenshot({ path: resolve(shots, "panel-light.png") });
     await page.keyboard.press("Escape");
     check("Escape closes the panel", await page.locator('[data-bloom="settings"]').count() === 0);
@@ -298,6 +314,15 @@ async function newShellSuite(browser) {
     await page.screenshot({ path: resolve(shots, "queue-light.png") });
     await page.waitForFunction(() => window.__notifications.length > 0, null, { timeout: 5000 }).catch(() => {});
     check("ResponseNotification fires when the reply is done", await page.evaluate(() => window.__notifications[0]?.includes("finished answering")));
+    await page.evaluate(() => document.body.insertAdjacentHTML("beforeend", '<div id="bg-row" data-sidebar-chatgpt-conversation-key="chatgpt:conversation:cccccccc-cccc-4ccc-8ccc-cccccccccccc"><a href="/c/cccccccc-cccc-4ccc-8ccc-cccccccccccc">Background chat</a><div data-sidebar-indicator="working"></div></div>'));
+    await page.waitForTimeout(100);
+    await page.evaluate(() => document.querySelector("#bg-row [data-sidebar-indicator]").setAttribute("data-sidebar-indicator", "unread"));
+    await page.waitForTimeout(100);
+    check("CompleteToast shows when a chat you left finishes", (await page.locator('[data-bloom="notices"] [data-bloom-notice]').textContent().catch(() => "")).includes("Background chat"));
+    await page.screenshot({ path: resolve(shots, "toast-light.png"), clip: { x: 760, y: 600, width: 520, height: 200 } });
+    await page.locator('[data-bloom="notices"] [aria-label="Dismiss"]').click();
+    check("CompleteToast closes on ×", await page.locator('[data-bloom="notices"] [data-bloom-notice]').count() === 0);
+    await page.evaluate(() => document.getElementById("bg-row")?.remove());
     await page.waitForFunction(count => document.querySelectorAll("[data-chatgpt-search-unit-key]").length >= count, 4, { timeout: 5000 }).catch(() => {});
     check("PromptQueue sends the queued message after the reply", generateRequests.length >= 2 && generateRequests[1].messages?.[0]?.content?.parts?.[0] === "Queued follow-up");
     check("PromptQueue leaves the first reply intact", await page.locator('[data-chatgpt-search-unit-key$=":assistant"] .markdown').first().textContent() === "Here is the answer.");

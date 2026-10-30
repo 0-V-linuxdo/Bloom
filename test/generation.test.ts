@@ -42,6 +42,7 @@ beforeAll(() => {
     generation.on("rise", () => events.push("rise"));
     generation.on("fall", ({ outcome }: { outcome: FallOutcome; }) => events.push(`fall:${outcome}`));
     generation.on("context", ({ migrated }) => events.push(migrated ? "context:migrated" : "context:switch"));
+    generation.on("background", ({ conversationId }) => events.push(`background:${conversationId}`));
 });
 
 beforeEach(() => {
@@ -127,5 +128,25 @@ describe("generation", () => {
         end();
         await wait(SETTLE_MS);
         expect(events).toEqual(["rise", "fall:left", "context:switch"]);
+    });
+
+    test("a sidebar chat going from working to unread finishes in the background", async () => {
+        navigate(`/c/${B}`);
+        document.body.insertAdjacentHTML("beforeend", `<div data-sidebar-chatgpt-conversation-key="chatgpt:conversation:${A}"><div data-sidebar-indicator="working"></div></div>`);
+        await wait(SETTLE_MS);
+        events.length = 0;
+        document.querySelector("[data-sidebar-indicator]")?.setAttribute("data-sidebar-indicator", "unread");
+        await wait(0);
+        expect(events).toEqual([`background:${A}`]);
+    });
+
+    test("the open chat finishing in the sidebar is not a background finish", async () => {
+        navigate(`/c/${A}`);
+        document.body.insertAdjacentHTML("beforeend", `<div data-sidebar-chatgpt-conversation-key="chatgpt:conversation:${A}"><div data-sidebar-indicator="working"></div></div>`);
+        await wait(SETTLE_MS);
+        events.length = 0;
+        document.querySelector("[data-sidebar-indicator]")?.setAttribute("data-sidebar-indicator", "unread");
+        await wait(SETTLE_MS);
+        expect(events.filter(event => event.startsWith("background"))).toEqual([]);
     });
 });

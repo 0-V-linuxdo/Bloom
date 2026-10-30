@@ -124,11 +124,12 @@ ChatGPT 改版后插件常常静默失效，自检让这种情况在设置面板
 
 入口：
 - 侧栏账号区上方一行 **Bloom++**（花形图标 + 文字），点开/关设置面板。**默认常显**（`showSidebarEntry`，默认真）：账号区上方一直挂花形入口。指针移到账号区才出现是可选项（`showSidebarEntryOnHover`，默认假；无延迟、无淡入）。展开侧栏里指针在整个账号区（footer，入口也在里面）内就一直显示；rail 和旧壳里指针在入口或它后面的账号行上时显示。离开后 0.2 s 才隐藏（`transition: display 0s 0.2s allow-discrete`），让指针能越过入口和账号行之间的空隙。入口平时 `pointer-events: none`，不挡最后一条会话；一旦账号行或入口自己被悬停，整条入口（不只是胶囊）接住指针，胶囊底下还有 0.35rem 的桥叠进账号行，从账号行斜向移到靠左或靠右的胶囊时入口不会先关掉。同一个账号区里有菜单打开时（`button[aria-haspopup=menu][aria-expanded=true]`，比如账号菜单），悬停入口立即隐藏，否则它会从菜单底边下面露出约 6 px；账号菜单里的 Bloom++ 入口由 `showAccountMenuEntry` 控制，默认关。悬停出现的入口不占布局：用 CSS 锚点定位（`position-anchor`）贴在账号按钮上方。锚点是展开侧栏里盖住整行的账号菜单按钮（`[data-bloom-profile]` 旁边的 `button[aria-haspopup=menu]`），rail 和旧壳里是带 `[data-bloom-profile]` 的按钮本身；入口的父元素设 `anchor-scope`，展开侧栏和 rail 各找各的。入口 `bottom: anchor(top)`，与账号行之间没有空隙，横向铺满账号行（`left/right: anchor(...)`），里面的按钮是带面板底色和阴影的小胶囊，盖住列表最下面一点；侧栏和滚动区的高度不变，滚动条不跳。入口 `z-index: 30`：展开侧栏的 footer（`absolute bottom-0 z-20`）自成层叠上下文，顶边有一条 `z-10` 的分隔线（`border-t-hairline`），正好横穿胶囊下部；2.0.33 用 `z-index: 1`，这条线露在胶囊上（2.0.35 修）。2.0.28 里入口在文档流里，出现和消失会让滚动区高度来回变。2.0.31 改用静态位置加 `translateY(-100%)`，实机上入口和账号行之间留了约 11 px 空隙；rail 是 flex 容器，静态位置落在 rail 顶部，入口被移到屏幕外（F-20）。展开侧栏和旧壳里可以按住胶囊左右拖动：位移小于 4 px 算点击，照常打开面板；超过就算拖动，松手（`pointerup`，或指针捕获丢失 `lostpointercapture`）时保存位置，不打开面板。2.0.33–2.0.35 只在 `lostpointercapture` 时保存，脚本派发的指针事件不会释放捕获，位置没存下，刷新后回到右边（F-21，2.0.36 修）。位置存成 0–1 的比例 `entryPosition`（0 靠左，1 靠右，默认 1），按钮用 `left: x·100%` 加 `translateX(-x·100%)` 定位，所以侧栏宽度变了也不会越界。Settings 卡片里有 “Reset position” 按钮，恢复到靠右。rail 里固定居中，不能拖。`showSidebarEntry` 常显时入口仍在文档流里（ChatGPT.app 的 rail 用绝对定位叠在头像上方，不是 flex 兄弟，头像不位移）。`showSidebarEntry`（默认真）打开后一直显示；侧栏两项都关则不挂侧栏入口。`showSidebarEntry`、`showSidebarEntryOnHover`、`showAccountMenuEntry` 至少一项为真：关掉最后一项时开关保持打开（或把刚关的那项写回真）。改动即时生效。展开侧栏和收起的窄 rail 两处都放；窄 rail 里只显示图标。rail 第一个子元素是铺满整条的 `button[aria-label="Show sidebar"]`（`absolute inset-0`），rail 入口必须 `position:relative` 叠在它上面，否则点击落到展开侧栏按钮上。
-- 账号下拉菜单（点头像弹出的小菜单）第一项 **Bloom++**（`showAccountMenuEntry`，默认假）。打开后插在菜单顶部；关掉则不插入。
+- 账号下拉菜单（点头像弹出的小菜单）第一项 **Bloom++**（`showAccountMenuEntry`，默认假）。打开后插在菜单顶部；关掉则不插入。 `showBloomMenu`（默认真）：指针停在这一项上时，菜单右侧（右边放不下就放左边）弹出 Bloom++ 子菜单：Plugins、Themes、Quick CSS 三项打开面板的对应分区；分隔线下是插件列表，点一项打开该插件的设置小窗。列哪些插件由 `menuPlugins` 组件里的开关决定（存 `menuPicks: {插件名: boolean}`，没设过的插件默认按“有可见设置项”列出，同 Void++ PluginsFlyout）。子菜单挂在 `<body>` 上，菜单项在 `pointerdown` 时执行，因为 Radix 在菜单外按下指针就会关菜单；账号菜单关掉时子菜单一起移除。
 - 油猴菜单命令 “Bloom++ settings”，任何时候都能打开面板（侧栏找不到时的保底）。ChatGPT.app 里 ⌘⇧B（Windows / Linux 为 Ctrl+Shift+B）同样打开面板。油猴菜单和快捷键不算“必须留一个可见入口”。
 
 面板（挂在 `document.body`，居中卡片，Void++ 设置的外观）：
 - 头部：花形图标 + 标题 **Bloom++** + ⓘ 提示（悬停或键盘聚焦立即显示 “Toggle features. Some need a reload. Click the sliders icon to configure.”）+ 右上角关闭。ⓘ 和所有图标按钮的提示用 Bloom 自己的提示气泡（`data-bloom-tip`），不用浏览器 `title`（后者约 1 秒才出现）。
+- 头部下面是三个分区（Void++ 的 Plugins / Themes / Quick CSS）：**Plugins** 是下面描述的插件列表；**Themes** 分“Online themes”（输入以 `.css` 结尾的 https 地址，`GM_xmlhttpRequest` 下载，文件头 `/** @name … */` 作为名字，否则用文件名；每次加载页面重新下载已启用的在线主题，内容变了才更新缓存）和“Local themes”（名字 + CSS，只存本机），每个主题一行：名字、地址或 “Local”、复制地址/编辑、删除（再点一次确认）、开关；**Quick CSS** 是一个开关加 CSS 编辑框，边输入边生效。主题和 Quick CSS 由隐藏的必需核心插件 `Themes`（`Init` 阶段）放进一张样式表，缓存的 CSS 在首屏前就生效。app 构建没有 `GM_xmlhttpRequest`，只能用本地主题和 Quick CSS。
 - 分类标签（下划线式）：Favorites / Recent / All / Chat / UI / Privacy / Other。Recent = 最近 7 天有功能性提交的插件（构建时从 git 记录盖章，跳过 chore/docs/ci/style/test/build/brand），按时间倒序；Other = 没有 chat/ui/privacy 标签的插件，没有就不显示该标签。
 - 搜索框（占位 “Search N plugins...”）+ 过滤下拉 All / Enabled / Disabled。
 - 插件卡片：图标块、名称、两行描述、作者页脚；右上角 ☆收藏、📌置顶（置顶的排最前）、⚙设置（有可见设置项才出现）、开关。每个可选插件都有开关，关掉时轨道仍是可见的灰色，圆钮靠左。必须开启的插件（`required`，目前只有 Settings）开关保持打开且不能点，不显示置顶，改放一个提示 “This plugin is required for Bloom++ to work”；卡片整体变淡。All 标签里这些卡片排在一条横线下面，和 Void++ 一样；其它标签里如果出现，样式相同但不单独分段。隐藏类插件的 `display:none` 选择器都带 `:not([data-bloom])`，Bloom 自己的按钮带 `data-bloom="control"`，所以不会把面板里的开关藏掉（NoDictation 的 `[aria-label*="Dictation"]` 曾经藏住 “Enable NoDictation”，因为插件名里含有 Dictation）。
@@ -138,7 +139,7 @@ ChatGPT 改版后插件常常静默失效，自检让这种情况在设置面板
 - 新插件（`knownPlugins` 里首次见到不足 2 天）的名称旁显示 **New** 徽章。
 - 锚点自检（2.9）判定缺失的插件，卡片描述下方显示一行警示：“Can't find its place on this page. It may need an update.”（ChatGPT.app 里是 “Paused: can't find its place on this page.”），悬停显示缺的选择器。
 
-存储：`plugins.Settings.pinnedPlugins: string[]`、`plugins.Settings.starredPlugins: string[]`、`plugins.Settings.knownPlugins`、`plugins.Settings.landmarkNotice`。
+存储：`plugins.Settings.pinnedPlugins: string[]`、`plugins.Settings.starredPlugins: string[]`、`plugins.Settings.knownPlugins`、`plugins.Settings.landmarkNotice`。 主题和 Quick CSS 存在 `plugins.Themes.themes: {id, name, url?, css, enabled}[]`、`plugins.Themes.quickCss: string`、`plugins.Themes.quickCssEnabled: boolean`（默认真）。
 
 ---
 
@@ -212,12 +213,13 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 默认开｜`HostReady`｜chat, ui｜Void++ 同名
 
 - 按住 `Ctrl` 再按 `` ` ``（兼容中文输入法下的 `·`、日文 `｀` 等同键位）弹出最近打开过的会话列表（Arc 式）；继续按 `` ` `` 往下选，`Shift` 反向，松开 `Ctrl` 跳转。也可 Enter 确认、Esc 取消、点击某项跳转、点外面关闭。
-- 每项显示：会话标题、所属项目名（如有）、最后一轮的用户 / 助手预览（截断 140 字）。
+- 面板居中，横向排卡片（Arc 式，同 Void++）：每张卡上方是 16:9 缩略图，画最后一轮的用户气泡（靠右，最多两行）和助手回复（靠左，最多四行）；没有预览时显示 Bloom 花形，New chat 首页显示加号；下方是会话标题和带文件夹图标的项目名（如有）。卡片宽度随窗口变化（8.5–12.75rem），放不下时面板横向滚动。←/→ 和 ↑/↓ 都能切换。
 - 列表按“最近访问”排序，当前会话排第一，打开时默认选中第二项。
 - 标题来源：已缓存 → 网络采集的标题 → 侧栏链接文字 → 页面标题。离开会话、标签页隐藏时记录该会话的预览。
 - 跳转优先点击侧栏里对应链接（SPA 内跳转），找不到再 `location.assign`。
 - 设置：`maxRecent`（下拉 3–12，默认 5，存字符串）、`includeHome`（把 New chat 首页也算进列表，默认真）；隐藏：`visits: string[]`（`"home"` 代表首页）、`titles: {id: 标题}`、`previews: {id: {user, assistant}}`、`projects: {id: 项目名}`。
-- 面板是设置卡片的外观（`--bg-primary` 底、细边框、长阴影），选中行用 hover 底色。
+- 面板是设置卡片的外观（Bloom 底色、细边框、长阴影），选中卡片加描边。没有记录时显示 “Open a few chats, then hold Ctrl+` to switch.”，松开 Ctrl 只关闭面板。
+- 打开一条已删除或无权访问的会话时，ChatGPT 请求 `GET /backend-api/conversations/{id}` 得到 404，宿主发出 `conversation-missing`，RecentTopics 把它从 `visits`、`titles`、`previews`、`projects` 里删掉。
 
 ### 4.8 Cleaner — 清理界面
 
@@ -240,6 +242,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 默认开｜`HostReady`｜chat｜Void++ 同名
 
 - 本页回复正常结束时（不是用户中止、不是出错、不是离开会话）播放提示音 + 浏览器通知 “<会话标题> finished answering.”（标题 “Bloom++”，点击通知聚焦标签页）。
+- 离开时还在回答的会话（后台会话）答完时同样提醒。判定看侧栏原生标记：会话行 `[data-sidebar-chatgpt-conversation-key="chatgpt:conversation:{id}"]` 里的 `[data-sidebar-indicator]` 从 `working` 变成 `unread`（2026-10 实机：回答中是 `working` 加 `[role=status][aria-label=Working]` 转圈，后台答完是 `unread` 加蓝点和 sr-only “Unread”，打开后清空），且该会话不是当前打开的会话。宿主 `generation` 发出 `background` 事件；属性变化用单独的 MutationObserver 同步判定，后台标签页不受计时器节流。多个标签页各自都会看到：通知和提示音经 `localStorage` 键 `BloomNoticeClaim`（同一会话 30 秒内只认第一个）只响一次。
 - 设置：`sound`（默认真）、`soundUrl`（自定义音频 URL，空则用与 Void++ 相同的默认完成音 `done1`（内嵌 MP3 data URI，Web Audio 解码，音量 0.5；1.4.117 的两音符振荡器提示音已弃用）；chatgpt.com 的 CSP media-src 会拦 `<audio>`，所以用 `GM_xmlhttpRequest`（`@connect *`）下载，再用 Web Audio 解码播放，按 URL 缓存；下载或解码失败时退回默认完成音）、组件 “Preview” 试听按钮（单独一个按钮，无说明行）、`browserNotification`（默认真；优先 `GM_notification`，否则 Web Notification，首次点击页面时请求权限）、`onlyWhenHidden`（仅在标签页隐藏时通知，默认真）。
 
 ### 4.10 PromptQueue — 生成中排队追问
@@ -393,11 +396,20 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 ---
 
+### 4.24 CompleteToast — 后台会话答完的页内提示
+
+默认开｜`HostReady`｜chat｜Void++ 同名
+
+- 离开时还在回答的会话答完时（判定同 ResponseNotification 的后台会话），用页内提示条 API（`@api/Notices`，右下角）弹一条 success 提示：会话标题、“Response ready”、×。点提示条打开那条会话（优先点侧栏链接），点 × 关闭；打开那条会话时自动关闭。固定 key `complete-toast`，新的替换旧的。指针停在上面时暂停计时。
+- 不显示回复预览：后台会话的回复走 WebSocket，Bloom 读不到正文（Void++ 的 `showPreview` 没有移植）。app 构建里侧栏没有这个标记，不会弹出。
+- 设置：`keepUntilDismissed`（默认假）、`duration`（0–20 秒，默认 6；0 等于不自动关闭）。
+
 ## 5. 设置键总表（兼容性清单）
 
 | 插件 | 可见设置 | 隐藏数据 |
 | --- | --- | --- |
-| Settings | `showSidebarEntry`（默认真）`showSidebarEntryOnHover`（默认假）`showAccountMenuEntry`（默认假；与前两项至少留一真）`resetEntryPosition`（组件） | `pinnedPlugins` `starredPlugins` `entryPosition` `knownPlugins` `landmarkNotice` |
+| Settings | `showSidebarEntry`（默认真）`showSidebarEntryOnHover`（默认假）`showAccountMenuEntry`（默认假；与前两项至少留一真）`resetEntryPosition`（组件）`showBloomMenu`（默认真）`menuPlugins`（组件） | `pinnedPlugins` `menuPicks` `starredPlugins` `entryPosition` `knownPlugins` `landmarkNotice` |
+| Themes（隐藏、必需） | — | `themes` `quickCss` `quickCssEnabled` |
 | ChatStateFavicons | `style` | — |
 | InputHistory | `maxEntries` | `entries` |
 | NoShareLink | `hideShareChat` `hideShareProject` | — |
@@ -416,6 +428,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | BetterQuotes | `jumpToPassage` `persistAcrossChats` | — |
 | UserQuotes | `italic` `quotes` | — |
 | TemporaryChat | `openNewAsTemporary` | — |
+| CompleteToast | `keepUntilDismissed` `duration` | — |
 | BetterNavigator | `showAssistant` `jumpEffect` | — |
 | MessageTimestamps | `sourceTimeZone` `hideOwnMessages` | `stamps` |
 | StreamerMode | `conversations` `projects` `accountAvatar` `accountName` `accountEmail` `headerTitle` | — |

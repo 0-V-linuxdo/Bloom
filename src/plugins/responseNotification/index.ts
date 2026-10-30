@@ -9,6 +9,8 @@ import { button } from "@components/controls";
 import { conversationTitle } from "@host/conversation";
 import { generation } from "@host/generation";
 import { Logger } from "@utils/Logger";
+import { download, isRecord, parseJson } from "@utils/misc";
+import { readStored, writeStored } from "@utils/storage";
 import definePlugin, { OptionType } from "@utils/types";
 
 import { DEFAULT_CHIME } from "./done1";
@@ -16,8 +18,8 @@ import { DEFAULT_CHIME } from "./done1";
 const logger = new Logger("ResponseNotification");
 
 const SAMPLE_VOLUME = 0.5;
-const HTTP_OK = 200;
-const HTTP_REDIRECT = 300;
+const CLAIM_KEY = "BloomNoticeClaim";
+const CLAIM_TTL_MS = 30_000;
 
 const settings = definePluginSettings({
     sound: { type: OptionType.BOOLEAN, description: "Play a sound when a reply finishes.", default: true },
@@ -32,18 +34,8 @@ const settings = definePluginSettings({
 
 let audio: AudioContext | null = null;
 const buffers = new Map<string, Promise<AudioBuffer>>();
-let unsubscribe: (() => void) | undefined;
+let unsubscribers: (() => void)[] = [];
 let controller: AbortController | undefined;
-
-function download(url: string) {
-    return new Promise<ArrayBuffer>((resolve, reject) => GM_xmlhttpRequest({
-        url,
-        responseType: "arraybuffer",
-        onload: ({ status, response }) => status >= HTTP_OK && status < HTTP_REDIRECT ? resolve(response) : reject(new Error(`HTTP ${status}`)),
-        onerror: () => reject(new Error("Request failed")),
-        ontimeout: () => reject(new Error("Request timed out")),
-    }));
-}
 
 const dataBytes = (url: string) => Uint8Array.from(atob(url.slice(url.indexOf(",") + 1)), char => char.charCodeAt(0)).buffer;
 
@@ -91,6 +83,20 @@ function notify(title: string | null) {
     };
 }
 
+function claim(id: string | null) {
+    const last = parseJson(readStored(CLAIM_KEY) ?? "");
+    if (id && isRecord(last) && last.id === id && Date.now() - Number(last.at) < CLAIM_TTL_MS) return false;
+    writeStored(CLAIM_KEY, { id, at: Date.now() });
+    return true;
+}
+
+function finished(conversationId: string | null) {
+    if (settings.store.onlyWhenHidden && !document.hidden) return;
+    if (!claim(conversationId)) return;
+    if (settings.store.sound) playSound();
+    if (settings.store.browserNotification) notify(conversationTitle(conversationId));
+}
+
 function requestPermissionOnce() {
     if (typeof GM_notification === "function" || typeof Notification === "undefined" || Notification.permission !== "default") return;
     controller = new AbortController();
@@ -99,7 +105,7 @@ function requestPermissionOnce() {
 
 export default definePlugin({
     name: "ResponseNotification",
-    description: "Play a sound and show a notification when ChatGPT finishes a reply.",
+    description: "Play a sound and show a notification when ChatGPT finishes a reply, including chats you left while they were answering.",
     authors: ["Bloom contributors"],
     tags: ["chat"],
     icon: "bell",
@@ -107,15 +113,13 @@ export default definePlugin({
     settings,
     start() {
         requestPermissionOnce();
-        unsubscribe = generation.on("fall", ({ conversationId, outcome }) => {
-            if (outcome !== "done") return;
-            if (settings.store.onlyWhenHidden && !document.hidden) return;
-            if (settings.store.sound) playSound();
-            if (settings.store.browserNotification) notify(conversationTitle(conversationId));
-        });
+        unsubscribers = [
+            generation.on("fall", ({ conversationId, outcome }) => outcome === "done" && finished(conversationId)),
+            generation.on("background", ({ conversationId }) => finished(conversationId)),
+        ];
     },
     stop() {
-        unsubscribe?.();
+        for (const unsubscribe of unsubscribers) unsubscribe();
         controller?.abort();
     },
 });

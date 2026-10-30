@@ -36,3 +36,16 @@ export function parseJson(text: string): unknown {
 }
 
 export const pageWindow: Window & typeof globalThis = typeof unsafeWindow === "undefined" ? window : unsafeWindow;
+
+const HTTP_OK = 200;
+const HTTP_REDIRECT = 300;
+
+export function download(url: string) {
+    return new Promise<ArrayBuffer>((resolve, reject) => GM_xmlhttpRequest({
+        url,
+        responseType: "arraybuffer",
+        onload: ({ status, response }) => status >= HTTP_OK && status < HTTP_REDIRECT ? resolve(response) : reject(new Error(`HTTP ${status}`)),
+        onerror: () => reject(new Error("Request failed")),
+        ontimeout: () => reject(new Error("Request timed out")),
+    }));
+}
