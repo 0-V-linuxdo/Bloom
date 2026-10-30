@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { plugins, registerPlugins, startPhase } from "@api/PluginManager";
+import { destroyPlugins, plugins, registerPlugins, startPhase, watchDisabledPlugins } from "@api/PluginManager";
 import { loadSettings } from "@api/Settings";
 import baseCss from "@components/base.css";
 import { startGeneration } from "@host/generation";
 import { installNetworkTap } from "@host/network";
 import { whenDomReady, whenHostReady } from "@host/ready";
-import { mountPendingStyles, registerStyle } from "@utils/css";
+import { dropBloomStyles, mountPendingStyles, registerStyle } from "@utils/css";
 import { Logger } from "@utils/Logger";
 import { PLUGIN_UPDATED_AT } from "@utils/pluginMtime";
 import { StartAt } from "@utils/types";
@@ -23,7 +23,14 @@ export const VERSION = BLOOM_VERSION;
 
 export { plugins };
 
+export function destroy() {
+    destroyPlugins();
+    dropBloomStyles();
+}
+
 export async function init() {
+    dropBloomStyles();
+    for (const el of document.querySelectorAll("[data-bloom='settings']")) el.remove();
     installNetworkTap();
     for (const plugin of pluginList) plugin.updatedAt = PLUGIN_UPDATED_AT[plugin.name];
     registerPlugins(pluginList);
@@ -38,5 +45,6 @@ export async function init() {
     });
     await whenHostReady();
     startPhase(StartAt.HostReady);
+    watchDisabledPlugins();
     logger.info(`Bloom++ ${VERSION} ready`);
 }

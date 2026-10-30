@@ -5,10 +5,11 @@
  */
 
 import { registerStyle, removeStyle } from "@utils/css";
+import { watchBody } from "@utils/dom";
 import { Logger } from "@utils/Logger";
 import { type Plugin, StartAt } from "@utils/types";
 
-import { onSettingChange, readSetting, writeSetting } from "./Settings";
+import { flushSettings, onSettingChange, readSetting, writeSetting } from "./Settings";
 
 const logger = new Logger("PluginManager");
 
@@ -45,12 +46,13 @@ function startPlugin(plugin: Plugin) {
         plugin.start?.();
         started.add(plugin.name);
     } catch (e) {
+        removeStyle(styleId(plugin));
         logger.error(`Failed to start ${plugin.name}`, e);
     }
 }
 
 function stopPlugin(plugin: Plugin) {
-    if (!started.delete(plugin.name)) return;
+    started.delete(plugin.name);
     removeStyle(styleId(plugin));
     try {
         plugin.stop?.();
@@ -61,9 +63,17 @@ function stopPlugin(plugin: Plugin) {
 
 const phaseOf = (plugin: Plugin) => plugin.startAt ?? StartAt.HostReady;
 
+function applyEnabled(plugin: Plugin) {
+    if (isPluginEnabled(plugin)) {
+        if (reached.has(phaseOf(plugin))) startPlugin(plugin);
+        return;
+    }
+    stopPlugin(plugin);
+}
+
 export function startPhase(phase: StartAt) {
     reached.add(phase);
-    for (const plugin of plugins.values()) if (phaseOf(plugin) === phase && isPluginEnabled(plugin)) startPlugin(plugin);
+    for (const plugin of plugins.values()) if (phaseOf(plugin) === phase) applyEnabled(plugin);
     logger.info(`${phase}: ${[...started].join(", ")}`);
 }
 
@@ -77,9 +87,30 @@ export function runPlugin(plugin: Plugin) {
 
 export function setPluginEnabled(plugin: Plugin, enabled: boolean) {
     writeSetting(plugin.name, "enabled", enabled);
-    if (!enabled) stopPlugin(plugin);
-    else if (reached.has(phaseOf(plugin))) startPlugin(plugin);
-    for (const listener of stateListeners) listener();
+    flushSettings();
+}
+
+function sweepDisabled() {
+    for (const plugin of plugins.values()) {
+        if (plugin.required || isPluginEnabled(plugin)) continue;
+        if (started.has(plugin.name)) stopPlugin(plugin);
+        else removeStyle(styleId(plugin));
+    }
+}
+
+let stopSweep: (() => void) | undefined;
+
+export function watchDisabledPlugins() {
+    stopSweep?.();
+    stopSweep = watchBody(() => sweepDisabled());
+}
+
+export function destroyPlugins() {
+    stopSweep?.();
+    stopSweep = undefined;
+    for (const plugin of plugins.values()) stopPlugin(plugin);
+    started.clear();
+    reached.clear();
 }
 
 export function onPluginStateChange(listener: () => void) {
@@ -89,7 +120,13 @@ export function onPluginStateChange(listener: () => void) {
 
 onSettingChange((name, key) => {
     const plugin = plugins.get(name);
-    if (!plugin || key === "enabled" || !started.has(name)) return;
+    if (!plugin) return;
+    if (key === "enabled") {
+        if (typeof readSetting(name, "enabled") === "boolean") applyEnabled(plugin);
+        for (const listener of stateListeners) listener();
+        return;
+    }
+    if (!started.has(name)) return;
     try {
         applyStyles(plugin);
         plugin.onSettingsChange?.(key);
