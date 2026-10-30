@@ -401,6 +401,7 @@ export default definePlugin({
         if (key === "messages" || key === "replaceReadAloud") render();
     },
     start() {
+        for (const node of document.querySelectorAll('[data-bloom="star-list"]')) node.remove();
         intent = hoverIntent({
             over: overChrome,
             trigger: () => toggleBtn,

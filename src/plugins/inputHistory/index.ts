@@ -158,6 +158,8 @@ export default definePlugin({
     settings,
     styles,
     start() {
+        for (const node of document.querySelectorAll('[data-bloom="history-hud"]')) node.remove();
+        hud = null;
         controller = new AbortController();
         const { signal } = controller;
         document.addEventListener("keydown", onKeydown, { capture: true, signal });
@@ -168,6 +170,8 @@ export default definePlugin({
     stop() {
         controller?.abort();
         endBrowsing();
+        for (const node of document.querySelectorAll('[data-bloom="history-hud"]')) node.remove();
+        hud = null;
     },
     onSettingsChange(key) {
         if (key === "maxEntries") saveEntries(entries());

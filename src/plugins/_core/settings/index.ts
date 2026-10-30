@@ -156,6 +156,8 @@ export default definePlugin({
             + "[data-app-navigation-rail] [data-bloom=entry] .bloom-entry-button{pointer-events:auto}"
         : ""}.${cl("hover")}{${POSITION_VAR}:${settings.store.entryPosition}}`,
     start() {
+        for (const node of document.querySelectorAll('[data-bloom="entry"]')) node.remove();
+        entries.clear();
         unsubscribers = [watchBody(sync), useTooltips(), useIdentityMarks()];
         if (!menuRegistered && typeof GM_registerMenuCommand === "function") {
             GM_registerMenuCommand("Bloom++ settings", togglePanel);

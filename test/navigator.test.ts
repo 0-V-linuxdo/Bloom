@@ -369,4 +369,26 @@ describe("BetterNavigator open turn", () => {
         document.dispatchEvent(new PointerEvent("pointermove", { clientX: 520, clientY: 120, bubbles: true }));
         expect(host.classList.contains("bloom-nav-open")).toBe(false);
     });
+
+    test("keeps one rail when leftover navigator roots are already on the page", async () => {
+        document.body.innerHTML = OPEN_USER;
+        const extra = document.createElement("div");
+        extra.setAttribute("data-bloom", "navigator");
+        extra.className = "bloom-root leftover";
+        extra.append(Object.assign(document.createElement("div"), { className: "bloom-nav-rail" }));
+        document.body.append(extra, extra.cloneNode(true));
+        navigator.start?.();
+        await wait(100);
+        expect(document.querySelectorAll("[data-bloom=navigator]")).toHaveLength(1);
+        expect(document.querySelectorAll(".bloom-nav-tick").length).toBeGreaterThan(0);
+    });
+
+    test("stop removes the navigator root", async () => {
+        navigator.start?.();
+        document.body.innerHTML = OPEN_USER;
+        await wait(100);
+        expect(document.querySelector("[data-bloom=navigator]")).not.toBeNull();
+        navigator.stop?.();
+        expect(document.querySelector("[data-bloom=navigator]")).toBeNull();
+    });
 });

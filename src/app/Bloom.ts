@@ -10,6 +10,7 @@ import baseCss from "@components/base.css";
 import { startGeneration } from "@host/generation";
 import { whenDomReady, whenHostReady } from "@host/ready";
 import { dropBloomStyles, mountPendingStyles, registerStyle } from "@utils/css";
+import { sweepBloomChrome } from "@utils/instance";
 import { Logger } from "@utils/Logger";
 import { pageWindow } from "@utils/misc";
 import { PLUGIN_UPDATED_AT } from "@utils/pluginMtime";
@@ -25,6 +26,7 @@ export const VERSION = BLOOM_VERSION;
 
 export { plugins };
 
+let boot = 0;
 let stopLandmarks: (() => void) | undefined;
 
 const SHORTCUT = "__bloomOnShortcut";
@@ -51,6 +53,7 @@ function bindShortcut() {
 }
 
 export function destroy() {
+    boot++;
     document.removeEventListener("keydown", onShortcut, true);
     const host = pageWindow as ShortcutHost;
     if (host[SHORTCUT] === onShortcut) delete host[SHORTCUT];
@@ -58,11 +61,14 @@ export function destroy() {
     stopLandmarks = undefined;
     destroyPlugins();
     dropBloomStyles();
+    sweepBloomChrome();
 }
 
 export async function init() {
+    const token = ++boot;
+    const live = () => token === boot;
     dropBloomStyles();
-    for (const el of document.querySelectorAll("[data-bloom='settings']")) el.remove();
+    sweepBloomChrome();
     for (const plugin of pluginList) plugin.updatedAt = PLUGIN_UPDATED_AT[plugin.name];
     registerPlugins(pluginList);
     loadSettings();
@@ -71,10 +77,12 @@ export async function init() {
     bindShortcut();
     startPhase(StartAt.Init);
     void whenDomReady().then(() => {
+        if (!live()) return;
         mountPendingStyles();
         startPhase(StartAt.DOMContentLoaded);
     });
     await whenHostReady();
+    if (!live()) return;
     startPhase(StartAt.HostReady);
     stopLandmarks?.();
     stopLandmarks = watchLandmarks();

@@ -55,7 +55,9 @@ interface Entry {
     streaming: boolean;
 }
 
-let root: HTMLElement | null = null;
+type NavRoot = HTMLElement & { __bloomNavStop?: () => void };
+
+let root: NavRoot | null = null;
 let entries: Entry[] = [];
 let current = -1;
 let aim = -1;
@@ -511,26 +513,7 @@ function render() {
             watchedChrome.add(el);
         }
     }
-    if (!root) {
-        root = h("div", {
-            class: `bloom-root ${cl("root")}`,
-            attrs: { "data-bloom": "navigator" },
-            on: {
-                pointerenter: () => hover?.enter(),
-                pointerleave: event => hover?.leave(event),
-            },
-        },
-        h("div", { class: cl("rail") }),
-        h("div", { class: cl("bridge"), attrs: { "aria-hidden": "true" } }),
-        h("div", { class: cl("toc") }, h("div", { class: cl("toc-head") }), h("div", { class: cl("toc-list") })));
-        hover = hoverIntent({
-            over: node => node instanceof Node && !!root?.contains(node),
-            trigger: () => root?.querySelector(`.${cl("rail")}`),
-            panel: () => root?.querySelector(`.${cl("toc")}`),
-            setHeld: held => root?.classList.toggle(cl("open"), held),
-        });
-    }
-    if (!root.isConnected) document.body.append(root);
+    claimRoot();
     pin(scroller);
     const next = JSON.stringify(entries.map(entry => [entry.role, entry.ids]));
     if (next !== signature) {
@@ -581,10 +564,93 @@ function rebuild() {
 
 const update = frameScheduler(render);
 
+function dropExtra(node: HTMLElement) {
+    if (node === root) return;
+    const stop = (node as NavRoot).__bloomNavStop;
+    if (stop && stop !== teardown) {
+        try {
+            stop();
+        } catch {
+            /* leftover stop */
+        }
+    }
+    if (node.isConnected && node !== root) node.remove();
+}
+
+function keepOne() {
+    const nodes = [...document.querySelectorAll<HTMLElement>('[data-bloom="navigator"]')];
+    if (root && !root.isConnected) root = null;
+    if (root && nodes.includes(root)) {
+        for (const node of nodes) dropExtra(node);
+        return;
+    }
+    root = (nodes[0] as NavRoot | undefined) ?? null;
+    for (const node of nodes.slice(1)) dropExtra(node);
+}
+
+function bindHover() {
+    hover?.dispose();
+    hover = hoverIntent({
+        over: node => node instanceof Node && !!root?.contains(node),
+        trigger: () => root?.querySelector(`.${cl("rail")}`),
+        panel: () => root?.querySelector(`.${cl("toc")}`),
+        setHeld: held => root?.classList.toggle(cl("open"), held),
+    });
+}
+
+function claimRoot() {
+    keepOne();
+    if (root && !root.querySelector(`.${cl("rail")}`)) {
+        root.remove();
+        root = null;
+        signature = "";
+    }
+    if (!root) {
+        root = h("div", {
+            class: `bloom-root ${cl("root")}`,
+            attrs: { "data-bloom": "navigator" },
+            on: {
+                pointerenter: () => hover?.enter(),
+                pointerleave: event => hover?.leave(event),
+            },
+        },
+        h("div", { class: cl("rail") }),
+        h("div", { class: cl("bridge"), attrs: { "aria-hidden": "true" } }),
+        h("div", { class: cl("toc") }, h("div", { class: cl("toc-head") }), h("div", { class: cl("toc-list") })));
+        signature = "";
+    }
+    if (!hover) bindHover();
+    if (!root.isConnected) document.body.append(root);
+    if (!root.querySelector(`.${cl("tick")}`)) signature = "";
+    root.__bloomNavStop = teardown;
+}
+
 function release() {
     aim = -1;
     home = null;
     seeking++;
+}
+
+function teardown() {
+    for (const unsubscribe of unsubscribers) unsubscribe();
+    unsubscribers = [];
+    controller?.abort();
+    resizeObserver?.disconnect();
+    resizeObserver = undefined;
+    scrollTarget = null;
+    watchedForm = null;
+    watchedChrome = new Set();
+    removeEventListener("keydown", onKeydown, true);
+    removeEventListener("resize", update);
+    hover?.dispose();
+    hover = undefined;
+    if (root) delete root.__bloomNavStop;
+    root?.remove();
+    root = null;
+    signature = "";
+    forget();
+    heldChat = "";
+    for (const node of document.querySelectorAll<HTMLElement>('[data-bloom="navigator"]')) dropExtra(node);
 }
 
 const isEditable = (el: Element | null) => !!el && (el.matches("input, textarea, select, [contenteditable=''], [contenteditable='true']") || !!el.closest("[contenteditable='true']"));
@@ -613,6 +679,7 @@ export default definePlugin({
     settings,
     styles,
     start() {
+        keepOne();
         unsubscribers = [
             watchBody(mutations => hostMutations(mutations) && update()),
             onRouteChange(update),
@@ -629,23 +696,6 @@ export default definePlugin({
         addEventListener("resize", update, { passive: true });
         update();
     },
-    stop() {
-        for (const unsubscribe of unsubscribers) unsubscribe();
-        controller?.abort();
-        resizeObserver?.disconnect();
-        resizeObserver = undefined;
-        scrollTarget = null;
-        watchedForm = null;
-        watchedChrome = new Set();
-        removeEventListener("keydown", onKeydown, true);
-        removeEventListener("resize", update);
-        hover?.dispose();
-        hover = undefined;
-        root?.remove();
-        root = null;
-        signature = "";
-        forget();
-        heldChat = "";
-    },
+    stop: teardown,
     onSettingsChange: update,
 });

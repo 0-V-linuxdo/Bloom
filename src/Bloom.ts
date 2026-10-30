@@ -11,6 +11,7 @@ import { startGeneration } from "@host/generation";
 import { installNetworkTap } from "@host/network";
 import { whenDomReady, whenHostReady } from "@host/ready";
 import { dropBloomStyles, mountPendingStyles, registerStyle } from "@utils/css";
+import { sweepBloomChrome } from "@utils/instance";
 import { Logger } from "@utils/Logger";
 import { PLUGIN_UPDATED_AT } from "@utils/pluginMtime";
 import { StartAt } from "@utils/types";
@@ -23,14 +24,20 @@ export const VERSION = BLOOM_VERSION;
 
 export { plugins };
 
+let boot = 0;
+
 export function destroy() {
+    boot++;
     destroyPlugins();
     dropBloomStyles();
+    sweepBloomChrome();
 }
 
 export async function init() {
+    const token = ++boot;
+    const live = () => token === boot;
     dropBloomStyles();
-    for (const el of document.querySelectorAll("[data-bloom='settings']")) el.remove();
+    sweepBloomChrome();
     installNetworkTap();
     for (const plugin of pluginList) plugin.updatedAt = PLUGIN_UPDATED_AT[plugin.name];
     registerPlugins(pluginList);
@@ -40,10 +47,12 @@ export async function init() {
     startGeneration();
     startPhase(StartAt.Init);
     void whenDomReady().then(() => {
+        if (!live()) return;
         mountPendingStyles();
         startPhase(StartAt.DOMContentLoaded);
     });
     await whenHostReady();
+    if (!live()) return;
     startPhase(StartAt.HostReady);
     watchDisabledPlugins();
     logger.info(`Bloom++ ${VERSION} ready`);

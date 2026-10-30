@@ -154,6 +154,8 @@ export default definePlugin({
     settings,
     styles,
     start() {
+        clear();
+        clearPlaceholder();
         controller = new AbortController();
         document.addEventListener("click", onClick, { signal: controller.signal });
         if (onHome() && settings.store.mode === "refresh") advance();
