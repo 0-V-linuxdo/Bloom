@@ -297,19 +297,19 @@ function mountPanel() {
                 h("div", { class: cl("logo") }, icon("bloom")),
                 h("h2", { class: cl("title"), text: "Bloom++" }),
                 h("span", { class: cl("hint"), attrs: { "aria-label": HINT, "tabindex": "0", [TIP]: HINT } }, icon("info")),
+                h("div", { class: cl("nav"), attrs: { role: "tablist" } }, ...SECTIONS.map(item => h("button", {
+                    class: cl("nav-item"),
+                    text: item.label,
+                    attrs: { "type": "button", "role": "tab", "data-section": item.id },
+                    on: {
+                        click: () => {
+                            section = item.id;
+                            renderSection();
+                        },
+                    },
+                }))),
                 h("span", { class: cl("version"), text: `v${BLOOM_VERSION}` }),
                 iconButton("close", "Close", closePanel)),
-            h("div", { class: cl("nav"), attrs: { role: "tablist" } }, ...SECTIONS.map(item => h("button", {
-                class: cl("nav-item"),
-                text: item.label,
-                attrs: { "type": "button", "role": "tab", "data-section": item.id },
-                on: {
-                    click: () => {
-                        section = item.id;
-                        renderSection();
-                    },
-                },
-            }))),
             h("div", { class: cl("body") })));
     root.addEventListener("keydown", event => event.stopPropagation());
     controller = new AbortController();

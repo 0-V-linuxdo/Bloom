@@ -230,6 +230,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    min-width: 0;
 }
 
 .bloom-settings-logo .bloom-icon {
@@ -245,6 +246,14 @@
 .bloom-settings-hint {
     color: var(--bloom-fg-3);
     cursor: help;
+}
+
+.bloom-settings-logo,
+.bloom-settings-title,
+.bloom-settings-hint,
+.bloom-settings-version,
+.bloom-settings-header > .bloom-icon-button {
+    flex-shrink: 0;
 }
 
 .bloom-settings-version {
@@ -509,8 +518,9 @@
 .bloom-settings-nav {
     display: flex;
     gap: 0.25rem;
+    min-width: 0;
     padding: 0.1875rem;
-    align-self: flex-start;
+    overflow-x: auto;
     border-radius: 0.75rem;
     background: var(--bloom-surface-2);
 }

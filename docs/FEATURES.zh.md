@@ -128,9 +128,9 @@ ChatGPT 改版后插件常常静默失效，自检让这种情况在设置面板
 - 油猴菜单命令 “Bloom++ settings”，任何时候都能打开面板（侧栏找不到时的保底）。ChatGPT.app 里 ⌘⇧B（Windows / Linux 为 Ctrl+Shift+B）同样打开面板。油猴菜单和快捷键不算“必须留一个可见入口”。
 
 面板（挂在 `document.body`，居中卡片，Void++ 设置的外观）：
-- 头部：花形图标 + 标题 **Bloom++** + ⓘ 提示（悬停或键盘聚焦立即显示 “Toggle features. Some need a reload. Click the sliders icon to configure.”）+ 右上角关闭。ⓘ 和所有图标按钮的提示用 Bloom 自己的提示气泡（`data-bloom-tip`），不用浏览器 `title`（后者约 1 秒才出现）。
-- 头部下面是三个分区（Void++ 的 Plugins / Themes / Quick CSS）：**Plugins** 是下面描述的插件列表；**Themes** 分“Online themes”（输入以 `.css` 结尾的 https 地址，`GM_xmlhttpRequest` 下载，文件头 `/** @name … */` 作为名字，否则用文件名；每次加载页面重新下载已启用的在线主题，内容变了才更新缓存）和“Local themes”（名字 + CSS，只存本机），每个主题一行：名字、地址或 “Local”、复制地址/编辑、删除（再点一次确认）、开关；**Quick CSS** 是一个开关加 CSS 编辑框，边输入边生效。主题和 Quick CSS 由隐藏的必需核心插件 `Themes`（`Init` 阶段）放进一张样式表，缓存的 CSS 在首屏前就生效。app 构建没有 `GM_xmlhttpRequest`，只能用本地主题和 Quick CSS。
-- 分类标签（下划线式）：Favorites / Recent / All / Chat / UI / Privacy / Other。Recent = 最近 7 天有功能性提交的插件（构建时从 git 记录盖章，跳过 chore/docs/ci/style/test/build/brand），按时间倒序；Other = 没有 chat/ui/privacy 标签的插件，没有就不显示该标签。
+- 头部同一行：花形图标 + 标题 **Bloom++** + ⓘ 提示（悬停或键盘聚焦立即显示 “Toggle features. Some need a reload. Click the sliders icon to configure.”）+ 紧挨标题右侧的分区胶囊（Void++ 的 Plugins / Themes / Quick CSS，不和版本号、关闭按钮重叠）+ 右侧版本号 + 关闭。ⓘ 和所有图标按钮的提示用 Bloom 自己的提示气泡（`data-bloom-tip`），不用浏览器 `title`（后者约 1 秒才出现）。
+- 三个分区：**Plugins** 是下面描述的插件列表；**Themes** 分“Online themes”（输入以 `.css` 结尾的 https 地址，`GM_xmlhttpRequest` 下载，文件头 `/** @name … */` 作为名字，否则用文件名；每次加载页面重新下载已启用的在线主题，内容变了才更新缓存）和“Local themes”（名字 + CSS，只存本机），每个主题一行：名字、地址或 “Local”、复制地址/编辑、删除（再点一次确认）、开关；**Quick CSS** 是一个开关加 CSS 编辑框，边输入边生效。主题和 Quick CSS 由隐藏的必需核心插件 `Themes`（`Init` 阶段）放进一张样式表，缓存的 CSS 在首屏前就生效。app 构建没有 `GM_xmlhttpRequest`，只能用本地主题和 Quick CSS。
+- 分类标签（下划线式，只在 Plugins 分区、分区胶囊下面）：Favorites / Recent / All / Chat / UI / Privacy / Other。Recent = 最近 7 天有功能性提交的插件（构建时从 git 记录盖章，跳过 chore/docs/ci/style/test/build/brand），按时间倒序；Other = 没有 chat/ui/privacy 标签的插件，没有就不显示该标签。
 - 搜索框（占位 “Search N plugins...”）+ 过滤下拉 All / Enabled / Disabled。
 - 插件卡片：图标块、名称、两行描述、作者页脚；右上角 ☆收藏、📌置顶（置顶的排最前）、⚙设置（有可见设置项才出现）、开关。每个可选插件都有开关，关掉时轨道仍是可见的灰色，圆钮靠左。必须开启的插件（`required`，目前只有 Settings）开关保持打开且不能点，不显示置顶，改放一个提示 “This plugin is required for Bloom++ to work”；卡片整体变淡。All 标签里这些卡片排在一条横线下面，和 Void++ 一样；其它标签里如果出现，样式相同但不单独分段。隐藏类插件的 `display:none` 选择器都带 `:not([data-bloom])`，Bloom 自己的按钮带 `data-bloom="control"`，所以不会把面板里的开关藏掉（NoDictation 的 `[aria-label*="Dictation"]` 曾经藏住 “Enable NoDictation”，因为插件名里含有 Dictation）。
 - 点 ⚙ 弹出独立的插件设置小窗（叠在列表上，关掉回到列表）：插件名、描述、作者、各设置项（布尔开关、滑块带数值、下拉、文本/数字输入、自定义组件），底部 Reset（确认后恢复默认）。Esc 关闭。

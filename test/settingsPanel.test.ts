@@ -24,6 +24,25 @@ afterEach(() => {
 });
 
 describe("settings cards", () => {
+    test("section tabs sit beside the title", () => {
+        openPanel();
+        const header = document.querySelector(".bloom-settings-header");
+        const nav = header?.querySelector(".bloom-settings-nav");
+        const tabs = document.querySelector(".bloom-settings-tabs");
+        expect(nav).toBeTruthy();
+        expect([...nav!.querySelectorAll("[role=tab]")].map(el => el.textContent)).toEqual(["Plugins", "Themes", "Quick CSS"]);
+        expect(header?.querySelector(".bloom-settings-version")?.textContent).toMatch(/^v/);
+        expect(tabs?.closest(".bloom-settings-body")).toBeTruthy();
+        expect(header?.contains(tabs)).toBe(false);
+        openPanel("themes");
+        expect(document.querySelector(".bloom-settings-header .bloom-settings-nav")).toBeTruthy();
+        expect(document.querySelector(".bloom-settings-tabs")).toBeNull();
+        openPanel("css");
+        expect(document.querySelector(".bloom-settings-header .bloom-settings-nav")).toBeTruthy();
+        expect(document.querySelector(".bloom-settings-tabs")).toBeNull();
+        openPanel("plugins");
+    });
+
     test("keeps a switch on every plugin and separates required ones", () => {
         openPanel();
         const dictation = cardNamed("NoDictation");
