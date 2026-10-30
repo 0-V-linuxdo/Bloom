@@ -45,4 +45,6 @@ export const Sel = {
 
     homeHeading: 'main h1:not([aria-hidden="true"]), [data-testid="home-heading"]',
     headerMore: 'button[aria-label="More" i], button[aria-label="更多"]',
+    rightPanel: "aside[data-app-shell-focus-area='right-panel']",
+    summaryPanel: "[data-summary-panel-variant]",
 } as const;

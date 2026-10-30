@@ -53,4 +53,6 @@ export const Sel = {
     headerMore: 'button[aria-label="More" i], button[aria-label="更多"]',
     headerTitle: "[data-thread-title], [data-thread-title-trigger]",
     profile: 'button[aria-label="Open profile menu" i]',
+    rightPanel: "aside[data-app-shell-focus-area='right-panel']",
+    summaryPanel: "[data-summary-panel-variant]",
 } as const;

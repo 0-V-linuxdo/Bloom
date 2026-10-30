@@ -9,9 +9,10 @@ import { composerForm } from "@host/composer";
 import { generation, generationState } from "@host/generation";
 import { conversationData, network, type Role } from "@host/network";
 import { currentConversationId, onRouteChange } from "@host/route";
+import { Sel } from "@host/selectors";
 import { chainSummary, hasThreadShell, isReversedScroller, listTurns, pageConversationKey, threadScroller, type Turn, turnSummary } from "@host/thread";
 import { classes, classNameFactory } from "@utils/css";
-import { frameScheduler, h, hostMutations, visible, watchBody } from "@utils/dom";
+import { frameScheduler, h, hostMutations, isVisible, visible, watchBody } from "@utils/dom";
 import { type HoverIntent, hoverIntent } from "@utils/hoverFlyout";
 import { normalizeText, truncate } from "@utils/misc";
 import definePlugin, { OptionType } from "@utils/types";
@@ -31,6 +32,8 @@ const HEAD_HYST = 24;
 const EDGE_PX = 8;
 const EDGE_TAIL = 80;
 const RAIL_GAP_PX = 12;
+const OVERLAY_MIN = 80;
+const PIN_CHROME = `${Sel.rightPanel}, ${Sel.summaryPanel}`;
 const EMOJI: Record<Role, string> = { user: "❓", assistant: "🤖" };
 const USER_SCROLL = ["wheel", "touchmove", "pointerdown"] as const;
 
@@ -62,6 +65,7 @@ let seeking = 0;
 let unsubscribers: (() => void)[] = [];
 let scrollTarget: HTMLElement | null = null;
 let watchedForm: HTMLElement | null = null;
+let watchedChrome = new Set<Element>();
 let resizeObserver: ResizeObserver | undefined;
 let controller: AbortController | undefined;
 let hover: HoverIntent | undefined;
@@ -441,13 +445,31 @@ function row(entry: Entry, index: number) {
     }, h("span", { text: EMOJI[entry.role] }), h("span", { class: "bloom-truncate", text: truncate(entry.summary || "…", SUMMARY_CHARS) }));
 }
 
+function contentRight(el: HTMLElement, box: DOMRectReadOnly) {
+    const scale = el.offsetWidth ? box.width / el.offsetWidth : 1;
+    return box.left + (el.clientLeft + el.clientWidth) * scale;
+}
+
+function overlayLeft(scrollerBox: DOMRectReadOnly) {
+    let left = Infinity;
+    for (const el of document.querySelectorAll<HTMLElement>(PIN_CHROME)) {
+        if (!isVisible(el)) continue;
+        const box = el.getBoundingClientRect();
+        if (box.width < OVERLAY_MIN || box.height < OVERLAY_MIN) continue;
+        if (box.left < scrollerBox.left + OVERLAY_MIN) continue;
+        if (box.left < left) left = box.left;
+    }
+    return Number.isFinite(left) ? left : null;
+}
+
 function pin(scroller: HTMLElement) {
     if (!root) return;
     const scrollBox = scroller.getBoundingClientRect();
     const composerTop = composerForm()?.getBoundingClientRect().top;
     const bottom = Math.min(scrollBox.bottom, composerTop && composerTop > scrollBox.top ? composerTop : scrollBox.bottom);
     const height = bottom - scrollBox.top;
-    root.style.right = `${document.documentElement.clientWidth - scrollBox.left - scroller.clientLeft - scroller.clientWidth + RAIL_GAP_PX}px`;
+    const edge = Math.min(contentRight(scroller, scrollBox), overlayLeft(scrollBox) ?? Infinity);
+    root.style.right = `${document.documentElement.clientWidth - edge + RAIL_GAP_PX}px`;
     root.style.top = `${scrollBox.top}px`;
     root.style.height = height > 1 ? `${height}px` : "";
 }
@@ -475,11 +497,19 @@ function render() {
         });
         resizeObserver.observe(scroller);
         watchedForm = null;
+        watchedChrome = new Set();
     }
     const form = composerForm();
     if (form && form !== watchedForm && resizeObserver) {
         resizeObserver.observe(form);
         watchedForm = form;
+    }
+    if (resizeObserver) {
+        for (const el of document.querySelectorAll(PIN_CHROME)) {
+            if (watchedChrome.has(el)) continue;
+            resizeObserver.observe(el);
+            watchedChrome.add(el);
+        }
     }
     if (!root) {
         root = h("div", {
@@ -606,6 +636,7 @@ export default definePlugin({
         resizeObserver = undefined;
         scrollTarget = null;
         watchedForm = null;
+        watchedChrome = new Set();
         removeEventListener("keydown", onKeydown, true);
         removeEventListener("resize", update);
         hover?.dispose();

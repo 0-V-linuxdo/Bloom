@@ -296,6 +296,62 @@ describe("BetterNavigator open turn", () => {
         }
     });
 
+    test("sits left of a pinned summary panel instead of the window edge", async () => {
+        const html = document.documentElement;
+        const prevWidth = Object.getOwnPropertyDescriptor(html, "clientWidth");
+        document.body.innerHTML = `
+<main>
+  <div data-app-action-timeline-scroll style="overflow:auto;height:240px;width:800px">
+    <div data-turn-key="t1">
+      <div data-chatgpt-search-unit-key="t1:user" data-chatgpt-search-message-ids="u1">
+        <div class="whitespace-pre-wrap">hello</div>
+      </div>
+    </div>
+    <div data-summary-panel-variant="summary"></div>
+  </div>
+</main>`;
+        const scroller = document.querySelector<HTMLElement>("[data-app-action-timeline-scroll]")!;
+        const panel = document.querySelector<HTMLElement>("[data-summary-panel-variant]")!;
+        Object.defineProperty(html, "clientWidth", { configurable: true, value: 1728 });
+        Object.defineProperty(scroller, "clientWidth", { configurable: true, value: 1251 });
+        Object.defineProperty(scroller, "clientLeft", { configurable: true, value: 10 });
+        Object.defineProperty(scroller, "offsetWidth", { configurable: true, value: 1271 });
+        scroller.getBoundingClientRect = () => new DOMRect(325.6, 48.4, 1398, 1031);
+        panel.getBoundingClientRect = () => new DOMRect(1384.8, 57.2, 330, 266);
+        try {
+            navigator.start?.();
+            await wait(100);
+            const host = document.querySelector<HTMLElement>("[data-bloom=navigator]")!;
+            expect(parseFloat(host.style.right)).toBeCloseTo(1728 - 1384.8 + 12, 1);
+        } finally {
+            if (prevWidth) Object.defineProperty(html, "clientWidth", prevWidth);
+            else delete (html as { clientWidth?: number; }).clientWidth;
+        }
+    });
+
+    test("pins the rail to the scroller content edge when the host zooms the layout", async () => {
+        const html = document.documentElement;
+        const prevWidth = Object.getOwnPropertyDescriptor(html, "clientWidth");
+        document.body.innerHTML = OPEN_USER;
+        const scroller = document.querySelector<HTMLElement>("[data-app-action-timeline-scroll]")!;
+        Object.defineProperty(scroller, "clientWidth", { configurable: true, value: 694 });
+        Object.defineProperty(scroller, "clientLeft", { configurable: true, value: 10 });
+        Object.defineProperty(scroller, "offsetWidth", { configurable: true, value: 714 });
+        Object.defineProperty(html, "clientWidth", { configurable: true, value: 1728 });
+        scroller.getBoundingClientRect = () => new DOMRect(325.61, 48.4, 785.73, 1031.2);
+        try {
+            navigator.start?.();
+            await wait(100);
+            const host = document.querySelector<HTMLElement>("[data-bloom=navigator]")!;
+            const scale = 785.73 / 714;
+            const contentRight = 325.61 + (10 + 694) * scale;
+            expect(parseFloat(host.style.right)).toBeCloseTo(1728 - contentRight + 12, 1);
+        } finally {
+            if (prevWidth) Object.defineProperty(html, "clientWidth", prevWidth);
+            else delete (html as { clientWidth?: number; }).clientWidth;
+        }
+    });
+
     test("keeps the outline open while the pointer crosses toward the list", async () => {
         navigator.start?.();
         document.body.innerHTML = OPEN_USER;
