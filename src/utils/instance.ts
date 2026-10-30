@@ -26,6 +26,7 @@ export const BLOOM_CHROME = [
     '[data-bloom="history-hud"]',
     '[data-bloom="star-list"]',
     '[data-bloom="entry"]',
+    '[data-bloom="menu-entry"]',
     '[data-bloom="message-star"]',
     '[data-bloom="queue"]',
     '[data-bloom="recent"]',

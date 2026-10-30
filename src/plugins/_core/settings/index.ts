@@ -121,13 +121,22 @@ function menuEntry(menu: HTMLElement) {
     else menu.prepend(item);
 }
 
+function dropChrome() {
+    for (const node of document.querySelectorAll('[data-bloom="entry"], [data-bloom="menu-entry"]')) node.remove();
+    entries.clear();
+}
+
 function sync() {
     const { showSidebarEntry, showSidebarEntryOnHover } = settings.store;
-    const mounts = BLOOM_APP || showSidebarEntry || showSidebarEntryOnHover ? sidebarMounts() : [];
+    const mounts = showSidebarEntry || showSidebarEntryOnHover ? sidebarMounts() : [];
+    const keep = new Set(mounts.map(mount => mount.anchor));
     for (const [anchor, node] of entries) {
-        if (anchor.isConnected && mounts.some(mount => mount.anchor === anchor)) continue;
+        if (anchor.isConnected && keep.has(anchor)) continue;
         node.remove();
         entries.delete(anchor);
+    }
+    for (const node of document.querySelectorAll<HTMLElement>('[data-bloom="entry"]')) {
+        if (![...entries.values()].includes(node)) node.remove();
     }
     for (const mount of mounts) {
         const existing = entries.get(mount.anchor);
@@ -136,7 +145,7 @@ function sync() {
         entries.set(mount.anchor, node);
         mount.insert(node);
     }
-    for (const node of entries.values()) node.classList.toggle(cl("hover"), !BLOOM_APP && !showSidebarEntry);
+    for (const node of entries.values()) node.classList.toggle(cl("hover"), !showSidebarEntry);
     const menu = accountMenu();
     if (menu && !menu.querySelector('[data-bloom="menu-entry"]')) menuEntry(menu);
 }
@@ -151,13 +160,13 @@ export default definePlugin({
     startAt: StartAt.HostReady,
     settings,
     styles: () => `${styles}${BLOOM_APP
-        ? "[data-app-navigation-rail] [data-bloom=entry]{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);width:max-content;margin:0;padding-block:0.25rem;pointer-events:none;z-index:5;display:flex;justify-content:center}"
+        ? "[data-app-navigation-rail] [data-bloom=entry]{position:absolute;inset:auto;left:50%;bottom:100%;transform:translateX(-50%);width:max-content;margin:0;padding-block:0.25rem;pointer-events:none;z-index:5;display:flex;justify-content:center}"
             + "[data-app-navigation-rail]>[data-bloom=entry]{bottom:2.75rem}"
             + "[data-app-navigation-rail] [data-bloom=entry] .bloom-entry-button{pointer-events:auto}"
+            + "[data-app-navigation-rail] [data-bloom=entry].bloom-entry-hover:not(:hover > *){display:none;transition:display 0s 0.2s allow-discrete}"
         : ""}.${cl("hover")}{${POSITION_VAR}:${settings.store.entryPosition}}`,
     start() {
-        for (const node of document.querySelectorAll('[data-bloom="entry"]')) node.remove();
-        entries.clear();
+        dropChrome();
         unsubscribers = [watchBody(sync), useTooltips(), useIdentityMarks()];
         if (!menuRegistered && typeof GM_registerMenuCommand === "function") {
             GM_registerMenuCommand("Bloom++ settings", togglePanel);
@@ -166,8 +175,8 @@ export default definePlugin({
     },
     stop() {
         for (const unsubscribe of unsubscribers) unsubscribe();
-        for (const node of entries.values()) node.remove();
-        entries.clear();
+        unsubscribers = [];
+        dropChrome();
         closePanel();
     },
     onSettingsChange: sync,
