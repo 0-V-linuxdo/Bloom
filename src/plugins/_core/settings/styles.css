@@ -219,7 +219,7 @@
     gap: 0.75rem;
     width: min(56rem, 100%);
     height: min(44rem, 100%);
-    padding: 1.25rem;
+    padding: 1.25rem 1.25rem 0;
     border-radius: 1.25rem;
     background: var(--bloom-surface);
     box-shadow: var(--bloom-shadow);
@@ -320,7 +320,10 @@
     gap: 0.75rem;
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
+    margin-inline-end: -1.25rem;
+    padding-block-end: 1.25rem;
+    overflow: hidden auto;
+    scrollbar-gutter: auto;
 }
 
 .bloom-settings-card {
@@ -461,6 +464,7 @@
     background: var(--bloom-surface);
     box-shadow: var(--bloom-shadow);
     overflow-y: auto;
+    scrollbar-gutter: auto;
     animation: bloom-fade-in 0.15s ease-out;
 }
 
@@ -558,7 +562,9 @@
     flex-direction: column;
     gap: 1rem;
     min-height: 0;
-    overflow-y: auto;
+    margin-inline-end: -1.25rem;
+    overflow: hidden auto;
+    scrollbar-gutter: auto;
 }
 
 .bloom-settings-section-block {
@@ -590,6 +596,7 @@
 .bloom-settings-css {
     flex: 1;
     min-height: 14rem;
+    scrollbar-gutter: auto;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.8125rem;
     line-height: 1.5;
