@@ -15,10 +15,10 @@ const SIDEBAR = `:is(${Sel.sidebars})`;
 const GROUPS = {
     conversations: { selectors: BLOOM_APP
         ? ["[data-app-action-sidebar-thread-title]"]
-        : [`${SIDEBAR} a[href*="/c/"]`, ".bloom-recent-title", ".bloom-recent-preview"], hover: true },
+        : [`${SIDEBAR} a[href*="/c/"]`, ".bloom-recent-title", ".bloom-recent-preview"], hover: true, row: "[data-app-action-sidebar-thread-row]" },
     projects: { selectors: BLOOM_APP
         ? ["[data-app-action-sidebar-project-label]"]
-        : [`${SIDEBAR} a:is([href*="/project"], [href*="/g/g-p-"])`, "[data-app-action-sidebar-project-row]", ".bloom-recent-project"], hover: true },
+        : [`${SIDEBAR} a:is([href*="/project"], [href*="/g/g-p-"])`, "[data-app-action-sidebar-project-row]", ".bloom-recent-project"], hover: true, row: "[data-app-action-sidebar-project-row]" },
     accountAvatar: { selectors: BLOOM_APP
         ? ["[data-bloom-profile] img", "[data-bloom-menu] img"]
         : ["[data-bloom-profile-avatar]", "[data-bloom-menu-avatar]", "[data-bloom-profile] img", "[data-bloom-csi-avatar]"], hover: false },
@@ -39,9 +39,11 @@ const settings = definePluginSettings({
 });
 
 function css() {
-    return Object.entries(GROUPS).filter(([key]) => settings.store[key as keyof typeof GROUPS]).map(([, { selectors, hover }]) => {
-        const list = selectors.join(",");
-        return `:is(${list}){${BLUR}}` + (hover ? `:is(${list}):hover, .bloom-recent-item:hover :is(${list}){filter:none!important}` : "");
+    return Object.entries(GROUPS).filter(([key]) => settings.store[key as keyof typeof GROUPS]).map(([, group]) => {
+        const list = group.selectors.join(",");
+        if (!group.hover) return `:is(${list}){${BLUR}}`;
+        const rows = "row" in group ? `, ${group.row}:hover :is(${list})` : "";
+        return `:is(${list}){${BLUR}}:is(${list}):hover, .bloom-recent-item:hover :is(${list})${rows}{filter:none!important}`;
     }).join("\n");
 }
 
