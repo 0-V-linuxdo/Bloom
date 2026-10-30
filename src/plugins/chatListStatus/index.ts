@@ -103,6 +103,7 @@ export default definePlugin({
     icon: "list",
     styles: () => `${styles}${BLOOM_APP ? APP_MARK : ""}`,
     start() {
+        for (const node of document.querySelectorAll('[data-bloom="cls"]')) node.remove();
         channel = typeof BroadcastChannel === "function" ? new BroadcastChannel(CHANNEL) : null;
         channel?.addEventListener("message", onMessage);
         addEventListener("pagehide", clearTab);
@@ -125,6 +126,6 @@ export default definePlugin({
         removeEventListener("pagehide", clearTab);
         local.clear();
         remote.clear();
-        render();
+        for (const node of document.querySelectorAll('[data-bloom="cls"]')) node.remove();
     },
 });

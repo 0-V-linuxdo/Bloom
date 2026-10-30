@@ -24,21 +24,43 @@ export const BLOOM_CHROME = [
     '[data-bloom="navigator"]',
     '[data-bloom="settings"]',
     '[data-bloom="history-hud"]',
+    '[data-bloom="history-dialog"]',
     '[data-bloom="star-list"]',
     '[data-bloom="entry"]',
     '[data-bloom="menu-entry"]',
     '[data-bloom="message-star"]',
+    '[data-bloom="starred"]',
+    '[data-bloom="chat-star"]',
     '[data-bloom="queue"]',
     '[data-bloom="recent"]',
     '[data-bloom="quote-chip"]',
+    '[data-bloom="quote-back"]',
+    '[data-bloom="cls"]',
+    '[data-bloom="timestamp"]',
+    '[data-bloom="tooltip"]',
 ].join(", ");
+
+const BLOOM_MARKS = [
+    "data-bloom-greeting",
+    "data-bloom-placeholder",
+    "data-bloom-streamer-open",
+    "data-bloom-share",
+    "data-bloom-invite",
+    "data-bloom-csi-avatar",
+    "data-bloom-csi-sized",
+] as const;
 
 export function sweepBloomChrome() {
     if (typeof document === "undefined" || !document.documentElement) return;
     for (const el of document.querySelectorAll(BLOOM_CHROME)) el.remove();
-    for (const el of document.querySelectorAll("[data-bloom-greeting]")) el.removeAttribute("data-bloom-greeting");
-    for (const el of document.querySelectorAll("[data-bloom-placeholder]")) el.removeAttribute("data-bloom-placeholder");
-    for (const el of document.querySelectorAll("[data-bloom-streamer-open]")) el.removeAttribute("data-bloom-streamer-open");
+    for (const name of BLOOM_MARKS) {
+        for (const el of document.querySelectorAll(`[${name}]`)) el.removeAttribute(name);
+    }
+    for (const el of document.querySelectorAll<HTMLElement>("[data-bloom-text]")) {
+        el.removeAttribute("data-bloom-text");
+        el.style.removeProperty("--bloom-text-size");
+        el.style.removeProperty("--bloom-text");
+    }
 }
 
 function halt(instance: BloomHost) {
