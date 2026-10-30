@@ -5,6 +5,7 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
+import { iconButton } from "@components/controls";
 import { caretLine, composerInput, isComposerInput, readDraft, writeDraft } from "@host/composer";
 import { Sel } from "@host/selectors";
 import { classNameFactory } from "@utils/css";
@@ -33,6 +34,7 @@ interface Browsing {
 let browsing: Browsing | null = null;
 let lastRecord = { text: "", at: 0 };
 let hud: HTMLElement | null = null;
+let dialog: { root: HTMLElement; release: () => void; controller: AbortController } | null = null;
 let controller: AbortController | undefined;
 
 const entries = () => settings.store.entries.filter(entry => typeof entry === "string");
@@ -50,11 +52,24 @@ function record(text: string) {
     saveEntries([...entries().filter(entry => entry !== trimmed), trimmed]);
 }
 
+function keepFocus(event: MouseEvent) {
+    event.preventDefault();
+}
+
+function hudElement() {
+    const count = h("button", { class: cl("hud-count"), attrs: { type: "button" }, on: { mousedown: keepFocus, click: openHistory } });
+    const exit = h("button", { class: cl("hud-x"), text: "\u00D7", attrs: { "type": "button", "aria-label": "Exit history" }, on: { mousedown: keepFocus, click: cancelBrowsing } });
+    return h("div", { class: `bloom-root ${cl("hud")}`, attrs: { "data-bloom": "history-hud", "role": "group", "aria-live": "polite", "aria-label": "Input history" } }, count, exit);
+}
+
 function showHud(index: number, total: number) {
     const input = composerInput();
-    if (!input) return;
-    hud ??= h("div", { class: `bloom-root ${cl("hud")}`, attrs: { "data-bloom": "history-hud", "aria-live": "polite" } });
-    hud.textContent = `${index + 1} / ${total}`;
+    if (!input || dialog) return;
+    hud ??= hudElement();
+    const label = `${index + 1} / ${total}`;
+    const count = hud.querySelector(`.${cl("hud-count")}`);
+    count?.replaceChildren(label);
+    count?.setAttribute("aria-label", `Show input history (${label})`);
     const box = (input.closest("form") ?? input).getBoundingClientRect();
     hud.style.left = `${box.left + box.width / 2}px`;
     hud.style.top = `${box.top}px`;
@@ -64,6 +79,12 @@ function showHud(index: number, total: number) {
 function endBrowsing() {
     browsing = null;
     hud?.remove();
+}
+
+function cancelBrowsing() {
+    if (browsing) writeDraft(browsing.draft);
+    endBrowsing();
+    composerInput()?.focus();
 }
 
 function show(index: number) {
@@ -92,6 +113,49 @@ function step(direction: -1 | 1) {
     }
     show(next);
     return true;
+}
+
+function useEntry(entry: string) {
+    const index = entries().indexOf(entry);
+    closeHistory();
+    if (index < 0) return;
+    browsing ??= { index, draft: readDraft(), shown: "" };
+    show(index);
+    composerInput()?.focus();
+}
+
+function closeHistory() {
+    if (!dialog) return;
+    dialog.release();
+    dialog.controller.abort();
+    dialog.root.remove();
+    dialog = null;
+    const list = entries();
+    if (browsing && list[browsing.index] === browsing.shown) showHud(list.length - 1 - browsing.index, list.length);
+    else browsing = null;
+}
+
+function openHistory() {
+    if (dialog) return;
+    hud?.remove();
+    const body = h("div", { class: cl("dialog-body") });
+    const root = h("div", { class: `bloom-root ${cl("backdrop")}`, attrs: { "data-bloom": "history-dialog" }, on: { click: event => event.target === event.currentTarget && closeHistory() } },
+        h("div", { class: cl("dialog"), attrs: { "role": "dialog", "aria-modal": "true", "aria-label": "Input history" } },
+            h("div", { class: cl("dialog-header") },
+                h("h2", { class: cl("dialog-title"), text: "Input history" }),
+                iconButton("close", "Close", closeHistory)),
+            body));
+    root.addEventListener("keydown", event => event.stopPropagation());
+    const dialogController = new AbortController();
+    document.addEventListener("keydown", event => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopPropagation();
+        closeHistory();
+    }, { capture: true, signal: dialogController.signal });
+    document.body.append(root);
+    dialog = { root, release: historyManager(body, useEntry), controller: dialogController };
+    body.querySelector("input")?.focus();
 }
 
 function composerFrom(el: EventTarget | null) {
@@ -150,7 +214,7 @@ function onClick(event: MouseEvent) {
 
 export default definePlugin({
     name: "InputHistory",
-    description: "Press ↑ and ↓ in the composer to bring back prompts you sent before.",
+    description: "Press ↑ and ↓ in the composer to bring back prompts you sent before. Click the counter to browse history.",
     authors: ["Bloom contributors"],
     tags: ["chat"],
     icon: "history",
@@ -158,7 +222,7 @@ export default definePlugin({
     settings,
     styles,
     start() {
-        for (const node of document.querySelectorAll('[data-bloom="history-hud"]')) node.remove();
+        for (const node of document.querySelectorAll('[data-bloom="history-hud"], [data-bloom="history-dialog"]')) node.remove();
         hud = null;
         controller = new AbortController();
         const { signal } = controller;
@@ -169,6 +233,7 @@ export default definePlugin({
     },
     stop() {
         controller?.abort();
+        closeHistory();
         endBrowsing();
         for (const node of document.querySelectorAll('[data-bloom="history-hud"]')) node.remove();
         hud = null;

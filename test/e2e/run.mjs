@@ -328,6 +328,13 @@ async function newShellSuite(browser) {
     check("InputHistory recalls the last prompt", (await page.locator(COMPOSER).textContent()).trim() === "Queued follow-up");
     await page.keyboard.press("Escape");
     check("InputHistory restores the draft on Escape", (await page.locator(COMPOSER).textContent()).trim() === "");
+    await page.keyboard.press("ArrowUp");
+    await page.locator(".bloom-history-hud-count").click();
+    check("InputHistory opens the history dialog from the counter", await page.locator('[data-bloom="history-dialog"] .bloom-history-row').count() >= 1);
+    await page.locator('[data-bloom="history-dialog"] [aria-label="Use"]').first().click();
+    check("InputHistory uses a prompt picked in the dialog", await page.locator('[data-bloom="history-dialog"]').count() === 0 && (await page.locator(COMPOSER).textContent()).trim() === "Queued follow-up" && await page.locator(".bloom-history-hud-count").isVisible());
+    await page.locator(".bloom-history-hud-x").click();
+    check("InputHistory exits from the counter's close button", (await page.locator(COMPOSER).textContent()).trim() === "" && await page.locator('[data-bloom="history-hud"]').count() === 0);
 
     await page.locator(`a[href="/c/${CHAT_A}"]`).first().click();
     await page.waitForSelector("[data-turn-key]");

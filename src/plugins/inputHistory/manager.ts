@@ -17,7 +17,7 @@ const cl = classNameFactory("bloom-history-");
 const PAGE_SIZE = 10;
 const CLEAR_CONFIRM_MS = 3000;
 
-export function historyManager(host: HTMLElement) {
+export function historyManager(host: HTMLElement, onUse?: (entry: string) => void) {
     let query = "";
     let page = 0;
     const expanded = new Set<string>();
@@ -61,6 +61,7 @@ export function historyManager(host: HTMLElement) {
                         },
                     },
                 }),
+                onUse && iconButton("edit", "Use", () => onUse(entry)),
                 iconButton("copy", "Copy", () => void copyToClipboard(entry)),
                 iconButton("trash", "Delete", () => saveEntries(settings.store.entries.filter(item => item !== entry)))));
         list.replaceChildren(...rows.length ? rows : [h("div", { class: "bloom-muted", text: needle ? "No matching prompts." : "No saved prompts yet." })]);
