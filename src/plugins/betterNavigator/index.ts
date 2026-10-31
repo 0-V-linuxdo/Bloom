@@ -75,8 +75,6 @@ let heldChat = "";
 let held: Held[] = [];
 let branch: { parent: string; user: string | null; } | null = null;
 const superseded = new Set<string>();
-const outlines = new Map<string, Held[]>();
-let lockPrepend = false;
 
 const shown = (item: { role: Role; }) => settings.store.showAssistant || item.role === "user";
 
@@ -234,7 +232,7 @@ function cloneHeld(groups: Held[]) {
     return groups.map(group => ({ key: group.key, entries: group.entries.map(entry => ({ ...entry })) }));
 }
 
-function weave(memory: Held[], chain: Held[], grow = true) {
+function weave(memory: Held[], chain: Held[]) {
     if (!chain.length) return memory;
     if (!memory.length) return chain;
     const { score, offset } = alignment(memory, chain);
@@ -256,7 +254,6 @@ function weave(memory: Held[], chain: Held[], grow = true) {
         if (!group) continue;
         const text = userText(group);
         if (!text || textCount(merged, text) > 0 || merged.some(item => sharesId(item, group))) continue;
-        if (!grow) continue;
         if (score > 0 && chainIndex < offset) before.push(group);
         else after.push(group);
     }
@@ -292,18 +289,8 @@ function forget() {
 function listed(): Entry[] {
     const chat = pageConversationKey();
     if (chat !== heldChat) {
-        if (heldChat && held.length) outlines.set(heldChat, cloneHeld(held));
         heldChat = chat;
-        const saved = chat ? outlines.get(chat) : undefined;
-        if (saved?.length) {
-            held = cloneHeld(saved);
-            branch = null;
-            superseded.clear();
-            lockPrepend = true;
-        } else {
-            forget();
-            lockPrepend = false;
-        }
+        forget();
     }
     const live = liveGroups();
     const chain = chainGroups();
@@ -311,7 +298,7 @@ function listed(): Entry[] {
         held = [];
         return [];
     }
-    held = prune(weave(placeLive(held, live), chain, !lockPrepend));
+    held = prune(weave(placeLive(held, live), chain));
     return held.flatMap(group => group.entries).filter(shown);
 }
 
@@ -663,9 +650,7 @@ function teardown() {
     root = null;
     signature = "";
     forget();
-    outlines.clear();
     heldChat = "";
-    lockPrepend = false;
     for (const node of document.querySelectorAll<HTMLElement>('[data-bloom="navigator"]')) dropExtra(node);
 }
 

@@ -158,32 +158,6 @@ function itemFor(items: Record<string, unknown>[], entry: Record<string, unknown
     }) ?? null;
 }
 
-function aliases(id: string) {
-    const bare = id.replace(/^history-content:/, "").replace(/^turn:/, "").replace(/:assistant$/, "");
-    if (!bare) return [];
-    return [...new Set([id, bare, `turn:${bare}`, `${bare}:assistant`, `local:${bare}`])];
-}
-
-function paneTurnIds(host: Element) {
-    const ids = new Set<string>();
-    for (const el of host.querySelectorAll("[data-turn-key], [data-response-annotation-target], [data-chatgpt-search-message-ids]")) {
-        for (const value of [
-            el.getAttribute("data-turn-key"),
-            el.getAttribute("data-response-annotation-target"),
-            ...(el.getAttribute("data-chatgpt-search-message-ids") ?? "").split(/\s+/),
-        ]) {
-            if (value) for (const id of aliases(value)) ids.add(id);
-        }
-    }
-    return ids;
-}
-
-function chainIds(entry: ConversationData) {
-    const ids = new Set<string>();
-    for (const item of entry.chain) for (const id of aliases(item.id)) ids.add(id);
-    return ids;
-}
-
 function harvestFiber(id: string) {
     const host = visible("[data-thread-find-target='conversation']") ?? visible(Sel.timelineScroll);
     if (!host) return;
@@ -199,19 +173,14 @@ function harvestFiber(id: string) {
     }
     if (!entries.length && !items.length) return;
     const source = entries.length ? entries : items;
-    const fiberId = typeof source[0]?.conversationId === "string" ? source[0].conversationId : "";
-    if (fiberId && !conversationKeys(id).includes(fiberId)) return;
-    const entry = conversationEntry(id);
-    entry.title = sidebarTitle(id) ?? sidebarTitle(fiberId || id) ?? entry.title;
-    const visibleIds = paneTurnIds(host);
-    const known = chainIds(entry);
-    const settled = [...known].some(key => visibleIds.has(key));
+    const conversationId = typeof source[0]?.conversationId === "string" ? source[0].conversationId : id;
+    const entry = conversationEntry(conversationId);
+    entry.title = sidebarTitle(id) ?? sidebarTitle(conversationId) ?? entry.title;
     for (const row of source) {
         let turnId = "";
         if (typeof row.turnId === "string") turnId = row.turnId;
         else if (typeof row.turnKey === "string") turnId = row.turnKey.replace(/^.*turn:/, "");
         const userId = typeof row.historyEntityKey === "string" ? row.historyEntityKey : (turnId ? `turn:${turnId}` : "");
-        if (settled && ![userId, turnId].some(value => aliases(value).some(key => known.has(key) || visibleIds.has(key)))) continue;
         const item = itemFor(items, row);
         const userText = callText(item?.getLabel ?? row.getLabel);
         const assistantText = previewText(item?.getPreview ?? row.getPreview);

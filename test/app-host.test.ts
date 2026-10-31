@@ -193,34 +193,4 @@ describe("app conversation harvest", () => {
         expect(conversationData("local:dddddddd-dddd-4ddd-8ddd-dddddddddddd")?.chain ?? []).toEqual([]);
         expect(conversationData("local:cccccccc-cccc-4ccc-8ccc-cccccccccccc")?.chain.map(item => item.text)).toEqual(["Previous chat prompt"]);
     });
-
-    test("does not grow a harvested chain with later offscreen fiber entries", () => {
-        const bare = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
-        const id = `local:${bare}`;
-        const pane = document.createElement("div");
-        pane.setAttribute("data-app-action-timeline-scroll", "");
-        pane.innerHTML = `<div data-turn-key="history-content:turn:y2" data-response-annotation-conversation="${bare}"></div>`;
-        show(pane);
-        const first = [{ turnId: "y1", getLabel: () => "First seen" }, { turnId: "y2", getLabel: () => "Still visible" }];
-        Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: first } } });
-        document.body.replaceChildren(pane);
-        expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["First seen", "Still visible"]);
-        Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: [{ turnId: "y0", getLabel: () => "Earlier hidden" }, ...first] } } });
-        expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["First seen", "Still visible"]);
-    });
-
-    test("grows a harvested chain when the extra turn is visible", () => {
-        const bare = "ffffffff-ffff-4fff-8fff-ffffffffffff";
-        const id = `local:${bare}`;
-        const pane = document.createElement("div");
-        pane.setAttribute("data-app-action-timeline-scroll", "");
-        pane.innerHTML = `<div data-turn-key="history-content:turn:y1" data-response-annotation-conversation="${bare}"></div>`;
-        show(pane);
-        Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: [{ turnId: "y1", getLabel: () => "First seen" }] } } });
-        document.body.replaceChildren(pane);
-        expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["First seen"]);
-        pane.innerHTML = `<div data-turn-key="history-content:turn:y0" data-response-annotation-conversation="${bare}"></div><div data-turn-key="history-content:turn:y1"></div>`;
-        Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: [{ turnId: "y0", getLabel: () => "Now visible" }, { turnId: "y1", getLabel: () => "First seen" }] } } });
-        expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["First seen", "Now visible"]);
-    });
 });
