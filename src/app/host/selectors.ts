@@ -29,6 +29,7 @@ export const Sel = {
     authorRole: "[data-message-author-role]",
     userBubble: '[class~="group/user-message"]',
     assistantReply: "[data-response-annotation-target]",
+    assistantSentTime: "[data-assistant-message-sent-time]",
     oldThread: "[data-app-action-timeline-scroll]",
     turnActions: '.turn-action-controls, [class*="turn-action-controls"]',
     readAloud: 'button:is([aria-label="Read aloud" i], [aria-label^="Read aloud" i], [aria-label="Stop reading" i], [aria-label^="Stop reading" i], [aria-label="朗读"], [aria-label^="朗读"], [aria-label="停止朗读"], [data-testid*="read-aloud" i])',

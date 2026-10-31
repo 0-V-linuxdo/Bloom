@@ -55,7 +55,9 @@ const frozen = new Set<string>();
 export const HARVEST_SETTLE_MS = 800;
 export const HARVEST_GRACE_MS = 6000;
 const HARVEST_TICK_MS = 200;
-const TURN_DEPTH = 25;
+const SENT_DEPTH = 3;
+const TIME_TEXT = /\d{1,2}:\d{2}/;
+const sentTimes = new WeakMap<Element, number>();
 let stopHarvestTick: (() => void) | undefined;
 
 export const activeGenerateCount = () => 0;
@@ -204,10 +206,18 @@ function reactFiber(el: Element): FiberNode | null {
     return key ? (el as unknown as Record<string, FiberNode>)[key] ?? null : null;
 }
 
-function turnOf(el: Element) {
-    for (let fiber: FiberNode | null | undefined = reactFiber(el), depth = 0; fiber && depth < TURN_DEPTH; fiber = fiber.return, depth++) {
-        const turn = isRecord(fiber.memoizedProps) ? fiber.memoizedProps.turn : null;
-        if (isRecord(turn) && typeof turn.turnStartedAtMs === "number") return turn;
+function sentAt(el: Element | null | undefined) {
+    if (!el) return null;
+    const cached = sentTimes.get(el);
+    if (cached) return cached;
+    for (const span of el.querySelectorAll("span")) {
+        if (span.childElementCount || !TIME_TEXT.test(span.textContent ?? "")) continue;
+        for (let fiber: FiberNode | null | undefined = reactFiber(span), depth = 0; fiber && depth < SENT_DEPTH; fiber = fiber.return, depth++) {
+            const sent = isRecord(fiber.memoizedProps) ? fiber.memoizedProps.sentAtMs : null;
+            if (typeof sent !== "number") continue;
+            sentTimes.set(el, sent);
+            return sent;
+        }
     }
     return null;
 }
@@ -215,16 +225,17 @@ function turnOf(el: Element) {
 function harvestTimes(entry: ConversationData, host: Element) {
     for (const el of host.querySelectorAll(Sel.turn)) {
         const turnId = el.getAttribute("data-turn-key")?.replace(/^.*turn:/, "");
-        const turn = turnId ? turnOf(el) : null;
-        if (!turn || turn.turnId !== turnId) continue;
-        const asked = turn.turnStartedAtMs as number;
-        const replied = typeof turn.finalAssistantStartedAtMs === "number" ? turn.finalAssistantStartedAtMs : asked;
-        entry.times.set(`turn:${turnId}`, asked);
-        entry.times.set(`${turnId}:assistant`, replied);
+        if (!turnId) continue;
+        const asked = sentAt(el.querySelector(Sel.userBubble));
+        const replied = sentAt([...el.querySelectorAll(Sel.assistantSentTime)].at(-1));
+        if (asked) entry.times.set(`turn:${turnId}`, asked);
+        if (replied) entry.times.set(`${turnId}:assistant`, replied);
         for (const unit of el.querySelectorAll(Sel.searchUnit)) {
-            for (const messageId of unitMessageIds(unit)) entry.times.set(messageId, searchUnitRole(unit) === "user" ? asked : replied);
+            const time = searchUnitRole(unit) === "user" ? asked : replied;
+            if (time) for (const messageId of unitMessageIds(unit)) entry.times.set(messageId, time);
         }
-        for (const reply of el.querySelectorAll("[data-response-annotation-target]")) entry.times.set(reply.getAttribute("data-response-annotation-target") as string, replied);
+        if (!replied) continue;
+        for (const reply of el.querySelectorAll(Sel.assistantReply)) entry.times.set(reply.getAttribute("data-response-annotation-target") as string, replied);
     }
 }
 

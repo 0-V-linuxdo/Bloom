@@ -291,14 +291,16 @@ describe("app conversation harvest", () => {
 });
 
 describe("app turn times", () => {
-    test("reads turn start and reply times from the turn fiber", () => {
+    test("reads each message's sent time from the app's hover time", () => {
         const bare = "abababab-abab-4bab-8bab-abababababab";
         const pane = document.createElement("div");
         pane.setAttribute("data-app-action-timeline-scroll", "");
-        pane.innerHTML = `<div data-turn-key="history-content:turn:t1" data-response-annotation-conversation="${bare}"><div data-response-annotation-target="msg_r1"></div></div>`;
+        pane.innerHTML = `<div data-turn-key="history-content:turn:t1" data-response-annotation-conversation="${bare}"><div class="group/user-message"><p>Asked at 9:30</p><div><span>Oct 19, 3:56 AM</span></div></div><div data-response-annotation-target="msg_r1"></div><div data-assistant-message-sent-time="true"><span>Oct 19, 3:58 AM</span></div></div>`;
         show(pane);
         Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: [{ turnId: "t1", getLabel: () => "Asked" }] } } });
-        Object.assign(pane.firstElementChild as Element, { "__reactFiber$test": { memoizedProps: {}, return: { memoizedProps: { turn: { turnId: "t1", turnStartedAtMs: 1000, finalAssistantStartedAtMs: 2000 } } } } });
+        const [asked, replied] = pane.querySelectorAll("span");
+        Object.assign(asked as Element, { "__reactFiber$test": { memoizedProps: {}, return: { memoizedProps: { sentAtMs: 1000 } } } });
+        Object.assign(replied as Element, { "__reactFiber$test": { memoizedProps: {}, return: { memoizedProps: { sentAtMs: 2000 } } } });
         document.body.replaceChildren(pane);
         const times = conversationData(`local:${bare}`)?.times;
         expect(times?.get("turn:t1")).toBe(1000);
