@@ -104,7 +104,8 @@ function liveGroups(): Held[] {
         const entry = entryFromTurn(turn);
         const key = turnKeyOf(turn);
         const last = groups.at(-1);
-        if (last?.key === key) pushEntry(last, entry);
+        const keyless = !turn.el.closest("[data-turn-key]");
+        if (last && (last.key === key || (keyless && entry.role === "assistant"))) pushEntry(last, entry);
         else groups.push({ key, entries: [entry] });
     }
     return groups;
@@ -166,7 +167,7 @@ function nearerTop() {
 }
 
 function placeLive(memory: Held[], live: Held[]) {
-    const next = releaseStale(memory, live);
+    const next = releaseStale(memory, live).filter(group => live.some(item => item.key === group.key) || !live.some(item => sharesId(item, group)));
     if (!live.length) return next;
     if (!next.length) return live;
     const knownAt = live.findIndex(group => next.some(item => item.key === group.key));

@@ -906,7 +906,7 @@ async function oldShellSuite(browser) {
     await page.waitForSelector("article");
     await page.waitForTimeout(400);
     check("old shell: navigator ticks", await page.locator(".bloom-nav-tick").count() === 2);
-    check("old shell: timestamps", await page.locator('time[data-bloom="timestamp"]').count() === 2, await page.evaluate(() => document.querySelector("#thread")?.innerHTML.slice(0, 400)));
+    check("old shell: timestamps", await page.locator('article time[data-bloom="timestamp"]').count() === 2, await page.evaluate(() => document.querySelector("#thread")?.innerHTML.slice(0, 400)));
     check("old shell: SidebarIdentityOpacity fades the profile text, not the avatar", await page.evaluate(() => [".min-w-0", ".rounded-full"].map(selector => getComputedStyle(document.querySelector(`[data-testid="accounts-profile-button"] ${selector}`)).opacity).join() === "0.5,1"));
     check("old shell: name hidden", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="accounts-profile-button"] .truncate')).visibility === "hidden"));
     await page.locator('[data-bloom="entry"] button').click();
