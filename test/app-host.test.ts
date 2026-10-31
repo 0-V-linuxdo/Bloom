@@ -14,6 +14,7 @@ import { ingest, parseNotification, protocol } from "../src/app/host/protocol";
 import { currentConversationId } from "../src/app/host/route";
 import { sidebarMounts } from "../src/app/host/sidebar";
 import { listTurns } from "../src/app/host/thread";
+import BetterQuotes from "../src/plugins/betterQuotes";
 import { mount } from "./fixtures";
 
 const THREAD = "local:11111111-1111-4111-8111-111111111111";
@@ -289,9 +290,25 @@ describe("app conversation harvest", () => {
     }, 15_000);
 });
 
+describe("app turn times", () => {
+    test("reads turn start and reply times from the turn fiber", () => {
+        const bare = "abababab-abab-4bab-8bab-abababababab";
+        const pane = document.createElement("div");
+        pane.setAttribute("data-app-action-timeline-scroll", "");
+        pane.innerHTML = `<div data-turn-key="history-content:turn:t1" data-response-annotation-conversation="${bare}"><div data-response-annotation-target="msg_r1"></div></div>`;
+        show(pane);
+        Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: [{ turnId: "t1", getLabel: () => "Asked" }] } } });
+        Object.assign(pane.firstElementChild as Element, { "__reactFiber$test": { memoizedProps: {}, return: { memoizedProps: { turn: { turnId: "t1", turnStartedAtMs: 1000, finalAssistantStartedAtMs: 2000 } } } } });
+        document.body.replaceChildren(pane);
+        const times = conversationData(`local:${bare}`)?.times;
+        expect(times?.get("turn:t1")).toBe(1000);
+        expect(times?.get("msg_r1")).toBe(2000);
+    });
+});
+
 describe("app landmarks", () => {
     test("flags a missing turn only inside a conversation", () => {
-        registerPlugins([{ name: "BetterQuotes", description: "", authors: [], tags: [], icon: "quote", enabledByDefault: true }]);
+        registerPlugins([BetterQuotes]);
         mount(APP_SHELL.replace(' data-app-action-sidebar-thread-selected="true"', ""));
         syncLandmarks();
         expect(pluginIssue("BetterQuotes")).toBeUndefined();

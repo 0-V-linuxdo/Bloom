@@ -13,6 +13,7 @@ import { protocol, type ProtocolNote } from "./protocol";
 import { currentConversationId } from "./route";
 import { Sel } from "./selectors";
 import { sidebarTitle } from "./sidebar";
+import { searchUnitRole, unitMessageIds } from "./thread";
 
 const logger = new Logger("AppNetwork");
 
@@ -54,6 +55,7 @@ const frozen = new Set<string>();
 export const HARVEST_SETTLE_MS = 800;
 export const HARVEST_GRACE_MS = 6000;
 const HARVEST_TICK_MS = 200;
+const TURN_DEPTH = 25;
 let stopHarvestTick: (() => void) | undefined;
 
 export const activeGenerateCount = () => 0;
@@ -192,6 +194,7 @@ function previewText(value: unknown): string {
 interface FiberNode {
     child?: FiberNode | null;
     sibling?: FiberNode | null;
+    return?: FiberNode | null;
     memoizedProps?: unknown;
     pendingProps?: unknown;
 }
@@ -199,6 +202,30 @@ interface FiberNode {
 function reactFiber(el: Element): FiberNode | null {
     const key = Object.keys(el).find(name => name.startsWith("__reactFiber$") || name.startsWith("__reactInternalInstance$"));
     return key ? (el as unknown as Record<string, FiberNode>)[key] ?? null : null;
+}
+
+function turnOf(el: Element) {
+    for (let fiber: FiberNode | null | undefined = reactFiber(el), depth = 0; fiber && depth < TURN_DEPTH; fiber = fiber.return, depth++) {
+        const turn = isRecord(fiber.memoizedProps) ? fiber.memoizedProps.turn : null;
+        if (isRecord(turn) && typeof turn.turnStartedAtMs === "number") return turn;
+    }
+    return null;
+}
+
+function harvestTimes(entry: ConversationData, host: Element) {
+    for (const el of host.querySelectorAll(Sel.turn)) {
+        const turnId = el.getAttribute("data-turn-key")?.replace(/^.*turn:/, "");
+        const turn = turnId ? turnOf(el) : null;
+        if (!turn || turn.turnId !== turnId) continue;
+        const asked = turn.turnStartedAtMs as number;
+        const replied = typeof turn.finalAssistantStartedAtMs === "number" ? turn.finalAssistantStartedAtMs : asked;
+        entry.times.set(`turn:${turnId}`, asked);
+        entry.times.set(`${turnId}:assistant`, replied);
+        for (const unit of el.querySelectorAll(Sel.searchUnit)) {
+            for (const messageId of unitMessageIds(unit)) entry.times.set(messageId, searchUnitRole(unit) === "user" ? asked : replied);
+        }
+        for (const reply of el.querySelectorAll("[data-response-annotation-target]")) entry.times.set(reply.getAttribute("data-response-annotation-target") as string, replied);
+    }
 }
 
 function collectFiberTurns(root: FiberNode | null, depth: number, items: Record<string, unknown>[], entries: Record<string, unknown>[]) {
@@ -309,6 +336,7 @@ function harvestFiber(id: string) {
     const fiberId = typeof source[0]?.conversationId === "string" ? source[0].conversationId : "";
     const entry = conversationEntry(id);
     entry.title = sidebarTitle(id) ?? sidebarTitle(fiberId || id) ?? entry.title;
+    harvestTimes(entry, host);
     const key = conversationKey(id);
     if (!firstAt.has(key)) firstAt.set(key, Date.now());
     const labeled = source.filter(row => callText(row.getLabel) || previewText(row.getPreview)).length;
