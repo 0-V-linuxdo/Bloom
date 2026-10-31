@@ -215,6 +215,26 @@ describe("app conversation harvest", () => {
         expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["Early", "Late one", "Late two"]);
     });
 
+    test("prefers a long items list over a short entries window", () => {
+        const bare = "abababab-abab-4aba-8aba-abababababab";
+        const id = `local:${bare}`;
+        const pane = document.createElement("div");
+        pane.setAttribute("data-app-action-timeline-scroll", "");
+        pane.innerHTML = `<div data-turn-key="history-content:turn:y2" data-response-annotation-conversation="${bare}"></div>`;
+        show(pane);
+        const windowed = [{ turnId: "y1", historyEntityKey: "turn:y1", getLabel: () => "Late one" }, { turnId: "y2", historyEntityKey: "turn:y2", getLabel: () => "Late two" }];
+        const items = [
+            { turnKey: "y0", getLabel: () => "Early", getPreview: () => "Early reply" },
+            { turnKey: "y1", getLabel: () => "Late one", getPreview: () => "Late one reply" },
+            { turnKey: "y2", getLabel: () => "Late two", getPreview: () => "Late two reply" },
+        ];
+        Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: windowed, items } } });
+        document.body.replaceChildren(pane);
+        expect(conversationData(id)?.chain.map(item => item.text)).toEqual([
+            "Early", "Early reply", "Late one", "Late one reply", "Late two", "Late two reply",
+        ]);
+    });
+
     test("grows the first harvest until it settles, then ignores later offscreen fiber", async () => {
         const bare = "ffffffff-ffff-4fff-8fff-ffffffffffff";
         const id = `local:${bare}`;

@@ -46,6 +46,7 @@ const conversations = new Map<string, ConversationData>();
 const signatures = new Map<string, string>();
 const grownAt = new Map<string, number>();
 const grownLen = new Map<string, number>();
+const sourceLen = new Map<string, number>();
 const fiberSeen = new Set<string>();
 const frozen = new Set<string>();
 export const HARVEST_SETTLE_MS = 800;
@@ -96,13 +97,14 @@ function watchHarvest() {
     }, HARVEST_TICK_MS);
 }
 
-function noteFiber(entry: ConversationData) {
+function noteFiber(entry: ConversationData, harvested: number) {
     const key = conversationKey(entry.id);
     fiberSeen.add(key);
     const { length } = entry.chain;
-    if (length > (grownLen.get(key) ?? 0)) {
-        grownLen.set(key, length);
-        grownAt.set(key, Date.now());
+    if (harvested > (sourceLen.get(key) ?? 0) || length > (grownLen.get(key) ?? 0)) {
+        sourceLen.set(key, Math.max(harvested, sourceLen.get(key) ?? 0));
+        grownLen.set(key, Math.max(length, grownLen.get(key) ?? 0));
+        if (!frozen.has(key)) grownAt.set(key, Date.now());
         return;
     }
     if (!grownAt.has(key)) grownAt.set(key, Date.now());
@@ -251,6 +253,9 @@ function harvestHosts() {
     return [...document.querySelectorAll(`${Sel.conversationTarget}, ${Sel.timelineScroll}`)].filter(isVisible);
 }
 
+const pickSource = (items: Record<string, unknown>[], entries: Record<string, unknown>[]) =>
+    entries.length > items.length ? entries : items;
+
 function harvestFiber(id: string) {
     const hosts = harvestHosts();
     if (!hosts.length) return;
@@ -268,10 +273,10 @@ function harvestFiber(id: string) {
             logger.warn("Fiber walk failed", e);
             continue;
         }
-        const next = nextEntries.length ? nextEntries : nextItems;
+        const next = pickSource(nextItems, nextEntries);
         const fiberId = typeof next[0]?.conversationId === "string" ? next[0].conversationId : "";
         if (fiberId && !sameConversation(id, fiberId)) continue;
-        const current = entries.length ? entries : items;
+        const current = pickSource(items, entries);
         if (next.length > current.length) {
             host = node;
             items = nextItems;
@@ -279,14 +284,16 @@ function harvestFiber(id: string) {
         }
     }
     if (!host) return;
-    const source = entries.length ? entries : items;
+    const source = pickSource(items, entries);
     if (!source.length) return;
     const fiberId = typeof source[0]?.conversationId === "string" ? source[0].conversationId : "";
     const entry = conversationEntry(id);
     entry.title = sidebarTitle(id) ?? sidebarTitle(fiberId || id) ?? entry.title;
+    const key = conversationKey(id);
+    const settled = harvestSettled(id);
+    if (!settled && source.length > (sourceLen.get(key) ?? 0)) grownAt.delete(key);
     const visibleIds = paneTurnIds(host);
     const known = chainIds(entry);
-    const settled = harvestSettled(id);
     for (const row of source) {
         let turnId = "";
         if (typeof row.turnId === "string") turnId = row.turnId;
@@ -303,7 +310,7 @@ function harvestFiber(id: string) {
         }
         if (turnId && assistantText) mergeMessage(entry, messageOf(`${turnId}:assistant`, "assistant", assistantText, time));
     }
-    noteFiber(entry);
+    noteFiber(entry, source.length);
     publish(entry);
 }
 

@@ -311,6 +311,7 @@ function listed(): Entry[] {
         held = [];
         return [];
     }
+    if (lockPrepend && chat && !harvestSettled(chat)) lockPrepend = false;
     held = prune(weave(placeLive(held, live), chain, !lockPrepend));
     if (!lockPrepend && chat && held.length && harvestSettled(chat)) {
         lockPrepend = true;
