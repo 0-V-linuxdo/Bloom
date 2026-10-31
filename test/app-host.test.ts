@@ -6,7 +6,9 @@
 
 import { describe, expect, test } from "bun:test";
 
+import { pluginIssue, registerPlugins } from "../src/api/PluginManager";
 import { caretLine, composerInput, readDraft, writeDraft } from "../src/app/host/composer";
+import { syncLandmarks } from "../src/app/host/landmarks";
 import { conversationData, HARVEST_GRACE_MS, HARVEST_SETTLE_MS } from "../src/app/host/network";
 import { ingest, parseNotification, protocol } from "../src/app/host/protocol";
 import { currentConversationId } from "../src/app/host/route";
@@ -285,4 +287,16 @@ describe("app conversation harvest", () => {
             "Late one", "Late one reply", "Early", "Early reply",
         ]);
     }, 15_000);
+});
+
+describe("app landmarks", () => {
+    test("flags a missing turn only inside a conversation", () => {
+        registerPlugins([{ name: "BetterQuotes", description: "", authors: [], tags: [], icon: "quote", enabledByDefault: true }]);
+        mount(APP_SHELL.replace(' data-app-action-sidebar-thread-selected="true"', ""));
+        syncLandmarks();
+        expect(pluginIssue("BetterQuotes")).toBeUndefined();
+        mount(APP_SHELL);
+        syncLandmarks();
+        expect(pluginIssue("BetterQuotes")?.length).toBe(1);
+    });
 });

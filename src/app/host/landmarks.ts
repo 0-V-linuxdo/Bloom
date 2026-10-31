@@ -9,6 +9,7 @@ import { watchBody } from "@utils/dom";
 import { Logger } from "@utils/Logger";
 
 import { queryVisible } from "./query";
+import { isHomePath } from "./route";
 import { Sel } from "./selectors";
 
 const logger = new Logger("AppLandmarks");
@@ -30,6 +31,7 @@ const REQUIRED: Record<string, string[]> = {
 };
 
 export function syncLandmarks() {
+    const home = isHomePath();
     for (const [name, selectors] of Object.entries(REQUIRED)) {
         const plugin = plugins.get(name);
         if (!plugin || plugin.required || !isPluginEnabled(plugin)) {
@@ -37,7 +39,7 @@ export function syncLandmarks() {
             continue;
         }
         const found = selectors.some(selector => queryVisible(selector));
-        setPluginIssue(name, found ? null : selectors);
+        setPluginIssue(name, found || (home && selectors.includes(Sel.turn)) ? null : selectors);
         if (!found) {
             if (!isPluginStarted(plugin.name)) continue;
             haltPlugin(plugin);
