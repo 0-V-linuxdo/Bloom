@@ -163,6 +163,45 @@ describe("BetterNavigator open turn", () => {
         expect(ticks[0]?.classList.contains("bloom-nav-tick-streaming")).toBe(false);
     });
 
+    test("does not grow a chat outline from a later longer chain after switching away", async () => {
+        const y = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+        const x = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+        const pane = (body: string) => `<main><div data-app-action-timeline-scroll style="overflow:auto;height:240px;width:480px">${body}</div></main>`;
+        const turn = (key: string, text: string) => `<div data-turn-key="${key}"><div data-chatgpt-search-unit-key="${key}:user" data-chatgpt-search-message-ids="${key}"><div class="whitespace-pre-wrap">${text}</div></div></div>`;
+        const said = (messageId: string, role: string, text: string, time: number) => ({ id: messageId, author: { role }, create_time: time, content: { content_type: "text", parts: [text] } });
+        const titles = () => [...document.querySelectorAll(".bloom-nav-tick")].map(tick => tick.getAttribute("title") ?? "");
+        try {
+            history.pushState(null, "", `/c/${y}`);
+            checkRoute();
+            parseConversation(y, { messages: [said("u1", "user", "改用codex app", 20), said("a1", "assistant", "ok", 21)] });
+            navigator.start?.();
+            document.body.innerHTML = pane(turn("u1", "改用codex app"));
+            await wait(100);
+            const nY1 = document.querySelectorAll(".bloom-nav-tick").length;
+            expect(nY1).toBeGreaterThan(0);
+            expect(titles().some(title => title.includes("0.2.77"))).toBe(false);
+
+            history.pushState(null, "", `/c/${x}`);
+            checkRoute();
+            parseConversation(x, { messages: [said("x1", "user", "bilibili plugin", 1)] });
+            document.body.innerHTML = pane(turn("x1", "bilibili plugin"));
+            await wait(100);
+            expect(titles().some(title => title.includes("bilibili"))).toBe(true);
+
+            history.pushState(null, "", `/c/${y}`);
+            checkRoute();
+            parseConversation(y, { messages: [said("u0", "user", "0.2.77 zen helium", 10), said("a0", "assistant", "zen ok", 11), said("u1", "user", "改用codex app", 20), said("a1", "assistant", "ok", 21)] });
+            document.body.innerHTML = pane(turn("u1", "改用codex app"));
+            await wait(100);
+            expect(document.querySelectorAll(".bloom-nav-tick")).toHaveLength(nY1);
+            expect(titles().some(title => title.includes("0.2.77"))).toBe(false);
+            expect(titles().some(title => title.includes("改用codex app"))).toBe(true);
+        } finally {
+            history.pushState(null, "", "/");
+            checkRoute();
+        }
+    });
+
     test("drops another chat's outline on an empty GPT homepage", async () => {
         history.pushState(null, "", "/");
         checkRoute();
