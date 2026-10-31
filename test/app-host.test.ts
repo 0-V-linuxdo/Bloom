@@ -7,7 +7,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { caretLine, composerInput, readDraft, writeDraft } from "../src/app/host/composer";
-import { conversationData, HARVEST_SETTLE_MS } from "../src/app/host/network";
+import { conversationData, HARVEST_GRACE_MS, HARVEST_SETTLE_MS } from "../src/app/host/network";
 import { ingest, parseNotification, protocol } from "../src/app/host/protocol";
 import { currentConversationId } from "../src/app/host/route";
 import { sidebarMounts } from "../src/app/host/sidebar";
@@ -245,16 +245,17 @@ describe("app conversation harvest", () => {
         const windowed = [{ turnId: "y1", getLabel: () => "First seen" }, { turnId: "y2", getLabel: () => "Still visible" }];
         Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: windowed } } });
         document.body.replaceChildren(pane);
+        const started = Date.now();
         expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["First seen", "Still visible"]);
         Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: [{ turnId: "y0", getLabel: () => "Earlier hidden" }, ...windowed] } } });
         expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["First seen", "Still visible", "Earlier hidden"]);
-        await new Promise(resolve => setTimeout(resolve, HARVEST_SETTLE_MS + 50));
+        await new Promise(resolve => setTimeout(resolve, Math.max(0, HARVEST_GRACE_MS + HARVEST_SETTLE_MS + 50 - (Date.now() - started))));
         Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: [{ turnId: "yz", getLabel: () => "Later leftover" }, { turnId: "y0", getLabel: () => "Earlier hidden" }, ...windowed] } } });
         expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["First seen", "Still visible", "Earlier hidden"]);
         pane.innerHTML = `<div data-turn-key="history-content:turn:yv" data-response-annotation-conversation="${bare}"></div><div data-turn-key="history-content:turn:y2"></div>`;
         Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: [{ turnId: "yv", getLabel: () => "Now visible" }, ...windowed] } } });
         expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["First seen", "Still visible", "Earlier hidden", "Now visible"]);
-    });
+    }, 15_000);
 
     test("keeps taking labels that load after the first short window", async () => {
         const bare = "12121212-1212-4121-8121-121212121212";
@@ -270,6 +271,7 @@ describe("app conversation harvest", () => {
         ];
         Object.assign(pane, { "__reactFiber$test": { memoizedProps: { items } } });
         document.body.replaceChildren(pane);
+        const started = Date.now();
         expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["Late one", "Late one reply"]);
         await new Promise(resolve => setTimeout(resolve, HARVEST_SETTLE_MS + 50));
         labels.early = "Early";
@@ -277,10 +279,10 @@ describe("app conversation harvest", () => {
         expect(conversationData(id)?.chain.map(item => item.text)).toEqual([
             "Late one", "Late one reply", "Early", "Early reply",
         ]);
-        await new Promise(resolve => setTimeout(resolve, HARVEST_SETTLE_MS + 50));
+        await new Promise(resolve => setTimeout(resolve, Math.max(0, HARVEST_GRACE_MS + HARVEST_SETTLE_MS + 50 - (Date.now() - started))));
         items.unshift({ turnKey: "yz", getLabel: () => "Later leftover", getPreview: () => "Later leftover reply" });
         expect(conversationData(id)?.chain.map(item => item.text)).toEqual([
             "Late one", "Late one reply", "Early", "Early reply",
         ]);
-    });
+    }, 15_000);
 });

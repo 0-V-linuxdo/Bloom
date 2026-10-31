@@ -289,10 +289,20 @@ function forget() {
     superseded.clear();
 }
 
+function outlineSize(groups: Held[]) {
+    return groups.reduce((n, group) => n + group.entries.length, 0);
+}
+
+function remember(chat: string, groups: Held[]) {
+    if (!chat || !groups.length) return;
+    const prev = outlines.get(chat);
+    if (!prev || outlineSize(groups) >= outlineSize(prev)) outlines.set(chat, cloneHeld(groups));
+}
+
 function listed(): Entry[] {
     const chat = pageConversationKey();
     if (chat !== heldChat) {
-        if (heldChat && held.length && lockPrepend) outlines.set(heldChat, cloneHeld(held));
+        if (heldChat && held.length) remember(heldChat, held);
         heldChat = chat;
         const saved = chat ? outlines.get(chat) : undefined;
         if (saved?.length) {
@@ -313,10 +323,8 @@ function listed(): Entry[] {
     }
     if (lockPrepend && chat && !harvestSettled(chat)) lockPrepend = false;
     held = prune(weave(placeLive(held, live), chain, !lockPrepend));
-    if (!lockPrepend && chat && held.length && harvestSettled(chat)) {
-        lockPrepend = true;
-        outlines.set(chat, cloneHeld(held));
-    }
+    if (chat && held.length) remember(chat, held);
+    if (!lockPrepend && chat && held.length && harvestSettled(chat)) lockPrepend = true;
     return held.flatMap(group => group.entries).filter(shown).filter(entry => entry.ids.length || entry.summary || entry.streaming);
 }
 

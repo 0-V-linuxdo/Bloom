@@ -83,8 +83,10 @@ export function conversationKey(id: string) {
 export function harvestSettled(id: string | null) {
     if (!id) return false;
     const key = conversationKey(id);
-    if (frozen.has(key)) return true;
     if (!fiberSeen.has(key)) return false;
+    const started = firstAt.get(key);
+    if (started == null || Date.now() - started < HARVEST_GRACE_MS) return false;
+    if (frozen.has(key)) return true;
     const grown = grownAt.get(key);
     if (grown == null || Date.now() - grown < HARVEST_SETTLE_MS) return false;
     frozen.add(key);
