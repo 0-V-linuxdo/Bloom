@@ -182,4 +182,15 @@ describe("app conversation harvest", () => {
         const id = "local:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
         expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["Current chat prompt"]);
     });
+
+    test("skips a visible pane that still shows another chat", () => {
+        const el = document.createElement("div");
+        el.setAttribute("data-app-action-timeline-scroll", "");
+        el.innerHTML = '<div data-response-annotation-conversation="cccccccc-cccc-4ccc-8ccc-cccccccccccc"></div>';
+        Object.assign(el, { "__reactFiber$test": { memoizedProps: { entries: [{ turnId: "c1", getLabel: () => "Previous chat prompt" }] } } });
+        show(el);
+        document.body.replaceChildren(el);
+        expect(conversationData("local:dddddddd-dddd-4ddd-8ddd-dddddddddddd")?.chain ?? []).toEqual([]);
+        expect(conversationData("local:cccccccc-cccc-4ccc-8ccc-cccccccccccc")?.chain.map(item => item.text)).toEqual(["Previous chat prompt"]);
+    });
 });

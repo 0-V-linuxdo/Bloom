@@ -161,6 +161,8 @@ function itemFor(items: Record<string, unknown>[], entry: Record<string, unknown
 function harvestFiber(id: string) {
     const host = visible("[data-thread-find-target='conversation']") ?? visible(Sel.timelineScroll);
     if (!host) return;
+    const paneId = visible(Sel.timelineScroll)?.querySelector("[data-response-annotation-conversation]")?.getAttribute("data-response-annotation-conversation");
+    if (paneId && !conversationKeys(id).includes(paneId)) return;
     const items: Record<string, unknown>[] = [];
     const entries: Record<string, unknown>[] = [];
     try {
