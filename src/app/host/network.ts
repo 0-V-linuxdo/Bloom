@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { visible } from "@utils/dom";
 import { createEmitter } from "@utils/events";
 import { Logger } from "@utils/Logger";
 import { isRecord, normalizeText } from "@utils/misc";
@@ -158,7 +159,7 @@ function itemFor(items: Record<string, unknown>[], entry: Record<string, unknown
 }
 
 function harvestFiber(id: string) {
-    const host = document.querySelector("[data-thread-find-target='conversation']") ?? document.querySelector(Sel.timelineScroll);
+    const host = visible("[data-thread-find-target='conversation']") ?? visible(Sel.timelineScroll);
     if (!host) return;
     const items: Record<string, unknown>[] = [];
     const entries: Record<string, unknown>[] = [];

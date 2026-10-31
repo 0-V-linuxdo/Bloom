@@ -166,4 +166,20 @@ describe("app conversation harvest", () => {
             ["assistant", "About 8,849 metres."],
         ]);
     });
+
+    test("harvests only the visible conversation pane", () => {
+        const pane = (turnId: string, label: string) => {
+            const el = document.createElement("div");
+            el.setAttribute("data-app-action-timeline-scroll", "");
+            Object.assign(el, { "__reactFiber$test": { memoizedProps: { entries: [{ turnId, getLabel: () => label }] } } });
+            return el;
+        };
+        const hidden = pane("x1", "Old chat prompt");
+        const shown = pane("y1", "Current chat prompt");
+        show(shown);
+        Object.defineProperty(hidden, "getClientRects", { value: () => ({ length: 0 }) });
+        document.body.replaceChildren(hidden, shown);
+        const id = "local:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+        expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["Current chat prompt"]);
+    });
 });
