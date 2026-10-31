@@ -37,6 +37,14 @@ Live tests on chatgpt.com use the Instant model, never Pro. Pick Instant in the 
 
 Live tests of `Bloom.app.user.js` in the ChatGPT desktop app run on GG's Mac through Cursor, started with `scripts/app-inject/ChatGPT-Bloom.command`. An agent that cannot reach the app ends each app change with a test brief GG can paste into Cursor. A check passes only on what a screenshot shows: computed styles, element sizes and synthetic CDP pointer events do not prove a visual fix. Hover checks need a real pointer, and every result is reported with before and after screenshots. Never call `Page.reload` on `app://`; it crashes the renderer.
 
+Cursor sends every live test result itself to the Claude page open in GG's Helium browser, so GG never copies results by hand:
+
+1. Before sending, check that the tab's address contains `thread=cmsg_017AtTsdKbc17NcacDEzVS8s4DVWVm38mEEPKe8Q1fB6jy`. Otherwise open `https://claude.ai/code/project/chan_017AtTsdKbc17NcacDEzVS8s?thread=cmsg_017AtTsdKbc17NcacDEzVS8s4DVWVm38mEEPKe8Q1fB6jy` first. Never send to another thread or to the project chat.
+2. The first line is `Cursor live report: <version> <test name>`. Raw output such as JSON goes unchanged in a fenced code block.
+3. Past about 8000 characters, split into messages headed `(1/3)`, `(2/3)` and so on, cutting only between lines.
+4. Attach each screenshot as a PNG through the attachment button or by dropping it into the composer, with one line saying what it shows.
+5. Confirm every message appears in the thread and none is left unsent in the composer.
+
 ## Checks before a push
 
 ```bash
