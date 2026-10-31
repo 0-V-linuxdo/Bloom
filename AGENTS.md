@@ -45,6 +45,8 @@ Cursor sends every live test result itself to the Claude page open in GG's Heliu
 4. Attach each screenshot as a PNG through the attachment button or by dropping it into the composer, with one line saying what it shows.
 5. Confirm every message appears in the thread and none is left unsent in the composer.
 
+When GG tells Cursor `继续`, Cursor opens that same thread, takes the four-backtick brief in Claude's latest reply, says in one line which brief it is about to run, runs it, and reports as above. It does not watch the thread or start a brief on its own.
+
 ## Checks before a push
 
 ```bash
