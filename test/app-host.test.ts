@@ -255,4 +255,32 @@ describe("app conversation harvest", () => {
         Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: [{ turnId: "yv", getLabel: () => "Now visible" }, ...windowed] } } });
         expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["First seen", "Still visible", "Earlier hidden", "Now visible"]);
     });
+
+    test("keeps taking labels that load after the first short window", async () => {
+        const bare = "12121212-1212-4121-8121-121212121212";
+        const id = `local:${bare}`;
+        const pane = document.createElement("div");
+        pane.setAttribute("data-app-action-timeline-scroll", "");
+        pane.innerHTML = `<div data-turn-key="history-content:turn:y1" data-response-annotation-conversation="${bare}"></div>`;
+        show(pane);
+        const labels = { early: "", reply: "" };
+        const items = [
+            { turnKey: "y0", getLabel: () => labels.early, getPreview: () => labels.reply },
+            { turnKey: "y1", getLabel: () => "Late one", getPreview: () => "Late one reply" },
+        ];
+        Object.assign(pane, { "__reactFiber$test": { memoizedProps: { items } } });
+        document.body.replaceChildren(pane);
+        expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["Late one", "Late one reply"]);
+        await new Promise(resolve => setTimeout(resolve, HARVEST_SETTLE_MS + 50));
+        labels.early = "Early";
+        labels.reply = "Early reply";
+        expect(conversationData(id)?.chain.map(item => item.text)).toEqual([
+            "Late one", "Late one reply", "Early", "Early reply",
+        ]);
+        await new Promise(resolve => setTimeout(resolve, HARVEST_SETTLE_MS + 50));
+        items.unshift({ turnKey: "yz", getLabel: () => "Later leftover", getPreview: () => "Later leftover reply" });
+        expect(conversationData(id)?.chain.map(item => item.text)).toEqual([
+            "Late one", "Late one reply", "Early", "Early reply",
+        ]);
+    });
 });

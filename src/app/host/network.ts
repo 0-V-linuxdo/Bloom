@@ -47,9 +47,12 @@ const signatures = new Map<string, string>();
 const grownAt = new Map<string, number>();
 const grownLen = new Map<string, number>();
 const sourceLen = new Map<string, number>();
+const firstAt = new Map<string, number>();
+const pendingUnlabeled = new Map<string, Set<string>>();
 const fiberSeen = new Set<string>();
 const frozen = new Set<string>();
 export const HARVEST_SETTLE_MS = 800;
+export const HARVEST_GRACE_MS = 6000;
 const HARVEST_TICK_MS = 200;
 let stopHarvestTick: (() => void) | undefined;
 
@@ -92,20 +95,35 @@ function watchHarvest() {
     if (stopHarvestTick) return;
     stopHarvestTick = every(() => {
         const id = currentConversationId();
-        if (!id || frozen.has(conversationKey(id))) return;
+        if (!id) return;
+        const key = conversationKey(id);
+        if (frozen.has(key) && Date.now() - (firstAt.get(key) ?? 0) >= HARVEST_GRACE_MS) return;
         harvestFiber(id);
     }, HARVEST_TICK_MS);
+}
+
+function pendingOf(key: string) {
+    let pending = pendingUnlabeled.get(key);
+    if (!pending) {
+        pending = new Set();
+        pendingUnlabeled.set(key, pending);
+    }
+    return pending;
 }
 
 function noteFiber(entry: ConversationData, harvested: number) {
     const key = conversationKey(entry.id);
     fiberSeen.add(key);
+    if (!firstAt.has(key)) firstAt.set(key, Date.now());
     const { length } = entry.chain;
-    if (harvested > (sourceLen.get(key) ?? 0) || length > (grownLen.get(key) ?? 0)) {
-        sourceLen.set(key, Math.max(harvested, sourceLen.get(key) ?? 0));
-        grownLen.set(key, Math.max(length, grownLen.get(key) ?? 0));
+    if (length > (grownLen.get(key) ?? 0)) {
+        grownLen.set(key, length);
+        grownAt.set(key, Date.now());
+        frozen.delete(key);
+    }
+    if (harvested > (sourceLen.get(key) ?? 0)) {
+        sourceLen.set(key, harvested);
         if (!frozen.has(key)) grownAt.set(key, Date.now());
-        return;
     }
     if (!grownAt.has(key)) grownAt.set(key, Date.now());
 }
@@ -290,27 +308,34 @@ function harvestFiber(id: string) {
     const entry = conversationEntry(id);
     entry.title = sidebarTitle(id) ?? sidebarTitle(fiberId || id) ?? entry.title;
     const key = conversationKey(id);
+    if (!firstAt.has(key)) firstAt.set(key, Date.now());
+    const labeled = source.filter(row => callText(row.getLabel) || previewText(row.getPreview)).length;
     const settled = harvestSettled(id);
-    if (!settled && source.length > (sourceLen.get(key) ?? 0)) grownAt.delete(key);
+    if (!settled && labeled > (sourceLen.get(key) ?? 0)) grownAt.delete(key);
     const visibleIds = paneTurnIds(host);
     const known = chainIds(entry);
+    const pending = pendingOf(key);
+    const grace = Date.now() - (firstAt.get(key) ?? 0) < HARVEST_GRACE_MS;
     for (const row of source) {
         let turnId = "";
         if (typeof row.turnId === "string") turnId = row.turnId;
         else if (typeof row.turnKey === "string") turnId = row.turnKey.replace(/^.*turn:/, "");
         const userId = typeof row.historyEntityKey === "string" ? row.historyEntityKey : (turnId ? `turn:${turnId}` : "");
-        if (settled && ![userId, turnId].some(value => aliases(value).some(key => known.has(key) || visibleIds.has(key)))) continue;
         const item = itemFor(items, row);
         const userText = callText(item?.getLabel ?? row.getLabel);
         const assistantText = previewText(item?.getPreview ?? row.getPreview);
+        if (turnId && !userText && !assistantText) pending.add(turnId);
+        const seen = [userId, turnId].some(value => aliases(value).some(alias => known.has(alias) || visibleIds.has(alias)));
+        if (settled && !seen && !(grace && turnId && pending.has(turnId))) continue;
         const time = typeof row.timestampSeparatorAtMs === "number" ? row.timestampSeparatorAtMs : null;
         if (userId && userText) {
             mergeMessage(entry, messageOf(userId, "user", userText, time));
             if (time) entry.times.set(userId, time);
         }
         if (turnId && assistantText) mergeMessage(entry, messageOf(`${turnId}:assistant`, "assistant", assistantText, time));
+        if (turnId && (userText || assistantText)) pending.delete(turnId);
     }
-    noteFiber(entry, source.length);
+    noteFiber(entry, labeled);
     publish(entry);
 }
 
