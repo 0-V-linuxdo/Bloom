@@ -18,7 +18,7 @@ import { clamp } from "@utils/misc";
 import { mountOverlay } from "@utils/overlay";
 import definePlugin, { OptionType, type Plugin, StartAt } from "@utils/types";
 
-import { ENTRY_DEFAULTS, ENTRY_KEYS, type EntryKey, entryOn, isEntryKey } from "./entries";
+import { adoptEntryDefaults, ENTRY_DEFAULTS, ENTRY_KEYS, type EntryKey, entryOn, isEntryKey } from "./entries";
 import { closePanel, hasVisibleSettings, openPanel, togglePanel } from "./panel";
 import styles from "./styles.css";
 
@@ -265,6 +265,7 @@ export default definePlugin({
             + "[data-app-navigation-rail] [data-bloom=entry].bloom-entry-hover:not(:hover > *){display:none;transition:display 0s 0.2s allow-discrete}"
         : ""}.${cl("hover")}{${POSITION_VAR}:${settings.store.entryPosition}}`,
     start() {
+        adoptEntryDefaults();
         dropChrome();
         unsubscribers = [watchBody(sync), useTooltips(), useIdentityMarks()];
         if (!menuRegistered && typeof GM_registerMenuCommand === "function") {

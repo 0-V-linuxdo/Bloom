@@ -48,7 +48,7 @@ const check = (name, ok, detail = "") => {
     console.log(`${ok ? "PASS" : "FAIL"} ${name}${detail ? ` (${detail})` : ""}`);
 };
 
-const seedSettings = (settings, entry) => entry ? { ...settings, plugins: { Settings: { showSidebarEntry: true }, ...settings?.plugins } } : settings;
+const seedSettings = (settings, entry) => ({ ...settings, plugins: { ...settings?.plugins, Settings: { entryRevision: 1, ...entry && { showSidebarEntry: true }, ...settings?.plugins?.Settings } } });
 
 const gmShim = settings => `
 (() => {

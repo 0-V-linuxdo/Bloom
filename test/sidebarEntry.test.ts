@@ -36,6 +36,21 @@ afterEach(() => {
 });
 
 describe("sidebar settings entry", () => {
+    test("old entry switches are reset to the current defaults once", () => {
+        mount(LIVE_SHELL);
+        writeSetting("Settings", "entryRevision");
+        writeSetting("Settings", "showSidebarEntry", false);
+        writeSetting("Settings", "showSidebarEntryOnHover", true);
+        Settings.start?.();
+        expect(readSetting("Settings", "showSidebarEntry")).toBeUndefined();
+        expect(readSetting("Settings", "showSidebarEntryOnHover")).toBeUndefined();
+        expect(entries().every(node => !node.classList.contains("bloom-entry-hover"))).toBe(true);
+        Settings.stop?.();
+        writeSetting("Settings", "showSidebarEntryOnHover", true);
+        Settings.start?.();
+        expect(readSetting("Settings", "showSidebarEntryOnHover")).toBe(true);
+    });
+
     test("defaults keep the always-on overlay and omit the account-menu row", () => {
         mount(LIVE_SHELL);
         Settings.start?.();
