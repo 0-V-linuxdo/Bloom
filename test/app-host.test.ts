@@ -7,7 +7,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { caretLine, composerInput, readDraft, writeDraft } from "../src/app/host/composer";
-import { conversationData } from "../src/app/host/network";
+import { conversationData, HARVEST_SETTLE_MS } from "../src/app/host/network";
 import { ingest, parseNotification, protocol } from "../src/app/host/protocol";
 import { currentConversationId } from "../src/app/host/route";
 import { sidebarMounts } from "../src/app/host/sidebar";
@@ -60,6 +60,13 @@ describe("app protocol", () => {
 describe("app route", () => {
     test("reads the selected sidebar thread id", () => {
         mount(APP_SHELL);
+        expect(currentConversationId()).toBe(THREAD);
+    });
+
+    test("reads the selected sidebar thread id when the row has no layout box", () => {
+        mount(APP_SHELL);
+        const row = document.querySelector<HTMLElement>("[data-app-action-sidebar-thread-row]");
+        Object.defineProperty(row, "getClientRects", { value: () => ({ length: 0 }) });
         expect(currentConversationId()).toBe(THREAD);
     });
 });
@@ -192,5 +199,40 @@ describe("app conversation harvest", () => {
         document.body.replaceChildren(el);
         expect(conversationData("local:dddddddd-dddd-4ddd-8ddd-dddddddddddd")?.chain ?? []).toEqual([]);
         expect(conversationData("local:cccccccc-cccc-4ccc-8ccc-cccccccccccc")?.chain.map(item => item.text)).toEqual(["Previous chat prompt"]);
+    });
+
+    test("uses the longest fiber list on first harvest, not the visible window", () => {
+        const bare = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+        const id = `local:${bare}`;
+        const pane = document.createElement("div");
+        pane.setAttribute("data-app-action-timeline-scroll", "");
+        pane.innerHTML = `<div data-turn-key="history-content:turn:y2" data-response-annotation-conversation="${bare}"></div>`;
+        show(pane);
+        const windowed = [{ turnId: "y1", getLabel: () => "Late one" }, { turnId: "y2", getLabel: () => "Late two" }];
+        const full = [{ turnId: "y0", getLabel: () => "Early" }, ...windowed];
+        Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: full }, child: { memoizedProps: { entries: windowed } } } });
+        document.body.replaceChildren(pane);
+        expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["Early", "Late one", "Late two"]);
+    });
+
+    test("grows the first harvest until it settles, then ignores later offscreen fiber", async () => {
+        const bare = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+        const id = `local:${bare}`;
+        const pane = document.createElement("div");
+        pane.setAttribute("data-app-action-timeline-scroll", "");
+        pane.innerHTML = `<div data-turn-key="history-content:turn:y2" data-response-annotation-conversation="${bare}"></div>`;
+        show(pane);
+        const windowed = [{ turnId: "y1", getLabel: () => "First seen" }, { turnId: "y2", getLabel: () => "Still visible" }];
+        Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: windowed } } });
+        document.body.replaceChildren(pane);
+        expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["First seen", "Still visible"]);
+        Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: [{ turnId: "y0", getLabel: () => "Earlier hidden" }, ...windowed] } } });
+        expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["First seen", "Still visible", "Earlier hidden"]);
+        await new Promise(resolve => setTimeout(resolve, HARVEST_SETTLE_MS + 50));
+        Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: [{ turnId: "yz", getLabel: () => "Later leftover" }, { turnId: "y0", getLabel: () => "Earlier hidden" }, ...windowed] } } });
+        expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["First seen", "Still visible", "Earlier hidden"]);
+        pane.innerHTML = `<div data-turn-key="history-content:turn:yv" data-response-annotation-conversation="${bare}"></div><div data-turn-key="history-content:turn:y2"></div>`;
+        Object.assign(pane, { "__reactFiber$test": { memoizedProps: { entries: [{ turnId: "yv", getLabel: () => "Now visible" }, ...windowed] } } });
+        expect(conversationData(id)?.chain.map(item => item.text)).toEqual(["First seen", "Still visible", "Earlier hidden", "Now visible"]);
     });
 });

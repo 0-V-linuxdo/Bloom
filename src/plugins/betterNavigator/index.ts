@@ -7,7 +7,7 @@
 import { definePluginSettings } from "@api/Settings";
 import { composerForm } from "@host/composer";
 import { generation, generationState } from "@host/generation";
-import { conversationData, network, type Role } from "@host/network";
+import { conversationData, harvestSettled, network, type Role } from "@host/network";
 import { currentConversationId, onRouteChange } from "@host/route";
 import { Sel } from "@host/selectors";
 import { chainSummary, hasThreadShell, isReversedScroller, listTurns, pageConversationKey, threadScroller, type Turn, turnSummary } from "@host/thread";
@@ -75,6 +75,8 @@ let heldChat = "";
 let held: Held[] = [];
 let branch: { parent: string; user: string | null; } | null = null;
 const superseded = new Set<string>();
+const outlines = new Map<string, Held[]>();
+let lockPrepend = false;
 
 const shown = (item: { role: Role; }) => settings.store.showAssistant || item.role === "user";
 
@@ -113,7 +115,7 @@ function liveGroups(): Held[] {
 
 function chainGroups(): Held[] {
     const groups: Held[] = [];
-    for (const message of conversationData(currentConversationId())?.chain ?? []) {
+    for (const message of conversationData(pageConversationKey() || currentConversationId())?.chain ?? []) {
         const entry: Entry = { role: message.role, summary: chainSummary(message), ids: [message.id], turn: null, streaming: false };
         const last = groups.at(-1);
         if (message.role === "assistant" && last) pushEntry(last, entry);
@@ -232,7 +234,7 @@ function cloneHeld(groups: Held[]) {
     return groups.map(group => ({ key: group.key, entries: group.entries.map(entry => ({ ...entry })) }));
 }
 
-function weave(memory: Held[], chain: Held[]) {
+function weave(memory: Held[], chain: Held[], grow = true) {
     if (!chain.length) return memory;
     if (!memory.length) return chain;
     const { score, offset } = alignment(memory, chain);
@@ -254,6 +256,7 @@ function weave(memory: Held[], chain: Held[]) {
         if (!group) continue;
         const text = userText(group);
         if (!text || textCount(merged, text) > 0 || merged.some(item => sharesId(item, group))) continue;
+        if (!grow) continue;
         if (score > 0 && chainIndex < offset) before.push(group);
         else after.push(group);
     }
@@ -289,8 +292,18 @@ function forget() {
 function listed(): Entry[] {
     const chat = pageConversationKey();
     if (chat !== heldChat) {
+        if (heldChat && held.length && lockPrepend) outlines.set(heldChat, cloneHeld(held));
         heldChat = chat;
-        forget();
+        const saved = chat ? outlines.get(chat) : undefined;
+        if (saved?.length) {
+            held = cloneHeld(saved);
+            branch = null;
+            superseded.clear();
+            lockPrepend = true;
+        } else {
+            forget();
+            lockPrepend = false;
+        }
     }
     const live = liveGroups();
     const chain = chainGroups();
@@ -298,8 +311,12 @@ function listed(): Entry[] {
         held = [];
         return [];
     }
-    held = prune(weave(placeLive(held, live), chain));
-    return held.flatMap(group => group.entries).filter(shown);
+    held = prune(weave(placeLive(held, live), chain, !lockPrepend));
+    if (!lockPrepend && chat && held.length && harvestSettled(chat)) {
+        lockPrepend = true;
+        outlines.set(chat, cloneHeld(held));
+    }
+    return held.flatMap(group => group.entries).filter(shown).filter(entry => entry.ids.length || entry.summary || entry.streaming);
 }
 
 function markOpenTurn(items: Entry[]) {
@@ -650,7 +667,9 @@ function teardown() {
     root = null;
     signature = "";
     forget();
+    outlines.clear();
     heldChat = "";
+    lockPrepend = false;
     for (const node of document.querySelectorAll<HTMLElement>('[data-bloom="navigator"]')) dropExtra(node);
 }
 

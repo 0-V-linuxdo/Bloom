@@ -6,7 +6,7 @@
 
 import { Logger } from "@utils/Logger";
 
-import { queryAll, queryVisible } from "./query";
+import { queryAll } from "./query";
 import { Sel } from "./selectors";
 
 const logger = new Logger("AppRoute");
@@ -31,8 +31,13 @@ export const conversationIdFromHref = (href: string) => {
 };
 
 export function currentConversationId() {
-    const row = queryVisible<HTMLElement>(Sel.threadSelected) ?? queryAll<HTMLElement>(Sel.threadSelected)[0];
-    return row?.getAttribute("data-app-action-sidebar-thread-id") ?? null;
+    const selected = queryAll<HTMLElement>(Sel.threadRow).find(row => {
+        const mark = row.getAttribute("data-app-action-sidebar-thread-selected");
+        const active = row.getAttribute("data-app-action-sidebar-thread-active");
+        const current = row.getAttribute("aria-current");
+        return mark === "true" || active === "true" || current === "page" || current === "true";
+    });
+    return selected?.getAttribute("data-app-action-sidebar-thread-id") ?? null;
 }
 
 export const isHomePath = () => !currentConversationId();

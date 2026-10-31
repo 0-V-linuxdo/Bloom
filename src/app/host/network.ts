@@ -4,12 +4,13 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { visible } from "@utils/dom";
+import { every, isVisible } from "@utils/dom";
 import { createEmitter } from "@utils/events";
 import { Logger } from "@utils/Logger";
 import { isRecord, normalizeText } from "@utils/misc";
 
 import { protocol, type ProtocolNote } from "./protocol";
+import { currentConversationId } from "./route";
 import { Sel } from "./selectors";
 import { sidebarTitle } from "./sidebar";
 
@@ -43,6 +44,13 @@ export const network = createEmitter<{
 
 const conversations = new Map<string, ConversationData>();
 const signatures = new Map<string, string>();
+const grownAt = new Map<string, number>();
+const grownLen = new Map<string, number>();
+const fiberSeen = new Set<string>();
+const frozen = new Set<string>();
+export const HARVEST_SETTLE_MS = 800;
+const HARVEST_TICK_MS = 200;
+let stopHarvestTick: (() => void) | undefined;
 
 export const activeGenerateCount = () => 0;
 
@@ -64,8 +72,45 @@ function conversationEntry(id: string) {
     return entry;
 }
 
+export function conversationKey(id: string) {
+    return conversationKeys(id)[0] ?? id;
+}
+
+export function harvestSettled(id: string | null) {
+    if (!id) return false;
+    const key = conversationKey(id);
+    if (frozen.has(key)) return true;
+    if (!fiberSeen.has(key)) return false;
+    const grown = grownAt.get(key);
+    if (grown == null || Date.now() - grown < HARVEST_SETTLE_MS) return false;
+    frozen.add(key);
+    return true;
+}
+
+function watchHarvest() {
+    if (stopHarvestTick) return;
+    stopHarvestTick = every(() => {
+        const id = currentConversationId();
+        if (!id || frozen.has(conversationKey(id))) return;
+        harvestFiber(id);
+    }, HARVEST_TICK_MS);
+}
+
+function noteFiber(entry: ConversationData) {
+    const key = conversationKey(entry.id);
+    fiberSeen.add(key);
+    const { length } = entry.chain;
+    if (length > (grownLen.get(key) ?? 0)) {
+        grownLen.set(key, length);
+        grownAt.set(key, Date.now());
+        return;
+    }
+    if (!grownAt.has(key)) grownAt.set(key, Date.now());
+}
+
 export function conversationData(id: string | null): ConversationData | null {
     if (!id) return null;
+    watchHarvest();
     harvestFiber(id);
     const keys = conversationKeys(id);
     return keys.map(key => conversations.get(key)).find(entry => entry && (entry.chain.length || entry.title)) ?? conversations.get(keys[0] ?? id) ?? null;
@@ -138,11 +183,19 @@ function collectFiberTurns(root: FiberNode | null, depth: number, items: Record<
     if (!root || depth > 24) return;
     const props = (isRecord(root.memoizedProps) ? root.memoizedProps : null) ?? (isRecord(root.pendingProps) ? root.pendingProps : null);
     if (props) {
-        if (Array.isArray(props.items) && isRecord(props.items[0]) && typeof props.items[0].turnKey === "string" && !items.length) {
-            items.push(...props.items.filter(isRecord));
+        if (Array.isArray(props.items) && isRecord(props.items[0]) && typeof props.items[0].turnKey === "string") {
+            const next = props.items.filter(isRecord);
+            if (next.length > items.length) {
+                items.length = 0;
+                items.push(...next);
+            }
         }
-        if (Array.isArray(props.entries) && isRecord(props.entries[0]) && typeof (props.entries[0].historyEntityKey ?? props.entries[0].turnId) === "string" && !entries.length) {
-            entries.push(...props.entries.filter(isRecord));
+        if (Array.isArray(props.entries) && isRecord(props.entries[0]) && typeof (props.entries[0].historyEntityKey ?? props.entries[0].turnId) === "string") {
+            const next = props.entries.filter(isRecord);
+            if (next.length > entries.length) {
+                entries.length = 0;
+                entries.push(...next);
+            }
         }
     }
     collectFiberTurns(root.child ?? null, depth + 1, items, entries);
@@ -158,29 +211,88 @@ function itemFor(items: Record<string, unknown>[], entry: Record<string, unknown
     }) ?? null;
 }
 
-function harvestFiber(id: string) {
-    const host = visible("[data-thread-find-target='conversation']") ?? visible(Sel.timelineScroll);
-    if (!host) return;
-    const paneId = visible(Sel.timelineScroll)?.querySelector("[data-response-annotation-conversation]")?.getAttribute("data-response-annotation-conversation");
-    if (paneId && !conversationKeys(id).includes(paneId)) return;
-    const items: Record<string, unknown>[] = [];
-    const entries: Record<string, unknown>[] = [];
-    try {
-        collectFiberTurns(reactFiber(host), 0, items, entries);
-    } catch (e) {
-        logger.warn("Fiber walk failed", e);
-        return;
+function sameConversation(id: string, other: string) {
+    return conversationKeys(id).some(key => conversationKeys(other).includes(key));
+}
+
+function aliases(id: string) {
+    const bare = id.replace(/^history-content:/, "").replace(/^turn:/, "").replace(/:assistant$/, "");
+    if (!bare) return [];
+    return [...new Set([id, bare, `turn:${bare}`, `${bare}:assistant`, `local:${bare}`])];
+}
+
+function paneTurnIds(host: Element) {
+    const ids = new Set<string>();
+    for (const el of host.querySelectorAll("[data-turn-key], [data-response-annotation-target], [data-chatgpt-search-message-ids]")) {
+        for (const value of [
+            el.getAttribute("data-turn-key"),
+            el.getAttribute("data-response-annotation-target"),
+            ...(el.getAttribute("data-chatgpt-search-message-ids") ?? "").split(/\s+/),
+        ]) {
+            if (value) for (const alias of aliases(value)) ids.add(alias);
+        }
     }
-    if (!entries.length && !items.length) return;
+    return ids;
+}
+
+function chainIds(entry: ConversationData) {
+    const ids = new Set<string>();
+    for (const item of entry.chain) for (const alias of aliases(item.id)) ids.add(alias);
+    return ids;
+}
+
+function paneIdOf(host: Element) {
+    return host.getAttribute("data-response-annotation-conversation")
+        ?? host.querySelector("[data-response-annotation-conversation]")?.getAttribute("data-response-annotation-conversation")
+        ?? null;
+}
+
+function harvestHosts() {
+    return [...document.querySelectorAll(`${Sel.conversationTarget}, ${Sel.timelineScroll}`)].filter(isVisible);
+}
+
+function harvestFiber(id: string) {
+    const hosts = harvestHosts();
+    if (!hosts.length) return;
+    let host: Element | undefined;
+    let items: Record<string, unknown>[] = [];
+    let entries: Record<string, unknown>[] = [];
+    for (const node of hosts) {
+        const paneId = paneIdOf(node);
+        if (paneId && !sameConversation(id, paneId)) continue;
+        const nextItems: Record<string, unknown>[] = [];
+        const nextEntries: Record<string, unknown>[] = [];
+        try {
+            collectFiberTurns(reactFiber(node), 0, nextItems, nextEntries);
+        } catch (e) {
+            logger.warn("Fiber walk failed", e);
+            continue;
+        }
+        const next = nextEntries.length ? nextEntries : nextItems;
+        const fiberId = typeof next[0]?.conversationId === "string" ? next[0].conversationId : "";
+        if (fiberId && !sameConversation(id, fiberId)) continue;
+        const current = entries.length ? entries : items;
+        if (next.length > current.length) {
+            host = node;
+            items = nextItems;
+            entries = nextEntries;
+        }
+    }
+    if (!host) return;
     const source = entries.length ? entries : items;
-    const conversationId = typeof source[0]?.conversationId === "string" ? source[0].conversationId : id;
-    const entry = conversationEntry(conversationId);
-    entry.title = sidebarTitle(id) ?? sidebarTitle(conversationId) ?? entry.title;
+    if (!source.length) return;
+    const fiberId = typeof source[0]?.conversationId === "string" ? source[0].conversationId : "";
+    const entry = conversationEntry(id);
+    entry.title = sidebarTitle(id) ?? sidebarTitle(fiberId || id) ?? entry.title;
+    const visibleIds = paneTurnIds(host);
+    const known = chainIds(entry);
+    const settled = harvestSettled(id);
     for (const row of source) {
         let turnId = "";
         if (typeof row.turnId === "string") turnId = row.turnId;
         else if (typeof row.turnKey === "string") turnId = row.turnKey.replace(/^.*turn:/, "");
         const userId = typeof row.historyEntityKey === "string" ? row.historyEntityKey : (turnId ? `turn:${turnId}` : "");
+        if (settled && ![userId, turnId].some(value => aliases(value).some(key => known.has(key) || visibleIds.has(key)))) continue;
         const item = itemFor(items, row);
         const userText = callText(item?.getLabel ?? row.getLabel);
         const assistantText = previewText(item?.getPreview ?? row.getPreview);
@@ -191,6 +303,7 @@ function harvestFiber(id: string) {
         }
         if (turnId && assistantText) mergeMessage(entry, messageOf(`${turnId}:assistant`, "assistant", assistantText, time));
     }
+    noteFiber(entry);
     publish(entry);
 }
 

@@ -61,6 +61,8 @@ let nextRequestId = 1;
 
 export const conversationData = (id: string | null) => id ? conversations.get(id) ?? null : null;
 
+export const harvestSettled = (id: string | null) => id != null;
+
 export const activeGenerateCount = () => activeStreams.size;
 
 function conversationEntry(id: string) {

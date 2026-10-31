@@ -28,9 +28,7 @@ const hasTimeline = () => !!document.querySelector(Sel.timelineScroll);
 
 export const hasThreadShell = () => !!visible(Sel.timelineScroll);
 
-export const pageConversationKey = () => currentConversationId()
-    ?? document.querySelector(Sel.composerConversation)?.getAttribute("data-above-composer-conversation-id")
-    ?? "";
+export const pageConversationKey = () => currentConversationId() ?? "";
 
 export const threadRoot = (): ParentNode | null => hasTimeline() ? visible(Sel.timelineScroll) : document;
 
