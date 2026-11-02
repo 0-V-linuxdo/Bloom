@@ -368,7 +368,7 @@ describe("BetterNavigator open turn", () => {
         }
     });
 
-    test("pins the rail to the scroller content edge when the host zooms the layout", async () => {
+    test("pins the rail to the scroller's outer right edge, over its scrollbar, when the host zooms the layout", async () => {
         const html = document.documentElement;
         const prevWidth = Object.getOwnPropertyDescriptor(html, "clientWidth");
         document.body.innerHTML = OPEN_USER;
@@ -382,9 +382,7 @@ describe("BetterNavigator open turn", () => {
             navigator.start?.();
             await wait(100);
             const host = document.querySelector<HTMLElement>("[data-bloom=navigator]")!;
-            const scale = 785.73 / 714;
-            const contentRight = 325.61 + (10 + 694) * scale;
-            expect(parseFloat(host.style.right)).toBeCloseTo(1728 - contentRight, 1);
+            expect(parseFloat(host.style.right)).toBeCloseTo(1728 - (325.61 + 785.73), 1);
         } finally {
             if (prevWidth) Object.defineProperty(html, "clientWidth", prevWidth);
             else delete (html as { clientWidth?: number; }).clientWidth;

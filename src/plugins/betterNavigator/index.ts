@@ -476,11 +476,6 @@ function row(entry: Entry, index: number) {
     }, h("span", { text: EMOJI[entry.role] }), h("span", { class: "bloom-truncate", text: truncate(entry.summary || "…", SUMMARY_CHARS) }));
 }
 
-function contentRight(el: HTMLElement, box: DOMRectReadOnly) {
-    const scale = el.offsetWidth ? box.width / el.offsetWidth : 1;
-    return box.left + (el.clientLeft + el.clientWidth) * scale;
-}
-
 function overlayLeft(scrollerBox: DOMRectReadOnly) {
     let left = Infinity;
     for (const el of document.querySelectorAll<HTMLElement>(PIN_CHROME)) {
@@ -499,7 +494,7 @@ function pin(scroller: HTMLElement) {
     const composerTop = composerForm()?.getBoundingClientRect().top;
     const bottom = Math.min(scrollBox.bottom, composerTop && composerTop > scrollBox.top ? composerTop : scrollBox.bottom);
     const height = bottom - scrollBox.top;
-    const edge = Math.min(contentRight(scroller, scrollBox), overlayLeft(scrollBox) ?? Infinity);
+    const edge = Math.min(scrollBox.right, overlayLeft(scrollBox) ?? Infinity);
     root.style.right = `${document.documentElement.clientWidth - edge}px`;
     root.style.top = `${scrollBox.top}px`;
     root.style.height = height > 1 ? `${height}px` : "";
