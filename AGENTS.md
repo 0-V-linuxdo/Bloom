@@ -35,7 +35,7 @@ chatgpt.com hydrates with `hydrateRoot(document)`. These broke earlier versions:
 
 Live tests on chatgpt.com use the Instant model, never Pro. Pick Instant in the model picker before sending any test message.
 
-Live tests of `Bloom.app.user.js` in the ChatGPT desktop app run on GG's Mac through Cursor, started with `scripts/app-inject/ChatGPT-Bloom.command`. An agent that cannot reach the app ends each app change with a test brief GG can paste into Cursor. A check passes only on what a screenshot shows: computed styles, element sizes and synthetic CDP pointer events do not prove a visual fix. Hover checks need a real pointer, and every result is reported with before and after screenshots. Never call `Page.reload` on `app://`; it crashes the renderer.
+Live tests of `Bloom.app.user.js` in the ChatGPT desktop app run on GG's Mac through Cursor, started with `scripts/app-inject/ChatGPT-Bloom.command`. An agent that cannot reach the app ends each app change with a test brief GG can paste into Cursor. A check passes only on what a screenshot shows: computed styles, element sizes and synthetic CDP pointer events do not prove a visual fix. Hover checks need a real pointer, and every result is reported with before and after screenshots. Never call `Page.reload` on `app://`; it crashes the renderer. When the tests are done, quit ChatGPT and leave it closed: do not reopen it, whether with `open`, `ChatGPT-Bloom.command` or `restart-chatgpt.applescript`.
 
 Cursor sends every live test result itself to the Claude page open in GG's Helium browser, so GG never copies results by hand:
 
