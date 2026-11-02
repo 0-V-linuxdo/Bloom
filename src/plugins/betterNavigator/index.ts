@@ -31,7 +31,6 @@ const LINE_RATIO = 0.28;
 const HEAD_HYST = 24;
 const EDGE_PX = 8;
 const EDGE_TAIL = 80;
-const RAIL_GAP_PX = 12;
 const OVERLAY_MIN = 80;
 const PIN_CHROME = `${Sel.rightPanel}, ${Sel.summaryPanel}`;
 const EMOJI: Record<Role, string> = { user: "❓", assistant: "🤖" };
@@ -498,7 +497,7 @@ function pin(scroller: HTMLElement) {
     const bottom = Math.min(scrollBox.bottom, composerTop && composerTop > scrollBox.top ? composerTop : scrollBox.bottom);
     const height = bottom - scrollBox.top;
     const edge = Math.min(contentRight(scroller, scrollBox), overlayLeft(scrollBox) ?? Infinity);
-    root.style.right = `${document.documentElement.clientWidth - edge + RAIL_GAP_PX}px`;
+    root.style.right = `${document.documentElement.clientWidth - edge}px`;
     root.style.top = `${scrollBox.top}px`;
     root.style.height = height > 1 ? `${height}px` : "";
 }

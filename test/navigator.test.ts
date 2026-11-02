@@ -361,7 +361,7 @@ describe("BetterNavigator open turn", () => {
             navigator.start?.();
             await wait(100);
             const host = document.querySelector<HTMLElement>("[data-bloom=navigator]")!;
-            expect(parseFloat(host.style.right)).toBeCloseTo(1728 - 1384.8 + 12, 1);
+            expect(parseFloat(host.style.right)).toBeCloseTo(1728 - 1384.8, 1);
         } finally {
             if (prevWidth) Object.defineProperty(html, "clientWidth", prevWidth);
             else delete (html as { clientWidth?: number; }).clientWidth;
@@ -384,7 +384,7 @@ describe("BetterNavigator open turn", () => {
             const host = document.querySelector<HTMLElement>("[data-bloom=navigator]")!;
             const scale = 785.73 / 714;
             const contentRight = 325.61 + (10 + 694) * scale;
-            expect(parseFloat(host.style.right)).toBeCloseTo(1728 - contentRight + 12, 1);
+            expect(parseFloat(host.style.right)).toBeCloseTo(1728 - contentRight, 1);
         } finally {
             if (prevWidth) Object.defineProperty(html, "clientWidth", prevWidth);
             else delete (html as { clientWidth?: number; }).clientWidth;

@@ -332,11 +332,11 @@ async function newShellSuite(browser) {
     check("favicon moved through wait, generating and done", favicons.length >= 3 && favicons.at(-1).startsWith("data:image/png") && favicons.at(-1) !== rotating, `${favicons.length} states`);
     check("ChatListStatus clears after the reply", await page.locator('[data-bloom="cls"]').count() === 0);
     check("MessageTimestamps stamps live messages", await page.locator('time[data-bloom="timestamp"]').count() >= 2);
-    check("BetterNavigator sits at the right edge of the thread, not beside the text column", await page.evaluate(() => {
+    check("BetterNavigator sits flush against the thread's scrollbar, not beside the text column", await page.evaluate(() => {
         const scroller = document.querySelector("[data-app-action-timeline-scroll]");
         const { left } = scroller.getBoundingClientRect();
         const rail = document.querySelector(".bloom-nav-root").getBoundingClientRect();
-        return Math.abs(left + scroller.clientLeft + scroller.clientWidth - 12 - rail.right) < 1;
+        return Math.abs(left + scroller.clientLeft + scroller.clientWidth - rail.right) < 1;
     }));
     check("BetterNavigator keeps its ticks when a message's text changes", await page.evaluate(async () => {
         const before = [...document.querySelectorAll(".bloom-nav-tick")];
