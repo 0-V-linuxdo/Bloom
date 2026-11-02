@@ -20,9 +20,10 @@ type Scope = "thread" | "composer" | "sidebar";
 const CHECK_MS = 2000;
 const GRACE_MS = 10_000;
 const DESKTOP_WIDTH = 1024;
+const MESSAGE = [Sel.messageUnit, Sel.oldMessage, Sel.authorRole].join(", ");
 
 const SCOPES: Record<Scope, { applies: () => boolean; selectors: string[]; }> = {
-    thread: { applies: () => !!currentConversationId(), selectors: [Sel.turn] },
+    thread: { applies: () => !!currentConversationId() && !!document.querySelector(MESSAGE), selectors: [Sel.turn] },
     composer: { applies: () => isHomePath() || isProjectHome() || !!currentConversationId(), selectors: [Sel.composerInput] },
     sidebar: { applies: () => innerWidth >= DESKTOP_WIDTH, selectors: [Sel.sidebarScroll, Sel.rail, Sel.oldSidebar, Sel.oldRail] },
 };
