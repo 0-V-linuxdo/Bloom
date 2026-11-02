@@ -46,6 +46,14 @@ const liveIds = new Set<string>();
 let lastFallAt = 0;
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let unsubscribers: (() => void)[] = [];
+let displayDay = "";
+const displays = new Map<string, { instant: number; text: string; }>();
+
+interface Plan {
+    unit: HTMLElement;
+    role: ReturnType<typeof unitRole>;
+    target: HTMLElement;
+}
 
 function learn(id: string, time: number) {
     if (known.get(id) === time) return;
@@ -222,26 +230,24 @@ function anchorFor(unit: HTMLElement, role: string | null) {
     return unit;
 }
 
-function isAnchorOwner(unit: HTMLElement, target: HTMLElement) {
-    const units = outerMessageUnits();
-    for (let i = units.length - 1; i >= 0; i--) {
-        const el = units[i];
-        if (el !== unit && (unitRole(el) !== "assistant" || anchorFor(el, "assistant") !== target)) continue;
-        return el === unit;
-    }
-    return true;
-}
-
 function directStamp(unit: HTMLElement) {
     return unit.querySelector<HTMLTimeElement>(':scope > time[data-bloom="timestamp"]');
 }
 
-function stamp(unit: HTMLElement) {
+function displayFor(time: number, absolute: boolean) {
+    const key = `${time}:${absolute}`;
+    const cached = displays.get(key);
+    if (cached) return cached;
+    const instant = displayInstant(time, absolute);
+    const display = { instant, text: formatInstant(instant) };
+    displays.set(key, display);
+    return display;
+}
+
+function stamp({ unit, role, target }: Plan, owner: boolean, liveTurn: Element | undefined) {
     const ids = unitMessageIds(unit);
     if (!ids.length || !isHydrated(unit) || unit.querySelector("time:not([data-bloom])")) return;
-    const role = unitRole(unit);
-    const target = anchorFor(unit, role);
-    if (target !== unit && !isAnchorOwner(unit, target)) {
+    if (!owner) {
         directStamp(unit)?.remove();
         return;
     }
@@ -254,13 +260,13 @@ function stamp(unit: HTMLElement) {
         learn(id, time);
         absolute = true;
     } else if (time && liveIds.has(ids.at(-1) as string)) absolute = true;
+    if (role === "assistant" && liveTurn?.contains(unit)) return;
     const existing = target.querySelector<HTMLTimeElement>('time[data-bloom="timestamp"]') ?? directStamp(unit);
     if (!time || (settings.store.hideOwnMessages && role === "user")) {
         existing?.remove();
         return;
     }
-    const instant = displayInstant(time, absolute);
-    const text = formatInstant(instant);
+    const { instant, text } = displayFor(time, absolute);
     if (existing?.textContent === text && existing.parentElement === target && existing === target.firstElementChild) return;
     const node = h("time", {
         class: `bloom-timestamp bloom-timestamp-${role ?? "assistant"}`,
@@ -274,7 +280,18 @@ function stamp(unit: HTMLElement) {
 }
 
 const render = frameScheduler(() => {
-    for (const unit of outerMessageUnits()) stamp(unit);
+    const day = dayKey(Date.now(), systemZone());
+    if (day !== displayDay) {
+        displays.clear();
+        displayDay = day;
+    }
+    const liveTurn = generationState().generating ? [...document.querySelectorAll(Sel.turn)].at(-1) : undefined;
+    const plans: Plan[] = outerMessageUnits().map(unit => {
+        const role = unitRole(unit);
+        return { unit, role, target: anchorFor(unit, role) };
+    });
+    const owners = new Map(plans.map(plan => [plan.target, plan.unit]));
+    for (const plan of plans) stamp(plan, owners.get(plan.target) === plan.unit, liveTurn);
 });
 
 export default definePlugin({
@@ -297,6 +314,7 @@ export default definePlugin({
             }),
             generation.on("fall", () => {
                 lastFallAt = Date.now();
+                render();
             }),
         ];
     },
@@ -310,6 +328,7 @@ export default definePlugin({
     },
     onSettingsChange(key) {
         if (key === "stamps") return;
+        displays.clear();
         for (const node of document.querySelectorAll('time[data-bloom="timestamp"]')) node.remove();
         render();
     },
