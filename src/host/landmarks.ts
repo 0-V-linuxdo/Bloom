@@ -37,7 +37,6 @@ const REQUIRED: Record<string, Scope[]> = {
     Continue: ["composer"],
     InputHistory: ["composer"],
     PromptQueue: ["composer"],
-    ChatListStatus: ["sidebar"],
     CustomSidebarIdentity: ["sidebar"],
     NoSidebarIdentity: ["sidebar"],
     SidebarIdentityOpacity: ["sidebar"],

@@ -258,12 +258,6 @@ button.bloom-switch[aria-checked="true"]::after {
     white-space: nowrap;
 }
 
-@keyframes bloom-spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
 @keyframes bloom-fade-in {
     from {
         opacity: 0;

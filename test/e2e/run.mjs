@@ -174,7 +174,7 @@ async function sendPrompt(page, text) {
 
 async function newShellSuite(browser) {
     const { context, page, generateRequests } = await setup(browser, {
-        settings: { plugins: { PromptQueue: { enabled: true }, ResponseNotification: { onlyWhenHidden: false }, GreetingCustomizer: { enabled: true }, NoDictation: { enabled: true }, ChatListStatus: { enabled: true } } },
+        settings: { plugins: { PromptQueue: { enabled: true }, ResponseNotification: { onlyWhenHidden: false }, GreetingCustomizer: { enabled: true }, NoDictation: { enabled: true } } },
     });
     await page.goto("https://chatgpt.com/");
     await page.waitForSelector('[data-bloom="entry"]', { state: "attached", timeout: 10_000 });
@@ -252,7 +252,7 @@ async function newShellSuite(browser) {
     await page.locator(".bloom-settings-hint").hover();
     check("panel hint tooltip shows at once on hover", (await page.locator(".bloom-tooltip").textContent({ timeout: 300 }).catch(() => "")).includes("Some need a reload"));
     await page.screenshot({ path: resolve(shots, "panel-hint-light.png"), clip: { x: 0, y: 0, width: 1280, height: 260 } });
-    check("panel lists 25 plugins", await page.locator(".bloom-settings-card").count() === 25);
+    check("panel lists 24 plugins", await page.locator(".bloom-settings-card").count() === 24);
     await page.locator('[data-bloom="settings"] input[type=search]').fill("queue");
     check("panel search filters", await page.locator(".bloom-settings-card").count() === 1);
     await page.locator('[data-bloom="settings"] input[type=search]').fill("");
@@ -307,7 +307,6 @@ async function newShellSuite(browser) {
     check("PromptQueue queues during a reply", await page.locator(".bloom-queue-count").textContent() === "1 Queued message");
     await page.waitForFunction(() => /^\/c\/(?!local-)/.test(location.pathname));
     await page.waitForTimeout(200);
-    check("ChatListStatus spins on the open chat", await page.locator('[data-bloom="cls"][data-status="streaming"]').count() === 1);
     check("PromptQueue keeps the queue when the local id becomes real", await page.locator(".bloom-queue-count").textContent() === "1 Queued message");
     check("favicon stays generating after the id becomes real", await page.evaluate(() => document.getElementById("bloom-chat-state-favicon")?.href) === rotating);
     check("PromptQueue clears the composer", (await page.locator(COMPOSER).textContent()).trim() === "");
@@ -330,7 +329,6 @@ async function newShellSuite(browser) {
     await page.waitForTimeout(700);
     const favicons = await page.evaluate(() => window.__favicons);
     check("favicon moved through wait, generating and done", favicons.length >= 3 && favicons.at(-1).startsWith("data:image/png") && favicons.at(-1) !== rotating, `${favicons.length} states`);
-    check("ChatListStatus clears after the reply", await page.locator('[data-bloom="cls"]').count() === 0);
     check("MessageTimestamps stamps live messages", await page.locator('time[data-bloom="timestamp"]').count() >= 2);
     check("BetterNavigator sits flush against the thread's scrollbar, not beside the text column", await page.evaluate(() => {
         const scroller = document.querySelector("[data-app-action-timeline-scroll]");

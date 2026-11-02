@@ -113,7 +113,7 @@ ChatGPT 改版后插件常常静默失效，自检让这种情况在设置面板
 - 网页版（`host/landmarks.ts`）每 2 秒检查三类锚点，只在适用的页面上检查，同一类连续缺 10 秒才判定缺失，找到就立即恢复。后台标签页不检查，并重新计时：
   - 会话消息 `Sel.turn`（只在 `/c/{id}` 页）：BetterNavigator、BetterQuotes、MessageTimestamps、StarChats、UserQuotes。
   - 输入框 `Sel.composerInput`（首页、项目首页、会话页）：ComposerOpacity、Continue、InputHistory、PromptQueue。
-  - 侧栏（新壳滚动区或 rail、旧壳侧栏或 rail，只在窗口宽度 ≥ 1024 px 时）：ChatListStatus、CustomSidebarIdentity、NoSidebarIdentity、SidebarIdentityOpacity。
+  - 侧栏（新壳滚动区或 rail、旧壳侧栏或 rail，只在窗口宽度 ≥ 1024 px 时）：CustomSidebarIdentity、NoSidebarIdentity、SidebarIdentityOpacity。
 - 网页版只报告，不停用插件，因为首页等页面本来就没有这些锚点，反复停启会丢插件状态。ChatGPT.app（`app/host/landmarks.ts`）照旧在锚点缺失时暂停插件、找回时恢复，同时报告。
 - 报告的结果在设置面板的插件卡片上显示（见第 3 节），只对已开启的插件报告。
 - 网页版第一次发现缺失时弹一张 `warning` 提示条（`duration: 0`），列出受影响的插件。同一版本、同一组插件只弹一次，记在 `plugins.Settings.landmarkNotice`（`版本|插件名,…`）。不发请求。
@@ -264,28 +264,19 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
   - 按钮悬停提示显示在托盘标题行右侧。
 - 设置：`replacePending`（默认假：Enter 追加；真：只替换最后一条，不丢前面的）、`showQueueMode`（默认真）、`stickyOnNavigate`（默认真）、`persistAcrossRefresh`（默认真）。
 
-### 4.11 ChatListStatus — 侧栏当前会话状态
-
-默认关（ChatGPT 新版侧栏已原生显示当前会话的生成状态）｜`HostReady`｜chat, ui｜Void++ 同名
-
-- 当前打开的会话正在生成时，在侧栏 Recents 里它那一行显示转圈；以错误结束时显示错误标记。其他行 ChatGPT 自己会画状态，不重复画，也不画“完成点”。
-- 打开一个已结束的会话不能转圈；切走的那一行立刻回到空闲。
-- 同一浏览器多个标签页之间通过 `BroadcastChannel("bloom-cls")` 同步。
-- 无设置项。
-
-### 4.12 WiderChat — 加宽对话
+### 4.11 WiderChat — 加宽对话
 
 默认开｜`Init`｜ui｜Void++ 同名
 
 纯 CSS：把对话内容列和输入框的最大宽度改成设置值。设置：`width` 滑块 40–96 rem（默认 64；ChatGPT 原生约 40–48 rem）。
 
-### 4.13 ComposerOpacity — 输入框透明度
+### 4.12 ComposerOpacity — 输入框透明度
 
 默认开｜`Init`｜ui, chat｜Void++ 同名
 
 纯 CSS：输入框背景半透明 + 背景模糊，让对话内容透出来；同时去掉输入框区域底部的实色底板和渐变遮罩。新壳的输入框是 `form[data-chatgpt-composer]`。胶囊圆角是 ChatGPT 的内联 `border-radius`，有时在 `[class*="ComposerLayoutRoot"]` 上，有时在 `[class*="ComposerLayoutBody"]` 上，另一层则是同尺寸、圆角为 0 的盒子。半透明和 `backdrop-filter` 打在 Body 上。当前页圆角在 Root（26px），Body 是直角；Root 默认 `overflow: visible`，不裁子元素，所以 Body 的方形填充从胶囊四角漏出，输入框四周变成一块矩形底板。只要有 Body，就清掉 Root 的背景和模糊，并给 Root 加 `overflow: clip`，让方形填充被 Root 自己的圆角裁掉。圆角写在 Body 上时，Root 圆角为 0，这次裁剪不会改变 Body 自己的胶囊。没有 Body 但有 Root 时（更早的新壳）才把半透明打在 Root 上；两者都没有时才退回旧的 Tailwind 类名（`corner-superellipse`、`bg-token-*`、`shadow-short`），免得误伤输入框里带这些类的按钮。半透明底色取底板自己的 `--composer-layout-surface-background`（ChatGPT 按 `data-composer-surface-variant` 设置，深色下是 #1b1b1b），按 `opacity` 用 `color-mix` 调成半透明，跟随页面主题；旧壳没有这个变量时依次退回 `--color-bg-primary`、`--bg-primary`、`--main-surface-primary`，最后是系统色 `Canvas`（跟随 `color-scheme`），不写死白色。识别输入框用 `form:has(:is(输入框选择器))`：输入框选择器里的 `form [contenteditable].ProseMirror` 直接放进 `form:has()` 会要求表单里再套一个表单，永远匹配不到。设置：`opacity` 0–100（默认 100 = 原生，不注入任何样式）、`blur` 0–40 px（默认 16，仅在不透明度 < 100 时生效）。不影响点击。
 
-### 4.14 BetterNavigator — 对话目录
+### 4.13 BetterNavigator — 对话目录
 
 默认开｜`HostReady`｜chat, ui｜Void++ 同名（Void++ 用 Grok 原生刻度条，Bloom 自绘）
 
@@ -306,7 +297,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 只有一轮对话也显示。
 - 设置：`showAssistant`（刻度和目录里也列出助手回合，默认真；关掉后刻度、目录和 “N / M” 都只算用户消息，与 Void++ 一致）、`jumpEffect`（border 默认 / none）。
 
-### 4.15 MessageTimestamps — 消息时间
+### 4.14 MessageTimestamps — 消息时间
 
 默认开｜`HostReady`｜chat｜Void++ 同名
 
@@ -315,7 +306,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 已有原生 `<time>` 的消息不重复画。
 - 设置：`sourceTimeZone`（原时区，默认 UTC。ChatGPT 的 `create_time` 是绝对时刻，保持 UTC。只有该数字其实是 Shit GPT 插件所选时区的墙钟时，才改成同一项：美国东部、美国中部、美国山地、美国西部、日本、台湾；显示始终换算到系统时区）、`hideOwnMessages`（不给自己的消息打时间，默认假）；隐藏 `stamps: {messageId: ms}`。当天只显示钟点，不是当天的一定带日期，不能关掉。按系统时区的日历日判断。
 
-### 4.16 StreamerMode — 直播模式
+### 4.15 StreamerMode — 直播模式
 
 默认关｜`Init`｜privacy, ui｜Void++ 同名
 
@@ -329,7 +320,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 不模糊 Bloom++ 行、Bloom++ 面板、输入框、模型选择器、Voice、Share。
 
-### 4.17 GreetingCustomizer — 自定义首页问候语
+### 4.16 GreetingCustomizer — 自定义首页问候语
 
 默认关｜`HostReady`｜ui｜Void++ CustomGreeting
 
@@ -342,13 +333,13 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 设置：`mode`、`order`、`intervalSec`（1–3600，默认 10）、`heroOnlyOutsideProject`（默认真）；隐藏 `greetings: string[]`（默认 3 条名言）、`index`、`lastRandom`。
 - 列表为空、离开首页、停用时恢复原标题。
 
-### 4.18 SidebarIdentityOpacity — 左下角账号区透明度
+### 4.17 SidebarIdentityOpacity — 左下角账号区透明度
 
 默认开｜`Init`｜ui｜Bloom++ 独有（Void++ 没有同类插件）
 
 纯 CSS：降低侧栏左下角账号区的不透明度，指针移上去时立即恢复 100%（无过渡）。账号区指：展开侧栏里的整个账号区（footer：滚动区或其父元素的下一个兄弟、里面有 `button[aria-haspopup="menu"]`，入口 Bloom++ 行也在里面）；rail 里带 `button[aria-haspopup="menu"]` 的那一行；旧壳的 `[data-testid="accounts-profile-button"]`。**头像默认不淡化**（原生头像和 CustomSidebarIdentity 的自定义头像都一样）：元素 `opacity` 在子元素上撤不回来，所以不给账号区整体设 `opacity`，而是沿“账号区 → 头像”这条祖先链，给链上每个元素的其他子元素设 `opacity`（选择器 `:is(账号区, 账号区 :has(头像)) > :not(头像, :has(头像))`）。头像靠身份标记 `[data-bloom-profile-avatar]` 识别（插件自己启用 `useIdentityMarks`）。这条链上元素自己的背景不淡化。不改背景色，不影响点击；下拉菜单挂在别处，不受影响。设置：`opacity` 0–100 %（默认 50；100 = 原生，不注入任何样式）、`fadeAvatar`（头像也淡化，此时整个账号区统一设 `opacity`，默认假）。
 
-### 4.19 Continue — 回复中断后自动续写
+### 4.18 Continue — 回复中断后自动续写
 
 默认开｜`HostReady`｜chat｜Bloom++ 独有
 
@@ -357,7 +348,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 同一次错误只发一条。发出去之后如果又停在新的投递错误上，再发，直到这次成功结束，或同一会话里已经连着发了 6 条。正常结束（`done` 且错误条已消失）后计数清零。输入框里已有草稿时不覆盖。
 - 设置：`prompt`（默认 “continue where you left”）。
 
-### 4.20 StarChats — 给消息加星
+### 4.19 StarChats — 给消息加星
 
 默认开｜`HostReady`｜chat, ui｜对齐 Void++ 的 MessageStars。不往左侧栏加分组。
 
@@ -369,7 +360,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 最多 80 条，新加的排最前。只显示当前会话的星。关掉插件就去掉星星和列表。隐藏数据：`messages: { conversationId, messageId, role, snippet, starredAt }[]`。旧的 `chats` 不再使用，也不会再画进侧栏。
 - 设置：`replaceReadAloud`（默认真）。
 
-### 4.21 BetterQuotes — 引用跳转，切会话保留引用卡
+### 4.20 BetterQuotes — 引用跳转，切会话保留引用卡
 
 默认开｜`HostReady`｜chat, ui
 
@@ -379,14 +370,14 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 - 记录在 `sessionStorage` 键 `BloomBetterQuotes`，最多 40 条，不进 `BloomSettings`。关掉 `persistAcrossChats` 会清掉。
 - 设置：`jumpToPassage`（默认开）、`persistAcrossChats`（默认开）。
 
-### 4.22 UserQuotes — 自己消息里的引用左边线
+### 4.21 UserQuotes — 自己消息里的引用左边线
 
 默认开｜`Init`｜chat, ui｜纯 CSS
 
 - 只画在用户消息里的 `blockquote` 上（新壳 `[data-chatgpt-search-unit-key$=":user"]`，旧壳 `[data-message-author-role="user"]`）。助手消息里的引用不动。左边线 0.25rem，颜色用 `--bloom-fg-2`。
 - 设置：`italic`（默认开，关则不再强制斜体）、`quotes`（默认关，关则去掉装饰引号）。
 
-### 4.23 TemporaryChat — 可选把 New chat 开成临时聊天
+### 4.22 TemporaryChat — 可选把 New chat 开成临时聊天
 
 默认开｜`HostReady`｜privacy, ui
 
@@ -396,7 +387,7 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 
 ---
 
-### 4.24 CompleteToast — 后台会话答完的页内提示
+### 4.23 CompleteToast — 后台会话答完的页内提示
 
 默认开｜`HostReady`｜chat｜Void++ 同名
 
@@ -420,7 +411,6 @@ CSS 为主。设置：`hideShareChat`（会话头部 Share 和用户消息操作
 | Cleaner | `hideDownloadApps` `hideDisclaimer` `hideUpgrade` `hideLockedModels` `hideHomePromo` `hideAds` `hideNotices` `hideInvite` | — |
 | ResponseNotification | `sound` `soundUrl` `browserNotification` `onlyWhenHidden` | — |
 | PromptQueue | `replacePending` `showQueueMode` `stickyOnNavigate` `persistAcrossRefresh` | — |
-| ChatListStatus | — | — |
 | WiderChat | `width` | — |
 | ComposerOpacity | `opacity` `blur` | — |
 | Continue | `prompt` | — |

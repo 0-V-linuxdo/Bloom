@@ -10,7 +10,6 @@ import Settings from "./_core/settings";
 import Themes from "./_core/themes";
 import BetterNavigator from "./betterNavigator";
 import BetterQuotes from "./betterQuotes";
-import ChatListStatus from "./chatListStatus";
 import ChatStateFavicons from "./chatStateFavicons";
 import Cleaner from "./cleaner";
 import CompleteToast from "./completeToast";
@@ -38,7 +37,6 @@ const list: Plugin[] = [
     Themes,
     BetterNavigator,
     BetterQuotes,
-    ChatListStatus,
     ChatStateFavicons,
     Cleaner,
     CompleteToast,
