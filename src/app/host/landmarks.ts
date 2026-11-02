@@ -22,7 +22,6 @@ const REQUIRED: Record<string, string[]> = {
     ResponseNotification: [Sel.composerInput],
     InputHistory: [Sel.composerInput],
     Continue: [Sel.composerInput],
-    ChatListStatus: [Sel.sidebarScroll],
     StarChats: [Sel.turn],
     BetterNavigator: [Sel.timelineScroll, Sel.turn],
     BetterQuotes: [Sel.turn],

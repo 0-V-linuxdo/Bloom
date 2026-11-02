@@ -16,9 +16,6 @@ import definePlugin from "@utils/types";
 
 import styles from "./styles.css";
 
-const APP_MARK = "[data-app-action-sidebar-thread-row]{position:relative}"
-    + "[data-app-action-sidebar-thread-row]>[data-bloom=cls]{position:absolute;inset-inline-end:0.25rem;top:50%;width:0.875rem;height:0.875rem;margin:0;transform:translateY(-50%);pointer-events:none}";
-
 const cl = classNameFactory("bloom-cls");
 
 const CHANNEL = "bloom-cls";
@@ -101,7 +98,7 @@ export default definePlugin({
     authors: ["Bloom contributors"],
     tags: ["chat", "ui"],
     icon: "list",
-    styles: () => `${styles}${BLOOM_APP ? APP_MARK : ""}`,
+    styles,
     start() {
         for (const node of document.querySelectorAll('[data-bloom="cls"]')) node.remove();
         channel = typeof BroadcastChannel === "function" ? new BroadcastChannel(CHANNEL) : null;

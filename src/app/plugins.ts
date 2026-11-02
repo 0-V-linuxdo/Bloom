@@ -10,7 +10,6 @@ import Settings from "../plugins/_core/settings";
 import Themes from "../plugins/_core/themes";
 import BetterNavigator from "../plugins/betterNavigator";
 import BetterQuotes from "../plugins/betterQuotes";
-import ChatListStatus from "../plugins/chatListStatus";
 import Cleaner from "../plugins/cleaner";
 import ComposerOpacity from "../plugins/composerOpacity";
 import Continue from "../plugins/continue";
@@ -34,7 +33,6 @@ const list: Plugin[] = [
     Themes,
     BetterNavigator,
     BetterQuotes,
-    ChatListStatus,
     Cleaner,
     ComposerOpacity,
     Continue,
