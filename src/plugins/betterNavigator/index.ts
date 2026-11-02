@@ -186,7 +186,10 @@ function placeLive(memory: Held[], live: Held[]) {
             if (previous) placed[at] = absorb(previous, group);
             cursor = at;
         } else {
-            placed.splice(cursor + 1, 0, group);
+            const text = userText(group);
+            const sent = text ? placed.findIndex((item, at) => at > cursor && !isLive(item) && userText(item) === text) : -1;
+            const [early] = sent >= 0 ? placed.splice(sent, 1) : [];
+            placed.splice(cursor + 1, 0, early ? { ...absorb(early, group), key: group.key } : group);
             cursor++;
         }
     }
