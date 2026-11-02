@@ -46,6 +46,15 @@ describe("GreetingCustomizer project split", () => {
         expect(document.querySelector("[data-bloom-placeholder]")).toBeNull();
     });
 
+    test("leaves a page heading alone when there is no composer", () => {
+        history.pushState(null, "", "/");
+        checkRoute();
+        document.body.innerHTML = '<main><h1 class="heading-xl">General</h1></main>';
+        plugin.start?.();
+        expect(document.querySelector("h1")?.hasAttribute("data-bloom-text")).toBe(false);
+        expect(document.querySelector("[data-bloom-greeting]")).toBeNull();
+    });
+
     test("can also replace the home composer when asked", () => {
         writeSetting("GreetingCustomizer", "heroOnlyOutsideProject", false);
         writeSetting("GreetingCustomizer", "index", 0);

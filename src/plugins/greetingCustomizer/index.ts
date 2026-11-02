@@ -71,7 +71,7 @@ function advance() {
 }
 
 function heading() {
-    return onHome() ? visible<HTMLElement>(Sel.homeHeading) : null;
+    return onHome() && composerInput() ? visible<HTMLElement>(Sel.homeHeading) : null;
 }
 
 function clear() {
